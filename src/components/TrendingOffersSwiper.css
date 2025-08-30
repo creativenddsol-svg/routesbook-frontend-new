@@ -1,0 +1,72 @@
+/* Custom styles for Swiper navigation and pagination */
+.trending-offers-swiper {
+  position: relative;
+  padding-bottom: 3.5rem;
+}
+
+.trending-offers-swiper .swiper-button-prev,
+.trending-offers-swiper .swiper-button-next {
+  color: #2563eb; /* Tailwind blue-600 */
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+}
+
+.trending-offers-swiper .swiper-button-prev:hover,
+.trending-offers-swiper .swiper-button-next:hover {
+  background: #ffffff;
+  transform: scale(1.1);
+}
+
+.trending-offers-swiper .swiper-button-prev:after,
+.trending-offers-swiper .swiper-button-next:after {
+  font-size: 1rem;
+}
+
+.trending-offers-swiper .swiper-button-prev {
+  left: -10px;
+}
+
+.trending-offers-swiper .swiper-button-next {
+  right: -10px;
+}
+
+.trending-offers-swiper .swiper-pagination {
+  bottom: 0;
+}
+
+.trending-offers-swiper .swiper-pagination-bullet {
+  background: #d1d5db; /* Tailwind gray-300 */
+  opacity: 1;
+  width: 10px;
+  height: 10px;
+  margin: 0 4px;
+}
+
+.trending-offers-swiper .swiper-pagination-bullet-active {
+  background: #2563eb; /* Tailwind blue-600 */
+  transform: scale(1.2);
+}
+
+/* Ensure cards are full height */
+.trending-offers-swiper .swiper-slide {
+  display: flex;
+  align-items: stretch;
+}
+
+/* Responsive adjustments */
+@media (max-width: 640px) {
+  .trending-offers-swiper .swiper-button-prev,
+  .trending-offers-swiper .swiper-button-next {
+    width: 32px;
+    height: 32px;
+  }
+
+  .trending-offers-swiper .swiper-button-prev:after,
+  .trending-offers-swiper .swiper-button-next:after {
+    font-size: 0.875rem;
+  }
+}

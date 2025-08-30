@@ -1,0 +1,117 @@
+/* --- Main Calendar Container --- */
+.react-datepicker {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background-color: #ffffff;
+}
+
+/* --- Header --- */
+.react-datepicker__header {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  padding-top: 15px;
+  padding-bottom: 10px;
+}
+
+/* --- Month and Year Display (e.g., "July 2025") --- */
+.react-datepicker__current-month {
+  font-size: 1rem; /* 16px */
+  font-weight: 600;
+  color: #333333;
+  padding-bottom: 10px;
+}
+
+/* --- Navigation Arrows --- */
+.react-datepicker__navigation {
+  top: 15px;
+}
+.react-datepicker__navigation--previous {
+  border-right-color: #555;
+}
+.react-datepicker__navigation--next {
+  border-left-color: #555;
+}
+.react-datepicker__navigation:hover *::before {
+  border-color: #000;
+}
+
+/* --- Day Names (Su, Mo, Tu...) --- */
+.react-datepicker__day-name {
+  color: #888888;
+  font-weight: 600;
+  width: 2.2rem;
+  line-height: 2.2rem;
+}
+
+/* --- Individual Day --- */
+.react-datepicker__day {
+  width: 2.2rem;
+  line-height: 2.2rem;
+  margin: 0.2rem;
+  border-radius: 50%;
+  color: #333333;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.react-datepicker__day:hover {
+  background-color: #f0f0f0;
+  border-radius: 50%;
+}
+
+/* --- Selected Day --- */
+.react-datepicker__day--selected {
+  background-color: #ef4444; /* A red color like the screenshot */
+  color: white;
+  font-weight: bold;
+}
+
+.react-datepicker__day--selected:hover {
+  background-color: #d93e3e;
+}
+
+/* --- Today's Date (but not selected) --- */
+.react-datepicker__day--today {
+  font-weight: bold;
+  background-color: #f0f0f0;
+}
+
+/* --- Dates outside the current month --- */
+.react-datepicker__day--outside-month {
+  color: #cccccc;
+}
+
+/* --- Remove the small triangle pointer for pop-ups --- */
+.react-datepicker__triangle {
+  display: none;
+}
+
+/* --- Tweak for Inline Calendar --- */
+/* When using the "inline" prop, we ensure it has no border or shadow */
+.react-datepicker--inline {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* --- Modal Styles --- */
+.calendar-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5); /* Semi-transparent black backdrop */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.calendar-modal-content {
+  background: white;
+  padding: 10px; /* A little padding around the calendar */
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
