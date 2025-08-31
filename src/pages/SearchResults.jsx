@@ -6,7 +6,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import axios from "axios";
+import apiClient from "../api";
 import { motion, AnimatePresence } from "framer-motion";
 import Select from "react-select";
 import toast, { Toaster } from "react-hot-toast";
@@ -178,7 +178,7 @@ const BusCardSkeleton = () => (
   <div className="bg-white rounded-2xl p-6 animate-pulse border border-gray-300">
     <div className="flex justify-between items-start">
       <div className="flex-1 pr-4">
-        <div className="h-6 w-3/s5 rounded bg-gray-200 mb-4"></div>
+        <div className="h-6 w-3/5 rounded bg-gray-200 mb-4"></div>
         <div className="h-4 w-4/5 rounded bg-gray-200"></div>
       </div>
       <div className="h-10 w-24 rounded-lg bg-gray-200"></div>
@@ -257,9 +257,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const fetchSpecialNotices = async () => {
       try {
         setNoticesLoading(true);
-        const res = await axios.get(
-          "http://localhost:5000/api/special-notices"
-        );
+        const res = await apiClient.get("/special-notices");
         setSpecialNotices(res.data);
       } catch (err) {
         console.error("Failed to fetch special notices:", err);
@@ -273,7 +271,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   useEffect(() => {
     const fetchAllBuses = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/buses");
+        const res = await apiClient.get("/buses");
         setAllBusesForDropdown(res.data);
       } catch (err) {
         console.error("Failed to fetch bus locations for dropdowns", err);
@@ -377,17 +375,23 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setBusSpecificBookingData({});
 
     try {
-      const res = await axios.get(
-        `http://localhost:5000/api/buses?from=${from}&to=${to}&date=${searchDateParam}`
-      );
+      const res = await apiClient.get("/buses", {
+        params: { from, to, date: searchDateParam },
+      });
       setBuses(res.data);
       const seatData = {};
       await Promise.all(
         res.data.map(async (bus) => {
           try {
             const availabilityKey = `${bus._id}-${bus.departureTime}`;
-            const availabilityRes = await axios.get(
-              `http://localhost:5000/api/bookings/availability/${bus._id}?date=${searchDateParam}&departureTime=${bus.departureTime}`
+            const availabilityRes = await apiClient.get(
+              `/bookings/availability/${bus._id}`,
+              {
+                params: {
+                  date: searchDateParam,
+                  departureTime: bus.departureTime,
+                },
+              }
             );
             seatData[availabilityKey] = {
               available: availabilityRes.data.availableSeats,
