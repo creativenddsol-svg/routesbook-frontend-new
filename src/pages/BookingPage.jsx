@@ -1,5 +1,5 @@
+// src/pages/BookingPage.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import BookingSteps from "../components/BookingSteps";
@@ -8,6 +8,8 @@ import BookingSummary from "../components/BookingSummary";
 import SeatLegend from "../components/SeatLegend";
 import BookingPageSkeleton from "../components/BookingPageSkeleton";
 import PointSelection from "../components/PointSelection";
+// ✅ Use shared API client
+import apiClient from "../api";
 
 const BookingPage = () => {
   const { busId } = useParams();
@@ -18,12 +20,10 @@ const BookingPage = () => {
     status: "loading",
     bus: null,
     bookedSeats: [],
-    // NEW: gender map for already-booked seats (used only for coloring)
     seatGenderMap: {},
   });
 
   const [selectedSeats, setSelectedSeats] = useState([]);
-  // NEW: genders for the seats user selects on this page (coloring + pass forward)
   const [selectedSeatGenders, setSelectedSeatGenders] = useState({}); // { "A1":"M"|"F" }
 
   const [date] = useState(searchParams.get("date") || "");
@@ -32,12 +32,11 @@ const BookingPage = () => {
   const [selectedBoardingPoint, setSelectedBoardingPoint] = useState(null);
   const [selectedDroppingPoint, setSelectedDroppingPoint] = useState(null);
 
-  // State for the full price breakdown
   const [basePrice, setBasePrice] = useState(0);
   const [convenienceFee, setConvenienceFee] = useState(0);
   const [totalPrice, setTotalPrice] = useState(0);
 
-  // Effect to fetch initial bus and seat availability data
+  // Fetch bus + booked seats
   useEffect(() => {
     if (!busId || !date || !departureTime) {
       setBookingData({
@@ -59,9 +58,9 @@ const BookingPage = () => {
       });
       try {
         const [busRes, seatsRes] = await Promise.all([
-          axios.get(`http://localhost:5000/api/buses/${busId}`),
-          axios.get(
-            `http://localhost:5000/api/bookings/booked-seats?busId=${busId}&date=${date}&departureTime=${departureTime}`
+          apiClient.get(`/buses/${busId}`),
+          apiClient.get(
+            `/bookings/booked-seats?busId=${busId}&date=${date}&departureTime=${departureTime}`
           ),
         ]);
 
@@ -69,17 +68,16 @@ const BookingPage = () => {
         const bookedSeats = Array.isArray(seatsRes.data.bookedSeats)
           ? seatsRes.data.bookedSeats.map(String)
           : [];
-        // NEW: gender map returned by backend for coloring booked seats
         const seatGenderMap = seatsRes.data.seatGenderMap || {};
 
         setBookingData({
           status: "success",
-          bus: bus,
+          bus,
           bookedSeats,
           seatGenderMap,
         });
-        setSelectedSeats([]); // Reset seat selection on new data load
-        setSelectedSeatGenders({}); // Reset genders
+        setSelectedSeats([]);
+        setSelectedSeatGenders({});
 
         if (bus.boardingPoints?.length > 0)
           setSelectedBoardingPoint(bus.boardingPoints[0]);
@@ -99,7 +97,7 @@ const BookingPage = () => {
     fetchData();
   }, [busId, date, departureTime]);
 
-  // Effect to calculate prices whenever selections change
+  // Price calculation
   useEffect(() => {
     if (bookingData.status !== "success" || !bookingData.bus) return;
 
@@ -129,8 +127,8 @@ const BookingPage = () => {
         currentConvenienceFee =
           (currentBasePrice * bus.convenienceFee.value) / 100;
       } else {
-        // Calculate fixed convenience fee per seat
-        currentConvenienceFee = bus.convenienceFee.value * selectedSeats.length;
+        currentConvenienceFee =
+          bus.convenienceFee.value * selectedSeats.length;
       }
     }
 
@@ -144,6 +142,7 @@ const BookingPage = () => {
     bookingData,
   ]);
 
+  // Handle seat toggle
   const handleSeatToggle = (seat) => {
     if (bookingData.bookedSeats.includes(String(seat))) return;
 
@@ -157,7 +156,6 @@ const BookingPage = () => {
         ? [...prev, seat]
         : (toast.error("You can select a maximum of 4 seats."), prev);
 
-      // NEW: keep selectedSeatGenders in sync (default "M" on add, delete on remove)
       setSelectedSeatGenders((g) => {
         const copy = { ...g };
         if (exists) {
@@ -187,11 +185,10 @@ const BookingPage = () => {
         bus: bookingData.bus,
         busId,
         date,
-        departureTime, // Pass departureTime to the next step
+        departureTime,
         selectedSeats,
-        // NEW: pass genders so Confirm page can show/adjust before final booking
         seatGenders: selectedSeatGenders,
-        priceDetails: { basePrice, convenienceFee, totalPrice }, // Pass the full price object
+        priceDetails: { basePrice, convenienceFee, totalPrice },
         selectedBoardingPoint,
         selectedDroppingPoint,
       },
@@ -221,7 +218,6 @@ const BookingPage = () => {
             bookedSeats={bookingData.bookedSeats}
             selectedSeats={selectedSeats}
             onSeatClick={handleSeatToggle}
-            /* NEW: only for coloring, no UI change */
             bookedSeatGenders={bookingData.seatGenderMap || {}}
             selectedSeatGenders={selectedSeatGenders}
           />
