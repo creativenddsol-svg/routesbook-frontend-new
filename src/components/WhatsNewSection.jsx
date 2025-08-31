@@ -1,8 +1,8 @@
 // src/components/WhatsNewSection.jsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import axios from "axios";
-import WhatsNewCard from "./WhatsNewCard";
 import { Link } from "react-router-dom";
+import WhatsNewCard from "./WhatsNewCard";
+import apiClient from "../api"; // ✅ use the configured axios instance
 
 /** Layout constants (match Offers rail) */
 const CARD_W = 340; // sm:w-[340px]
@@ -59,7 +59,7 @@ const GlassArrow = ({ side = "left", onClick, show }) => {
 };
 
 const WhatsNewSection = () => {
-  const [items, setItems] = useState([]);
+  const [items, setItems] = useState([]);       // ✅ always an array
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -70,24 +70,24 @@ const WhatsNewSection = () => {
   const atStart = index === 0;
   const atEnd = index === pages - 1;
 
-  // fetch active items (use your existing endpoint)
+  // fetch active items (backend returns [] when none)
   useEffect(() => {
-    let live = true;
+    let alive = true;
     (async () => {
       try {
-        const res = await axios.get("/api/whats-new/active", {
-          withCredentials: true,
-        });
-        if (live) setItems(res.data || []);
+        const { data } = await apiClient.get("/whats-new/active"); // ✅ use apiClient
+        if (!alive) return;
+        setItems(Array.isArray(data) ? data : []);                  // ✅ guard
       } catch (e) {
-        if (live)
-          setErr(e?.response?.data?.message || "Failed to load What's new.");
+        if (!alive) return;
+        setErr(e?.response?.data?.message || e?.message || "Failed to load What's new.");
+        setItems([]);                                              // ✅ keep as array
       } finally {
-        if (live) setLoading(false);
+        if (alive) setLoading(false);
       }
     })();
     return () => {
-      live = false;
+      alive = false;
     };
   }, []);
 
@@ -154,7 +154,8 @@ const WhatsNewSection = () => {
     );
   }
 
-  if (err || items.length === 0) return null;
+  // Hide the section when there is an error or no items
+  if (err || !Array.isArray(items) || items.length === 0) return null;
 
   return (
     <section className="w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -162,7 +163,6 @@ const WhatsNewSection = () => {
         <h4 className="text-[22px] sm:text-2xl font-bold text-gray-900">
           What’s new
         </h4>
-        {/* NEW: View more */}
         <Link
           to="/whats-new"
           className="text-sm font-semibold text-blue-600 hover:underline"
@@ -172,16 +172,8 @@ const WhatsNewSection = () => {
       </div>
 
       <div className="relative">
-        <GlassArrow
-          side="left"
-          onClick={() => scrollByStep(-1)}
-          show={!atStart}
-        />
-        <GlassArrow
-          side="right"
-          onClick={() => scrollByStep(1)}
-          show={!atEnd}
-        />
+        <GlassArrow side="left"  onClick={() => scrollByStep(-1)} show={!atStart} />
+        <GlassArrow side="right" onClick={() => scrollByStep(1)}  show={!atEnd}   />
 
         <div
           ref={railRef}
@@ -191,10 +183,9 @@ const WhatsNewSection = () => {
         >
           {items.map((it) => (
             <div
-              key={it._id}
+              key={it._id || it.id}
               className="w-[300px] sm:w-[340px] shrink-0 snap-start"
             >
-              {/* NEW: clicking a card opens the full list page */}
               <WhatsNewCard item={it} linkTo="/whats-new" />
             </div>
           ))}
