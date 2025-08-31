@@ -2,15 +2,11 @@ import { useState } from "react";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import toast, { Toaster } from "react-hot-toast";
-// Import the shared API client instead of axios
+// Use the shared API client (has baseURL + withCredentials)
 import apiClient from "../api";
 
-
 const Login = () => {
-  const [formData, setFormData] = useState({
-    email: "",
-    password: "",
-  });
+  const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -19,10 +15,7 @@ const Login = () => {
   const redirect = searchParams.get("redirect") || "/";
 
   const handleChange = (e) => {
-    setFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value,
-    }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e) => {
@@ -30,13 +23,26 @@ const Login = () => {
     setError("");
 
     try {
-      // Use the apiClient for the API call
+      // This uses your apiClient (withCredentials: true)
       const res = await apiClient.post("/auth/login", formData);
 
-      localStorage.setItem("token", res.data.token);
-      login(res.data.user, res.data.token);
+      // Support both token-in-body and cookie-only flows:
+      const token = res?.data?.token || null;
+      const user = res?.data?.user;
+
+      if (token) {
+        localStorage.setItem("token", token);
+      } else {
+        // If you previously stored a token, clear it to avoid stale auth
+        localStorage.removeItem("token");
+      }
+
+      // Update your auth context (pass token or null)
+      login(user, token);
+
       toast.success("Login successful!");
 
+      // If user had a pending booking, send them back to it
       const pending = localStorage.getItem("pendingBooking");
       if (pending) {
         const { busId, date } = JSON.parse(pending);
@@ -46,7 +52,12 @@ const Login = () => {
         navigate(redirect);
       }
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed");
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Login failed. Please try again.";
+      setError(msg);
+      toast.error(msg);
     }
   };
 
@@ -99,10 +110,7 @@ const Login = () => {
 
         <p className="mt-4 text-sm text-center text-gray-600">
           Not a user?{" "}
-          <Link
-            to="/signup"
-            className="text-blue-600 hover:underline font-medium"
-          >
+          <Link to="/signup" className="text-blue-600 hover:underline font-medium">
             Create an account
           </Link>
         </p>
