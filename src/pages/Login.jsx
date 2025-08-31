@@ -1,8 +1,9 @@
 import { useState } from "react";
-import axios from "axios";
 import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import toast, { Toaster } from "react-hot-toast";
+// Import the shared API client instead of axios
+import apiClient from "../api/apiClient"; 
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -28,10 +29,8 @@ const Login = () => {
     setError("");
 
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/auth/login",
-        formData
-      );
+      // Use the apiClient for the API call
+      const res = await apiClient.post("/auth/login", formData);
 
       localStorage.setItem("token", res.data.token);
       login(res.data.user, res.data.token);
