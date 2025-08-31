@@ -22,6 +22,7 @@ import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom"; // portal for calendar
 import NoticesSection from "../components/NoticesSection";
 import WhatsNewSection from "../components/WhatsNewSection";
+import apiClient from "../api";
 
 /* ---------------- Calendar helpers ---------------- */
 const toLocalYYYYMMDD = (dateObj) => {
@@ -469,7 +470,7 @@ const Home = () => {
   useEffect(() => {
     const fetchAllBuses = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/buses");
+        const res = await apiClient.get("/buses");
         setAllBuses(res.data);
       } catch (err) {
         console.error("Failed to fetch buses", err);
