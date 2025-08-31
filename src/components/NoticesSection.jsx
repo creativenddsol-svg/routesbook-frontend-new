@@ -12,7 +12,7 @@ const Skeleton = () => (
   <div
     className="
       w-[300px] sm:w-[340px]
-      h-[260px]                        /* matches aspect ~360/270 */
+      h-[260px]
       rounded-3xl
       ring-1 ring-black/5 bg-white
       shadow-[0_1px_2px_rgba(0,0,0,0.04)]
@@ -33,23 +33,11 @@ const GlassArrow = ({ side = "left", onClick, show }) => {
       hover:bg-white/90 active:scale-95 transition`}
     >
       {side === "left" ? (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5 text-gray-800"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeWidth="2" d="M15 19l-7-7 7-7" />
         </svg>
       ) : (
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-5 w-5 text-gray-800"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeWidth="2" d="M9 5l7 7-7 7" />
         </svg>
       )}
@@ -73,20 +61,16 @@ const NoticesSection = () => {
     let live = true;
     (async () => {
       try {
-        const res = await axios.get("/api/notices/active", {
-          withCredentials: true,
-        });
-        if (live) setItems(res.data || []);
+        const res = await axios.get("/api/notices/active", { withCredentials: true });
+        const data = Array.isArray(res.data) ? res.data : [];
+        if (live) setItems(data);
       } catch (e) {
-        if (live)
-          setErr(e?.response?.data?.message || "Failed to load notices.");
+        if (live) setErr(e?.response?.data?.message || "Failed to load notices.");
       } finally {
         if (live) setLoading(false);
       }
     })();
-    return () => {
-      live = false;
-    };
+    return () => { live = false; };
   }, []);
 
   const computePages = useCallback(() => {
@@ -106,23 +90,17 @@ const NoticesSection = () => {
     setIndex(Math.max(0, Math.min(current, pages - 1)));
   }, [pages]);
 
-  const scrollToIndex = useCallback(
-    (i) => {
-      const el = railRef.current;
-      if (!el) return;
-      const clamped = Math.max(0, Math.min(i, pages - 1));
-      el.scrollTo({ left: clamped * STEP, behavior: "smooth" });
-      setIndex(clamped);
-    },
-    [pages]
-  );
+  const scrollToIndex = useCallback((i) => {
+    const el = railRef.current;
+    if (!el) return;
+    const clamped = Math.max(0, Math.min(i, pages - 1));
+    el.scrollTo({ left: clamped * STEP, behavior: "smooth" });
+    setIndex(clamped);
+  }, [pages]);
 
-  const scrollByStep = useCallback(
-    (dir) => {
-      scrollToIndex(index + dir);
-    },
-    [index, scrollToIndex]
-  );
+  const scrollByStep = useCallback((dir) => {
+    scrollToIndex(index + dir);
+  }, [index, scrollToIndex]);
 
   useEffect(() => {
     const recalc = () => {
@@ -139,46 +117,27 @@ const NoticesSection = () => {
     return (
       <section className="w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[22px] sm:text-2xl font-bold text-gray-900">
-            Offers For You
-          </h2>
+          <h2 className="text-[22px] sm:text-2xl font-bold text-gray-900">Offers For You</h2>
         </div>
         <div className="flex gap-3 overflow-hidden">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} />
-          ))}
+          {[...Array(4)].map((_, i) => (<Skeleton key={i} />))}
         </div>
       </section>
     );
   }
 
-  if (err || items.length === 0) return null;
+  if (err || !Array.isArray(items) || items.length === 0) return null;
 
   return (
     <section className="w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
       <div className="flex items-center justify-between mb-4">
-        <h4 className="text-[22px] sm:text-2xl font-bold text-gray-900">
-          Offers For You
-        </h4>
-        <Link
-          to="/notices"
-          className="text-sm font-semibold text-blue-600 hover:underline"
-        >
-          View more
-        </Link>
+        <h4 className="text-[22px] sm:text-2xl font-bold text-gray-900">Offers For You</h4>
+        <Link to="/notices" className="text-sm font-semibold text-blue-600 hover:underline">View more</Link>
       </div>
 
       <div className="relative">
-        <GlassArrow
-          side="left"
-          onClick={() => scrollByStep(-1)}
-          show={!atStart}
-        />
-        <GlassArrow
-          side="right"
-          onClick={() => scrollByStep(1)}
-          show={!atEnd}
-        />
+        <GlassArrow side="left" onClick={() => scrollByStep(-1)} show={!atStart} />
+        <GlassArrow side="right" onClick={() => scrollByStep(1)} show={!atEnd} />
 
         <div
           ref={railRef}
@@ -187,10 +146,7 @@ const NoticesSection = () => {
           onScroll={updatePagerFromScroll}
         >
           {items.map((n) => (
-            <div
-              key={n._id}
-              className="w-[300px] sm:w-[340px] shrink-0 snap-start"
-            >
+            <div key={n._id} className="w-[300px] sm:w-[340px] shrink-0 snap-start">
               <NoticeCard notice={n} linkTo="/notices" />
             </div>
           ))}
@@ -202,11 +158,7 @@ const NoticesSection = () => {
               key={i}
               onClick={() => scrollToIndex(i)}
               aria-label={`Go to slide ${i + 1}`}
-              className={`h-2.5 rounded-full transition-all ${
-                i === index
-                  ? "w-6 bg-gray-900"
-                  : "w-2.5 bg-gray-300 hover:bg-gray-400"
-              }`}
+              className={`h-2.5 rounded-full transition-all ${i === index ? "w-6 bg-gray-900" : "w-2.5 bg-gray-300 hover:bg-gray-400"}`}
             />
           ))}
         </div>
@@ -216,3 +168,4 @@ const NoticesSection = () => {
 };
 
 export default NoticesSection;
+
