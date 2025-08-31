@@ -1,5 +1,5 @@
+// src/pages/Payment.jsx
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 import BookingSteps from "../components/BookingSteps";
 import {
   FaBus,
@@ -17,6 +17,9 @@ import {
   FaIdCard,
   FaEnvelope,
 } from "react-icons/fa";
+
+// ✅ Use shared apiClient instead of axios
+import apiClient from "../api";
 
 const PaymentPage = () => {
   const { state } = useLocation();
@@ -85,11 +88,10 @@ const PaymentPage = () => {
         droppingPoint: selectedDroppingPoint,
       };
 
-      const res = await axios.post(
-        "http://localhost:5000/api/bookings",
-        bookingPayload,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      // ✅ Use apiClient so it picks up your .env baseURL
+      const res = await apiClient.post("/bookings", bookingPayload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       alert("Payment successful (simulated)");
       navigate("/download-ticket", {
@@ -159,8 +161,7 @@ const PaymentPage = () => {
                 <div>
                   <p className="text-sm text-gray-500">Boarding From</p>
                   <p className="font-semibold text-gray-800">
-                    {selectedBoardingPoint.point} at{" "}
-                    {selectedBoardingPoint.time}
+                    {selectedBoardingPoint.point} at {selectedBoardingPoint.time}
                   </p>
                 </div>
               </div>
@@ -179,7 +180,7 @@ const PaymentPage = () => {
               </div>
             </InfoCard>
 
-            {/* ✅ UPDATED: Passenger Information Card now includes NIC and Email */}
+            {/* Passenger Information */}
             <InfoCard
               icon={<FaUsers className="text-red-500" />}
               title="Passenger Information"
@@ -245,7 +246,7 @@ const PaymentPage = () => {
             </InfoCard>
           </div>
 
-          {/* Right Column: Sticky Fare & Pay Button */}
+          {/* Right Column: Fare Summary + Pay */}
           <div className="lg:col-span-5">
             <div className="sticky top-24">
               <div className="bg-white shadow-md rounded-xl p-6 border">
