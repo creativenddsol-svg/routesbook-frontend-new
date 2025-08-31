@@ -1,8 +1,10 @@
+// src/pages/Signup.jsx
 import { useState } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import toast, { Toaster } from "react-hot-toast";
+// ✅ Import the shared API client
+import apiClient from "../api";
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -27,12 +29,13 @@ const Signup = () => {
     setError("");
 
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/auth/signup",
-        formData
-      );
+      // ✅ Use apiClient instead of axios with localhost
+      const res = await apiClient.post("/auth/signup", formData);
 
+      // Store token + user in context
+      localStorage.setItem("token", res.data.token);
       login(res.data.user, res.data.token);
+
       toast.success("Signup successful!");
       navigate("/");
     } catch (err) {
