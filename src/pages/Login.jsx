@@ -3,7 +3,8 @@ import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import toast, { Toaster } from "react-hot-toast";
 // Import the shared API client instead of axios
-import apiClient from "../api/apiClient"; 
+import apiClient from "../api";
+
 
 const Login = () => {
   const [formData, setFormData] = useState({
