@@ -222,7 +222,7 @@ const CalendarPopover = ({
           const isToday = sameYMD(new Date(), d);
           const disabled = isDisabled(d);
 
-          let classes =
+        let classes =
             "mx-auto my-1 flex items-center justify-center w-9 h-9 rounded-full text-sm transition select-none ";
           if (disabled) classes += "text-gray-300 cursor-not-allowed";
           else if (selectedDay) classes += "text-white font-semibold";
@@ -572,6 +572,15 @@ const Home = () => {
       className="min-h-screen font-sans"
       style={{ backgroundColor: PALETTE.bgLight }}
     >
+      {/* ✅ iPhone notch safe-area spacer (mobile only; leaves existing layout untouched) */}
+      <div
+        className="lg:hidden"
+        style={{
+          height: "env(safe-area-inset-top)",
+          backgroundColor: PALETTE.bgLight,
+        }}
+      />
+
       <Toaster position="top-right" />
 
       {/* ===== Hero Section ===== */}
