@@ -1,4 +1,5 @@
 // src/pages/Home.jsx
+// src/pages/Home.jsx
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Select, { components } from "react-select";
@@ -85,7 +86,6 @@ const CalendarPopover = ({
     selected ? startOfMonth(selected) : startOfMonth(today)
   );
 
-  // Close on outside click / Esc
   useEffect(() => {
     if (!open) return;
     const onDocClick = (e) => {
@@ -113,17 +113,15 @@ const CalendarPopover = ({
 
   if (!open || !anchorRef.current) return null;
 
-  // Position relative to viewport; auto-flip to avoid right-edge overflow
   const rect = anchorRef.current.getBoundingClientRect();
   const top = rect.bottom + 8;
   const width = 360;
   const maxLeft = Math.max(8, window.innerWidth - width - 8);
   const left = Math.min(rect.left, maxLeft);
 
-  // Month grid
   const start = startOfMonth(viewMonth);
   const end = endOfMonth(viewMonth);
-  const firstDow = (start.getDay() + 6) % 7; // Mon=0 ... Sun=6
+  const firstDow = (start.getDay() + 6) % 7;
   const totalCells = firstDow + end.getDate();
   const rows = Math.ceil(totalCells / 7);
   const cells = Array.from({ length: rows * 7 }, (_, i) => {
@@ -148,24 +146,14 @@ const CalendarPopover = ({
       style={{ top, left, zIndex: 9999, width, position: "fixed" }}
       className="bg-white rounded-2xl shadow-[0_15px_40px_-10px_rgba(0,0,0,0.25)] border border-gray-100 overflow-hidden"
     >
-      {/* Header */}
-      <div
-        className="px-4 pt-4 pb-2 border-b"
-        style={{ borderColor: PALETTE.borderLight }}
-      >
-        <div
-          className="text-xs uppercase font-medium tracking-wider"
-          style={{ color: PALETTE.textLight }}
-        >
+      <div className="px-4 pt-4 pb-2 border-b" style={{ borderColor: PALETTE.borderLight }}>
+        <div className="text-xs uppercase font-medium tracking-wider" style={{ color: PALETTE.textLight }}>
           Date of Journey
         </div>
         <div className="flex items-center justify-between mt-1">
-          <div
-            className="text-base font-semibold"
-            style={{ color: PALETTE.textDark }}
-          >
-            {selected
-              ? selected.toLocaleDateString("en-GB", {
+          <div className="text-base font-semibold" style={{ color: PALETTE.textDark }}>
+            {value
+              ? parseYMD(value).toLocaleDateString("en-GB", {
                   day: "numeric",
                   month: "short",
                   year: "numeric",
@@ -191,22 +179,12 @@ const CalendarPopover = ({
             </button>
           </div>
         </div>
-        <div
-          className="mt-1 text-sm font-medium"
-          style={{ color: PALETTE.textDark }}
-        >
-          {viewMonth.toLocaleString("en-GB", {
-            month: "long",
-            year: "numeric",
-          })}
+        <div className="mt-1 text-sm font-medium" style={{ color: PALETTE.textDark }}>
+          {viewMonth.toLocaleString("en-GB", { month: "long", year: "numeric" })}
         </div>
       </div>
 
-      {/* Week days */}
-      <div
-        className="grid grid-cols-7 text-center text-xs py-2"
-        style={{ color: PALETTE.textLight }}
-      >
+      <div className="grid grid-cols-7 text-center text-xs py-2" style={{ color: PALETTE.textLight }}>
         {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
           <div key={d} className="select-none">
             {d}
@@ -214,15 +192,14 @@ const CalendarPopover = ({
         ))}
       </div>
 
-      {/* Days grid */}
       <div className="grid grid-cols-7 gap-y-1 px-2 pb-3">
         {cells.map((d, idx) => {
           if (!d) return <div key={idx} />;
-          const selectedDay = selected && sameYMD(selected, d);
+          const selectedDay = value && sameYMD(parseYMD(value), d);
           const isToday = sameYMD(new Date(), d);
           const disabled = isDisabled(d);
 
-        let classes =
+          let classes =
             "mx-auto my-1 flex items-center justify-center w-9 h-9 rounded-full text-sm transition select-none ";
           if (disabled) classes += "text-gray-300 cursor-not-allowed";
           else if (selectedDay) classes += "text-white font-semibold";
@@ -253,11 +230,7 @@ const CalendarPopover = ({
         })}
       </div>
 
-      {/* Quick actions */}
-      <div
-        className="px-4 py-3 border-t flex items-center justify-between"
-        style={{ borderColor: PALETTE.borderLight }}
-      >
+      <div className="px-4 py-3 border-t flex items-center justify-between" style={{ borderColor: PALETTE.borderLight }}>
         <div className="space-x-3">
           <button
             onClick={() => {
@@ -310,24 +283,18 @@ const POPULAR_CITIES = [
   "Anuradhapura",
 ];
 
-/* ---------------- Custom Select Menu (redBus-like) ---------------- */
-/* FIX:
-   - Use pointer events so taps work on mobile without passive-listener errors.
-   - After programmatic selection, close the menu via onMenuClose(). */
+/* ---------------- Custom Select Menu (desktop only) ---------------- */
 const CustomMenu = (menuKey) => {
-  // menuKey: "from" | "to"  (so we can read the right recent list)
   return (props) => {
     const { selectProps } = props;
     const recents = selectProps.recent?.[menuKey] || [];
 
     const finishPickAndClose = () => {
-      // Close on next frame so react-select updates first
       props.selectProps.onMenuClose &&
         requestAnimationFrame(() => props.selectProps.onMenuClose());
     };
 
     const onPick = (city) => {
-      // select this option programmatically
       selectProps.onChange(
         { value: city, label: city },
         { action: "select-option" }
@@ -335,7 +302,6 @@ const CustomMenu = (menuKey) => {
       finishPickAndClose();
     };
 
-    // Pointer handler avoids passive touch warning; still works for mouse/pen.
     const handlePointerPick = (e, city) => {
       if (e.pointerType !== "touch") e.preventDefault?.();
       e.stopPropagation?.();
@@ -344,7 +310,6 @@ const CustomMenu = (menuKey) => {
 
     return (
       <components.Menu {...props}>
-        {/* Recent searches */}
         <div className="px-3 pt-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-2">
             <FaClock className="opacity-70" /> Recent searches
@@ -371,7 +336,6 @@ const CustomMenu = (menuKey) => {
           )}
         </div>
 
-        {/* Popular Cities */}
         <div className="px-3 pb-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
             Popular Cities
@@ -395,35 +359,135 @@ const CustomMenu = (menuKey) => {
           </div>
         </div>
 
-        {/* Default option list */}
         <components.MenuList {...props}>{props.children}</components.MenuList>
       </components.Menu>
     );
   };
 };
 
+/* ---------------- Mobile full-page city picker ---------------- */
+const MobileCityPicker = ({
+  open,
+  mode, // 'from' | 'to'
+  options,
+  recent,
+  onPick,
+  onClose,
+}) => {
+  const [q, setQ] = useState("");
+  const all = options.map((o) => o.label);
+  const filtered =
+    q.trim() === ""
+      ? all
+      : all.filter((c) => c.toLowerCase().includes(q.trim().toLowerCase()));
+
+  if (!open) return null;
+
+  return (
+    <div className="lg:hidden fixed inset-0 z-[10000] bg-white flex flex-col">
+      {/* Safe area for notch */}
+      <div style={{ height: "env(safe-area-inset-top)" }} />
+      {/* Header */}
+      <div className="px-4 pb-3 pt-3 border-b flex items-center gap-3">
+        <button
+          onClick={onClose}
+          className="w-9 h-9 rounded-full border flex items-center justify-center"
+          aria-label="Back"
+        >
+          ←
+        </button>
+        <div className="text-base font-semibold">
+          {mode === "from" ? "Select From City" : "Select To City"}
+        </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="px-4 py-3 border-b">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search city"
+          className="w-full rounded-xl border px-4 py-3 text-base outline-none"
+        />
+      </div>
+
+      {/* Content scroll */}
+      <div className="flex-1 overflow-y-auto">
+        {/* Recent searches */}
+        <div className="px-4 pt-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-2">
+            <FaClock className="opacity-70" /> Recent searches
+          </div>
+          {(recent?.[mode] || []).length === 0 ? (
+            <div className="text-sm text-gray-400">No recent searches</div>
+          ) : (
+            <div className="mb-3 divide-y rounded-xl border border-gray-100 overflow-hidden">
+              {recent[mode].map((city, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-50"
+                  onClick={() => onPick(city)}
+                >
+                  <FaMapMarkerAlt className="text-gray-500" />
+                  <span className="text-base font-medium text-gray-800">
+                    {city}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Popular Cities */}
+        <div className="px-4 pt-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+            Popular Cities
+          </div>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {POPULAR_CITIES.map((c) => (
+              <button
+                key={c}
+                className="px-3 py-1.5 rounded-full border text-sm active:bg-red-50"
+                onClick={() => onPick(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* All cities (filtered) */}
+        <div className="px-4 pb-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+            {q ? "Matching Cities" : "All Cities"}
+          </div>
+          <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
+            {filtered.map((c) => (
+              <button
+                key={c}
+                className="w-full text-left px-3 py-3 active:bg-gray-50"
+                onClick={() => onPick(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Safe area bottom */}
+      <div style={{ height: "env(safe-area-inset-bottom)" }} />
+    </div>
+  );
+};
+
 /* ---------------- Data (unchanged) ---------------- */
 const whyChooseUsData = [
-  {
-    icon: FaChair,
-    title: "Real-Time Seats",
-    desc: "Live seat availability for immediate booking.",
-  },
-  {
-    icon: FaBolt,
-    title: "Instant Booking",
-    desc: "Book your tickets in just a few clicks.",
-  },
-  {
-    icon: FaShieldAlt,
-    title: "Secure Payments",
-    desc: "100% safe and secure online transactions.",
-  },
-  {
-    icon: FaMobileAlt,
-    title: "Mobile Ready",
-    desc: "Book on any device, anywhere, anytime.",
-  },
+  { icon: FaChair, title: "Real-Time Seats", desc: "Live seat availability for immediate booking." },
+  { icon: FaBolt, title: "Instant Booking", desc: "Book your tickets in just a few clicks." },
+  { icon: FaShieldAlt, title: "Secure Payments", desc: "100% safe and secure online transactions." },
+  { icon: FaMobileAlt, title: "Mobile Ready", desc: "Book on any device, anywhere, anytime." },
 ];
 
 const getReadableDate = (dateString) => {
@@ -449,6 +513,10 @@ const Home = () => {
   const [calOpen, setCalOpen] = useState(false);
   const desktopDateAnchorRef = useRef(null);
   const mobileDateAnchorRef = useRef(null);
+
+  // mobile city picker state
+  const [mobilePickerOpen, setMobilePickerOpen] = useState(false);
+  const [mobilePickerMode, setMobilePickerMode] = useState("from"); // 'from' | 'to'
 
   // recents (persist to localStorage)
   const [recent, setRecent] = useState(() => {
@@ -567,23 +635,30 @@ const Home = () => {
     }),
   };
 
+  // handlers to open mobile full-page picker
+  const openMobilePicker = (mode) => {
+    setMobilePickerMode(mode);
+    setMobilePickerOpen(true);
+  };
+  const handleMobilePick = (city) => {
+    if (mobilePickerMode === "from") {
+      setFrom(city);
+      pushRecent("from", city);
+    } else {
+      setTo(city);
+      pushRecent("to", city);
+    }
+    setMobilePickerOpen(false);
+  };
+
   return (
-    <div
-      className="min-h-screen font-sans"
-      style={{ backgroundColor: PALETTE.bgLight }}
-    >
-      {/* ✅ iPhone notch safe-area spacer (mobile only; leaves existing layout untouched) */}
-      <div
-        className="lg:hidden"
-        style={{
-          height: "env(safe-area-inset-top)",
-          backgroundColor: PALETTE.bgLight,
-        }}
-      />
+    <div className="min-h-screen font-sans" style={{ backgroundColor: PALETTE.bgLight }}>
+      {/* notch spacer (mobile only) */}
+      <div className="lg:hidden" style={{ height: "env(safe-area-inset-top)", backgroundColor: PALETTE.bgLight }} />
 
       <Toaster position="top-right" />
 
-      {/* ===== Hero Section ===== */}
+      {/* ===== Hero Section (desktop only) ===== */}
       <div
         className="hidden lg:block w-screen relative left-1/2 ml-[-50vw] overflow-hidden pb-20 lg:pb-40"
         style={{ backgroundColor: PALETTE.primaryRed }}
@@ -601,11 +676,7 @@ const Home = () => {
         />
         <div className="relative z-10 px-4 pt-16 sm:pt-24">
           <div className="max-w-6xl mx-auto text-center">
-            <motion.div
-              initial={{ y: -30, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ duration: 0.8 }}
-            >
+            <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8 }}>
               <h1 className="font-heading text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight">
                 Online Bus Ticket Booking
               </h1>
@@ -621,10 +692,7 @@ const Home = () => {
       <div className={`${SECTION_WRAP}`}>
         <div className={`${SECTION_INNER} relative z-20 mt-4 lg:-mt-32`}>
           <div className="lg:hidden text-left pb-2 px-4 pt-4">
-            <h2
-              className="text-xl font-bold"
-              style={{ color: PALETTE.textDark }}
-            >
+            <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}>
               Bus Tickets
             </h2>
           </div>
@@ -635,18 +703,12 @@ const Home = () => {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="bg-white border border-gray-300 rounded-xl lg:rounded-2xl lg:shadow-2xl"
           >
-            {/* ----- DESKTOP VIEW ----- */}
+            {/* ----- DESKTOP VIEW (unchanged) ----- */}
             <div className="hidden lg:flex rounded-2xl overflow-hidden">
-              <div
-                className="relative flex-1 p-6 flex items-center border-r"
-                style={{ borderColor: PALETTE.borderLight }}
-              >
+              <div className="relative flex-1 p-6 flex items-center border-r" style={{ borderColor: PALETTE.borderLight }}>
                 <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
                 <div className="w-full">
-                  <label
-                    className="block text-xs font-medium uppercase tracking-wider"
-                    style={{ color: PALETTE.textLight }}
-                  >
+                  <label className="block text-xs font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
                     From
                   </label>
                   <Select
@@ -666,7 +728,7 @@ const Home = () => {
                       IndicatorSeparator: () => null,
                       Menu: CustomMenu("from"),
                     }}
-                    recent={recent} // pass recents into custom menu
+                    recent={recent}
                     closeMenuOnSelect={true}
                   />
                 </div>
@@ -684,16 +746,10 @@ const Home = () => {
                 </div>
               </div>
 
-              <div
-                className="relative flex-1 p-6 flex items-center border-r"
-                style={{ borderColor: PALETTE.borderLight }}
-              >
+              <div className="relative flex-1 p-6 flex items-center border-r" style={{ borderColor: PALETTE.borderLight }}>
                 <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
                 <div className="w-full">
-                  <label
-                    className="block text-xs font-medium uppercase tracking-wider"
-                    style={{ color: PALETTE.textLight }}
-                  >
+                  <label className="block text-xs font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
                     To
                   </label>
                   <Select
@@ -723,21 +779,11 @@ const Home = () => {
               <div className="flex-1 p-6 flex items-center relative">
                 <FaCalendarAlt className="text-gray-400 mr-4 text-xl shrink-0" />
                 <div className="w-full">
-                  <label
-                    className="block text-xs font-medium uppercase tracking-wider"
-                    style={{ color: PALETTE.textLight }}
-                  >
+                  <label className="block text-xs font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
                     Date of Journey
                   </label>
-                  <div
-                    ref={desktopDateAnchorRef}
-                    onClick={() => setCalOpen(true)}
-                    className="cursor-pointer"
-                  >
-                    <span
-                      className="text-lg font-medium"
-                      style={{ color: PALETTE.textDark }}
-                    >
+                  <div ref={desktopDateAnchorRef} onClick={() => setCalOpen(true)} className="cursor-pointer">
+                    <span className="text-lg font-medium" style={{ color: PALETTE.textDark }}>
                       {getReadableDate(date)}
                     </span>
                   </div>
@@ -749,10 +795,7 @@ const Home = () => {
                       }}
                       className="text-xs font-medium mr-3 hover:underline"
                       style={{
-                        color:
-                          date === todayStr
-                            ? PALETTE.primaryRed
-                            : PALETTE.accentBlue,
+                        color: date === todayStr ? PALETTE.primaryRed : PALETTE.accentBlue,
                       }}
                     >
                       Today
@@ -764,10 +807,7 @@ const Home = () => {
                       }}
                       className="text-xs font-medium hover:underline"
                       style={{
-                        color:
-                          date === tomorrowStr
-                            ? PALETTE.primaryRed
-                            : PALETTE.accentBlue,
+                        color: date === tomorrowStr ? PALETTE.primaryRed : PALETTE.accentBlue,
                       }}
                     >
                       Tomorrow
@@ -775,7 +815,6 @@ const Home = () => {
                   </div>
                 </div>
 
-                {/* Popover (desktop) — open only if desktop anchor is visible */}
                 <CalendarPopover
                   anchorRef={desktopDateAnchorRef}
                   open={calOpen && isRefVisible(desktopDateAnchorRef)}
@@ -800,75 +839,45 @@ const Home = () => {
               </div>
             </div>
 
-            {/* ----- MOBILE VIEW ----- */}
+            {/* ----- MOBILE VIEW (updated: full-page city picker) ----- */}
             <div className="lg:hidden">
               <div className="relative">
                 {/* FROM */}
                 <div className="p-4">
-                  <div
-                    className="flex items-center gap-4 pb-4 border-b"
-                    style={{ borderColor: PALETTE.borderLight }}
-                  >
-                    <FaBus
-                      className="shrink-0"
-                      style={{ color: PALETTE.textLight }}
-                    />
+                  <div className="flex items-center gap-4 pb-4 border-b" style={{ borderColor: PALETTE.borderLight }}>
+                    <FaBus className="shrink-0" style={{ color: PALETTE.textLight }} />
                     <div className="w-full">
-                      <label className="block text-xs font-medium text-gray-500">
-                        From
-                      </label>
-                      <Select
-                        options={fromOptions}
-                        value={from ? { value: from, label: from } : null}
-                        onChange={(s) => {
-                          const v = s?.value || "";
-                          setFrom(v);
-                          if (v) pushRecent("from", v);
-                        }}
-                        placeholder="Matara"
-                        isClearable
-                        styles={selectStyles}
-                        menuPortalTarget={document.body}
-                        components={{
-                          DropdownIndicator: () => null,
-                          IndicatorSeparator: () => null,
-                          Menu: CustomMenu("from"),
-                        }}
-                        recent={recent}
-                        closeMenuOnSelect={true}
-                      />
+                      <label className="block text-xs font-medium text-gray-500">From</label>
+
+                      {/* Tap-to-open full page picker */}
+                      <button
+                        type="button"
+                        onClick={() => openMobilePicker("from")}
+                        className="w-full text-left py-2"
+                      >
+                        <span className={`text-lg ${from ? "font-semibold text-gray-900" : "text-gray-400"}`}>
+                          {from || "Matara"}
+                        </span>
+                      </button>
                     </div>
                   </div>
+
                   {/* TO */}
                   <div className="flex items-center gap-4 pt-4">
-                    <FaBus
-                      className="shrink-0"
-                      style={{ color: PALETTE.textLight }}
-                    />
+                    <FaBus className="shrink-0" style={{ color: PALETTE.textLight }} />
                     <div className="w-full">
-                      <label className="block text-xs font-medium text-gray-500">
-                        To
-                      </label>
-                      <Select
-                        options={toOptions}
-                        value={to ? { value: to, label: to } : null}
-                        onChange={(s) => {
-                          const v = s?.value || "";
-                          setTo(v);
-                          if (v) pushRecent("to", v);
-                        }}
-                        placeholder="Colombo"
-                        isClearable
-                        styles={selectStyles}
-                        menuPortalTarget={document.body}
-                        components={{
-                          DropdownIndicator: () => null,
-                          IndicatorSeparator: () => null,
-                          Menu: CustomMenu("to"),
-                        }}
-                        recent={recent}
-                        closeMenuOnSelect={true}
-                      />
+                      <label className="block text-xs font-medium text-gray-500">To</label>
+
+                      {/* Tap-to-open full page picker */}
+                      <button
+                        type="button"
+                        onClick={() => openMobilePicker("to")}
+                        className="w-full text-left py-2"
+                      >
+                        <span className={`text-lg ${to ? "font-semibold text-gray-900" : "text-gray-400"}`}>
+                          {to || "Colombo"}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -882,35 +891,17 @@ const Home = () => {
                     style={{ border: `1px solid ${PALETTE.borderLight}` }}
                     title="Swap locations"
                   >
-                    <FaExchangeAlt
-                      className="text-lg"
-                      style={{ color: PALETTE.textLight }}
-                    />
+                    <FaExchangeAlt className="text-lg" style={{ color: PALETTE.textLight }} />
                   </motion.button>
                 </div>
               </div>
 
               {/* DATE (Mobile) */}
-              <div
-                className="flex items-center gap-4 p-4 border-t relative"
-                style={{ borderColor: PALETTE.borderLight }}
-              >
-                <FaCalendarAlt
-                  className="shrink-0"
-                  style={{ color: PALETTE.textLight }}
-                />
-                <div
-                  ref={mobileDateAnchorRef}
-                  onClick={() => setCalOpen(true)}
-                  className="flex-grow cursor-pointer"
-                >
-                  <label className="block text-xs font-medium text-gray-500">
-                    Date of Journey
-                  </label>
-                  <span
-                    className="text-lg font-semibold"
-                    style={{ color: PALETTE.textDark }}
-                  >
+              <div className="flex items-center gap-4 p-4 border-t relative" style={{ borderColor: PALETTE.borderLight }}>
+                <FaCalendarAlt className="shrink-0" style={{ color: PALETTE.textLight }} />
+                <div ref={mobileDateAnchorRef} onClick={() => setCalOpen(true)} className="flex-grow cursor-pointer">
+                  <label className="block text-xs font-medium text-gray-500">Date of Journey</label>
+                  <span className="text-lg font-semibold" style={{ color: PALETTE.textDark }}>
                     {getReadableDate(date)}
                   </span>
                 </div>
@@ -939,7 +930,6 @@ const Home = () => {
                   </button>
                 </div>
 
-                {/* Popover (mobile) — open only if mobile anchor is visible */}
                 <CalendarPopover
                   anchorRef={mobileDateAnchorRef}
                   open={calOpen && isRefVisible(mobileDateAnchorRef)}
@@ -951,10 +941,7 @@ const Home = () => {
               </div>
 
               {/* SEARCH BUTTON */}
-              <div
-                className="p-4 border-t"
-                style={{ borderColor: PALETTE.borderLight }}
-              >
+              <div className="p-4 border-t" style={{ borderColor: PALETTE.borderLight }}>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -987,67 +974,45 @@ const Home = () => {
           </h2>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {["Colombo → Kandy", "Galle → Colombo", "Matara → Colombo"].map(
-              (route, i) => {
-                const [routeFrom, routeTo] = route.split(" → ");
-                return (
-                  <motion.div
-                    whileHover={{
-                      y: -5,
-                      boxShadow: "0 10px 20px rgba(0,0,0,0.08)",
-                    }}
-                    whileTap={{ scale: 0.98 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 25 }}
-                    key={i}
-                    onClick={() => {
-                      const currentDateForRoute = toLocalYYYYMMDD(new Date());
-                      navigate(
-                        `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
-                      );
-                    }}
-                    className="group relative bg-white rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 p-6 flex flex-col"
-                  >
-                    <div className="flex-grow">
-                      <p
-                        className="text-sm font-medium uppercase tracking-wider"
-                        style={{ color: PALETTE.textLight }}
-                      >
-                        Route
-                      </p>
-                      <div className="flex items-center gap-3 mt-1">
-                        <span
-                          className="font-heading text-xl font-bold"
-                          style={{ color: PALETTE.textDark }}
-                        >
-                          {routeFrom.trim()}
-                        </span>
-                        <FaLongArrowAltRight
-                          style={{ color: PALETTE.primaryRed }}
-                        />
-                        <span
-                          className="font-heading text-xl font-bold"
-                          style={{ color: PALETTE.textDark }}
-                        >
-                          {routeTo.trim()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="mt-8 flex items-center justify-between">
-                      <span
-                        className="font-sans font-semibold"
-                        style={{ color: PALETTE.accentBlue }}
-                      >
-                        View Available Buses
+            {["Colombo → Kandy", "Galle → Colombo", "Matara → Colombo"].map((route, i) => {
+              const [routeFrom, routeTo] = route.split(" → ");
+              return (
+                <motion.div
+                  whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.08)" }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  key={i}
+                  onClick={() => {
+                    const currentDateForRoute = toLocalYYYYMMDD(new Date());
+                    navigate(
+                      `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
+                    );
+                  }}
+                  className="group relative bg-white rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 p-6 flex flex-col"
+                >
+                  <div className="flex-grow">
+                    <p className="text-sm font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
+                      Route
+                    </p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <span className="font-heading text-xl font-bold" style={{ color: PALETTE.textDark }}>
+                        {routeFrom.trim()}
                       </span>
-                      <FaArrowRight
-                        className="transition-transform duration-300 group-hover:translate-x-1"
-                        style={{ color: PALETTE.accentBlue }}
-                      />
+                      <FaLongArrowAltRight style={{ color: PALETTE.primaryRed }} />
+                      <span className="font-heading text-xl font-bold" style={{ color: PALETTE.textDark }}>
+                        {routeTo.trim()}
+                      </span>
                     </div>
-                  </motion.div>
-                );
-              }
-            )}
+                  </div>
+                  <div className="mt-8 flex items-center justify-between">
+                    <span className="font-sans font-semibold" style={{ color: PALETTE.accentBlue }}>
+                      View Available Buses
+                    </span>
+                    <FaArrowRight className="transition-transform duration-300 group-hover:translate-x-1" style={{ color: PALETTE.accentBlue }} />
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
         </section>
       </div>
@@ -1056,48 +1021,30 @@ const Home = () => {
       <div className={`${SECTION_WRAP}`}>
         <section className={`${SECTION_INNER} py-16`}>
           <div className="bg-white p-8 md:p-12 rounded-2xl shadow-lg border border-gray-100">
-            <h2
-              className="font-heading text-3xl font-bold mb-4"
-              style={{ color: PALETTE.textDark }}
-            >
+            <h2 className="font-heading text-3xl font-bold mb-4" style={{ color: PALETTE.textDark }}>
               Online Bus Ticket Booking on Routesbook
             </h2>
 
-            <p
-              className="mb-4 text-base leading-relaxed"
-              style={{ color: PALETTE.textLight }}
-            >
-              Routesbook is your new and reliable companion for booking bus
-              tickets online. Designed for simplicity and convenience,
-              Routesbook offers a smooth and secure booking experience across a
-              growing network of trusted bus operators. Whether you're traveling
-              across cities or planning a local trip, Routesbook provides a wide
-              range of affordable travel options and modern features for every
-              passenger.
+            <p className="mb-4 text-base leading-relaxed" style={{ color: PALETTE.textLight }}>
+              Routesbook is your new and reliable companion for booking bus tickets online. Designed for simplicity and
+              convenience, Routesbook offers a smooth and secure booking experience across a growing network of trusted
+              bus operators. Whether you're traveling across cities or planning a local trip, Routesbook provides a wide
+              range of affordable travel options and modern features for every passenger.
             </p>
 
-            <p
-              className="mb-8 text-base leading-relaxed"
-              style={{ color: PALETTE.textLight }}
-            >
-              Partnering with emerging private bus operators and transport
-              services, Routesbook ensures comfortable journeys with a variety
-              of bus types like AC, Non-AC, Sleeper, Seater, Semi-Sleeper, and
-              Luxury coaches. As a newly launched platform, we’re committed to
-              providing transparent pricing, secure payment methods, and
+            <p className="mb-8 text-base leading-relaxed" style={{ color: PALETTE.textLight }}>
+              Partnering with emerging private bus operators and transport services, Routesbook ensures comfortable
+              journeys with a variety of bus types like AC, Non-AC, Sleeper, Seater, Semi-Sleeper, and Luxury coaches.
+              As a newly launched platform, we’re committed to providing transparent pricing, secure payment methods, and
               exceptional customer service.
             </p>
 
-            <h3
-              className="font-heading text-2xl font-bold mb-6"
-              style={{ color: PALETTE.textDark }}
-            >
+            <h3 className="font-heading text-2xl font-bold mb-6" style={{ color: PALETTE.textDark }}>
               How to Book Bus Tickets on Routesbook?
             </h3>
 
             <p className="mb-8 text-base" style={{ color: PALETTE.textLight }}>
-              Booking your journey on Routesbook is simple and user-friendly.
-              Just follow these quick steps:
+              Booking your journey on Routesbook is simple and user-friendly. Just follow these quick steps:
             </p>
 
             <ul className="space-y-5">
@@ -1114,29 +1061,14 @@ const Home = () => {
                   t: "Choose Your Seat:",
                   d: "Pick your preferred seat and boarding/dropping points. Review the fare and proceed to book.",
                 },
-                {
-                  t: "Enter Passenger Information:",
-                  d: "Fill in passenger name, contact number, and any other required details.",
-                },
-                {
-                  t: "Make Payment:",
-                  d: "Complete your booking securely using a range of payment options.",
-                },
-                {
-                  t: "Get Ticket Confirmation:",
-                  d: "Receive your digital ticket via email and SMS instantly after payment.",
-                },
+                { t: "Enter Passenger Information:", d: "Fill in passenger name, contact number, and any other required details." },
+                { t: "Make Payment:", d: "Complete your booking securely using a range of payment options." },
+                { t: "Get Ticket Confirmation:", d: "Receive your digital ticket via email and SMS instantly after payment." },
               ].map((step, idx) => (
                 <li key={idx} className="flex items-start">
-                  <FaArrowRight
-                    className="text-sm mr-4 mt-1.5 shrink-0"
-                    style={{ color: PALETTE.primaryRed }}
-                  />
+                  <FaArrowRight className="text-sm mr-4 mt-1.5 shrink-0" style={{ color: PALETTE.primaryRed }} />
                   <span style={{ color: PALETTE.textLight }}>
-                    <strong
-                      className="font-semibold"
-                      style={{ color: PALETTE.textDark }}
-                    >
+                    <strong className="font-semibold" style={{ color: PALETTE.textDark }}>
                       {step.t}
                     </strong>{" "}
                     {step.d}
@@ -1145,26 +1077,29 @@ const Home = () => {
               ))}
             </ul>
 
-            <p
-              className="mt-8 mb-4 text-base leading-relaxed"
-              style={{ color: PALETTE.textLight }}
-            >
-              With Routesbook, every ticket booked comes with the assurance of a
-              secure transaction, access to verified operators, and a
-              customer-first support team to assist you at every step.
+            <p className="mt-8 mb-4 text-base leading-relaxed" style={{ color: PALETTE.textLight }}>
+              With Routesbook, every ticket booked comes with the assurance of a secure transaction, access to verified
+              operators, and a customer-first support team to assist you at every step.
             </p>
-            <p
-              className="text-base leading-relaxed font-medium"
-              style={{ color: PALETTE.textLight }}
-            >
-              Start your journey the smart way with Routesbook — where your
-              route, your seat, and your journey are just a few clicks away.
+            <p className="text-base leading-relaxed font-medium" style={{ color: PALETTE.textLight }}>
+              Start your journey the smart way with Routesbook — where your route, your seat, and your journey are just a
+              few clicks away.
             </p>
           </div>
         </section>
       </div>
 
       <Footer />
+
+      {/* === MOBILE FULL-PAGE PICKER MOUNT === */}
+      <MobileCityPicker
+        open={mobilePickerOpen}
+        mode={mobilePickerMode}
+        options={mobilePickerMode === "from" ? fromOptions : toOptions}
+        recent={recent}
+        onPick={handleMobilePick}
+        onClose={() => setMobilePickerOpen(false)}
+      />
     </div>
   );
 };
