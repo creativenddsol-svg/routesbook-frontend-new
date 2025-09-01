@@ -314,7 +314,7 @@ const CustomMenu = (menuKey) => {
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-2">
             <FaClock className="opacity-70" /> Recent searches
           </div>
-          {recents.length === 0 ? (
+        {recents.length === 0 ? (
             <div className="text-xs text-gray-400 mb-3">No recent searches</div>
           ) : (
             <div className="mb-3 divide-y rounded-lg border border-gray-100 overflow-hidden">
@@ -408,6 +408,14 @@ const MobileCityPicker = ({
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search city"
           className="w-full rounded-xl border px-4 py-3 text-base outline-none"
+          type="search"
+          inputMode="search"
+          enterKeyHint="search"
+          // Prevent iOS Safari zoom-on-focus (keep >=16px) and stabilize text sizing
+          style={{ fontSize: 16, WebkitTextSizeAdjust: "100%" }}
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
         />
       </div>
 
