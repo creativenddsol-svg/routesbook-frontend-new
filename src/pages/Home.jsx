@@ -781,7 +781,7 @@ const Home = () => {
   };
 
   const handleSearch = () => {
-    const dateToSearch = date || toLocalYYYYMMDD(new Date()));
+    const dateToSearch = date || toLocalYYYYMMDD(new Date());
     if (!from || !to || !dateToSearch) {
       toast.error("Please fill all fields before searching");
       return;
