@@ -1,5 +1,4 @@
 // src/pages/Home.jsx
-// src/pages/Home.jsx
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Select, { components } from "react-select";
@@ -1100,7 +1099,8 @@ const Home = () => {
                     style={{ border: `1px solid ${PALETTE.borderLight}` }}
                     title="Swap locations"
                   >
-                    <FaExchangeAlt className="text-lg" style={{ color: PALETTE.textLight }} />
+                    {/* Vertical only on mobile */}
+                    <FaExchangeAlt className="text-lg rotate-90" style={{ color: PALETTE.textLight }} />
                   </motion.button>
                 </div>
               </div>
