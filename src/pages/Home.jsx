@@ -269,6 +269,207 @@ const CalendarPopover = ({
   );
 };
 
+/* --------- NEW: Mobile Bottom-Sheet Calendar (slides up from bottom) --------- */
+const MobileCalendarSheet = ({
+  open,
+  value,
+  minDateString,
+  onChange,
+  onClose,
+}) => {
+  const today = new Date();
+  const minDate = minDateString ? parseYMD(minDateString) : today;
+  const selected = value ? parseYMD(value) : null;
+  const [viewMonth, setViewMonth] = useState(
+    selected ? startOfMonth(selected) : startOfMonth(today)
+  );
+
+  useEffect(() => {
+    if (!open) return;
+    const onEsc = (e) => e.key === "Escape" && onClose?.();
+    document.addEventListener("keydown", onEsc);
+    // Lock background scroll
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", onEsc);
+      document.body.style.overflow = prev;
+    };
+  }, [open, onClose]);
+
+  useEffect(() => {
+    if (selected) setViewMonth(startOfMonth(selected));
+  }, [value]);
+
+  if (!open) return null;
+
+  const start = startOfMonth(viewMonth);
+  const end = endOfMonth(viewMonth);
+  const firstDow = (start.getDay() + 6) % 7;
+  const totalCells = firstDow + end.getDate();
+  const rows = Math.ceil(totalCells / 7);
+  const cells = Array.from({ length: rows * 7 }, (_, i) => {
+    const dayNum = i - firstDow + 1;
+    if (dayNum < 1 || dayNum > end.getDate()) return null;
+    return new Date(viewMonth.getFullYear(), viewMonth.getMonth(), dayNum);
+  });
+
+  const isDisabled = (d) =>
+    d < new Date(new Date().toDateString()) || d < minDate;
+
+  const pick = (d) => {
+    if (isDisabled(d)) return;
+    onChange?.(toLocalYYYYMMDD(d));
+    onClose?.();
+  };
+
+  return createPortal(
+    <>
+      {/* Dimmed backdrop */}
+      <div
+        className="lg:hidden fixed inset-0 z-[10000] bg-black/40"
+        onClick={onClose}
+      />
+      {/* Bottom sheet */}
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        exit={{ y: "100%" }}
+        transition={{ type: "tween", duration: 0.25 }}
+        className="lg:hidden fixed inset-x-0 bottom-0 z-[10001] bg-white rounded-t-2xl shadow-2xl"
+        style={{ maxHeight: "80vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Safe area for notch */}
+        <div style={{ height: "env(safe-area-inset-top)" }} />
+        {/* Grab handle */}
+        <div className="pt-2 flex justify-center">
+          <div className="w-12 h-1.5 rounded-full bg-gray-300" />
+        </div>
+
+        {/* Header */}
+        <div className="px-4 py-3 border-b flex items-center justify-between">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-gray-500">
+              Date of Journey
+            </div>
+            <div className="text-base font-semibold">
+              {value
+                ? parseYMD(value).toLocaleDateString("en-GB", {
+                    day: "numeric",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : "Select Date"}
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setViewMonth(addMonths(viewMonth, -1))}
+              className="w-9 h-9 rounded-full border flex items-center justify-center"
+              aria-label="Previous month"
+            >
+              ←
+            </button>
+            <button
+              onClick={() => setViewMonth(addMonths(viewMonth, 1))}
+              className="w-9 h-9 rounded-full border flex items-center justify-center"
+              aria-label="Next month"
+            >
+              →
+            </button>
+          </div>
+        </div>
+
+        {/* Month label */}
+        <div className="px-4 pt-2 text-sm font-medium">
+          {viewMonth.toLocaleString("en-GB", { month: "long", year: "numeric" })}
+        </div>
+
+        {/* Calendar grid container (scrollable) */}
+        <div className="px-2 pb-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
+          <div className="grid grid-cols-7 text-center text-xs py-2 text-gray-500">
+            {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
+              <div key={d} className="select-none">
+                {d}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-7 gap-y-1 pb-2">
+            {cells.map((d, idx) => {
+              if (!d) return <div key={idx} />;
+              const selectedDay = value && sameYMD(parseYMD(value), d);
+              const isToday = sameYMD(new Date(), d);
+              const disabled = isDisabled(d);
+
+              let classes =
+                "mx-auto my-1 flex items-center justify-center w-10 h-10 rounded-full text-sm select-none ";
+              if (disabled) classes += "text-gray-300";
+              else if (selectedDay) classes += "text-white font-semibold bg-[#D84E55]";
+              else classes += "active:bg-red-50";
+
+              return (
+                <button
+                  key={idx}
+                  onClick={() => pick(d)}
+                  disabled={disabled}
+                  className={classes}
+                  style={{
+                    border:
+                      isToday && !selectedDay
+                        ? `1px solid ${PALETTE.primaryRed}`
+                        : undefined,
+                  }}
+                >
+                  {d.getDate()}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Footer quick actions */}
+        <div className="px-4 py-3 border-t flex items-center justify-between">
+          <div className="space-x-4">
+            <button
+              onClick={() => {
+                const t = new Date();
+                onChange?.(toLocalYYYYMMDD(t));
+                onClose?.();
+              }}
+              className="text-sm font-semibold text-[#3A86FF]"
+            >
+              Today
+            </button>
+            <button
+              onClick={() => {
+                const tm = new Date();
+                tm.setDate(tm.getDate() + 1);
+                onChange?.(toLocalYYYYMMDD(tm));
+                onClose?.();
+              }}
+              className="text-sm font-semibold text-[#3A86FF]"
+            >
+              Tomorrow
+            </button>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-xs px-3 py-1.5 rounded-lg border text-gray-600"
+          >
+            Close
+          </button>
+        </div>
+
+        {/* Safe area bottom */}
+        <div style={{ height: "env(safe-area-inset-bottom)" }} />
+      </motion.div>
+    </>,
+    document.body
+  );
+};
+
 /* ---------------- Popular Cities for quick-pick ---------------- */
 const POPULAR_CITIES = [
   "Colombo",
@@ -847,7 +1048,7 @@ const Home = () => {
               </div>
             </div>
 
-            {/* ----- MOBILE VIEW (updated: full-page city picker) ----- */}
+            {/* ----- MOBILE VIEW (updated: full-page city picker + bottom-sheet calendar) ----- */}
             <div className="lg:hidden">
               <div className="relative">
                 {/* FROM */}
@@ -938,14 +1139,8 @@ const Home = () => {
                   </button>
                 </div>
 
-                <CalendarPopover
-                  anchorRef={mobileDateAnchorRef}
-                  open={calOpen && isRefVisible(mobileDateAnchorRef)}
-                  value={date}
-                  minDateString={todayStr}
-                  onChange={setDate}
-                  onClose={() => setCalOpen(false)}
-                />
+                {/* Desktop popover is NOT used on mobile anymore.
+                   Use bottom-sheet calendar below. */}
               </div>
 
               {/* SEARCH BUTTON */}
@@ -1107,6 +1302,15 @@ const Home = () => {
         recent={recent}
         onPick={handleMobilePick}
         onClose={() => setMobilePickerOpen(false)}
+      />
+
+      {/* === MOBILE BOTTOM-SHEET CALENDAR (drop-up) === */}
+      <MobileCalendarSheet
+        open={calOpen && isRefVisible(mobileDateAnchorRef)}
+        value={date}
+        minDateString={todayStr}
+        onChange={setDate}
+        onClose={() => setCalOpen(false)}
       />
     </div>
   );
