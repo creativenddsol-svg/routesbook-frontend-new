@@ -1,4 +1,5 @@
 // SearchResults.jsx
+you missinng lot of lines,it has 1814 codes,can you give me full code copy paste ready fixing this.// SearchResults.jsx
 import {
   useSearchParams,
   useNavigate,
@@ -933,7 +934,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...prev,
         [busKey]: {
           selectedSeats: [],
-          // --- NEW: store genders for selected seats (no UI change) ---
+          // --- NEW: store genders for selected seats (no UI change here) ---
           seatGenders: {}, // { "A1":"M" | "F" }
           selectedBoardingPoint: bus.boardingPoints?.[0] || null,
           selectedDroppingPoint: bus.droppingPoints?.[0] || null,
@@ -1567,23 +1568,41 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   return (
     <div className="flex flex-col min-h-screen font-sans">
       <Toaster position="top-right" />
-      {/* Mobile Header (updated) */}
-      <div className="md:hidden w-full bg-white shadow-sm pt-4 pb-2">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center">
-            <button onClick={() => navigate(-1)} aria-label="Go back">
-              <FaChevronLeft className="text-2xl text-gray-700" />
-            </button>
-            <h1 className="text-xl font-bold ml-4" style={{ color: PALETTE.textDark }}>
-              {from} to {to}
-            </h1>
+      <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="flex items-center mb-2">
+            <FaChevronLeft
+              className="text-xl mr-2 cursor-pointer"
+              onClick={() => navigate("/")}
+            />
+            <span
+              className="text-sm font-medium"
+              style={{ color: PALETTE.textLight }}
+            >
+              Bus Ticket
+            </span>
+            <span className="mx-1 text-gray-400 text-sm">&gt;</span>
+            <span
+              className="text-sm font-medium"
+              style={{ color: PALETTE.textLight }}
+            >
+              {from} to {to} Bus
+            </span>
           </div>
-          <p className="text-sm font-medium mt-1 text-gray-500">
-            {readableDateForHeader}
-          </p>
+          <h1
+            className="text-2xl font-bold"
+            style={{ color: PALETTE.textDark }}
+          >
+            {from} <FaExchangeAlt className="inline-block mx-2 text-gray-500" />{" "}
+            {to}
+          </h1>
+          {!loading && !fetchError && (
+            <p className="text-sm text-gray-500 mb-4">
+              {sortedBuses.length} buses
+            </p>
+          )}
         </div>
       </div>
-
       <div
         ref={stickySearchCardRef}
         className={`${
