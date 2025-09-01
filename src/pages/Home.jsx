@@ -781,7 +781,7 @@ const Home = () => {
   };
 
   const handleSearch = () => {
-    const dateToSearch = date || toLocalYYYYMMDD(new Date());
+    const dateToSearch = date || toLocalYYYYMMDD(new Date()));
     if (!from || !to || !dateToSearch) {
       toast.error("Please fill all fields before searching");
       return;
@@ -1047,23 +1047,28 @@ const Home = () => {
               </div>
             </div>
 
-            {/* ----- MOBILE VIEW (updated: full-page city picker + bottom-sheet calendar) ----- */}
+            {/* ----- MOBILE VIEW (COMPACT) ----- */}
             <div className="lg:hidden">
               <div className="relative">
                 {/* FROM */}
-                <div className="p-4">
-                  <div className="flex items-center gap-4 pb-4 border-b" style={{ borderColor: PALETTE.borderLight }}>
-                    <FaBus className="shrink-0" style={{ color: PALETTE.textLight }} />
+                <div className="p-3">
+                  <div
+                    className="flex items-center gap-3 pb-3 border-b"
+                    style={{ borderColor: PALETTE.borderLight }}
+                  >
+                    <FaBus className="shrink-0 text-base" style={{ color: PALETTE.textLight }} />
                     <div className="w-full">
-                      <label className="block text-xs font-medium text-gray-500">From</label>
-
-                      {/* Tap-to-open full page picker */}
+                      <label className="block text-[11px] font-medium text-gray-500">From</label>
                       <button
                         type="button"
                         onClick={() => openMobilePicker("from")}
-                        className="w-full text-left py-2"
+                        className="w-full text-left py-1.5"
                       >
-                        <span className={`text-lg ${from ? "font-semibold text-gray-900" : "text-gray-400"}`}>
+                        <span
+                          className={`text-base ${
+                            from ? "font-semibold text-gray-900" : "text-gray-400"
+                          }`}
+                        >
                           {from || "Matara"}
                         </span>
                       </button>
@@ -1071,18 +1076,20 @@ const Home = () => {
                   </div>
 
                   {/* TO */}
-                  <div className="flex items-center gap-4 pt-4">
-                    <FaBus className="shrink-0" style={{ color: PALETTE.textLight }} />
+                  <div className="flex items-center gap-3 pt-3">
+                    <FaBus className="shrink-0 text-base" style={{ color: PALETTE.textLight }} />
                     <div className="w-full">
-                      <label className="block text-xs font-medium text-gray-500">To</label>
-
-                      {/* Tap-to-open full page picker */}
+                      <label className="block text-[11px] font-medium text-gray-500">To</label>
                       <button
                         type="button"
                         onClick={() => openMobilePicker("to")}
-                        className="w-full text-left py-2"
+                        className="w-full text-left py-1.5"
                       >
-                        <span className={`text-lg ${to ? "font-semibold text-gray-900" : "text-gray-400"}`}>
+                        <span
+                          className={`text-base ${
+                            to ? "font-semibold text-gray-900" : "text-gray-400"
+                          }`}
+                        >
                           {to || "Colombo"}
                         </span>
                       </button>
@@ -1091,36 +1098,45 @@ const Home = () => {
                 </div>
 
                 {/* SWAP BUTTON */}
-                <div className="absolute top-1/2 right-4 transform -translate-y-1/2 z-10">
+                <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-10">
                   <motion.button
                     whileTap={{ scale: 0.9, rotate: 180 }}
                     onClick={swapLocations}
-                    className="bg-white p-3 rounded-full shadow-md transition-all duration-200"
+                    className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200"
                     style={{ border: `1px solid ${PALETTE.borderLight}` }}
                     title="Swap locations"
                   >
                     {/* Vertical only on mobile */}
-                    <FaExchangeAlt className="text-lg rotate-90" style={{ color: PALETTE.textLight }} />
+                    <FaExchangeAlt className="text-base rotate-90" style={{ color: PALETTE.textLight }} />
                   </motion.button>
                 </div>
               </div>
 
               {/* DATE (Mobile) */}
-              <div className="flex items-center gap-4 p-4 border-t relative" style={{ borderColor: PALETTE.borderLight }}>
-                <FaCalendarAlt className="shrink-0" style={{ color: PALETTE.textLight }} />
-                <div ref={mobileDateAnchorRef} onClick={() => setCalOpen(true)} className="flex-grow cursor-pointer">
-                  <label className="block text-xs font-medium text-gray-500">Date of Journey</label>
-                  <span className="text-lg font-semibold" style={{ color: PALETTE.textDark }}>
+              <div
+                className="flex items-center gap-3 p-3 border-t relative"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
+                <FaCalendarAlt className="shrink-0 text-base" style={{ color: PALETTE.textLight }} />
+                <div
+                  ref={mobileDateAnchorRef}
+                  onClick={() => setCalOpen(true)}
+                  className="flex-grow cursor-pointer"
+                >
+                  <label className="block text-[11px] font-medium text-gray-500">
+                    Date of Journey
+                  </label>
+                  <span className="text-base font-semibold" style={{ color: PALETTE.textDark }}>
                     {getReadableDate(date)}
                   </span>
                 </div>
-                <div className="flex space-x-3">
+                <div className="flex space-x-2">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setDate(todayStr);
                     }}
-                    className={`text-sm font-semibold hover:text-red-500 ${
+                    className={`text-xs font-semibold ${
                       date === todayStr ? "text-red-500" : "text-gray-600"
                     }`}
                   >
@@ -1131,25 +1147,22 @@ const Home = () => {
                       e.stopPropagation();
                       setDate(tomorrowStr);
                     }}
-                    className={`text-sm font-semibold hover:text-red-500 ${
+                    className={`text-xs font-semibold ${
                       date === tomorrowStr ? "text-red-500" : "text-gray-600"
                     }`}
                   >
                     Tomorrow
                   </button>
                 </div>
-
-                {/* Desktop popover is NOT used on mobile anymore.
-                   Use bottom-sheet calendar below. */}
               </div>
 
               {/* SEARCH BUTTON */}
-              <div className="p-4 border-t" style={{ borderColor: PALETTE.borderLight }}>
+              <div className="p-3 border-t" style={{ borderColor: PALETTE.borderLight }}>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleSearch}
-                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-4 rounded-xl shadow-lg transition-all"
+                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-3.5 rounded-xl shadow-lg transition-all"
                   style={{ backgroundColor: PALETTE.primaryRed }}
                 >
                   SEARCH BUSES
