@@ -81,6 +81,19 @@ const getReadableDate = (dateString) => {
   });
 };
 
+// compact label for mobile date chip (e.g. "03 Sep" + "Wed")
+const getMobileDateParts = (dateString) => {
+  if (!dateString) return { top: "-- ---", bottom: "" };
+  const [y, m, d] = dateString.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const top = dt.toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+  });
+  const bottom = dt.toLocaleDateString("en-GB", { weekday: "short" });
+  return { top, bottom };
+};
+
 const calculateDuration = (startTime, endTime) => {
   const [startH, startM] = startTime.split(":").map(Number);
   const [endH, endM] = endTime.split(":").map(Number);
@@ -229,7 +242,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     searchDateParam || toLocalYYYYMMDD(new Date())
   );
   const [allBusesForDropdown, setAllBusesForDropdown] = useState([]);
-  const dateInputRef = useRef(null);
+  const dateInputRef = useRef(null); // desktop search-bar date input
+  const mobileDateInputRef = useRef(null); // mobile header date input
 
   const stickySearchCardRef = useRef(null);
   const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
@@ -277,7 +291,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         console.error("Failed to fetch bus locations for dropdowns", err);
       }
     };
-    fetchAllBuses();
+      fetchAllBuses();
   }, []);
 
   const fromOptions = [...new Set(allBusesForDropdown.map((b) => b.from))].map(
@@ -309,6 +323,20 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setExpandedBusId(null);
   };
 
+  // used by mobile date picker to apply immediately
+  const updateSearchWithDate = (newDate) => {
+    if (!searchFrom || !searchTo || !newDate) return;
+    navigate({
+      pathname: location.pathname,
+      search: `?${createSearchParams({
+        from: searchFrom,
+        to: searchTo,
+        date: newDate,
+      })}`,
+    });
+    setExpandedBusId(null);
+  };
+
   const swapLocations = () => {
     setSearchFrom(searchTo);
     setSearchTo(searchFrom);
@@ -316,6 +344,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   const handleDateContainerClick = () => {
     dateInputRef.current?.showPicker();
+  };
+
+  const handleMobileDateChipClick = () => {
+    mobileDateInputRef.current?.showPicker();
+  };
+
+  const handleMobileDateChange = (e) => {
+    const d = e.target.value;
+    setSearchDate(d);
+    updateSearchWithDate(d);
   };
 
   const selectStyles = {
@@ -399,7 +437,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               bookedSeats: Array.isArray(availabilityRes.data.bookedSeats)
                 ? availabilityRes.data.bookedSeats.map(String)
                 : [],
-              // --- NEW: gender map for booked seats (no UI change) ---
               seatGenderMap: availabilityRes.data.seatGenderMap || {},
             };
           } catch (availErr) {
@@ -412,7 +449,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               available: null,
               window: null,
               bookedSeats: [],
-              seatGenderMap: {}, // keep shape consistent
+              seatGenderMap: {},
             };
           }
         })
@@ -809,7 +846,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               color: PALETTE.textDark,
             }}
           >
-            {/* fixed: map earliest to time-asc so the default displays correctly */}
             <option value="time-asc">Departure: Earliest</option>
             <option value="time-desc">Departure: Latest</option>
             <option value="price-asc">Price: Low to High</option>
@@ -1561,43 +1597,109 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   return (
     <div className="flex flex-col min-h-screen font-sans">
       <Toaster position="top-right" />
+
+      {/* ======= HEADER (Mobile clean + Desktop unchanged) ======= */}
       <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div className="flex items-center mb-2">
-            <FaChevronLeft
-              className="text-xl mr-2 cursor-pointer"
-              onClick={() => navigate("/")}
-            />
-            <span
-              className="text-sm font-medium"
-              style={{ color: PALETTE.textLight }}
-            >
-              Bus Ticket
-            </span>
-            <span className="mx-1 text-gray-400 text-sm">&gt;</span>
-            <span
-              className="text-sm font-medium"
-              style={{ color: PALETTE.textLight }}
-            >
+          {/* Mobile clean header (Redbus-like) */}
+          <div className="block lg:hidden">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                aria-label="Go back"
+              >
+                <FaChevronLeft className="text-xl" />
+              </button>
+
+              {/* Date chip on the right */}
+              <button
+                onClick={handleMobileDateChipClick}
+                className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50"
+                aria-label="Change date"
+              >
+                <span className="text-sm font-semibold leading-none">
+                  {getMobileDateParts(searchDate).top}
+                </span>
+                <span className="text-[10px] text-gray-500 leading-none mt-0.5">
+                  {getMobileDateParts(searchDate).bottom}
+                </span>
+              </button>
+            </div>
+
+            {/* Route title */}
+            <div className="mt-2">
+              <h1
+                className="text-2xl font-bold tracking-tight"
+                style={{ color: PALETTE.textDark }}
+              >
+                {from} <span className="mx-1.5">→</span> {to}
+              </h1>
+              {!loading && !fetchError && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {sortedBuses.length} buses
+                </p>
+              )}
+            </div>
+
+            {/* Breadcrumb (tiny, subdued) */}
+            <div className="mt-2 text-[11px] text-gray-500">
+              Bus Ticket <span className="mx-1 text-gray-400">›</span>
               {from} to {to} Bus
-            </span>
+            </div>
+
+            {/* hidden mobile date picker */}
+            <input
+              ref={mobileDateInputRef}
+              type="date"
+              value={searchDate}
+              min={todayStr}
+              onChange={handleMobileDateChange}
+              className="absolute opacity-0 pointer-events-none"
+              aria-hidden="true"
+              tabIndex={-1}
+            />
           </div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: PALETTE.textDark }}
-          >
-            {from} <FaExchangeAlt className="inline-block mx-2 text-gray-500" />{" "}
-            {to}
-          </h1>
-          {!loading && !fetchError && (
-            <p className="text-sm text-gray-500 mb-4">
-              {sortedBuses.length} buses
-            </p>
-          )}
+
+          {/* Desktop header (unchanged) */}
+          <div className="hidden lg:block">
+            <div className="flex items-center mb-2">
+              <FaChevronLeft
+                className="text-xl mr-2 cursor-pointer"
+                onClick={() => navigate("/")}
+              />
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
+                Bus Ticket
+              </span>
+              <span className="mx-1 text-gray-400 text-sm">&gt;</span>
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
+                {from} to {to} Bus
+              </span>
+            </div>
+            <h1
+              className="text-2xl font-bold"
+              style={{ color: PALETTE.textDark }}
+            >
+              {from}{" "}
+              <FaExchangeAlt className="inline-block mx-2 text-gray-500" />{" "}
+              {to}
+            </h1>
+            {!loading && !fetchError && (
+              <p className="text-sm text-gray-500 mb-4">
+                {sortedBuses.length} buses
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Sticky search bar: desktop only. Mobile modify-search button removed. */}
+      {/* Sticky search controls (desktop only, unchanged) */}
       <div
         ref={stickySearchCardRef}
         className={`${
@@ -1753,8 +1855,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 </motion.button>
               </div>
             </div>
-
-            {/* NOTE: Mobile 'MODIFY SEARCH' bar removed as requested */}
+            {/* No mobile modify-search bar (unchanged) */}
           </div>
         </div>
       </div>
