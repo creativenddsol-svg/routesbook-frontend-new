@@ -519,7 +519,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   // --- Infinite Scroll ---
   useEffect(() => {
     const handleScroll = () => {
-      // Check if we're near the bottom of the page (with a 200px buffer)
       if (
         window.innerHeight + document.documentElement.scrollTop <
           document.documentElement.offsetHeight - 200 ||
@@ -528,20 +527,18 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       ) {
         return;
       }
-      // Load the next "page" of results
       setPage((prevPage) => prevPage + 1);
     };
 
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
-  }, [page, totalPages, loading]); // Dependencies ensure the function uses up-to-date values
+  }, [page, totalPages, loading]);
 
   const activeFilterCount =
     Object.values(filters.timeSlots).filter(Boolean).length +
     (filters.type ? 1 : 0) +
     (filters.maxPrice < 5000 ? 1 : 0);
 
-  // Show results based on how many "pages" have been loaded by scrolling
   const visibleBuses = sortedBuses.slice(0, page * RESULTS_PER_PAGE);
 
   const resetFilters = () => {
@@ -561,7 +558,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     });
   }, [searchDateParam]);
 
-  // ===== Special Notices Section (ENHANCED: dots navigation) =====
+  // ===== Special Notices Section =====
   const SpecialNoticesSection = () => {
     const itemsToRender = noticesLoading
       ? Array.from({ length: 4 })
@@ -812,7 +809,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               color: PALETTE.textDark,
             }}
           >
-            <option value="">Departure: Earliest</option>
+            {/* fixed: map earliest to time-asc so the default displays correctly */}
+            <option value="time-asc">Departure: Earliest</option>
             <option value="time-desc">Departure: Latest</option>
             <option value="price-asc">Price: Low to High</option>
             <option value="price-desc">Price: High to Low</option>
@@ -861,7 +859,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               color: PALETTE.textDark,
             }}
           >
-            <option value="">All Types</option> <option value="AC">AC</option>
+            <option value="">All Types</option>
+            <option value="AC">AC</option>
             <option value="Non-AC">Non-AC</option>
           </select>
         </section>
@@ -933,7 +932,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...prev,
         [busKey]: {
           selectedSeats: [],
-          // --- NEW: store genders for selected seats (no UI change here) ---
           seatGenders: {}, // { "A1":"M" | "F" }
           selectedBoardingPoint: bus.boardingPoints?.[0] || null,
           selectedDroppingPoint: bus.droppingPoints?.[0] || null,
@@ -977,7 +975,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         : (toast.error("🚫 You can select a maximum of 4 seats."),
           currentBusData.selectedSeats);
 
-      // --- NEW: keep seatGenders in sync (default "M" on add, remove on unselect) ---
       const updatedSeatGenders = { ...(currentBusData.seatGenders || {}) };
       if (isSelected) {
         delete updatedSeatGenders[String(seat)];
@@ -1094,7 +1091,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       totalPrice,
       selectedBoardingPoint,
       selectedDroppingPoint,
-      // --- NEW: carry seatGenders forward (no UI change) ---
       seatGenders,
     } = busData;
 
@@ -1118,7 +1114,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         date: searchDateParam,
         departureTime: bus.departureTime,
         selectedSeats,
-        // --- NEW: pass current seat genders to Confirm ---
         seatGenders: seatGenders || {},
         priceDetails: {
           basePrice,
@@ -1190,7 +1185,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
             const currentBusBookingData = busSpecificBookingData[busKey] || {
               selectedSeats: [],
-              seatGenders: {}, // keep shape if not initialized yet
+              seatGenders: {},
               selectedBoardingPoint: bus.boardingPoints?.[0] || null,
               selectedDroppingPoint: bus.droppingPoints?.[0] || null,
               basePrice: 0,
@@ -1494,7 +1489,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                                 onSeatClick={(seat) =>
                                   handleSeatToggle(bus, seat)
                                 }
-                                // --- NEW: pass gender info to SeatLayout (coloring only) ---
                                 bookedSeatGenders={
                                   busAvailability?.seatGenderMap || {}
                                 }
@@ -1602,6 +1596,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           )}
         </div>
       </div>
+
+      {/* Sticky search bar: desktop only. Mobile modify-search button removed. */}
       <div
         ref={stickySearchCardRef}
         className={`${
@@ -1615,6 +1611,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="bg-white border border-gray-300 rounded-3xl">
+            {/* Desktop search controls (unchanged) */}
             <div className="hidden lg:flex rounded-2xl">
               <div
                 className="relative flex-1 p-4 flex items-center border-r"
@@ -1756,18 +1753,12 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 </motion.button>
               </div>
             </div>
-            <div className="lg:hidden p-3">
-              <button
-                onClick={handleModifySearch}
-                className="w-full font-heading flex items-center justify-center gap-2 text-white font-bold tracking-wider px-8 py-2 rounded-xl shadow-lg"
-                style={{ backgroundColor: PALETTE.primaryRed }}
-              >
-                <FaSearch /> MODIFY SEARCH
-              </button>
-            </div>
+
+            {/* NOTE: Mobile 'MODIFY SEARCH' bar removed as requested */}
           </div>
         </div>
       </div>
+
       <div
         className="flex-1 w-full pb-8"
         style={{ backgroundColor: PALETTE.bgLight }}
@@ -1792,24 +1783,56 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             </aside>
             <main className="lg:col-span-3 space-y-5">
               <SpecialNoticesSection />
+
+              {/* Mobile: Show Filters & Sort button (opens drawer) */}
               <button
                 onClick={() => setIsFilterOpen(true)}
                 className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg lg:hidden text-white"
                 style={{ backgroundColor: PALETTE.accentBlue }}
               >
-                <FaSlidersH /> Show Filters & Sort
+                <FaSlidersH /> Show Filters &amp; Sort
                 {activeFilterCount > 0 && (
                   <span className="flex items-center justify-center w-5 h-5 text-xs text-white bg-red-500 rounded-full">
                     {activeFilterCount}
                   </span>
                 )}
               </button>
+
               <AnimatePresence>{renderMainContent()}</AnimatePresence>
-              {/* Pagination buttons removed */}
             </main>
           </div>
         </div>
       </div>
+
+      {/* MOBILE FILTER DRAWER + BACKDROP */}
+      <AnimatePresence>
+        {isFilterOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Close filters"
+              onClick={() => setIsFilterOpen(false)}
+              className="fixed inset-0 bg-black/40 z-50 lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            />
+            <motion.div
+              className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 lg:hidden overflow-y-auto rounded-r-2xl shadow-xl"
+              variants={drawerVariants}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+            >
+              <FilterPanel
+                isMobile={true}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
