@@ -717,6 +717,28 @@ const Home = () => {
   const [allBuses, setAllBuses] = useState([]);
   const navigate = useNavigate();
 
+  // ✅ iPhone full-display + notch: ensure viewport-fit=cover
+  useEffect(() => {
+    const isIOS =
+      /iP(hone|od|ad)/.test(navigator.platform) ||
+      (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+    try {
+      let meta = document.querySelector('meta[name="viewport"]');
+      if (!meta) {
+        meta = document.createElement("meta");
+        meta.name = "viewport";
+        meta.content = "width=device-width, initial-scale=1, viewport-fit=cover";
+        document.head.appendChild(meta);
+      } else if (!/viewport-fit=cover/.test(meta.content || "")) {
+        meta.content = meta.content + ", viewport-fit=cover";
+      }
+    } catch {}
+    // Avoid iOS input auto-zoom side effects
+    if (isIOS) {
+      document.documentElement.style.webkitTextSizeAdjust = "100%";
+    }
+  }, []);
+
   // calendar popover state
   const [calOpen, setCalOpen] = useState(false);
   const desktopDateAnchorRef = useRef(null);
@@ -860,9 +882,22 @@ const Home = () => {
   };
 
   return (
-    <div className="min-h-screen font-sans" style={{ backgroundColor: PALETTE.bgLight }}>
-      {/* notch spacer (mobile only) */}
-      <div className="lg:hidden" style={{ height: "env(safe-area-inset-top)", backgroundColor: PALETTE.bgLight }} />
+    <div
+      className="min-h-screen min-h-[100svh] font-sans"
+      style={{
+        backgroundColor: PALETTE.bgLight,
+        // Ensure iOS Safari uses full dynamic viewport height
+        minHeight: "100dvh",
+      }}
+    >
+      {/* notch spacer (mobile only, matches redBus top safe area) */}
+      <div
+        className="lg:hidden"
+        style={{
+          height: "env(safe-area-inset-top)",
+          backgroundColor: PALETTE.bgLight,
+        }}
+      />
 
       <Toaster position="top-right" />
 
@@ -1306,6 +1341,9 @@ const Home = () => {
       </div>
 
       <Footer />
+
+      {/* === MOBILE: page-level bottom safe area so content never collides with iPhone home bar */}
+      <div className="lg:hidden" style={{ height: "env(safe-area-inset-bottom)" }} />
 
       {/* === MOBILE FULL-PAGE PICKER MOUNT === */}
       <MobileCityPicker
