@@ -710,6 +710,20 @@ const getReadableDate = (dateString) => {
   });
 };
 
+/* ---- helper to ensure/patch meta tags ---- */
+const setOrCreateMeta = (name, content, attrs = {}) => {
+  let el = document.querySelector(`meta[name="${name}"]`);
+  if (!el) {
+    el = document.createElement("meta");
+    el.setAttribute("name", name);
+    document.head.appendChild(el);
+  }
+  el.setAttribute("content", content);
+  Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+};
+
+const IOS_BAR_COLOR = "#ffffff"; // change if you want the status area to be another color
+
 const Home = () => {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -717,26 +731,36 @@ const Home = () => {
   const [allBuses, setAllBuses] = useState([]);
   const navigate = useNavigate();
 
-  // ✅ iPhone full-display + notch: ensure viewport-fit=cover
+  // ✅ iPhone full-display + notch + colored status bar (like redBus)
   useEffect(() => {
     const isIOS =
       /iP(hone|od|ad)/.test(navigator.platform) ||
       (navigator.userAgent.includes("Mac") && "ontouchend" in document);
+
     try {
-      let meta = document.querySelector('meta[name="viewport"]');
-      if (!meta) {
-        meta = document.createElement("meta");
-        meta.name = "viewport";
-        meta.content = "width=device-width, initial-scale=1, viewport-fit=cover";
-        document.head.appendChild(meta);
-      } else if (!/viewport-fit=cover/.test(meta.content || "")) {
-        meta.content = meta.content + ", viewport-fit=cover";
+      // 1) viewport-fit=cover so content extends into the notch area
+      let viewport = document.querySelector('meta[name="viewport"]');
+      if (!viewport) {
+        viewport = document.createElement("meta");
+        viewport.name = "viewport";
+        document.head.appendChild(viewport);
       }
+      if (!/viewport-fit=cover/.test(viewport.content || "")) {
+        viewport.content = (viewport.content ? viewport.content + ", " : "") + "viewport-fit=cover";
+      }
+
+      // 2) color the iOS status bar area (Safari uses theme-color)
+      setOrCreateMeta("theme-color", IOS_BAR_COLOR);
+      // also provide dark-scheme variant so it doesn't turn black automatically
+      setOrCreateMeta("theme-color", IOS_BAR_COLOR, { media: "(prefers-color-scheme: light)" });
+      setOrCreateMeta("theme-color", IOS_BAR_COLOR, { media: "(prefers-color-scheme: dark)" });
+
+      // 3) If user adds to Home Screen, prefer light status bar background
+      setOrCreateMeta("apple-mobile-web-app-capable", "yes");
+      setOrCreateMeta("apple-mobile-web-app-status-bar-style", "default");
     } catch {}
-    // Avoid iOS input auto-zoom side effects
-    if (isIOS) {
-      document.documentElement.style.webkitTextSizeAdjust = "100%";
-    }
+    // keep text sizing stable on iOS
+    if (isIOS) document.documentElement.style.webkitTextSizeAdjust = "100%";
   }, []);
 
   // calendar popover state
@@ -890,12 +914,12 @@ const Home = () => {
         minHeight: "100dvh",
       }}
     >
-      {/* notch spacer (mobile only, matches redBus top safe area) */}
+      {/* Top safe-area (lets the iOS status bar sit on our color) */}
       <div
         className="lg:hidden"
         style={{
           height: "env(safe-area-inset-top)",
-          backgroundColor: PALETTE.bgLight,
+          backgroundColor: IOS_BAR_COLOR, // match theme-color
         }}
       />
 
@@ -1342,8 +1366,8 @@ const Home = () => {
 
       <Footer />
 
-      {/* === MOBILE: page-level bottom safe area so content never collides with iPhone home bar */}
-      <div className="lg:hidden" style={{ height: "env(safe-area-inset-bottom)" }} />
+      {/* Bottom safe-area so content never collides with iPhone home bar */}
+      <div className="lg:hidden" style={{ height: "env(safe-area-inset-bottom)", backgroundColor: PALETTE.bgLight }} />
 
       {/* === MOBILE FULL-PAGE PICKER MOUNT === */}
       <MobileCityPicker
