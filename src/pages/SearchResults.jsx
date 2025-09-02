@@ -14,8 +14,10 @@ import {
   FaBus,
   FaClock,
   FaRoute,
+  FaFilter,
   FaTimes,
   FaChevronLeft,
+  FaChevronRight,
   FaMoneyBillWave,
   FaExclamationCircle,
   FaHourglassHalf,
@@ -42,7 +44,7 @@ const PALETTE = {
   accentBlue: "#3A86FF",
   textDark: "#1A1A1A",
   textLight: "#4B5563",
-  bgLight: "#F5F6F7",
+  bgLight: "#F0F2F5",
   borderLight: "#E9ECEF",
   white: "#FFFFFF",
   green: "#28a745",
@@ -50,16 +52,16 @@ const PALETTE = {
   yellow: "#FFC107",
 };
 
-// --- Constants ---
+// --- Constants (TIME_SLOTS, RESULTS_PER_PAGE) ---
 const TIME_SLOTS = {
   Morning: [4, 12],
   Afternoon: [12, 17],
   Evening: [17, 21],
   Night: [21, 24],
 };
-const RESULTS_PER_PAGE = 5;
+const RESULTS_PER_PAGE = 5; // This now controls how many results are loaded per scroll
 
-// --- Helpers ---
+// --- Helper Functions ---
 const toLocalYYYYMMDD = (dateObj) => {
   const year = dateObj.getFullYear();
   const month = String(dateObj.getMonth() + 1).padStart(2, "0");
@@ -110,18 +112,12 @@ const getDisplayPrice = (bus, from, to) => {
     const specificFare = bus.fares.find(
       (fare) => fare.boardingPoint === from && fare.droppingPoint === to
     );
-    if (specificFare && specificFare.price) return specificFare.price;
+    if (specificFare && specificFare.price) {
+      return specificFare.price;
+    }
   }
-  return bus.price;
+  return bus.price; // Fallback to the default price
 };
-
-// --- Small UI bits to mirror Redbus ---
-const RatingBadge = ({ score = 4.7, count = 0 }) => (
-  <div className="inline-flex items-center gap-1 bg-green-600/90 text-white rounded-md px-2 py-1">
-    <FaStar className="text-[10px]" />
-    <span className="text-xs font-bold tabular-nums">{score}</span>
-  </div>
-);
 
 // --- BookingDeadlineTimer Component ---
 const BookingDeadlineTimer = ({
@@ -157,14 +153,20 @@ const BookingDeadlineTimer = ({
 
   if (Date.now() >= departureTimestamp) {
     return (
-      <p className="text-xs font-medium mt-1" style={{ color: PALETTE.textLight }}>
+      <p
+        className="text-xs font-medium mt-1"
+        style={{ color: PALETTE.textLight }}
+      >
         <FaHourglassHalf className="inline mr-1" /> Departed
       </p>
     );
   }
   if (timeLeft <= 0) {
     return (
-      <p className="text-xs font-bold mt-1" style={{ color: PALETTE.primaryRed }}>
+      <p
+        className="text-xs font-bold mt-1"
+        style={{ color: PALETTE.primaryRed }}
+      >
         <FaHourglassHalf className="inline mr-1" /> Booking Closed
       </p>
     );
@@ -184,32 +186,45 @@ const BookingDeadlineTimer = ({
   );
 };
 
-// --- Skeleton ---
+// --- Reusable Components (BusCardSkeleton) ---
 const BusCardSkeleton = () => (
-  <div className="bg-white rounded-2xl p-6 animate-pulse border border-gray-200">
-    <div className="h-6 w-3/5 rounded bg-gray-200 mb-4"></div>
-    <div className="h-4 w-4/5 rounded bg-gray-200"></div>
-    <div className="border-t my-5 border-gray-100"></div>
-    <div className="h-12 w-32 rounded-lg bg-gray-200 ml-auto"></div>
+  <div className="bg-white rounded-2xl p-6 animate-pulse border border-gray-300">
+    <div className="flex justify-between items-start">
+      <div className="flex-1 pr-4">
+        <div className="h-6 w-3/5 rounded bg-gray-200 mb-4"></div>
+        <div className="h-4 w-4/5 rounded bg-gray-200"></div>
+      </div>
+      <div className="h-10 w-24 rounded-lg bg-gray-200"></div>
+    </div>
+    <div className="border-t border-dashed my-5 border-gray-200"></div>
+    <div className="flex justify-between items-center">
+      <div className="flex gap-4">
+        <div className="h-8 w-24 rounded-full bg-gray-200"></div>
+        <div className="h-8 w-24 rounded-full bg-gray-200"></div>
+      </div>
+      <div className="h-12 w-32 rounded-lg bg-gray-200"></div>
+    </div>
   </div>
 );
 
-// --- Main ---
+// --- Main Search Results Component ---
 const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { from, to, date: searchDateParam } = Object.fromEntries(
-    searchParams.entries()
-  );
+  const {
+    from,
+    to,
+    date: searchDateParam,
+  } = Object.fromEntries(searchParams.entries());
 
-  // state
+  // --- State for the results list ---
   const [buses, setBuses] = useState([]);
   const [availability, setAvailability] = useState({});
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(1); // Now represents the number of "pages" of results to show
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState("time-asc");
   const [filters, setFilters] = useState({
@@ -227,9 +242,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     searchDateParam || toLocalYYYYMMDD(new Date())
   );
   const [allBusesForDropdown, setAllBusesForDropdown] = useState([]);
-
-  const dateInputRef = useRef(null);
-  const mobileDateInputRef = useRef(null);
+  const dateInputRef = useRef(null); // desktop search-bar date input
+  const mobileDateInputRef = useRef(null); // mobile header date input
 
   const stickySearchCardRef = useRef(null);
   const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
@@ -239,10 +253,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = toLocalYYYYMMDD(tomorrow);
 
+  // --- State for inline booking ---
   const [expandedBusId, setExpandedBusId] = useState(null);
   const [busSpecificBookingData, setBusSpecificBookingData] = useState({});
 
-  // keep header height value fresh
   useEffect(() => {
     if (stickySearchCardRef.current) {
       setStickySearchCardOwnHeight(stickySearchCardRef.current.offsetHeight);
@@ -253,15 +267,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     return showNavbar ? headerHeight : 0;
   }, [showNavbar, headerHeight]);
 
-  // data
   useEffect(() => {
     const fetchSpecialNotices = async () => {
       try {
         setNoticesLoading(true);
         const res = await apiClient.get("/special-notices");
         setSpecialNotices(res.data);
-      } catch {
-        /* ignore */
+      } catch (err) {
+        console.error("Failed to fetch special notices:", err);
       } finally {
         setNoticesLoading(false);
       }
@@ -274,18 +287,24 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       try {
         const res = await apiClient.get("/buses");
         setAllBusesForDropdown(res.data);
-      } catch {
-        /* ignore */
+      } catch (err) {
+        console.error("Failed to fetch bus locations for dropdowns", err);
       }
     };
-    fetchAllBuses();
+      fetchAllBuses();
   }, []);
 
   const fromOptions = [...new Set(allBusesForDropdown.map((b) => b.from))].map(
-    (val) => ({ value: val, label: val })
+    (val) => ({
+      value: val,
+      label: val,
+    })
   );
   const toOptions = [...new Set(allBusesForDropdown.map((b) => b.to))].map(
-    (val) => ({ value: val, label: val })
+    (val) => ({
+      value: val,
+      label: val,
+    })
   );
 
   const handleModifySearch = () => {
@@ -304,6 +323,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setExpandedBusId(null);
   };
 
+  // used by mobile date picker to apply immediately
   const updateSearchWithDate = (newDate) => {
     if (!searchFrom || !searchTo || !newDate) return;
     navigate({
@@ -322,8 +342,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setSearchTo(searchFrom);
   };
 
-  const handleDateContainerClick = () => dateInputRef.current?.showPicker();
-  const handleMobileDateChipClick = () => mobileDateInputRef.current?.showPicker();
+  const handleDateContainerClick = () => {
+    dateInputRef.current?.showPicker();
+  };
+
+  const handleMobileDateChipClick = () => {
+    mobileDateInputRef.current?.showPicker();
+  };
+
   const handleMobileDateChange = (e) => {
     const d = e.target.value;
     setSearchDate(d);
@@ -413,7 +439,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 : [],
               seatGenderMap: availabilityRes.data.seatGenderMap || {},
             };
-          } catch {
+          } catch (availErr) {
+            console.warn(
+              `Could not fetch availability for bus ${bus._id} at ${bus.departureTime}:`,
+              availErr
+            );
             const availabilityKey = `${bus._id}-${bus.departureTime}`;
             seatData[availabilityKey] = {
               available: null,
@@ -426,6 +456,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       );
       setAvailability(seatData);
     } catch (err) {
+      console.error("Error fetching bus results:", err);
       setBuses([]);
       setFetchError(
         err.response?.data?.message ||
@@ -438,7 +469,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   useEffect(() => {
     fetchData();
-    setPage(1);
+    setPage(1); // Reset to the first page of results on a new search
     setSearchFrom(from || "");
     setSearchTo(to || "");
     setSearchDate(searchDateParam || toLocalYYYYMMDD(new Date()));
@@ -472,11 +503,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         );
         const busDepartureTimestamp = departureDateTime.getTime();
 
-        if (searchingToday && busDepartureTimestamp <= now.getTime()) return false;
+        if (searchingToday && busDepartureTimestamp <= now.getTime()) {
+          return false;
+        }
 
         const bookingDeadlineTimestamp =
           busDepartureTimestamp - 1 * 60 * 60 * 1000;
-        if (bookingDeadlineTimestamp <= now.getTime()) return false;
+        if (bookingDeadlineTimestamp <= now.getTime()) {
+          return false;
+        }
 
         const activeTimeSlots = Object.keys(filters.timeSlots).filter(
           (slot) => filters.timeSlots[slot]
@@ -518,7 +553,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   const totalPages = Math.ceil(sortedBuses.length / RESULTS_PER_PAGE);
 
-  // Infinite Scroll
+  // --- Infinite Scroll ---
   useEffect(() => {
     const handleScroll = () => {
       if (
@@ -547,6 +582,18 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setFilters({ type: "", maxPrice: 5000, timeSlots: {} });
     setPage(1);
   };
+
+  const readableDateForHeader = useMemo(() => {
+    if (!searchDateParam) return "Invalid Date";
+    const [year, month, day] = searchDateParam.split("-");
+    const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
+    return dateObj.toLocaleDateString("en-GB", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  }, [searchDateParam]);
 
   // ===== Special Notices Section =====
   const SpecialNoticesSection = () => {
@@ -656,7 +703,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         className="mx-auto text-6xl mb-4"
         style={{ color: PALETTE.yellow }}
       />
-      <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
+      <h3
+        className="text-2xl font-bold mb-2"
+        style={{ color: PALETTE.textDark }}
+      >
         Oops! Something went wrong.
       </h3>
       <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>
@@ -692,10 +742,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           className="mx-auto text-6xl mb-4"
           style={{ color: `${PALETTE.primaryRed}50` }}
         />
-        <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
+        <h3
+          className="text-2xl font-bold mb-2"
+          style={{ color: PALETTE.textDark }}
+        >
           {title}
         </h3>
-        <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>
+        <p
+          className="max-w-md mx-auto mb-6"
+          style={{ color: PALETTE.textLight }}
+        >
           {message}
         </p>
         <motion.button
@@ -747,7 +803,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             className="text-xl font-bold flex items-center gap-3"
             style={{ color: PALETTE.textDark }}
           >
-            <FaSlidersH className="lg:hidden" style={{ color: PALETTE.accentBlue }} />{" "}
+            <FaSlidersH
+              className="lg:hidden"
+              style={{ color: PALETTE.accentBlue }}
+            />{" "}
             {headerText}
           </h3>
           {isMobile ? (
@@ -765,7 +824,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               }`}
               style={{
                 color:
-                  activeFilterCount > 0 ? PALETTE.primaryRed : PALETTE.textLight,
+                  activeFilterCount > 0
+                    ? PALETTE.primaryRed
+                    : PALETTE.textLight,
               }}
             >
               <FaSyncAlt /> {resetText}
@@ -872,7 +933,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           </div>
         </section>
         {isMobile && (
-          <div className="pt-4 border-t" style={{ borderColor: PALETTE.borderLight }}>
+          <div
+            className="pt-4 border-t"
+            style={{ borderColor: PALETTE.borderLight }}
+          >
             <button
               onClick={() => setIsFilterOpen(false)}
               className="w-full py-3 font-bold text-white rounded-lg"
@@ -904,7 +968,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...prev,
         [busKey]: {
           selectedSeats: [],
-          seatGenders: {},
+          seatGenders: {}, // { "A1":"M" | "F" }
           selectedBoardingPoint: bus.boardingPoints?.[0] || null,
           selectedDroppingPoint: bus.droppingPoints?.[0] || null,
           basePrice: 0,
@@ -983,7 +1047,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     }));
   };
 
-  // Price calc on expand
+  // Price Calculation Logic
   useEffect(() => {
     if (!expandedBusId || !buses.length) return;
 
@@ -1011,7 +1075,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           f.boardingPoint === selectedBoardingPoint.point &&
           f.droppingPoint === selectedDroppingPoint.point
       );
-      if (specificFare) pricePerSeat = specificFare.price;
+      if (specificFare) {
+        pricePerSeat = specificFare.price;
+      }
     }
 
     const basePrice = pricePerSeat * selectedSeats.length;
@@ -1096,18 +1162,22 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     });
   };
 
-  // ==== CONTENT ====
   const renderMainContent = () => {
     if (loading) {
       return Array.from({ length: RESULTS_PER_PAGE }).map((_, i) => (
         <BusCardSkeleton key={i} />
       ));
     }
-    if (fetchError) return <ErrorDisplay message={fetchError} />;
-
+    if (fetchError) {
+      return <ErrorDisplay message={fetchError} />;
+    }
     if (visibleBuses.length > 0) {
       return (
-        <motion.div variants={containerVariants} initial="hidden" animate="visible">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {visibleBuses.map((bus) => {
             const busKey = `${bus._id}-${bus.departureTime}`;
             const displayPrice = getDisplayPrice(bus, from, to);
@@ -1115,7 +1185,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             let timerProps = null;
             if (searchDateParam && bus.departureTime) {
               const now = new Date();
-              const [depHour, depMinute] = bus.departureTime.split(":").map(Number);
+              const [depHour, depMinute] = bus.departureTime
+                .split(":")
+                .map(Number);
               const [year, month, day] = searchDateParam.split("-").map(Number);
               const departureDateTime = new Date(
                 year,
@@ -1134,7 +1206,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 timerProps = {
                   deadlineTimestamp: bookingDeadlineTimestamp,
                   departureTimestamp: busDepartureTimestamp,
-                  onDeadline: () => fetchData(),
+                  onDeadline: () => {
+                    fetchData();
+                  },
                 };
               }
             }
@@ -1164,19 +1238,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               typeof bus.originalPrice === "number" &&
               bus.originalPrice > displayPrice;
 
-            // Redbus-like rating numbers (fallbacks if not provided)
-            const ratingScore =
-              typeof bus.rating?.score === "number" ? bus.rating.score : 4.7;
-            const ratingCount =
-              typeof bus.rating?.count === "number" ? bus.rating.count : undefined;
-
             return (
               <motion.div
                 variants={itemVariants}
                 key={busKey}
-                className="bg-white rounded-2xl transition-shadow duration-300 mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
+                className="bg-white rounded-xl transition-shadow duration-300 mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
               >
-                {/* ===== MOBILE CARD ===== */}
+                {/* --- UPDATED MINIMAL MOBILE VIEW (ONLY mobile changed) --- */}
                 <div
                   className={`md:hidden block ${
                     isSoldOut ? "opacity-60 bg-gray-50" : "cursor-pointer"
@@ -1190,22 +1258,25 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   }}
                 >
                   <div className="p-4">
-                    {/* top label & price */}
+                    {/* Row: Time & Price */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 text-gray-900">
-                          <span className="text-[18px] font-semibold tabular-nums">
+                        <div className="flex items-center gap-2 text-gray-800">
+                          <span className="text-[18px] font-medium tabular-nums">
                             {bus.departureTime}
                           </span>
                           <span className="text-sm text-gray-400">—</span>
-                          <span className="text-[18px] font-semibold tabular-nums">
+                          <span className="text-[18px] font-medium tabular-nums">
                             {bus.arrivalTime}
                           </span>
                         </div>
                         <div className="mt-1.5 text-xs text-gray-500 flex items-center">
                           <span className="inline-flex items-center gap-1">
                             <FaClock className="text-[10px]" />
-                            {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                            {calculateDuration(
+                              bus.departureTime,
+                              bus.arrivalTime
+                            )}
                           </span>
                           {!isSoldOut && typeof availableSeats === "number" && (
                             <>
@@ -1237,29 +1308,33 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
                     <hr className="my-3 border-t border-gray-100" />
 
-                    {/* name + type + rating */}
+                    {/* Row: Name / Type / Logo */}
                     <div className="flex items-center justify-between">
                       <div className="min-w-0 pr-3">
-                        <h4 className="text-[15px] font-semibold text-gray-900 truncate">
+                        <h4 className="text-[15px] font-medium text-gray-800 truncate">
                           {bus.name}
                         </h4>
                         <p className="text-[12px] text-gray-500 truncate">
                           {bus.busType}
                         </p>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <RatingBadge score={ratingScore} count={ratingCount} />
-                        {typeof ratingCount === "number" && (
-                          <span className="text-xs text-gray-600 tabular-nums">
-                            {ratingCount}
-                          </span>
+                      <div className="w-16 h-10 flex-shrink-0 flex items-center justify-center">
+                        {bus.operatorLogo ? (
+                          <img
+                            src={bus.operatorLogo}
+                            alt={`${bus.name} logo`}
+                            className="max-w-full max-h-full object-contain"
+                            style={{ border: "none", boxShadow: "none" }}
+                          />
+                        ) : (
+                          <FaBus className="text-2xl text-gray-300" />
                         )}
                       </div>
                     </div>
                   </div>
                 </div>
 
-                {/* ===== DESKTOP CARD ===== */}
+                {/* --- EXISTING DESKTOP VIEW --- */}
                 <div className="hidden md:block p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-2">
@@ -1273,27 +1348,23 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                               style={{ border: "none", boxShadow: "none" }}
                             />
                           ) : (
-                            <FaBus className="text-3xl" style={{ color: neutralMuted }} />
+                            <FaBus
+                              className="text-3xl"
+                              style={{ color: neutralMuted }}
+                            />
                           )}
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-3">
-                            <h3
-                              className="text-base font-semibold truncate"
-                              style={{ color: neutralTitle }}
-                            >
-                              {bus.name}
-                            </h3>
-                            <div className="flex items-center gap-2">
-                              <RatingBadge score={ratingScore} />
-                              {typeof ratingCount === "number" && (
-                                <span className="text-xs text-gray-600 tabular-nums">
-                                  {ratingCount}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <p className="text-sm font-medium" style={{ color: neutralText }}>
+                        <div>
+                          <h3
+                            className="text-base font-semibold"
+                            style={{ color: neutralTitle }}
+                          >
+                            {bus.name}
+                          </h3>
+                          <p
+                            className="text-sm font-medium"
+                            style={{ color: neutralText }}
+                          >
                             {bus.busType}
                           </p>
                           {bus.liveTracking && (
@@ -1348,7 +1419,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           style={{ color: neutralMuted }}
                         >
                           <span className="inline-flex items-center gap-1">
-                            <FaClock /> {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                            <FaClock />{" "}
+                            {calculateDuration(
+                              bus.departureTime,
+                              bus.arrivalTime
+                            )}
                           </span>
                           {typeof availableSeats === "number" && (
                             <span>{availableSeats} seats</span>
@@ -1382,7 +1457,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       </p>
                       <div className="mt-2 inline-block text-right">
                         {hasStrike && (
-                          <div className="text-xs line-through" style={{ color: "#9CA3AF" }}>
+                          <div
+                            className="text-xs line-through"
+                            style={{ color: "#9CA3AF" }}
+                          >
                             Rs. {bus.originalPrice}
                           </div>
                         )}
@@ -1425,7 +1503,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       </motion.button>
                     </div>
                   </div>
-
                   {expandedBusId === busKey && (
                     <AnimatePresence>
                       <motion.div
@@ -1442,10 +1519,18 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                               <SeatLayout
                                 seatLayout={bus.seatLayout}
                                 bookedSeats={busAvailability?.bookedSeats || []}
-                                selectedSeats={currentBusBookingData.selectedSeats}
-                                onSeatClick={(seat) => handleSeatToggle(bus, seat)}
-                                bookedSeatGenders={busAvailability?.seatGenderMap || {}}
-                                selectedSeatGenders={currentBusBookingData.seatGenders}
+                                selectedSeats={
+                                  currentBusBookingData.selectedSeats
+                                }
+                                onSeatClick={(seat) =>
+                                  handleSeatToggle(bus, seat)
+                                }
+                                bookedSeatGenders={
+                                  busAvailability?.seatGenderMap || {}
+                                }
+                                selectedSeatGenders={
+                                  currentBusBookingData.seatGenders
+                                }
                               />
                             </div>
                           </div>
@@ -1471,14 +1556,22 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                             <div className="w-full mx-auto xs:max-w-xs sm:max-w-sm">
                               <BookingSummary
                                 bus={bus}
-                                selectedSeats={currentBusBookingData.selectedSeats}
+                                selectedSeats={
+                                  currentBusBookingData.selectedSeats
+                                }
                                 date={searchDateParam}
                                 basePrice={currentBusBookingData.basePrice}
-                                convenienceFee={currentBusBookingData.convenienceFee}
+                                convenienceFee={
+                                  currentBusBookingData.convenienceFee
+                                }
                                 totalPrice={currentBusBookingData.totalPrice}
                                 onProceed={() => handleProceedToPayment(bus)}
-                                boardingPoint={currentBusBookingData.selectedBoardingPoint}
-                                droppingPoint={currentBusBookingData.selectedDroppingPoint}
+                                boardingPoint={
+                                  currentBusBookingData.selectedBoardingPoint
+                                }
+                                droppingPoint={
+                                  currentBusBookingData.selectedDroppingPoint
+                                }
                               />
                             </div>
                           </div>
@@ -1501,47 +1594,61 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     return searchCardStickyTopOffset + stickySearchCardOwnHeight + buffer;
   }, [searchCardStickyTopOffset, stickySearchCardOwnHeight]);
 
-  // ===== RETURN =====
   return (
     <div className="flex flex-col min-h-screen font-sans">
       <Toaster position="top-right" />
 
-      {/* ===== MOBILE REDBUS-LIKE HEADER (sticky, larger, never hides) ===== */}
-      <div className="lg:hidden sticky top-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
-        <div className="max-w-7xl mx-auto px-3 py-3">
-          {/* Row 1: Back + route + date pill */}
-          <div className="flex items-center">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 -ml-1 rounded-full hover:bg-gray-100 active:bg-gray-200"
-              aria-label="Go back"
-            >
-              <FaChevronLeft className="text-lg" />
-            </button>
+      {/* ======= HEADER (Mobile clean + Desktop unchanged) ======= */}
+      <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          {/* Mobile clean header (Redbus-like) */}
+          <div className="block lg:hidden">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                aria-label="Go back"
+              >
+                <FaChevronLeft className="text-xl" />
+              </button>
 
-            <div className="flex-1 min-w-0 pl-1">
-              <div className="font-bold text-lg leading-tight truncate" style={{ color: PALETTE.textDark }}>
-                {from} <span className="mx-1">→</span> {to}
-              </div>
+              {/* Date chip on the right */}
+              <button
+                onClick={handleMobileDateChipClick}
+                className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50"
+                aria-label="Change date"
+              >
+                <span className="text-sm font-semibold leading-none">
+                  {getMobileDateParts(searchDate).top}
+                </span>
+                <span className="text-[10px] text-gray-500 leading-none mt-0.5">
+                  {getMobileDateParts(searchDate).bottom}
+                </span>
+              </button>
+            </div>
+
+            {/* Route title */}
+            <div className="mt-2">
+              <h1
+                className="text-2xl font-bold tracking-tight"
+                style={{ color: PALETTE.textDark }}
+              >
+                {from} <span className="mx-1.5">→</span> {to}
+              </h1>
               {!loading && !fetchError && (
-                <div className="text-[12px] text-gray-500">{sortedBuses.length} buses</div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {sortedBuses.length} buses
+                </p>
               )}
             </div>
 
-            <button
-              onClick={handleMobileDateChipClick}
-              className="flex flex-col items-center justify-center rounded-2xl border border-gray-200 bg-rose-50 px-3 py-1.5"
-              aria-label="Change date"
-            >
-              <span className="leading-none font-semibold text-sm">
-                {getMobileDateParts(searchDate).top}
-              </span>
-              <span className="leading-none mt-0.5 text-[11px] text-gray-600">
-                {getMobileDateParts(searchDate).bottom}
-              </span>
-            </button>
+            {/* Breadcrumb (tiny, subdued) */}
+            <div className="mt-2 text-[11px] text-gray-500">
+              Bus Ticket <span className="mx-1 text-gray-400">›</span>
+              {from} to {to} Bus
+            </div>
 
-            {/* hidden picker */}
+            {/* hidden mobile date picker */}
             <input
               ref={mobileDateInputRef}
               type="date"
@@ -1554,71 +1661,50 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             />
           </div>
 
-          {/* Row 2: Chips (Filter, Primo, Special price) */}
-          <div className="mt-3 flex items-center gap-2 overflow-x-auto hide-scrollbar">
-            <button
-              onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border text-sm bg-white"
-              style={{ borderColor: PALETTE.borderLight, color: PALETTE.textDark }}
-            >
-              <FaSlidersH className="text-gray-700" />
-              <span className="font-semibold">Filter &amp; Sort</span>
-            </button>
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border text-sm bg-white"
-              style={{ borderColor: PALETTE.borderLight, color: PALETTE.textDark }}
-            >
-              <FaStar className="text-yellow-500" />
-              <span className="font-semibold">Primo Bus</span>
+          {/* Desktop header (unchanged) */}
+          <div className="hidden lg:block">
+            <div className="flex items-center mb-2">
+              <FaChevronLeft
+                className="text-xl mr-2 cursor-pointer"
+                onClick={() => navigate("/")}
+              />
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
+                Bus Ticket
+              </span>
+              <span className="mx-1 text-gray-400 text-sm">&gt;</span>
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
+                {from} to {to} Bus
+              </span>
             </div>
-            <div
-              className="flex items-center gap-2 px-3 py-2 rounded-xl border text-sm bg-white"
-              style={{ borderColor: PALETTE.borderLight, color: PALETTE.textDark }}
+            <h1
+              className="text-2xl font-bold"
+              style={{ color: PALETTE.textDark }}
             >
-              <FaMoneyBillWave className="text-green-600" />
-              <span className="font-semibold">Special price</span>
-            </div>
+              {from}{" "}
+              <FaExchangeAlt className="inline-block mx-2 text-gray-500" />{" "}
+              {to}
+            </h1>
+            {!loading && !fetchError && (
+              <p className="text-sm text-gray-500 mb-4">
+                {sortedBuses.length} buses
+              </p>
+            )}
           </div>
         </div>
       </div>
 
-      {/* ===== DESKTOP HEADER ===== */}
-      <div className="hidden lg:block w-full" style={{ backgroundColor: PALETTE.white }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex items-center mb-2">
-            <FaChevronLeft
-              className="text-xl mr-2 cursor-pointer"
-              onClick={() => navigate("/")}
-            />
-            <span className="text-sm font-medium" style={{ color: PALETTE.textLight }}>
-              Bus Ticket
-            </span>
-            <span className="mx-1 text-gray-400 text-sm">&gt;</span>
-            <span className="text-sm font-medium" style={{ color: PALETTE.textLight }}>
-              {from} to {to} Bus
-            </span>
-          </div>
-          <div className="flex items-end justify-between">
-            <div>
-              <h1 className="text-2xl font-bold" style={{ color: PALETTE.textDark }}>
-                {from} <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
-              </h1>
-              {!loading && !fetchError && (
-                <p className="text-sm text-gray-500">{sortedBuses.length} buses</p>
-              )}
-            </div>
-            <div className="rounded-2xl border px-4 py-2 bg-rose-50 text-right">
-              <div className="text-sm font-semibold">{getMobileDateParts(searchDate).top}</div>
-              <div className="text-xs text-gray-600">{getMobileDateParts(searchDate).bottom}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Sticky search controls (desktop only) */}
+      {/* Sticky search controls (desktop only, unchanged) */}
       <div
         ref={stickySearchCardRef}
-        className={`${!isNavbarAnimating ? "sticky" : ""} z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
+        className={`${
+          !isNavbarAnimating ? "sticky" : ""
+        } z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
         style={{
           top: `${searchCardStickyTopOffset}px`,
           backgroundColor: `${PALETTE.white}F2`,
@@ -1627,6 +1713,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="bg-white border border-gray-300 rounded-3xl">
+            {/* Desktop search controls (unchanged) */}
             <div className="hidden lg:flex rounded-2xl">
               <div
                 className="relative flex-1 p-4 flex items-center border-r"
@@ -1642,7 +1729,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   </label>
                   <Select
                     options={fromOptions}
-                    value={searchFrom ? { value: searchFrom, label: searchFrom } : null}
+                    value={
+                      searchFrom
+                        ? { value: searchFrom, label: searchFrom }
+                        : null
+                    }
                     onChange={(s) => setSearchFrom(s?.value || "")}
                     placeholder="Select departure"
                     isClearable
@@ -1681,7 +1772,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   </label>
                   <Select
                     options={toOptions}
-                    value={searchTo ? { value: searchTo, label: searchTo } : null}
+                    value={
+                      searchTo ? { value: searchTo, label: searchTo } : null
+                    }
                     onChange={(s) => setSearchTo(s?.value || "")}
                     placeholder="Select destination"
                     isClearable
@@ -1703,8 +1796,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   >
                     Date of Journey
                   </label>
-                  <div onClick={handleDateContainerClick} className="cursor-pointer">
-                    <span className="text-lg font-medium" style={{ color: PALETTE.textDark }}>
+                  <div
+                    onClick={handleDateContainerClick}
+                    className="cursor-pointer"
+                  >
+                    <span
+                      className="text-lg font-medium"
+                      style={{ color: PALETTE.textDark }}
+                    >
                       {getReadableDate(searchDate)}
                     </span>
                   </div>
@@ -1714,7 +1813,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       className={`text-xs font-medium mr-3 hover:underline`}
                       style={{
                         color:
-                          searchDate === todayStr ? PALETTE.primaryRed : PALETTE.accentBlue,
+                          searchDate === todayStr
+                            ? PALETTE.primaryRed
+                            : PALETTE.accentBlue,
                       }}
                     >
                       Today
@@ -1724,7 +1825,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       className={`text-xs font-medium hover:underline`}
                       style={{
                         color:
-                          searchDate === tomorrowStr ? PALETTE.primaryRed : PALETTE.accentBlue,
+                          searchDate === tomorrowStr
+                            ? PALETTE.primaryRed
+                            : PALETTE.accentBlue,
                       }}
                     >
                       Tomorrow
@@ -1752,12 +1855,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 </motion.button>
               </div>
             </div>
+            {/* No mobile modify-search bar (unchanged) */}
           </div>
         </div>
       </div>
 
-      {/* Body */}
-      <div className="flex-1 w-full pb-8" style={{ backgroundColor: PALETTE.bgLight }}>
+      <div
+        className="flex-1 w-full pb-8"
+        style={{ backgroundColor: PALETTE.bgLight }}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
             <aside
@@ -1770,12 +1876,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 transition: "top 0.3s ease-in-out",
               }}
             >
-              <FilterPanel isMobile={false} sortBy={sortBy} setSortBy={setSortBy} />
+              <FilterPanel
+                isMobile={false}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+              />
             </aside>
             <main className="lg:col-span-3 space-y-5">
               <SpecialNoticesSection />
 
-              {/* Mobile: Filters button */}
+              {/* Mobile: Show Filters & Sort button (opens drawer) */}
               <button
                 onClick={() => setIsFilterOpen(true)}
                 className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg lg:hidden text-white"
@@ -1815,7 +1925,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               animate="visible"
               exit="hidden"
             >
-              <FilterPanel isMobile={true} sortBy={sortBy} setSortBy={setSortBy} />
+              <FilterPanel
+                isMobile={true}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+              />
             </motion.div>
           </>
         )}
