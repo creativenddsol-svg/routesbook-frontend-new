@@ -1,4 +1,4 @@
-/// SearchResults.jsx 
+// SearchResults.jsx
 import {
   useSearchParams,
   useNavigate,
@@ -233,17 +233,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   const stickySearchCardRef = useRef(null);
   const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
-
-  // --- NEW: detect mobile to hide head section & adjust sticky offset only on mobile ---
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia("(max-width: 767px)");
-    const setFlag = () => setIsMobile(mql.matches);
-    setFlag();
-    mql.addEventListener?.("change", setFlag);
-    return () => mql.removeEventListener?.("change", setFlag);
-  }, []);
-  // ----------------------------------------------------
 
   const todayStr = toLocalYYYYMMDD(new Date());
   const tomorrow = new Date();
@@ -1572,15 +1561,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   const filterPanelTopOffset = useMemo(() => {
     const buffer = 16;
-    return (showNavbar ? headerHeight : 0) + stickySearchCardOwnHeight + buffer;
-  }, [showNavbar, headerHeight, stickySearchCardOwnHeight]);
+    return searchCardStickyTopOffset + stickySearchCardOwnHeight + buffer;
+  }, [searchCardStickyTopOffset, stickySearchCardOwnHeight]);
 
   return (
     <div className="flex flex-col min-h-screen font-sans">
       <Toaster position="top-right" />
-
-      {/* --- HEAD SECTION: hidden on mobile, unchanged on desktop --- */}
-      <div className="w-full md:block hidden" style={{ backgroundColor: PALETTE.white }}>
+      <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="flex items-center mb-2">
             <FaChevronLeft
@@ -1615,14 +1602,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           )}
         </div>
       </div>
-      {/* --- END HEAD SECTION --- */}
-
       <div
         ref={stickySearchCardRef}
-        className={`${!isNavbarAnimating ? "sticky" : ""} z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
+        className={`${
+          !isNavbarAnimating ? "sticky" : ""
+        } z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
         style={{
-          // Top offset: 0 on mobile (since navbar/menu/name removed), original offset on desktop
-          top: `${isMobile ? 0 : searchCardStickyTopOffset}px`,
+          top: `${searchCardStickyTopOffset}px`,
           backgroundColor: `${PALETTE.white}F2`,
           transition: "top 0.3s ease-in-out",
         }}
@@ -1782,7 +1768,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           </div>
         </div>
       </div>
-
       <div
         className="flex-1 w-full pb-8"
         style={{ backgroundColor: PALETTE.bgLight }}
