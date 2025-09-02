@@ -257,6 +257,17 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const [expandedBusId, setExpandedBusId] = useState(null);
   const [busSpecificBookingData, setBusSpecificBookingData] = useState({});
 
+  // --- NEW: mobile header compact state based on scroll ---
+  const [isMobileHeaderCompact, setIsMobileHeaderCompact] = useState(false);
+  useEffect(() => {
+    const onScroll = () => {
+      setIsMobileHeaderCompact(window.scrollY > 12);
+    };
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
   useEffect(() => {
     if (stickySearchCardRef.current) {
       setStickySearchCardOwnHeight(stickySearchCardRef.current.offsetHeight);
@@ -292,37 +303,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       }
     };
     fetchAllBuses();
-  }, []);
-
-  // --- iPhone notch / status bar tint + proper viewport ---
-  useEffect(() => {
-    try {
-      // ensure full-display and notch support
-      let viewport = document.querySelector('meta[name="viewport"]');
-      if (!viewport) {
-        viewport = document.createElement("meta");
-        viewport.name = "viewport";
-        viewport.content =
-          "width=device-width, initial-scale=1, viewport-fit=cover";
-        document.head.appendChild(viewport);
-      } else if (!/viewport-fit=cover/.test(viewport.content || "")) {
-        viewport.content = (viewport.content || "") + ", viewport-fit=cover";
-      }
-
-      // tint the iOS status bar area to match header
-      let theme = document.querySelector('meta[name="theme-color"]');
-      if (!theme) {
-        theme = document.createElement("meta");
-        theme.name = "theme-color";
-        document.head.appendChild(theme);
-      }
-      theme.content = PALETTE.white;
-
-      // reduce iOS Safari font autosizing/zoom side effects
-      document.documentElement.style.webkitTextSizeAdjust = "100%";
-    } catch {
-      // no-op
-    }
   }, []);
 
   const fromOptions = [...new Set(allBusesForDropdown.map((b) => b.from))].map(
@@ -1629,66 +1609,62 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     <div className="flex flex-col min-h-screen font-sans">
       <Toaster position="top-right" />
 
-      {/* iPhone notch tint (fills the status bar area) */}
-      <div
-        className="lg:hidden fixed inset-x-0 top-0 z-[60] pointer-events-none"
-        style={{ height: "env(safe-area-inset-top)", backgroundColor: "#FFFFFF" }}
-      />
-      {/* spacer so content sits below the tinted area */}
-      <div className="lg:hidden" style={{ height: "env(safe-area-inset-top)" }} />
+      {/* ======= MOBILE: ultra-compact sticky header (desktop below remains unchanged) ======= */}
+      <div className="lg:hidden sticky top-0 z-50 border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70">
+        <div className="max-w-7xl mx-auto px-3 py-1">
+          <div className="flex items-center">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 -ml-1 rounded-full hover:bg-gray-100 active:bg-gray-200"
+              aria-label="Go back"
+            >
+              <FaChevronLeft className="text-lg" />
+            </button>
 
-      {/* ======= HEADER (Mobile clean + Desktop unchanged) ======= */}
-      <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          {/* Mobile header (balanced + redBus-like) */}
-          <div className="block lg:hidden py-2">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-                aria-label="Go back"
-              >
-                <FaChevronLeft className="text-xl" />
-              </button>
-
-              {/* rounded date chip */}
-              <button
-                onClick={handleMobileDateChipClick}
-                className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
-                style={{ background: "#FDEBEC", borderColor: "#F8D0D3" }}
-                aria-label="Change date"
-              >
-                <span className="text-sm font-semibold leading-none">
-                  {getMobileDateParts(searchDate).top}
-                </span>
-                <span className="text-[10px] text-gray-600 leading-none mt-0.5">
-                  {getMobileDateParts(searchDate).bottom}
-                </span>
-              </button>
-            </div>
-
-            {/* Route title */}
-            <div className="mt-2">
-              <h1
-                className="text-[22px] font-bold tracking-tight"
+            <div className="flex-1 min-w-0 text-center">
+              <div
+                className={`font-bold truncate ${
+                  isMobileHeaderCompact ? "text-base" : "text-lg"
+                }`}
                 style={{ color: PALETTE.textDark }}
               >
-                {from} <span className="mx-1.5">→</span> {to}
-              </h1>
+                {from} <span className="mx-1">→</span> {to}
+              </div>
               {!loading && !fetchError && (
-                <p className="text-xs text-gray-500 mt-0.5">
+                <div
+                  className={`text-[10px] text-gray-500 ${
+                    isMobileHeaderCompact ? "hidden" : "block"
+                  }`}
+                >
                   {sortedBuses.length} buses
-                </p>
+                </div>
               )}
             </div>
 
-            {/* Breadcrumb (tiny, subdued) */}
-            <div className="mt-2 text-[11px] text-gray-500">
-              Bus Ticket <span className="mx-1 text-gray-400">›</span>
-              {from} to {to} Bus
-            </div>
+            <button
+              onClick={handleMobileDateChipClick}
+              className={`flex flex-col items-center justify-center rounded-full border border-gray-200 bg-gray-50 ${
+                isMobileHeaderCompact ? "px-2 py-1" : "px-3 py-1.5"
+              }`}
+              aria-label="Change date"
+            >
+              <span
+                className={`leading-none font-semibold ${
+                  isMobileHeaderCompact ? "text-xs" : "text-sm"
+                }`}
+              >
+                {getMobileDateParts(searchDate).top}
+              </span>
+              <span
+                className={`leading-none mt-0.5 text-gray-500 ${
+                  isMobileHeaderCompact ? "text-[9px]" : "text-[10px]"
+                }`}
+              >
+                {getMobileDateParts(searchDate).bottom}
+              </span>
+            </button>
 
-            {/* hidden mobile date picker */}
+            {/* hidden picker */}
             <input
               ref={mobileDateInputRef}
               type="date"
@@ -1700,42 +1676,41 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               tabIndex={-1}
             />
           </div>
+        </div>
+      </div>
 
-          {/* Desktop header (unchanged) */}
-          <div className="hidden lg:block">
-            <div className="flex items-center mb-2">
-              <FaChevronLeft
-                className="text-xl mr-2 cursor-pointer"
-                onClick={() => navigate("/")}
-              />
-              <span
-                className="text-sm font-medium"
-                style={{ color: PALETTE.textLight }}
-              >
-                Bus Ticket
-              </span>
-              <span className="mx-1 text-gray-400 text-sm">&gt;</span>
-              <span
-                className="text-sm font-medium"
-                style={{ color: PALETTE.textLight }}
-              >
-                {from} to {to} Bus
-              </span>
-            </div>
-            <h1
-              className="text-2xl font-bold"
-              style={{ color: PALETTE.textDark }}
+      {/* ======= DESKTOP HEADER (unchanged) ======= */}
+      <div className="hidden lg:block w-full" style={{ backgroundColor: PALETTE.white }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="flex items-center mb-2">
+            <FaChevronLeft
+              className="text-xl mr-2 cursor-pointer"
+              onClick={() => navigate("/")}
+            />
+            <span
+              className="text-sm font-medium"
+              style={{ color: PALETTE.textLight }}
             >
-              {from}{" "}
-              <FaExchangeAlt className="inline-block mx-2 text-gray-500" />{" "}
-              {to}
-            </h1>
-            {!loading && !fetchError && (
-              <p className="text-sm text-gray-500 mb-4">
-                {sortedBuses.length} buses
-              </p>
-            )}
+              Bus Ticket
+            </span>
+            <span className="mx-1 text-gray-400 text-sm">&gt;</span>
+            <span
+              className="text-sm font-medium"
+              style={{ color: PALETTE.textLight }}
+            >
+              {from} to {to} Bus
+            </span>
           </div>
+          <h1
+            className="text-2xl font-bold"
+            style={{ color: PALETTE.textDark }}
+          >
+            {from} <FaExchangeAlt className="inline-block mx-2 text-gray-500" />{" "}
+            {to}
+          </h1>
+          {!loading && !fetchError && (
+            <p className="text-sm text-gray-500 mb-4">{sortedBuses.length} buses</p>
+          )}
         </div>
       </div>
 
@@ -1812,9 +1787,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   </label>
                   <Select
                     options={toOptions}
-                    value={
-                      searchTo ? { value: searchTo, label: searchTo } : null
-                    }
+                    value={searchTo ? { value: searchTo, label: searchTo } : null}
                     onChange={(s) => setSearchTo(s?.value || "")}
                     placeholder="Select destination"
                     isClearable
@@ -1836,14 +1809,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   >
                     Date of Journey
                   </label>
-                  <div
-                    onClick={handleDateContainerClick}
-                    className="cursor-pointer"
-                  >
-                    <span
-                      className="text-lg font-medium"
-                      style={{ color: PALETTE.textDark }}
-                    >
+                  <div onClick={handleDateContainerClick} className="cursor-pointer">
+                    <span className="text-lg font-medium" style={{ color: PALETTE.textDark }}>
                       {getReadableDate(searchDate)}
                     </span>
                   </div>
@@ -1853,9 +1820,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       className={`text-xs font-medium mr-3 hover:underline`}
                       style={{
                         color:
-                          searchDate === todayStr
-                            ? PALETTE.primaryRed
-                            : PALETTE.accentBlue,
+                          searchDate === todayStr ? PALETTE.primaryRed : PALETTE.accentBlue,
                       }}
                     >
                       Today
@@ -1865,9 +1830,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       className={`text-xs font-medium hover:underline`}
                       style={{
                         color:
-                          searchDate === tomorrowStr
-                            ? PALETTE.primaryRed
-                            : PALETTE.accentBlue,
+                          searchDate === tomorrowStr ? PALETTE.primaryRed : PALETTE.accentBlue,
                       }}
                     >
                       Tomorrow
@@ -1974,9 +1937,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           </>
         )}
       </AnimatePresence>
-
-      {/* bottom safe-area for iPhone home bar */}
-      <div className="lg:hidden" style={{ height: "env(safe-area-inset-bottom)" }} />
     </div>
   );
 };
