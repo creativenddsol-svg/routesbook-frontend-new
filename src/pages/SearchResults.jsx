@@ -291,7 +291,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         console.error("Failed to fetch bus locations for dropdowns", err);
       }
     };
-      fetchAllBuses();
+    fetchAllBuses();
   }, []);
 
   const fromOptions = [...new Set(allBusesForDropdown.map((b) => b.from))].map(
@@ -1287,6 +1287,18 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                             </>
                           )}
                         </div>
+
+                        {/* >>> ADDED: Mobile countdown under meta line (no UI change elsewhere) <<< */}
+                        {timerProps && (
+                          <div className="mt-1">
+                            <BookingDeadlineTimer
+                              deadlineTimestamp={timerProps.deadlineTimestamp}
+                              departureTimestamp={timerProps.departureTimestamp}
+                              onDeadline={timerProps.onDeadline}
+                            />
+                          </div>
+                        )}
+                        {/* >>> END ADDED <<< */}
                       </div>
                       <div className="text-right pl-4">
                         {hasStrike && (
@@ -1687,8 +1699,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               style={{ color: PALETTE.textDark }}
             >
               {from}{" "}
-              <FaExchangeAlt className="inline-block mx-2 text-gray-500" />{" "}
-              {to}
+              <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
             </h1>
             {!loading && !fetchError && (
               <p className="text-sm text-gray-500 mb-4">
