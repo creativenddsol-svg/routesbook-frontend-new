@@ -23,9 +23,8 @@ import {
   FaCalendarAlt,
   FaExchangeAlt,
   FaSearch,
-  FaChevronRight,
 } from "react-icons/fa";
-import { createPortal } from "react-dom"; // for portaled mobile UI
+import { createPortal } from "react-dom"; // for portaled mobile full-page flow
 
 import SpecialNoticeCard, {
   SpecialNoticeSkeleton,
@@ -262,14 +261,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const tomorrowStr = toLocalYYYYMMDD(tomorrow);
 
   // --- State for inline booking ---
-  const [expandedBusId, setExpandedBusId] = useState(null); // used by bottom sheet (mobile) or inline (desktop)
+  const [expandedBusId, setExpandedBusId] = useState(null);
   const [busSpecificBookingData, setBusSpecificBookingData] = useState({});
-  // mobile bottom-sheet step per bus (kept for compatibility but only step 1 is used now)
+  // mobile full-page step per bus (1..3)
   const [mobileSheetStepByBus, setMobileSheetStepByBus] = useState({});
-
-  // NEW: mobile full-screen "pages"
-  const [mobileFullScreenStep, setMobileFullScreenStep] = useState(null); // 'points' | 'summary' | null
-  const [mobileFullScreenBusKey, setMobileFullScreenBusKey] = useState(null); // busKey for full-screen pages
 
   useEffect(() => {
     if (stickySearchCardRef.current) {
@@ -425,8 +420,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setFetchError(null);
     setExpandedBusId(null);
     setBusSpecificBookingData({});
-    setMobileFullScreenStep(null);
-    setMobileFullScreenBusKey(null);
 
     try {
       const res = await apiClient.get("/buses", {
@@ -491,19 +484,17 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setSearchDate(searchDateParam || toLocalYYYYMMDD(new Date()));
   }, [from, to, searchDateParam, fetchData, location.search]);
 
-  // LOCK BODY SCROLL when filter drawer, mobile bottom sheet, or fullscreen pages are open
+  // LOCK BODY SCROLL when filter drawer or mobile full-page flow is open
   useEffect(() => {
-    const mobileSheetOpen = !!expandedBusId && window.innerWidth < 1024;
-    const mobileFullOpen =
-      !!mobileFullScreenStep && window.innerWidth < 1024;
-    if (isFilterOpen || mobileSheetOpen || mobileFullOpen) {
+    const mobileFlowOpen = !!expandedBusId && window.innerWidth < 1024;
+    if (isFilterOpen || mobileFlowOpen) {
       document.body.style.overflow = "hidden";
       document.body.style.touchAction = "none";
     } else {
       document.body.style.overflow = "unset";
       document.body.style.touchAction = "auto";
     }
-  }, [isFilterOpen, expandedBusId, mobileFullScreenStep]);
+  }, [isFilterOpen, expandedBusId]);
 
   const { filteredBuses } = useMemo(() => {
     const now = new Date();
@@ -1061,30 +1052,21 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     }));
   };
 
-  // --- helper: parse bus key and fetch bus ---
-  const parseBusKey = (key) => {
-    if (!key) return { id: null, time: null };
-    const lastDash = key.lastIndexOf("-");
-    return {
-      id: lastDash >= 0 ? key.slice(0, lastDash) : key,
-      time: lastDash >= 0 ? key.slice(lastDash + 1) : "",
-    };
-  };
-  const getBusByKey = (key) => {
-    const { id, time } = parseBusKey(key);
-    return buses.find((b) => b._id === id && b.departureTime === time) || null;
-  };
-
-  // Price Calculation Logic (supports both bottom-sheet and full-screen mobile flows)
+  // Price Calculation Logic
   useEffect(() => {
-    const activeKey = expandedBusId || mobileFullScreenBusKey;
-    if (!activeKey || !buses.length) return;
+    if (!expandedBusId || !buses.length) return;
 
-    const { id: currentBusId, time: currentBusTime } = parseBusKey(activeKey);
+    // safer split in case _id contains '-'
+    const lastDash = expandedBusId.lastIndexOf("-");
+    const currentBusId =
+      lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+    const currentBusTime =
+      lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
+
     const currentBus = buses.find(
       (b) => b._id === currentBusId && b.departureTime === currentBusTime
     );
-    const busData = busSpecificBookingData[activeKey];
+    const busData = busSpecificBookingData[expandedBusId];
 
     if (!currentBus || !busData) return;
 
@@ -1114,30 +1096,31 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
     if (currentBus.convenienceFee) {
       if (currentBus.convenienceFee.amountType === "percentage") {
-        convenienceFeeValue = (basePrice * currentBus.convenienceFee.value) / 100;
+        convenienceFeeValue =
+          (basePrice * currentBus.convenienceFee.value) / 100;
       } else {
-        convenienceFeeValue = currentBus.convenienceFee.value * selectedSeats.length;
+        convenienceFeeValue =
+          currentBus.convenienceFee.value * selectedSeats.length;
       }
     }
 
     const newTotalPrice = basePrice + convenienceFeeValue;
 
     if (
-      !busData ||
       newTotalPrice !== busData.totalPrice ||
       basePrice !== busData.basePrice
     ) {
       setBusSpecificBookingData((prev) => ({
         ...prev,
-        [activeKey]: {
-          ...prev[activeKey],
+        [expandedBusId]: {
+          ...prev[expandedBusId],
           basePrice: basePrice,
           convenienceFee: convenienceFeeValue,
           totalPrice: newTotalPrice,
         },
       }));
     }
-  }, [expandedBusId, mobileFullScreenBusKey, busSpecificBookingData, buses, from, to]);
+  }, [expandedBusId, busSpecificBookingData, buses, from, to]);
 
   const handleProceedToPayment = (bus) => {
     const busKey = `${bus._id}-${bus.departureTime}`;
@@ -1190,10 +1173,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     });
   };
 
-  // --- MOBILE Bottom Sheet (Seats ONLY) ---
+  // --- MOBILE FULL-PAGE FLOW (global + PORTALED) ---
+  // NOTE: We keep the same "MobileBottomSheet" name to avoid changing other code,
+  // but it now renders a full, normal page overlay (no drop-up).
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
-    return getBusByKey(expandedBusId);
+    const lastDash = expandedBusId.lastIndexOf("-");
+    const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+    const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
+    return buses.find((b) => b._id === id && b.departureTime === time) || null;
   }, [expandedBusId, buses]);
 
   const selectedAvailability = expandedBusId
@@ -1211,80 +1199,113 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       totalPrice: 0,
     };
 
+  const currentMobileStep =
+    (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
+
+  const setCurrentMobileStep = (n) =>
+    setMobileSheetStepByBus((prev) => ({
+      ...prev,
+      [expandedBusId]: n,
+    }));
+
   const MobileBottomSheet = () => {
     if (!selectedBus) return null;
-    const headerBg = "#ffffff";
-    const bar = "#E5E7EB";
-
-    const goToPointsFullScreen = () => {
-      // move to full screen "page"
-      setMobileFullScreenBusKey(expandedBusId);
-      setExpandedBusId(null);
-      setMobileFullScreenStep("points");
-    };
+    const inactive = "#6B7280";
+    const active = PALETTE.primaryRed;
 
     return createPortal(
       <AnimatePresence>
         {!!expandedBusId && (
-          <>
-            {/* Backdrop */}
-            <motion.button
-              type="button"
-              aria-label="Close"
-              onClick={() => setExpandedBusId(null)}
-              className="fixed inset-0 bg-black/40 md:hidden"
-              style={{ zIndex: 10000, touchAction: "none" }}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            />
-            {/* Sheet (Seats only) */}
-            <motion.div
-              className="fixed bottom-0 left-0 right-0 md:hidden rounded-t-2xl shadow-2xl"
-              style={{
-                zIndex: 10001,
-                backgroundColor: headerBg,
-                overscrollBehavior: "contain",
-              }}
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="pt-3 pb-2 px-4 sticky top-0 rounded-t-2xl bg-white">
-                <div
-                  className="mx-auto h-1.5 w-10 rounded-full"
-                  style={{ background: bar }}
-                />
-                <div className="mt-2 flex items-start justify-between">
-                  <div className="pr-4 min-w-0">
-                    <h3
-                      className="text-base font-semibold truncate"
-                      style={{ color: PALETTE.textDark }}
-                    >
-                      {selectedBus.name}
-                    </h3>
-                    <p className="text-xs text-gray-500">
-                      {from} → {to} • {selectedBus.departureTime}
-                    </p>
-                  </div>
-                  <button
-                    onClick={() => setExpandedBusId(null)}
-                    className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-                    aria-label="Close"
+          <motion.div
+            className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            {/* Header */}
+            <div className="pt-3 pb-2 px-4 border-b bg-white">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={() => {
+                    // Back within steps or close
+                    if (currentMobileStep > 1) {
+                      setCurrentMobileStep(currentMobileStep - 1);
+                    } else {
+                      setExpandedBusId(null);
+                    }
+                  }}
+                  className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                  aria-label="Back"
+                >
+                  <FaChevronLeft />
+                </button>
+
+                <div className="min-w-0 px-2 text-center">
+                  <h3
+                    className="text-base font-semibold truncate"
+                    style={{ color: PALETTE.textDark }}
                   >
-                    <FaTimes />
-                  </button>
+                    {selectedBus.name}
+                  </h3>
+                  <p className="text-xs text-gray-500 truncate">
+                    {from} → {to} • {selectedBus.departureTime}
+                  </p>
                 </div>
+
+                <button
+                  onClick={() => setExpandedBusId(null)}
+                  className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                  aria-label="Close"
+                >
+                  <FaTimes />
+                </button>
               </div>
 
-              {/* Content: Seats only */}
-              <div
-                className="px-4 pb-5 pt-2 overflow-y-auto bg-white"
-                style={{ maxHeight: "75vh", WebkitOverflowScrolling: "touch" }}
-                onClick={(e) => e.stopPropagation()}
-              >
+              {/* Stepper */}
+              <div className="mt-3 grid grid-cols-3 gap-2">
+                {[1, 2, 3].map((n) => (
+                  <button
+                    key={n}
+                    onClick={() => setCurrentMobileStep(n)}
+                    className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
+                    style={{
+                      borderColor:
+                        currentMobileStep === n ? active : "#E5E7EB",
+                      background:
+                        currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
+                      color: currentMobileStep === n ? active : inactive,
+                      fontWeight: 700,
+                      fontSize: 12,
+                    }}
+                  >
+                    <span
+                      className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
+                      style={{
+                        borderColor:
+                          currentMobileStep === n ? active : "#D1D5DB",
+                        background: currentMobileStep === n ? active : "#FFF",
+                        color: currentMobileStep === n ? "#FFF" : inactive,
+                        fontWeight: 800,
+                        fontSize: 12,
+                      }}
+                    >
+                      {n}
+                    </span>
+                    <span className="truncate">
+                      {n === 1 ? "Select Seats" : n === 2 ? "Select Points" : "Summary"}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Content */}
+            <div
+              className="flex-1 overflow-y-auto px-4 pb-6 pt-3 bg-white"
+              style={{ WebkitOverflowScrolling: "touch" }}
+            >
+              {/* STEP 1: Seats */}
+              {currentMobileStep === 1 && (
                 <div className="space-y-3">
                   <SeatLegend />
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
@@ -1302,211 +1323,97 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       Selected: <b>{selectedBookingData.selectedSeats.length}</b>
                     </span>
                     <button
-                      onClick={goToPointsFullScreen}
-                      className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60 flex items-center gap-2"
+                      onClick={() => setCurrentMobileStep(2)}
+                      className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
                       style={{ background: PALETTE.primaryRed }}
                       disabled={selectedBookingData.selectedSeats.length === 0}
                     >
-                      Continue <FaChevronRight />
+                      Continue
                     </button>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          </>
+              )}
+
+              {/* STEP 2: Points */}
+              {currentMobileStep === 2 && (
+                <div className="space-y-4">
+                  <PointSelection
+                    boardingPoints={selectedBus.boardingPoints}
+                    droppingPoints={selectedBus.droppingPoints}
+                    selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
+                    setSelectedBoardingPoint={(p) =>
+                      handleBoardingPointSelect(selectedBus, p)
+                    }
+                    selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
+                    setSelectedDroppingPoint={(p) =>
+                      handleDroppingPointSelect(selectedBus, p)
+                    }
+                  />
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setCurrentMobileStep(1)}
+                      className="px-4 py-2 rounded-lg font-bold"
+                      style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => setCurrentMobileStep(3)}
+                      className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
+                      style={{ background: PALETTE.primaryRed }}
+                      disabled={
+                        !selectedBookingData.selectedBoardingPoint ||
+                        !selectedBookingData.selectedDroppingPoint ||
+                        selectedBookingData.selectedSeats.length === 0
+                      }
+                    >
+                      Continue
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 3: Summary */}
+              {currentMobileStep === 3 && (
+                <div className="space-y-4">
+                  <BookingSummary
+                    bus={selectedBus}
+                    selectedSeats={selectedBookingData.selectedSeats}
+                    date={searchDateParam}
+                    basePrice={selectedBookingData.basePrice}
+                    convenienceFee={selectedBookingData.convenienceFee}
+                    totalPrice={selectedBookingData.totalPrice}
+                    onProceed={() => handleProceedToPayment(selectedBus)}
+                    boardingPoint={selectedBookingData.selectedBoardingPoint}
+                    droppingPoint={selectedBookingData.selectedDroppingPoint}
+                  />
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => setCurrentMobileStep(2)}
+                      className="px-4 py-2 rounded-lg font-bold"
+                      style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
+                    >
+                      Back
+                    </button>
+                    <button
+                      onClick={() => handleProceedToPayment(selectedBus)}
+                      className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
+                      style={{ background: PALETTE.primaryRed }}
+                      disabled={
+                        selectedBookingData.selectedSeats.length === 0 ||
+                        !selectedBookingData.selectedBoardingPoint ||
+                        !selectedBookingData.selectedDroppingPoint ||
+                        selectedBookingData.totalPrice <= 0
+                      }
+                    >
+                      Proceed
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
         )}
-      </AnimatePresence>,
-      document.body
-    );
-  };
-
-  // --- MOBILE FULL-SCREEN "PAGES" (Points and Summary) ---
-  const fsBus = useMemo(() => {
-    if (!mobileFullScreenBusKey) return null;
-    return getBusByKey(mobileFullScreenBusKey);
-  }, [mobileFullScreenBusKey, buses]);
-
-  const fsAvailability = mobileFullScreenBusKey
-    ? availability[mobileFullScreenBusKey] || {}
-    : {};
-
-  const fsBookingData =
-    (mobileFullScreenBusKey && busSpecificBookingData[mobileFullScreenBusKey]) || {
-      selectedSeats: [],
-      seatGenders: {},
-      selectedBoardingPoint: fsBus?.boardingPoints?.[0] || null,
-      selectedDroppingPoint: fsBus?.droppingPoints?.[0] || null,
-      basePrice: 0,
-      convenienceFee: 0,
-      totalPrice: 0,
-    };
-
-  const closeFullScreen = () => {
-    setMobileFullScreenStep(null);
-    setMobileFullScreenBusKey(null);
-  };
-
-  const backToSeatsSheet = () => {
-    // reopen the bottom sheet for the same bus
-    setExpandedBusId(mobileFullScreenBusKey);
-    setMobileFullScreenStep(null);
-  };
-
-  const MobileFullScreenPoints = () => {
-    if (mobileFullScreenStep !== "points" || !fsBus) return null;
-    return createPortal(
-      <AnimatePresence>
-        <motion.div
-          key="points-page"
-          className="fixed inset-0 bg-white md:hidden z-[10002] flex flex-col"
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        >
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                className="p-2 -ml-2 rounded-full hover:bg-gray-100"
-                onClick={backToSeatsSheet}
-                aria-label="Back to seats"
-              >
-                <FaChevronLeft />
-              </button>
-              <div>
-                <div className="text-sm font-semibold">{fsBus.name}</div>
-                <div className="text-xs text-gray-500">
-                  {from} → {to} • {fsBus.departureTime}
-                </div>
-              </div>
-            </div>
-            <button
-              className="p-2 rounded-full hover:bg-gray-100"
-              onClick={closeFullScreen}
-              aria-label="Close"
-            >
-              <FaTimes />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto px-4 py-4">
-            <PointSelection
-              boardingPoints={fsBus.boardingPoints}
-              droppingPoints={fsBus.droppingPoints}
-              selectedBoardingPoint={fsBookingData.selectedBoardingPoint}
-              setSelectedBoardingPoint={(p) => handleBoardingPointSelect(fsBus, p)}
-              selectedDroppingPoint={fsBookingData.selectedDroppingPoint}
-              setSelectedDroppingPoint={(p) => handleDroppingPointSelect(fsBus, p)}
-            />
-          </div>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-200 flex items-center justify-between">
-            <button
-              onClick={backToSeatsSheet}
-              className="px-4 py-2 rounded-lg font-bold"
-              style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-            >
-              Back
-            </button>
-            <button
-              onClick={() => setMobileFullScreenStep("summary")}
-              className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60 flex items-center gap-2"
-              style={{ background: PALETTE.primaryRed }}
-              disabled={
-                !fsBookingData.selectedBoardingPoint ||
-                !fsBookingData.selectedDroppingPoint ||
-                fsBookingData.selectedSeats.length === 0
-              }
-            >
-              Continue <FaChevronRight />
-            </button>
-          </div>
-        </motion.div>
-      </AnimatePresence>,
-      document.body
-    );
-  };
-
-  const MobileFullScreenSummary = () => {
-    if (mobileFullScreenStep !== "summary" || !fsBus) return null;
-    return createPortal(
-      <AnimatePresence>
-        <motion.div
-          key="summary-page"
-          className="fixed inset-0 bg-white md:hidden z-[10002] flex flex-col"
-          initial={{ x: "100%" }}
-          animate={{ x: 0 }}
-          exit={{ x: "100%" }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-        >
-          {/* Header */}
-          <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                className="p-2 -ml-2 rounded-full hover:bg-gray-100"
-                onClick={() => setMobileFullScreenStep("points")}
-                aria-label="Back to points"
-              >
-                <FaChevronLeft />
-              </button>
-              <div>
-                <div className="text-sm font-semibold">Booking Summary</div>
-                <div className="text-xs text-gray-500">
-                  {fsBus.name} • {from} → {to}
-                </div>
-              </div>
-            </div>
-            <button
-              className="p-2 rounded-full hover:bg-gray-100"
-              onClick={closeFullScreen}
-              aria-label="Close"
-            >
-              <FaTimes />
-            </button>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto px-4 py-4">
-            <BookingSummary
-              bus={fsBus}
-              selectedSeats={fsBookingData.selectedSeats}
-              date={searchDateParam}
-              basePrice={fsBookingData.basePrice}
-              convenienceFee={fsBookingData.convenienceFee}
-              totalPrice={fsBookingData.totalPrice}
-              onProceed={() => handleProceedToPayment(fsBus)}
-              boardingPoint={fsBookingData.selectedBoardingPoint}
-              droppingPoint={fsBookingData.selectedDroppingPoint}
-            />
-          </div>
-
-          {/* Footer */}
-          <div className="p-4 border-t border-gray-200 flex items-center justify-between">
-            <button
-              onClick={() => setMobileFullScreenStep("points")}
-              className="px-4 py-2 rounded-lg font-bold"
-              style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-            >
-              Back
-            </button>
-            <button
-              onClick={() => handleProceedToPayment(fsBus)}
-              className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-              style={{ background: PALETTE.primaryRed }}
-              disabled={
-                fsBookingData.selectedSeats.length === 0 ||
-                !fsBookingData.selectedBoardingPoint ||
-                !fsBookingData.selectedDroppingPoint ||
-                fsBookingData.totalPrice <= 0
-              }
-            >
-              Proceed
-            </button>
-          </div>
-        </motion.div>
       </AnimatePresence>,
       document.body
     );
@@ -1589,7 +1496,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 key={busKey}
                 className="bg-white rounded-xl transition-shadow duration-300 mb-3 md:mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
               >
-                {/* --- MOBILE CARD (opens bottom sheet for seats) --- */}
+                {/* --- MOBILE CARD (opens full-page flow) --- */}
                 <div
                   className={`md:hidden block ${
                     isSoldOut ? "opacity-60 bg-gray-50" : "cursor-pointer"
@@ -1895,8 +1802,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       </motion.button>
                     </div>
                   </div>
-
-                  {/* Desktop inline expansion (unchanged) */}
                   {expandedBusId === busKey && (
                     <AnimatePresence>
                       <motion.div
@@ -1977,10 +1882,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               </motion.div>
             );
           })}
-          {/* GLOBAL MOBILE COMPONENTS */}
+          {/* GLOBAL MOBILE FULL-PAGE FLOW (PORTALED) */}
           <MobileBottomSheet />
-          <MobileFullScreenPoints />
-          <MobileFullScreenSummary />
         </motion.div>
       );
     }
@@ -2332,7 +2235,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         )}
       </AnimatePresence>
 
-      {/* Portaled components are rendered above from their own functions */}
+      {/* Portaled full-page mobile flow is rendered by <MobileBottomSheet /> above */}
     </div>
   );
 };
