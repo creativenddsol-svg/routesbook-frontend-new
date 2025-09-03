@@ -2234,4 +2234,3 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 };
 
 export default SearchResults;
-
