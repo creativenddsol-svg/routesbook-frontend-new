@@ -232,7 +232,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   // --- State for the results list ---
   const [buses, setBuses] = useState([]);
   const [availability, setAvailability] = useState({});
-  theconst [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true); // ✅ fixed typo here
   const [fetchError, setFetchError] = useState(null);
   const [page, setPage] = useState(1); // Now represents the number of "pages" of results to show
   const [isFilterOpen, setIsFilterOpen] = useState(false);
