@@ -14,11 +14,8 @@ import {
   FaBus,
   FaClock,
   FaRoute,
-  FaFilter,
   FaTimes,
   FaChevronLeft,
-  FaChevronRight,
-  FaMoneyBillWave,
   FaExclamationCircle,
   FaHourglassHalf,
   FaSyncAlt,
@@ -26,10 +23,8 @@ import {
   FaCalendarAlt,
   FaExchangeAlt,
   FaSearch,
-  FaStar,
 } from "react-icons/fa";
 
-// Import new components
 import SpecialNoticeCard, {
   SpecialNoticeSkeleton,
 } from "../components/SpecialNoticeCard";
@@ -59,7 +54,7 @@ const TIME_SLOTS = {
   Evening: [17, 21],
   Night: [21, 24],
 };
-const RESULTS_PER_PAGE = 5; // This now controls how many results are loaded per scroll
+const RESULTS_PER_PAGE = 5;
 
 // --- Helper Functions ---
 const toLocalYYYYMMDD = (dateObj) => {
@@ -116,7 +111,7 @@ const getDisplayPrice = (bus, from, to) => {
       return specificFare.price;
     }
   }
-  return bus.price; // Fallback to the default price
+  return bus.price;
 };
 
 // helper to detect AC without matching "Non-AC"
@@ -232,9 +227,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   // --- State for the results list ---
   const [buses, setBuses] = useState([]);
   const [availability, setAvailability] = useState({});
-  const [loading, setLoading] = useState(true); // ✅ fixed typo here
+  const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
-  const [page, setPage] = useState(1); // Now represents the number of "pages" of results to show
+  const [page, setPage] = useState(1);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sortBy, setSortBy] = useState("time-asc");
   const [filters, setFilters] = useState({
@@ -252,15 +247,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     searchDateParam || toLocalYYYYMMDD(new Date())
   );
   const [allBusesForDropdown, setAllBusesForDropdown] = useState([]);
-  const dateInputRef = useRef(null); // desktop search-bar date input
-  const mobileDateInputRef = useRef(null); // mobile header date input
+  const dateInputRef = useRef(null);
+  const mobileDateInputRef = useRef(null);
 
   const stickySearchCardRef = useRef(null);
   const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] =
     useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
-  thetomorrow = new Date(); // typo? keep original var name
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = toLocalYYYYMMDD(tomorrow);
@@ -481,7 +475,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   useEffect(() => {
     fetchData();
-    setPage(1); // Reset to the first page of results on a new search
+    setPage(1);
     setSearchFrom(from || "");
     setSearchTo(to || "");
     setSearchDate(searchDateParam || toLocalYYYYMMDD(new Date()));
@@ -594,18 +588,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setFilters({ type: "", maxPrice: 5000, timeSlots: {} });
     setPage(1);
   };
-
-  const readableDateForHeader = useMemo(() => {
-    if (!searchDateParam) return "Invalid Date";
-    const [year, month, day] = searchDateParam.split("-");
-    const dateObj = new Date(Number(year), Number(month) - 1, Number(day));
-    return dateObj.toLocaleDateString("en-GB", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-  }, [searchDateParam]);
 
   // ===== Special Notices Section =====
   const SpecialNoticesSection = () => {
@@ -1254,7 +1236,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               <motion.div
                 variants={itemVariants}
                 key={busKey}
-                className="bg-white rounded-xl transition-shadow duration-300 mb-2 md:mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
+                className="bg-white rounded-xl transition-shadow duration-300 mb-3 md:mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
               >
                 {/* --- MOBILE CARD (ONLY CHANGES LIVE HERE) --- */}
                 <div
@@ -1269,18 +1251,18 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     }
                   }}
                 >
-                  <div className="p-4">
+                  <div className="p-3 md:p-4">
                     {/* Row: Time & Price */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          {/* departure time — emerald pill */}
+                          {/* departure time: emerald light pill (square-ish) */}
                           <span
-                            className="px-2 py-0.5 rounded-lg text-[13px] font-semibold tabular-nums"
+                            className="text-[16px] md:text-[18px] font-normal tabular-nums inline-flex items-center px-2 py-0.5 rounded-lg border"
                             style={{
                               backgroundColor: "#ECFDF5", // emerald-50
                               color: "#065F46", // emerald-800
-                              border: "1px solid #A7F3D0", // emerald-200
+                              borderColor: "#A7F3D0", // emerald-200
                             }}
                           >
                             {bus.departureTime}
@@ -1309,7 +1291,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           )}
                         </div>
 
-                        {/* Countdown highlighted pill — square-ish like the filter button */}
+                        {/* Countdown pill — square-ish */}
                         {timerProps && (
                           <div className="mt-2 inline-flex">
                             <div
@@ -1350,7 +1332,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       </div>
                     </div>
 
-                    <hr className="my-3 border-t border-gray-100" />
+                    <hr className="my-2 md:my-3 border-t border-gray-100" />
 
                     {/* Row: Name / Type / Logo */}
                     <div className="flex items-center justify-between">
@@ -1666,10 +1648,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     <div className="flex flex-col min-h-screen font-sans">
       <Toaster position="top-right" />
 
-      {/* ======= HEADER (Mobile clean + Desktop unchanged) ======= */}
+      {/* ======= HEADER (Mobile + Desktop) ======= */}
       <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          {/* Mobile clean header (Redbus-like) */}
+          {/* Mobile header */}
           <div className="block lg:hidden">
             <div className="flex items-center justify-between">
               <button
@@ -1729,7 +1711,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             />
           </div>
 
-          {/* Desktop header (unchanged) */}
+          {/* Desktop header */}
           <div className="hidden lg:block">
             <div className="flex items-center mb-2">
               <FaChevronLeft
@@ -1766,7 +1748,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         </div>
       </div>
 
-      {/* Sticky search controls (desktop only, unchanged) */}
+      {/* Sticky search controls (desktop only) */}
       <div
         ref={stickySearchCardRef}
         className={`${
@@ -1780,7 +1762,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="bg-white border border-gray-300 rounded-3xl">
-            {/* Desktop search controls (unchanged) */}
+            {/* Desktop search controls */}
             <div className="hidden lg:flex rounded-2xl">
               <div
                 className="relative flex-1 p-4 flex items-center border-r"
@@ -1922,7 +1904,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 </motion.button>
               </div>
             </div>
-            {/* No mobile modify-search bar (unchanged) */}
+            {/* No mobile modify-search bar */}
           </div>
         </div>
       </div>
@@ -2006,3 +1988,4 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 };
 
 export default SearchResults;
+
