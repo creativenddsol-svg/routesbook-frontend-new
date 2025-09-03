@@ -207,6 +207,12 @@ const BusCardSkeleton = () => (
   </div>
 );
 
+// helper to detect AC without matching "Non-AC"
+const isACType = (t = "") => {
+  const s = t.toLowerCase();
+  return s.includes("ac") && !s.includes("non-ac") && !s.includes("non ac");
+};
+
 // --- Main Search Results Component ---
 const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const [searchParams] = useSearchParams();
@@ -246,7 +252,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const mobileDateInputRef = useRef(null); // mobile header date input
 
   const stickySearchCardRef = useRef(null);
-  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
+  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] =
+    useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
   const tomorrow = new Date();
@@ -1244,7 +1251,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 key={busKey}
                 className="bg-white rounded-xl transition-shadow duration-300 mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
               >
-                {/* --- UPDATED MINIMAL MOBILE VIEW (ONLY mobile changed) --- */}
+                {/* --- MOBILE CARD (updated styling only) --- */}
                 <div
                   className={`md:hidden block ${
                     isSoldOut ? "opacity-60 bg-gray-50" : "cursor-pointer"
@@ -1261,15 +1268,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     {/* Row: Time & Price */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 text-gray-800">
-                          <span className="text-[18px] font-medium tabular-nums">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[18px] font-extrabold tabular-nums text-gray-900">
                             {bus.departureTime}
                           </span>
-                          <span className="text-sm text-gray-400">—</span>
-                          <span className="text-[18px] font-medium tabular-nums">
+                          <span className="text-sm text-gray-300">—</span>
+                          <span className="text-[18px] font-medium tabular-nums text-gray-400">
                             {bus.arrivalTime}
                           </span>
                         </div>
+
                         <div className="mt-1.5 text-xs text-gray-500 flex items-center">
                           <span className="inline-flex items-center gap-1">
                             <FaClock className="text-[10px]" />
@@ -1288,18 +1296,30 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           )}
                         </div>
 
-                        {/* >>> ADDED: Mobile countdown under meta line (no UI change elsewhere) <<< */}
+                        {/* Countdown highlighted pill (very light orange) */}
                         {timerProps && (
-                          <div className="mt-1">
-                            <BookingDeadlineTimer
-                              deadlineTimestamp={timerProps.deadlineTimestamp}
-                              departureTimestamp={timerProps.departureTimestamp}
-                              onDeadline={timerProps.onDeadline}
-                            />
+                          <div className="mt-2 inline-flex">
+                            <div
+                              className="px-2 py-0.5 rounded-full border text-[11px]"
+                              style={{
+                                backgroundColor: "#FFF7ED", // orange-50
+                                borderColor: "#FFE5D0", // soft border
+                              }}
+                            >
+                              <BookingDeadlineTimer
+                                deadlineTimestamp={
+                                  timerProps.deadlineTimestamp
+                                }
+                                departureTimestamp={
+                                  timerProps.departureTimestamp
+                                }
+                                onDeadline={timerProps.onDeadline}
+                              />
+                            </div>
                           </div>
                         )}
-                        {/* >>> END ADDED <<< */}
                       </div>
+
                       <div className="text-right pl-4">
                         {hasStrike && (
                           <div className="text-[12px] text-gray-400 line-through">
@@ -1326,10 +1346,27 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                         <h4 className="text-[15px] font-medium text-gray-800 truncate">
                           {bus.name}
                         </h4>
-                        <p className="text-[12px] text-gray-500 truncate">
-                          {bus.busType}
-                        </p>
+
+                        {/* Bus type + AC pill */}
+                        <div className="flex items-center gap-2">
+                          <p className="text-[12px] text-gray-500 truncate">
+                            {bus.busType}
+                          </p>
+                          {isACType(bus.busType) && (
+                            <span
+                              className="px-2 py-0.5 rounded-full border text-[11px] font-semibold"
+                              style={{
+                                backgroundColor: "#EFF6FF", // blue-50
+                                borderColor: "#DBEAFE", // blue-100
+                                color: "#1D4ED8", // blue-700
+                              }}
+                            >
+                              AC
+                            </span>
+                          )}
+                        </div>
                       </div>
+
                       <div className="w-16 h-10 flex-shrink-0 flex items-center justify-center">
                         {bus.operatorLogo ? (
                           <img
@@ -1346,7 +1383,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   </div>
                 </div>
 
-                {/* --- EXISTING DESKTOP VIEW --- */}
+                {/* --- DESKTOP VIEW (unchanged) --- */}
                 <div className="hidden md:block p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-2">
