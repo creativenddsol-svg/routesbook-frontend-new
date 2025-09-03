@@ -119,6 +119,16 @@ const getDisplayPrice = (bus, from, to) => {
   return bus.price; // Fallback to the default price
 };
 
+// helper to detect AC without matching "Non-AC"
+const isACType = (t = "") => {
+  const s = t.toLowerCase();
+  return s.includes("ac") && !s.includes("non-ac") && !s.includes("non ac");
+};
+
+// mobile-only: strip standalone "AC" word from bus type when showing AC pill
+const stripACWord = (type = "") =>
+  type.replace(/\bAC\b/gi, "").replace(/\s{2,}/g, " ").replace(/^\s+|\s+$/g, "");
+
 // --- BookingDeadlineTimer Component ---
 const BookingDeadlineTimer = ({
   deadlineTimestamp,
@@ -207,12 +217,6 @@ const BusCardSkeleton = () => (
   </div>
 );
 
-// helper to detect AC without matching "Non-AC"
-const isACType = (t = "") => {
-  const s = t.toLowerCase();
-  return s.includes("ac") && !s.includes("non-ac") && !s.includes("non ac");
-};
-
 // --- Main Search Results Component ---
 const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const [searchParams] = useSearchParams();
@@ -228,7 +232,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   // --- State for the results list ---
   const [buses, setBuses] = useState([]);
   const [availability, setAvailability] = useState({});
-  const [loading, setLoading] = useState(true);
+  theconst [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [page, setPage] = useState(1); // Now represents the number of "pages" of results to show
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -1251,7 +1255,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 key={busKey}
                 className="bg-white rounded-xl transition-shadow duration-300 mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
               >
-                {/* --- MOBILE CARD (updated styling only) --- */}
+                {/* --- MOBILE CARD (ONLY CHANGES LIVE HERE) --- */}
                 <div
                   className={`md:hidden block ${
                     isSoldOut ? "opacity-60 bg-gray-50" : "cursor-pointer"
@@ -1269,7 +1273,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[18px] font-extrabold tabular-nums text-gray-900">
+                          {/* departure time: normal weight + black */}
+                          <span className="text-[18px] font-normal tabular-nums text-black">
                             {bus.departureTime}
                           </span>
                           <span className="text-sm text-gray-300">—</span>
@@ -1296,11 +1301,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           )}
                         </div>
 
-                        {/* Countdown highlighted pill (very light orange) */}
+                        {/* Countdown highlighted pill — square-ish like the filter button */}
                         {timerProps && (
                           <div className="mt-2 inline-flex">
                             <div
-                              className="px-2 py-0.5 rounded-full text-[11px]"
+                              className="px-2 py-0.5 rounded-lg text-[11px]"
                               style={{
                                 backgroundColor: "#FFF7ED", // orange-50
                               }}
@@ -1346,21 +1351,29 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           {bus.name}
                         </h4>
 
-                        {/* Bus type + AC pill */}
+                        {/* Bus type — show ONE AC pill; remove 'AC' from type text when pill shown */}
                         <div className="flex items-center gap-2">
-                          <p className="text-[12px] text-gray-500 truncate">
-                            {bus.busType}
-                          </p>
-                          {isACType(bus.busType) && (
-                            <span
-                              className="px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                              style={{
-                                backgroundColor: "#EFF6FF", // blue-50
-                                color: "#1D4ED8", // blue-700
-                              }}
-                            >
-                              AC
-                            </span>
+                          {isACType(bus.busType) ? (
+                            <>
+                              {stripACWord(bus.busType) && (
+                                <p className="text-[12px] text-gray-500 truncate">
+                                  {stripACWord(bus.busType)}
+                                </p>
+                              )}
+                              <span
+                                className="px-2 py-0.5 rounded-lg text-[11px] font-semibold"
+                                style={{
+                                  backgroundColor: "#EFF6FF", // blue-50
+                                  color: "#1D4ED8", // blue-700
+                                }}
+                              >
+                                AC
+                              </span>
+                            </>
+                          ) : (
+                            <p className="text-[12px] text-gray-500 truncate">
+                              {bus.busType}
+                            </p>
                           )}
                         </div>
                       </div>
