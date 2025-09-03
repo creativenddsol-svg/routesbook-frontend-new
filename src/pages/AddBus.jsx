@@ -1,6 +1,7 @@
 // src/pages/AddBus.jsx
 import { useState, useEffect, useMemo } from "react";
-import axios from "axios";
+// ✅ use the shared API client instead of axios
+import apiClient from "../api";
 import { useNavigate } from "react-router-dom";
 import SeatLayoutSelector from "../components/SeatLayoutSelector";
 import PointManager from "../components/PointManager";
@@ -88,14 +89,11 @@ const AddBus = () => {
   useEffect(() => {
     const fetchOperators = async () => {
       try {
-        const res = await axios.get(
-          "http://localhost:5000/api/admin/operators",
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
+        const res = await apiClient.get("/admin/operators", {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        });
 
         if (res.data && res.data.length > 0) {
           setOperators(res.data);
@@ -318,7 +316,7 @@ const AddBus = () => {
     // --- END ---
 
     try {
-      await axios.post("http://localhost:5000/api/buses", payload, {
+      await apiClient.post("/buses", payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       alert("Bus added successfully!");
