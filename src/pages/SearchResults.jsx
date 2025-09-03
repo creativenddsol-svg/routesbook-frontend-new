@@ -260,6 +260,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
+  thetomorrow = new Date(); // typo? keep original var name
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = toLocalYYYYMMDD(tomorrow);
@@ -1253,7 +1254,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               <motion.div
                 variants={itemVariants}
                 key={busKey}
-                className="bg-white rounded-xl transition-shadow duration-300 mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
+                className="bg-white rounded-xl transition-shadow duration-300 mb-2 md:mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
               >
                 {/* --- MOBILE CARD (ONLY CHANGES LIVE HERE) --- */}
                 <div
@@ -1273,8 +1274,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          {/* departure time: normal weight + black */}
-                          <span className="text-[18px] font-normal tabular-nums text-black">
+                          {/* departure time — emerald pill */}
+                          <span
+                            className="px-2 py-0.5 rounded-lg text-[13px] font-semibold tabular-nums"
+                            style={{
+                              backgroundColor: "#ECFDF5", // emerald-50
+                              color: "#065F46", // emerald-800
+                              border: "1px solid #A7F3D0", // emerald-200
+                            }}
+                          >
                             {bus.departureTime}
                           </span>
                           <span className="text-sm text-gray-300">—</span>
