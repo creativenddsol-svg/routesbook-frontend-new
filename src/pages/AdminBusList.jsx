@@ -1,7 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
-import axios from "axios";
 import { useAuth } from "../AuthContext";
 import { Link } from "react-router-dom";
+// ✅ use shared API client (no localhost hardcode)
+import apiClient from "../api";
 
 // --- Helper & Icon Components ---
 const Icon = ({ path, className = "w-5 h-5" }) => (
@@ -181,11 +182,12 @@ const AdminBusList = () => {
     const fetchBuses = async () => {
       try {
         setLoading(true);
-        const res = await axios.get("http://localhost:5000/api/buses");
+        // ✅ no localhost, use relative path via apiClient
+        const res = await apiClient.get("/buses");
         setBuses(res.data);
       } catch (err) {
         console.error("Failed to fetch buses", err);
-        // You might want to set an error state here
+        // optional: set error state
       } finally {
         setLoading(false);
       }
@@ -250,7 +252,8 @@ const AdminBusList = () => {
       return;
 
     try {
-      await axios.delete(`http://localhost:5000/api/admin/buses/${id}`, {
+      // ✅ no localhost, use relative path; keep auth header
+      await apiClient.delete(`/admin/buses/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       setBuses((prev) => prev.filter((b) => b._id !== id));
