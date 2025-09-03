@@ -176,10 +176,10 @@ const BookingDeadlineTimer = ({
   const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
   return (
     <div
-      className="text-xs font-semibold mt-1 tabular-nums"
+      className="text-xs font-semibold tabular-nums"
       style={{ color: PALETTE.orange }}
     >
-      <FaHourglassHalf className="inline mr-1 animate-pulse" />
+      <FaHourglassHalf className="inline mr-1" />
       Booking closes in: {String(hours).padStart(2, "0")}:
       {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
     </div>
@@ -211,6 +211,30 @@ const BusCardSkeleton = () => (
 const isACType = (t = "") => {
   const s = t.toLowerCase();
   return s.includes("ac") && !s.includes("non-ac") && !s.includes("non ac");
+};
+
+// inline-highlight only the original "AC" text (no duplicate pill)
+const renderBusTypeWithACHighlight = (text = "") => {
+  const parts = text.split(/(A\/C|AC)/gi);
+  return parts.map((part, i) =>
+    /^(A\/C|AC)$/i.test(part) ? (
+      <span
+        key={i}
+        className="inline-block px-2 py-0.5 mx-1 rounded-full border text-[11px] font-semibold align-middle"
+        style={{
+          backgroundColor: "#EFF6FF", // blue-50
+          borderColor: "#DBEAFE", // blue-100
+          color: "#1D4ED8", // blue-700
+        }}
+      >
+        AC
+      </span>
+    ) : (
+      <span key={i} className="align-middle">
+        {part}
+      </span>
+    )
+  );
 };
 
 // --- Main Search Results Component ---
@@ -1269,11 +1293,12 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="text-[18px] font-extrabold tabular-nums text-gray-900">
+                          {/* 1) Departure normal black, Arrival gray */}
+                          <span className="text-[18px] font-normal tabular-nums text-gray-900">
                             {bus.departureTime}
                           </span>
                           <span className="text-sm text-gray-300">—</span>
-                          <span className="text-[18px] font-medium tabular-nums text-gray-400">
+                          <span className="text-[18px] font-normal tabular-nums text-gray-400">
                             {bus.arrivalTime}
                           </span>
                         </div>
@@ -1296,11 +1321,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           )}
                         </div>
 
-                        {/* Countdown highlighted pill (very light orange) */}
+                        {/* 2) Countdown soft orange pill */}
                         {timerProps && (
                           <div className="mt-2 inline-flex">
                             <div
-                              className="px-2 py-0.5 rounded-full border text-[11px]"
+                              className="px-2 py-1 rounded-full border"
                               style={{
                                 backgroundColor: "#FFF7ED", // orange-50
                                 borderColor: "#FFE5D0", // soft border
@@ -1347,24 +1372,12 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           {bus.name}
                         </h4>
 
-                        {/* Bus type + AC pill */}
-                        <div className="flex items-center gap-2">
-                          <p className="text-[12px] text-gray-500 truncate">
-                            {bus.busType}
-                          </p>
-                          {isACType(bus.busType) && (
-                            <span
-                              className="px-2 py-0.5 rounded-full border text-[11px] font-semibold"
-                              style={{
-                                backgroundColor: "#EFF6FF", // blue-50
-                                borderColor: "#DBEAFE", // blue-100
-                                color: "#1D4ED8", // blue-700
-                              }}
-                            >
-                              AC
-                            </span>
-                          )}
-                        </div>
+                        {/* 3) Show ONLY original bus type text, with inline AC highlight */}
+                        <p className="text-[12px] text-gray-500 truncate">
+                          {isACType(bus.busType)
+                            ? renderBusTypeWithACHighlight(bus.busType)
+                            : bus.busType}
+                        </p>
                       </div>
 
                       <div className="w-16 h-10 flex-shrink-0 flex items-center justify-center">
