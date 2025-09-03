@@ -24,7 +24,7 @@ import {
   FaExchangeAlt,
   FaSearch,
 } from "react-icons/fa";
-import { createPortal } from "react-dom"; // ⬅️ NEW: portal for rock-solid bottom sheet
+import { createPortal } from "react-dom"; // for portaled mobile bottom sheet
 
 import SpecialNoticeCard, {
   SpecialNoticeSkeleton,
@@ -489,7 +489,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const mobileSheetOpen = !!expandedBusId && window.innerWidth < 1024;
     if (isFilterOpen || mobileSheetOpen) {
       document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none"; // small iOS help
+      document.body.style.touchAction = "none";
     } else {
       document.body.style.overflow = "unset";
       document.body.style.touchAction = "auto";
@@ -499,7 +499,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const { filteredBuses } = useMemo(() => {
     const now = new Date();
     const today = new Date();
-    const currentDateString = toLocalYYYYMMDD(today);
+       const currentDateString = toLocalYYYYMMDD(today);
     const searchingToday = searchDateParam === currentDateString;
 
     return {
@@ -1056,7 +1056,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   useEffect(() => {
     if (!expandedBusId || !buses.length) return;
 
-    // ⬇️ safer split: in case _id ever contains '-'
+    // safer split in case _id contains '-'
     const lastDash = expandedBusId.lastIndexOf("-");
     const currentBusId =
       lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
@@ -1176,7 +1176,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   // --- MOBILE Bottom Sheet (global + PORTALED) ---
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
-    // safer parse
     const lastDash = expandedBusId.lastIndexOf("-");
     const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
     const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
@@ -1214,7 +1213,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const inactive = "#6B7280";
     const active = PALETTE.primaryRed;
 
-    // ⬇️ Render OUTSIDE the animated/scrolling tree to avoid fixed-position bugs
     return createPortal(
       <AnimatePresence>
         {!!expandedBusId && (
@@ -1599,7 +1597,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                             {displayPrice}
                           </span>
                         </div>
-                        <div className="text=[11px] text-gray-500">Onwards</div>
+                        <div className="text-[11px] text-gray-500">Onwards</div>
                       </div>
                     </div>
 
@@ -1671,27 +1669,27 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           ) : (
                             <FaBus
                               className="text-3xl"
-                              style={{ color: neutralMuted }}
+                              style={{ color: "#6B7280" }}
                             />
                           )}
                         </div>
                         <div>
                           <h3
                             className="text-base font-semibold"
-                            style={{ color: neutralTitle }}
+                            style={{ color: "#111827" }}
                           >
                             {bus.name}
                           </h3>
                           <p
                             className="text-sm font-medium"
-                            style={{ color: neutralText }}
+                            style={{ color: "#4B5563" }}
                           >
                             {bus.busType}
                           </p>
                           {bus.liveTracking && (
                             <p
                               className="text-xs font-medium mt-1 flex items-center gap-1"
-                              style={{ color: neutralMuted }}
+                              style={{ color: "#6B7280" }}
                             >
                               <FaRoute className="inline-block" /> Live Tracking
                             </p>
@@ -1703,13 +1701,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           <div className="flex flex-col min-w-[84px]">
                             <span
                               className="text-[11px] uppercase tracking-wide"
-                              style={{ color: neutralMuted }}
+                              style={{ color: "#6B7280" }}
                             >
                               Departs
                             </span>
                             <span
                               className="text-xl font-semibold tabular-nums"
-                              style={{ color: neutralTitle }}
+                              style={{ color: "#111827" }}
                             >
                               {bus.departureTime}
                             </span>
@@ -1717,19 +1715,19 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           <div className="flex-1 mx-3">
                             <div
                               className="h-[2px] w-full rounded"
-                              style={{ backgroundColor: lineColor }}
+                              style={{ backgroundColor: "#E5E7EB" }}
                             />
                           </div>
                           <div className="flex flex-col min-w-[84px] text-right">
                             <span
                               className="text-[11px] uppercase tracking-wide"
-                              style={{ color: neutralMuted }}
+                              style={{ color: "#6B7280" }}
                             >
                               Arrives
                             </span>
                             <span
                               className="text-xl font-semibold tabular-nums"
-                              style={{ color: neutralTitle }}
+                              style={{ color: "#111827" }}
                             >
                               {bus.arrivalTime}
                             </span>
@@ -1737,7 +1735,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                         </div>
                         <div
                           className="mt-1 flex flex-wrap items-center gap-3 text-xs"
-                          style={{ color: neutralMuted }}
+                          style={{ color: "#6B7280" }}
                         >
                           <span className="inline-flex items-center gap-1">
                             <FaClock />{" "}
@@ -1754,7 +1752,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                               <span>{availableWindowSeats} window</span>
                             )}
                         </div>
-                      </div }
+                      </div>
                       {timerProps && (
                         <BookingDeadlineTimer
                           deadlineTimestamp={timerProps.deadlineTimestamp}
@@ -1788,20 +1786,20 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                         <div className="leading-tight">
                           <span
                             className="text-[11px] font-medium mr-1 align-top"
-                            style={{ color: neutralMuted }}
+                            style={{ color: "#6B7280" }}
                           >
                             Rs.
                           </span>
                           <span
                             className="text-2xl font-bold tabular-nums"
-                            style={{ color: neutralTitle }}
+                            style={{ color: "#111827" }}
                           >
                             {displayPrice}
                           </span>
                         </div>
                         <div
                           className="text-[11px] font-medium mt-0.5"
-                          style={{ color: neutralMuted }}
+                          style={{ color: "#6B7280" }}
                         >
                           Onwards
                         </div>
@@ -2257,10 +2255,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         )}
       </AnimatePresence>
 
-      {/* Portaled bottom sheet instance (rendered via <MobileBottomSheet /> inside renderMainContent) */}
+      {/* Portaled bottom sheet is rendered by <MobileBottomSheet /> above */}
     </div>
   );
 };
 
 export default SearchResults;
-
