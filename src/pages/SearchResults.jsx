@@ -1,4 +1,4 @@
-// SearchResults.jsx 
+// SearchResults.jsx
 import {
   useSearchParams,
   useNavigate,
@@ -262,7 +262,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   // --- State for inline booking ---
   const [expandedBusId, setExpandedBusId] = useState(null);
   const [busSpecificBookingData, setBusSpecificBookingData] = useState({});
-  // --- NEW: mobile bottom sheet step per bus (1..3) ---
+  // mobile bottom-sheet step per bus (1..3)
   const [mobileSheetStepByBus, setMobileSheetStepByBus] = useState({});
 
   useEffect(() => {
@@ -1164,16 +1164,41 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     });
   };
 
-  // --- NEW: Mobile Bottom Sheet component ---
-  const MobileBottomSheet = ({
-    bus,
-    busKey,
-    busAvailability,
-    bookingData,
-    step,
-    setStep,
-    onClose,
-  }) => {
+  // --- MOBILE Bottom Sheet (single global instance to avoid re-mounting) ---
+  const selectedBus = useMemo(() => {
+    if (!expandedBusId) return null;
+    const [id, time] = expandedBusId.split("-");
+    return (
+      buses.find((b) => b._id === id && b.departureTime === time) || null
+    );
+  }, [expandedBusId, buses]);
+
+  const selectedAvailability = expandedBusId
+    ? availability[expandedBusId] || {}
+    : {};
+
+  const selectedBookingData =
+    (expandedBusId && busSpecificBookingData[expandedBusId]) || {
+      selectedSeats: [],
+      seatGenders: {},
+      selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
+      selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+      basePrice: 0,
+      convenienceFee: 0,
+      totalPrice: 0,
+    };
+
+  const currentMobileStep =
+    (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
+
+  const setCurrentMobileStep = (n) =>
+    setMobileSheetStepByBus((prev) => ({
+      ...prev,
+      [expandedBusId]: n,
+    }));
+
+  const MobileBottomSheet = () => {
+    if (!selectedBus) return null;
     const headerBg = "#ffffff";
     const bar = "#E5E7EB";
     const inactive = "#6B7280";
@@ -1181,16 +1206,18 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
     return (
       <AnimatePresence>
-        {expandedBusId === busKey && (
+        {!!expandedBusId && (
           <>
             {/* Backdrop */}
-            <motion.div
+            <motion.button
+              type="button"
+              aria-label="Close"
+              onClick={() => setExpandedBusId(null)}
               className="fixed inset-0 bg-black/40 md:hidden"
               style={{ zIndex: 60 }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={onClose}
             />
             {/* Sheet */}
             <motion.div
@@ -1202,19 +1229,25 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
               {/* Grabber + Header */}
-              <div className="pt-3 pb-2 px-4 sticky top-0 rounded-t-2xl">
-                <div className="mx-auto h-1.5 w-10 rounded-full" style={{ background: bar }} />
+              <div className="pt-3 pb-2 px-4 sticky top-0 rounded-t-2xl bg-white">
+                <div
+                  className="mx-auto h-1.5 w-10 rounded-full"
+                  style={{ background: bar }}
+                />
                 <div className="mt-2 flex items-start justify-between">
                   <div className="pr-4 min-w-0">
-                    <h3 className="text-base font-semibold truncate" style={{ color: PALETTE.textDark }}>
-                      {bus.name}
+                    <h3
+                      className="text-base font-semibold truncate"
+                      style={{ color: PALETTE.textDark }}
+                    >
+                      {selectedBus.name}
                     </h3>
                     <p className="text-xs text-gray-500">
-                      {from} → {to} • {bus.departureTime}
+                      {from} → {to} • {selectedBus.departureTime}
                     </p>
                   </div>
                   <button
-                    onClick={onClose}
+                    onClick={() => setExpandedBusId(null)}
                     className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
                     aria-label="Close"
                   >
@@ -1227,12 +1260,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   {[1, 2, 3].map((n) => (
                     <button
                       key={n}
-                      onClick={() => setStep(n)}
+                      onClick={() => setCurrentMobileStep(n)}
                       className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
                       style={{
-                        borderColor: step === n ? active : "#E5E7EB",
-                        background: step === n ? "#FFF5F5" : "#FFFFFF",
-                        color: step === n ? active : inactive,
+                        borderColor:
+                          currentMobileStep === n ? active : "#E5E7EB",
+                        background:
+                          currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
+                        color: currentMobileStep === n ? active : inactive,
                         fontWeight: 700,
                         fontSize: 12,
                       }}
@@ -1240,9 +1275,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       <span
                         className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
                         style={{
-                          borderColor: step === n ? active : "#D1D5DB",
-                          background: step === n ? active : "#FFF",
-                          color: step === n ? "#FFF" : inactive,
+                          borderColor:
+                            currentMobileStep === n ? active : "#D1D5DB",
+                          background:
+                            currentMobileStep === n ? active : "#FFF",
+                          color: currentMobileStep === n ? "#FFF" : inactive,
                           fontWeight: 800,
                           fontSize: 12,
                         }}
@@ -1250,7 +1287,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                         {n}
                       </span>
                       <span className="truncate">
-                        {n === 1 ? "Select Seats" : n === 2 ? "Select Points" : "Summary"}
+                        {n === 1
+                          ? "Select Seats"
+                          : n === 2
+                          ? "Select Points"
+                          : "Summary"}
                       </span>
                     </button>
                   ))}
@@ -1258,28 +1299,33 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               </div>
 
               {/* Content */}
-              <div className="px-4 pb-5 pt-2 overflow-y-auto" style={{ maxHeight: "75vh" }}>
+              <div
+                className="px-4 pb-5 pt-2 overflow-y-auto bg-white"
+                style={{ maxHeight: "75vh" }}
+              >
                 {/* STEP 1: Seats */}
-                {step === 1 && (
+                {currentMobileStep === 1 && (
                   <div className="space-y-3">
                     <SeatLegend />
                     <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                       <SeatLayout
-                        seatLayout={bus.seatLayout}
-                        bookedSeats={busAvailability?.bookedSeats || []}
-                        selectedSeats={bookingData.selectedSeats}
-                        onSeatClick={(seat) => handleSeatToggle(bus, seat)}
-                        bookedSeatGenders={busAvailability?.seatGenderMap || {}}
-                        selectedSeatGenders={bookingData.seatGenders}
+                        seatLayout={selectedBus.seatLayout}
+                        bookedSeats={selectedAvailability?.bookedSeats || []}
+                        selectedSeats={selectedBookingData.selectedSeats}
+                        onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
+                        bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
+                        selectedSeatGenders={selectedBookingData.seatGenders}
                       />
                     </div>
                     <div className="flex items-center justify-between text-sm text-gray-600">
-                      <span>Selected: <b>{bookingData.selectedSeats.length}</b></span>
+                      <span>
+                        Selected: <b>{selectedBookingData.selectedSeats.length}</b>
+                      </span>
                       <button
-                        onClick={() => setStep(2)}
-                        className="px-4 py-2 rounded-lg font-bold text-white"
+                        onClick={() => setCurrentMobileStep(2)}
+                        className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
                         style={{ background: PALETTE.primaryRed }}
-                        disabled={bookingData.selectedSeats.length === 0}
+                        disabled={selectedBookingData.selectedSeats.length === 0}
                       >
                         Continue
                       </button>
@@ -1288,32 +1334,36 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 )}
 
                 {/* STEP 2: Points */}
-                {step === 2 && (
+                {currentMobileStep === 2 && (
                   <div className="space-y-4">
                     <PointSelection
-                      boardingPoints={bus.boardingPoints}
-                      droppingPoints={bus.droppingPoints}
-                      selectedBoardingPoint={bookingData.selectedBoardingPoint}
-                      setSelectedBoardingPoint={(p) => handleBoardingPointSelect(bus, p)}
-                      selectedDroppingPoint={bookingData.selectedDroppingPoint}
-                      setSelectedDroppingPoint={(p) => handleDroppingPointSelect(bus, p)}
+                      boardingPoints={selectedBus.boardingPoints}
+                      droppingPoints={selectedBus.droppingPoints}
+                      selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
+                      setSelectedBoardingPoint={(p) =>
+                        handleBoardingPointSelect(selectedBus, p)
+                      }
+                      selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
+                      setSelectedDroppingPoint={(p) =>
+                        handleDroppingPointSelect(selectedBus, p)
+                      }
                     />
                     <div className="flex items-center justify-between">
                       <button
-                        onClick={() => setStep(1)}
+                        onClick={() => setCurrentMobileStep(1)}
                         className="px-4 py-2 rounded-lg font-bold"
                         style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
                       >
                         Back
                       </button>
                       <button
-                        onClick={() => setStep(3)}
-                        className="px-4 py-2 rounded-lg font-bold text-white"
+                        onClick={() => setCurrentMobileStep(3)}
+                        className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
                         style={{ background: PALETTE.primaryRed }}
                         disabled={
-                          !bookingData.selectedBoardingPoint ||
-                          !bookingData.selectedDroppingPoint ||
-                          bookingData.selectedSeats.length === 0
+                          !selectedBookingData.selectedBoardingPoint ||
+                          !selectedBookingData.selectedDroppingPoint ||
+                          selectedBookingData.selectedSeats.length === 0
                         }
                       >
                         Continue
@@ -1323,36 +1373,36 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 )}
 
                 {/* STEP 3: Summary */}
-                {step === 3 && (
+                {currentMobileStep === 3 && (
                   <div className="space-y-4">
                     <BookingSummary
-                      bus={bus}
-                      selectedSeats={bookingData.selectedSeats}
+                      bus={selectedBus}
+                      selectedSeats={selectedBookingData.selectedSeats}
                       date={searchDateParam}
-                      basePrice={bookingData.basePrice}
-                      convenienceFee={bookingData.convenienceFee}
-                      totalPrice={bookingData.totalPrice}
-                      onProceed={() => handleProceedToPayment(bus)}
-                      boardingPoint={bookingData.selectedBoardingPoint}
-                      droppingPoint={bookingData.selectedDroppingPoint}
+                      basePrice={selectedBookingData.basePrice}
+                      convenienceFee={selectedBookingData.convenienceFee}
+                      totalPrice={selectedBookingData.totalPrice}
+                      onProceed={() => handleProceedToPayment(selectedBus)}
+                      boardingPoint={selectedBookingData.selectedBoardingPoint}
+                      droppingPoint={selectedBookingData.selectedDroppingPoint}
                     />
                     <div className="flex items-center justify-between">
                       <button
-                        onClick={() => setStep(2)}
+                        onClick={() => setCurrentMobileStep(2)}
                         className="px-4 py-2 rounded-lg font-bold"
                         style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
                       >
                         Back
                       </button>
                       <button
-                        onClick={() => handleProceedToPayment(bus)}
-                        className="px-4 py-2 rounded-lg font-bold text-white"
+                        onClick={() => handleProceedToPayment(selectedBus)}
+                        className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
                         style={{ background: PALETTE.primaryRed }}
                         disabled={
-                          bookingData.selectedSeats.length === 0 ||
-                          !bookingData.selectedBoardingPoint ||
-                          !bookingData.selectedDroppingPoint ||
-                          bookingData.totalPrice <= 0
+                          selectedBookingData.selectedSeats.length === 0 ||
+                          !selectedBookingData.selectedBoardingPoint ||
+                          !selectedBookingData.selectedDroppingPoint ||
+                          selectedBookingData.totalPrice <= 0
                         }
                       >
                         Proceed
@@ -1444,23 +1494,19 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               typeof bus.originalPrice === "number" &&
               bus.originalPrice > displayPrice;
 
-            const mobileStep = mobileSheetStepByBus[busKey] || 1;
-
             return (
               <motion.div
                 variants={itemVariants}
                 key={busKey}
                 className="bg-white rounded-xl transition-shadow duration-300 mb-3 md:mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
               >
-                {/* --- MOBILE CARD (UPDATED: opens bottom sheet) --- */}
+                {/* --- MOBILE CARD (opens bottom sheet) --- */}
                 <div
                   className={`md:hidden block ${
                     isSoldOut ? "opacity-60 bg-gray-50" : "cursor-pointer"
                   }`}
                   onClick={() => {
-                    if (!isSoldOut) {
-                      handleToggleSeatLayout(bus);
-                    }
+                    if (!isSoldOut) handleToggleSeatLayout(bus);
                   }}
                 >
                   <div className="p-3 md:p-4">
@@ -1477,10 +1523,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                             }}
                           >
                             {bus.departureTime}
-                          </span>
-                          <span className="text-sm text-gray-300">—</span>
-                          <span className="text-[18px] font-medium tabular-nums text-gray-400">
-                            {bus.arrivalTime}
                           </span>
                         </div>
 
@@ -1502,7 +1544,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           )}
                         </div>
 
-                        {/* Countdown pill — square-ish */}
+                        {/* Countdown pill */}
                         {timerProps && (
                           <div className="mt-2 inline-flex">
                             <div
@@ -1552,7 +1594,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           {bus.name}
                         </h4>
 
-                        {/* Bus type — show ONE AC pill; remove 'AC' from type text when pill shown */}
+                        {/* Bus type */}
                         <div className="flex items-center gap-2">
                           {isACType(bus.busType) ? (
                             <>
@@ -1841,22 +1883,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     </AnimatePresence>
                   )}
                 </div>
-
-                {/* --- MOBILE BOTTOM SHEET (drop-up) --- */}
-                <MobileBottomSheet
-                  bus={bus}
-                  busKey={busKey}
-                  busAvailability={busAvailability}
-                  bookingData={currentBusBookingData}
-                  step={mobileStep}
-                  setStep={(n) =>
-                    setMobileSheetStepByBus((prev) => ({ ...prev, [busKey]: n }))
-                  }
-                  onClose={() => setExpandedBusId(null)}
-                />
               </motion.div>
             );
           })}
+          {/* GLOBAL MOBILE BOTTOM SHEET */}
+          <MobileBottomSheet />
         </motion.div>
       );
     }
