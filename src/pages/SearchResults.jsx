@@ -24,6 +24,7 @@ import {
   FaExchangeAlt,
   FaSearch,
 } from "react-icons/fa";
+import { createPortal } from "react-dom"; // ⬅️ NEW: portal for rock-solid bottom sheet
 
 import SpecialNoticeCard, {
   SpecialNoticeSkeleton,
@@ -488,8 +489,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const mobileSheetOpen = !!expandedBusId && window.innerWidth < 1024;
     if (isFilterOpen || mobileSheetOpen) {
       document.body.style.overflow = "hidden";
+      document.body.style.touchAction = "none"; // small iOS help
     } else {
       document.body.style.overflow = "unset";
+      document.body.style.touchAction = "auto";
     }
   }, [isFilterOpen, expandedBusId]);
 
@@ -1053,7 +1056,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   useEffect(() => {
     if (!expandedBusId || !buses.length) return;
 
-    const [currentBusId, currentBusTime] = expandedBusId.split("-");
+    // ⬇️ safer split: in case _id ever contains '-'
+    const lastDash = expandedBusId.lastIndexOf("-");
+    const currentBusId =
+      lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+    const currentBusTime =
+      lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
+
     const currentBus = buses.find(
       (b) => b._id === currentBusId && b.departureTime === currentBusTime
     );
@@ -1164,13 +1173,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     });
   };
 
-  // --- MOBILE Bottom Sheet (single global instance to avoid re-mounting) ---
+  // --- MOBILE Bottom Sheet (global + PORTALED) ---
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
-    const [id, time] = expandedBusId.split("-");
-    return (
-      buses.find((b) => b._id === id && b.departureTime === time) || null
-    );
+    // safer parse
+    const lastDash = expandedBusId.lastIndexOf("-");
+    const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+    const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
+    return buses.find((b) => b._id === id && b.departureTime === time) || null;
   }, [expandedBusId, buses]);
 
   const selectedAvailability = expandedBusId
@@ -1204,7 +1214,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const inactive = "#6B7280";
     const active = PALETTE.primaryRed;
 
-    return (
+    // ⬇️ Render OUTSIDE the animated/scrolling tree to avoid fixed-position bugs
+    return createPortal(
       <AnimatePresence>
         {!!expandedBusId && (
           <>
@@ -1214,7 +1225,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               aria-label="Close"
               onClick={() => setExpandedBusId(null)}
               className="fixed inset-0 bg-black/40 md:hidden"
-              style={{ zIndex: 60 }}
+              style={{ zIndex: 10000, touchAction: "none" }}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
@@ -1222,11 +1233,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             {/* Sheet */}
             <motion.div
               className="fixed bottom-0 left-0 right-0 md:hidden rounded-t-2xl shadow-2xl"
-              style={{ zIndex: 61, backgroundColor: headerBg }}
+              style={{
+                zIndex: 10001,
+                backgroundColor: headerBg,
+                overscrollBehavior: "contain",
+              }}
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
+              onClick={(e) => e.stopPropagation()}
             >
               {/* Grabber + Header */}
               <div className="pt-3 pb-2 px-4 sticky top-0 rounded-t-2xl bg-white">
@@ -1255,7 +1271,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   </button>
                 </div>
 
-                {/* Steps (Redbus style 1/2/3) */}
+                {/* Steps */}
                 <div className="mt-3 grid grid-cols-3 gap-2">
                   {[1, 2, 3].map((n) => (
                     <button
@@ -1301,7 +1317,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               {/* Content */}
               <div
                 className="px-4 pb-5 pt-2 overflow-y-auto bg-white"
-                style={{ maxHeight: "75vh" }}
+                style={{ maxHeight: "75vh", WebkitOverflowScrolling: "touch" }}
+                onClick={(e) => e.stopPropagation()}
               >
                 {/* STEP 1: Seats */}
                 {currentMobileStep === 1 && (
@@ -1414,7 +1431,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             </motion.div>
           </>
         )}
-      </AnimatePresence>
+      </AnimatePresence>,
+      document.body
     );
   };
 
@@ -1581,7 +1599,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                             {displayPrice}
                           </span>
                         </div>
-                        <div className="text-[11px] text-gray-500">Onwards</div>
+                        <div className="text=[11px] text-gray-500">Onwards</div>
                       </div>
                     </div>
 
@@ -1736,7 +1754,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                               <span>{availableWindowSeats} window</span>
                             )}
                         </div>
-                      </div>
+                      </div }
                       {timerProps && (
                         <BookingDeadlineTimer
                           deadlineTimestamp={timerProps.deadlineTimestamp}
@@ -1886,7 +1904,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               </motion.div>
             );
           })}
-          {/* GLOBAL MOBILE BOTTOM SHEET */}
+          {/* GLOBAL MOBILE BOTTOM SHEET (PORTALED) */}
           <MobileBottomSheet />
         </motion.div>
       );
@@ -2238,8 +2256,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           </>
         )}
       </AnimatePresence>
+
+      {/* Portaled bottom sheet instance (rendered via <MobileBottomSheet /> inside renderMainContent) */}
     </div>
   );
 };
 
 export default SearchResults;
+
