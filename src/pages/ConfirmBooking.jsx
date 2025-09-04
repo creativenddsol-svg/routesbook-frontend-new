@@ -1,37 +1,22 @@
 // src/pages/ConfirmBooking.jsx
-import { useMemo, useState, useCallback, memo, useEffect } from "react";
+import { useMemo, useState, useCallback, memo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
-import {
-  FaUser,
-  FaPhone,
-  FaEnvelope,
-  FaIdCard,
-  FaMale,
-  FaFemale,
-  FaBus,
-  FaChair,
-  FaMapMarkerAlt,
-  FaChevronLeft,
-  FaCalendarAlt,
-} from "react-icons/fa";
-import apiClient from "../api";
+import apiClient from "../api"; // baseURL configured inside ../api
 
-/* ---------------- Match SearchResults palette & type scale ---------------- */
+/* ---------------- Matte palette (keeps your red hue, desaturated) ---------------- */
 const PALETTE = {
-  primaryRed: "#D84E55",
-  accentBlue: "#3A86FF",
-  textDark: "#1A1A1A",
-  textLight: "#4B5563",
-  bgLight: "#F0F2F5",
-  borderLight: "#E9ECEF",
-  white: "#FFFFFF",
-  green: "#28a745",
-  orange: "#fd7e14",
-  yellow: "#FFC107",
+  primary: "#C74A50",      // matte version of your SearchResults red
+  bg: "#F5F6F8",
+  surface: "#FFFFFF",
+  surfaceAlt: "#FAFBFC",
+  border: "#E5E7EB",
+  text: "#1A1A1A",
+  textSubtle: "#6B7280",
+  pillBg: "#F3F4F6",
 };
 
-/* ---------------- Helpers used in both pages ---------------- */
+/* ---------------- Helpers ---------------- */
 const getNiceDate = (dateStr, time) => {
   try {
     const d = new Date(dateStr);
@@ -46,32 +31,34 @@ const getNiceDate = (dateStr, time) => {
   }
 };
 
+const SectionCard = ({ title, children }) => (
+  <div
+    className="rounded-2xl p-4 mt-4"
+    style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}` }}
+  >
+    {title ? (
+      <h3 className="text-lg font-semibold mb-3" style={{ color: PALETTE.text }}>
+        {title}
+      </h3>
+    ) : null}
+    {children}
+  </div>
+);
+
 const Label = ({ children }) => (
-  <span className="block text-xs font-semibold mb-1" style={{ color: PALETTE.textLight }}>
+  <span className="block text-xs font-semibold mb-1" style={{ color: PALETTE.textSubtle }}>
     {children}
   </span>
 );
 
-const Chip = ({ children, tone = "neutral" }) => {
-  const toneMap = {
-    neutral: { bg: "#F7F7F8", text: PALETTE.textDark, border: PALETTE.borderLight },
-    blue: { bg: "#EAF2FF", text: PALETTE.accentBlue, border: "#D6E4FF" },
-    red: { bg: "#FFE9EB", text: PALETTE.primaryRed, border: "#FFD5DA" },
-    green: { bg: "#EAF7EE", text: PALETTE.green, border: "#D4F0DB" },
-    yellow: { bg: "#FFF8E6", text: PALETTE.yellow, border: "#FFEFC4" },
-  };
-  const c = toneMap[tone] || toneMap.neutral;
-  return (
-    <span
-      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border"
-      style={{ background: c.bg, color: c.text, borderColor: c.border }}
-    >
-      {children}
-    </span>
-  );
-};
-
-const Divider = () => <hr className="my-4" style={{ borderColor: PALETTE.borderLight }} />;
+const Pill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+    style={{ background: PALETTE.pillBg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
 
 const RowInput = ({
   id,
@@ -83,58 +70,40 @@ const RowInput = ({
   autoComplete,
   inputMode,
   enterKeyHint,
-  icon,
-  required,
   placeholder,
+  required,
 }) => (
   <div className="w-full">
     <Label>{label}</Label>
-    <div
-      className="relative rounded-xl border focus-within:ring-2 transition"
-      style={{ borderColor: PALETTE.borderLight }}
-    >
-      {icon ? (
-        <div
-          className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
-          style={{ color: PALETTE.textLight }}
-        >
-          {icon}
-        </div>
-      ) : null}
-      <input
-        id={id}
-        name={name}
-        type={type}
-        value={value}
-        onChange={onChange}
-        autoComplete={autoComplete}
-        inputMode={inputMode}
-        enterKeyHint={enterKeyHint}
-        placeholder={placeholder}
-        className={`w-full bg-white ${icon ? "pl-10" : "pl-3"} pr-3 py-3 rounded-xl outline-none`}
-        style={{
-          color: PALETTE.textDark,
-        }}
-        required={required}
-      />
-    </div>
+    <input
+      id={id}
+      name={name}
+      type={type}
+      value={value}
+      onChange={onChange}
+      autoComplete={autoComplete}
+      inputMode={inputMode}
+      enterKeyHint={enterKeyHint}
+      placeholder={placeholder}
+      required={required}
+      className="w-full bg-white px-3 py-3 rounded-xl border outline-none"
+      style={{ borderColor: PALETTE.border, color: PALETTE.text }}
+    />
   </div>
 );
 
-/* -------- Passenger row (memoized; inputs won't remount) -------- */
+/* -------- Passenger row (memoized; minimal UI) -------- */
 const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGender }) {
   return (
     <div
       className="p-4 rounded-2xl"
-      style={{ background: "#FBFCFF", border: `1px solid ${PALETTE.borderLight}` }}
+      style={{ background: PALETTE.surfaceAlt, border: `1px solid ${PALETTE.border}` }}
     >
       <div className="flex items-center justify-between">
-        <p className="font-semibold" style={{ color: PALETTE.textDark }}>
+        <p className="font-semibold" style={{ color: PALETTE.text }}>
           Passenger {index + 1}
         </p>
-        <Chip tone="blue">
-          <FaChair className="mr-1" /> Seat {p.seat}
-        </Chip>
+        <Pill>Seat {p.seat}</Pill>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-3">
@@ -148,7 +117,7 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
             autoComplete="name"
             enterKeyHint="next"
             placeholder="e.g., Ramesh Perera"
-            icon={<FaUser />}
+            required
           />
         </div>
         <div className="md:col-span-1">
@@ -166,31 +135,22 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
         </div>
         <div className="md:col-span-2">
           <Label>Gender</Label>
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => onGender(p.seat, "M")}
-              className="flex-1 py-2.5 rounded-xl border-2 flex items-center justify-center gap-2 transition"
-              style={{
-                borderColor: p.gender === "M" ? PALETTE.accentBlue : PALETTE.borderLight,
-                background: p.gender === "M" ? "#EAF2FF" : PALETTE.white,
-                color: p.gender === "M" ? PALETTE.accentBlue : PALETTE.textDark,
-              }}
-            >
-              <FaMale /> Male
-            </button>
-            <button
-              type="button"
-              onClick={() => onGender(p.seat, "F")}
-              className="flex-1 py-2.5 rounded-xl border-2 flex items-center justify-center gap-2 transition"
-              style={{
-                borderColor: p.gender === "F" ? "#E91E63" : PALETTE.borderLight,
-                background: p.gender === "F" ? "#FFE9F1" : PALETTE.white,
-                color: p.gender === "F" ? "#E91E63" : PALETTE.textDark,
-              }}
-            >
-              <FaFemale /> Female
-            </button>
+          <div className="grid grid-cols-2 gap-2">
+            {["M", "F"].map((g) => (
+              <button
+                key={g}
+                type="button"
+                onClick={() => onGender(p.seat, g)}
+                className="py-2.5 rounded-xl border text-sm font-medium transition"
+                style={{
+                  borderColor: p.gender === g ? PALETTE.primary : PALETTE.border,
+                  background: p.gender === g ? "#FBEDEF" : "#FFFFFF",
+                  color: p.gender === g ? PALETTE.primary : PALETTE.text,
+                }}
+              >
+                {g === "M" ? "Male" : "Female"}
+              </button>
+            ))}
           </div>
         </div>
       </div>
@@ -302,7 +262,7 @@ const ConfirmBooking = () => {
         return;
       }
 
-      // Example api call (baseURL configured in ../api)
+      // Optionally validate seats before payment
       // await apiClient.post("/booking/validate", { busId: bus?._id, seats: selectedSeats });
 
       const seatGendersOut = {};
@@ -347,7 +307,7 @@ const ConfirmBooking = () => {
     ]
   );
 
-  // ---- guard (AFTER all hooks) ----
+  // ---- guard ----
   const missingData =
     !bus ||
     !selectedSeats ||
@@ -359,13 +319,13 @@ const ConfirmBooking = () => {
   if (missingData) {
     return (
       <div className="text-center mt-10">
-        <p className="font-semibold" style={{ color: PALETTE.primaryRed }}>
+        <p className="font-semibold" style={{ color: PALETTE.primary }}>
           Booking details are incomplete. Please start again.
         </p>
         <button
           onClick={() => navigate("/")}
           className="mt-4 px-4 py-2 rounded-md text-white"
-          style={{ background: PALETTE.primaryRed }}
+          style={{ background: PALETTE.primary }}
         >
           Go to Home
         </button>
@@ -375,115 +335,70 @@ const ConfirmBooking = () => {
 
   /* -------------------- UI -------------------- */
   return (
-    <div className="min-h-screen" style={{ background: PALETTE.bgLight }}>
-      {/* Mobile top bar like SearchResults */}
+    <div className="min-h-screen" style={{ background: PALETTE.bg }}>
+      {/* Matte top bar */}
       <div
         className="sticky top-0 z-30"
-        style={{ background: PALETTE.primaryRed, paddingTop: "env(safe-area-inset-top)" }}
+        style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}
       >
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-          <button
-            type="button"
-            aria-label="Back"
-            onClick={() => navigate(-1)}
-            className="h-9 w-9 flex items-center justify-center rounded-full bg-white/10"
-          >
-            <FaChevronLeft className="text-white" />
-          </button>
-          <div className="flex-1">
-            <p className="text-white text-base font-semibold leading-tight">Confirm Booking</p>
-            <p className="text-white/90 text-xs">
-              {bus?.from} → {bus?.to}
-            </p>
-          </div>
-          <Chip tone="yellow">
-            <FaCalendarAlt className="mr-1" />
-            {getNiceDate(date, departureTime)}
-          </Chip>
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <p className="text-white text-base font-semibold leading-tight">Confirm Booking</p>
+          <p className="text-white/90 text-xs">
+            {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
+          </p>
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 pb-40"> {/* bottom space for sticky CTA */}
-        {/* Steps (kept) */}
+      <div className="max-w-6xl mx-auto px-4 pb-40">
         <div className="pt-4">
           <BookingSteps currentStep={3} />
         </div>
 
-        {/* Bus & Journey Summary card — mirrors SearchResults card visuals */}
-        <div
-          className="mt-4 rounded-2xl p-4"
-          style={{ background: PALETTE.white, border: `1px solid ${PALETTE.borderLight}` }}
-        >
-          <div className="flex items-start gap-3">
-            <div
-              className="h-10 w-10 rounded-xl flex items-center justify-center"
-              style={{ background: "#FFF5F6", color: PALETTE.primaryRed }}
-            >
-              <FaBus />
-            </div>
-            <div className="flex-1">
-              <h2 className="text-lg font-bold" style={{ color: PALETTE.textDark }}>
+        {/* Journey Overview (minimal) */}
+        <SectionCard>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <h2 className="text-lg font-bold" style={{ color: PALETTE.text }}>
                 {bus?.name || "Bus"}
               </h2>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <Chip tone="red">{bus?.busType || "Seating"}</Chip>
-                <Chip>
-                  {bus?.from} → {bus?.to}
-                </Chip>
-                <Chip tone="blue">
-                  <FaChair className="mr-1" />
-                  {selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}
-                </Chip>
-              </div>
+              <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
+                {bus?.from} → {bus?.to}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Pill>{bus?.busType || "Seating"}</Pill>
+              <Pill>{selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}</Pill>
             </div>
           </div>
 
-          <Divider />
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-            <div className="flex items-center gap-2">
-              <FaMapMarkerAlt style={{ color: PALETTE.textLight }} />
-              <div>
-                <Label>Boarding</Label>
-                <p className="font-medium" style={{ color: PALETTE.textDark }}>
-                  {selectedBoardingPoint.point} <span className="text-xs">at</span>{" "}
-                  <span className="tabular-nums font-semibold">{selectedBoardingPoint.time}</span>
-                </p>
-              </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-sm">
+            <div>
+              <Label>Boarding</Label>
+              <p className="font-medium" style={{ color: PALETTE.text }}>
+                {selectedBoardingPoint.point} <span className="text-xs">at</span>{" "}
+                <span className="tabular-nums">{selectedBoardingPoint.time}</span>
+              </p>
             </div>
-
-            <div className="flex items-center gap-2">
-              <FaMapMarkerAlt style={{ color: PALETTE.textLight }} />
-              <div>
-                <Label>Dropping</Label>
-                <p className="font-medium" style={{ color: PALETTE.textDark }}>
-                  {selectedDroppingPoint.point} <span className="text-xs">at</span>{" "}
-                  <span className="tabular-nums font-semibold">{selectedDroppingPoint.time}</span>
-                </p>
-              </div>
+            <div>
+              <Label>Dropping</Label>
+              <p className="font-medium" style={{ color: PALETTE.text }}>
+                {selectedDroppingPoint.point} <span className="text-xs">at</span>{" "}
+                <span className="tabular-nums">{selectedDroppingPoint.time}</span>
+              </p>
             </div>
-
             <div className="sm:col-span-2">
               <Label>Selected Seats</Label>
               <div className="flex flex-wrap gap-2">
                 {selectedSeats.map((s) => (
-                  <Chip key={s} tone="blue">
-                    <FaChair className="mr-1" /> {s}
-                  </Chip>
+                  <Pill key={s}>Seat {s}</Pill>
                 ))}
               </div>
             </div>
           </div>
-        </div>
+        </SectionCard>
 
         {/* Contact Details */}
-        <div
-          className="mt-4 rounded-2xl p-4"
-          style={{ background: PALETTE.white, border: `1px solid ${PALETTE.borderLight}` }}
-        >
-          <h3 className="text-lg font-bold mb-3" style={{ color: PALETTE.textDark }}>
-            Contact Details
-          </h3>
+        <SectionCard title="Contact Details">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <RowInput
               id="name"
@@ -494,7 +409,6 @@ const ConfirmBooking = () => {
               autoComplete="name"
               enterKeyHint="next"
               placeholder="e.g., Ramesh Perera"
-              icon={<FaUser />}
               required
             />
             <RowInput
@@ -508,7 +422,6 @@ const ConfirmBooking = () => {
               inputMode="tel"
               enterKeyHint="next"
               placeholder="e.g., 07XXXXXXXX"
-              icon={<FaPhone />}
               required
             />
             <RowInput
@@ -520,7 +433,6 @@ const ConfirmBooking = () => {
               autoComplete="off"
               enterKeyHint="next"
               placeholder="e.g., 200012345678"
-              icon={<FaIdCard />}
               required
             />
             <RowInput
@@ -534,20 +446,13 @@ const ConfirmBooking = () => {
               inputMode="email"
               enterKeyHint="done"
               placeholder="e.g., ramesh@email.com"
-              icon={<FaEnvelope />}
               required
             />
           </div>
-        </div>
+        </SectionCard>
 
         {/* Passenger Details */}
-        <div
-          className="mt-4 rounded-2xl p-4"
-          style={{ background: PALETTE.white, border: `1px solid ${PALETTE.borderLight}` }}
-        >
-          <h3 className="text-lg font-bold mb-3" style={{ color: PALETTE.textDark }}>
-            Passenger Details
-          </h3>
+        <SectionCard title="Passenger Details">
           <div className="space-y-4">
             {passengers.map((p, idx) => (
               <PassengerRow
@@ -560,57 +465,42 @@ const ConfirmBooking = () => {
               />
             ))}
           </div>
-        </div>
+        </SectionCard>
 
         {/* Fare Summary */}
-        <div
-          className="mt-4 rounded-2xl p-4"
-          style={{ background: PALETTE.white, border: `1px solid ${PALETTE.borderLight}` }}
-        >
-          <h3 className="text-lg font-bold mb-3" style={{ color: PALETTE.textDark }}>
-            Fare Summary
-          </h3>
+        <SectionCard title="Fare Summary">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="font-medium" style={{ color: PALETTE.textLight }}>
+              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
                 Subtotal
               </span>
-              <span
-                className="tabular-nums font-semibold"
-                style={{ color: PALETTE.textDark }}
-              >
+              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
                 Rs. {prices.basePrice.toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="font-medium" style={{ color: PALETTE.textLight }}>
+              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
                 Convenience Fee
               </span>
-              <span
-                className="tabular-nums font-semibold"
-                style={{ color: PALETTE.textDark }}
-              >
+              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
                 Rs. {prices.convenienceFee.toFixed(2)}
               </span>
             </div>
-            <Divider />
+            <hr className="my-3" style={{ borderColor: PALETTE.border }} />
             <div className="flex justify-between text-base">
-              <span className="font-bold" style={{ color: PALETTE.textDark }}>
+              <span className="font-bold" style={{ color: PALETTE.text }}>
                 Total
               </span>
-              <span
-                className="tabular-nums font-extrabold"
-                style={{ color: PALETTE.textDark }}
-              >
+              <span className="tabular-nums font-extrabold" style={{ color: PALETTE.text }}>
                 Rs. {prices.total.toFixed(2)}
               </span>
             </div>
           </div>
-        </div>
+        </SectionCard>
 
         {/* Terms */}
         <div className="mt-4">
-          <label className="flex items-center text-sm" style={{ color: PALETTE.textDark }}>
+          <label className="flex items-center text-sm" style={{ color: PALETTE.text }}>
             <input
               type="checkbox"
               className="mr-2"
@@ -623,17 +513,17 @@ const ConfirmBooking = () => {
         </div>
       </div>
 
-      {/* Sticky bottom CTA (matches SearchResults style) */}
+      {/* Sticky bottom CTA */}
       <div
         className="fixed bottom-0 left-0 right-0 z-40"
-        style={{ background: PALETTE.white, borderTop: `1px solid ${PALETTE.borderLight}` }}
+        style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}` }}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
-            <p className="text-xs" style={{ color: PALETTE.textLight }}>
+            <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
               Payable Amount
             </p>
-            <p className="text-xl font-extrabold tabular-nums" style={{ color: PALETTE.textDark }}>
+            <p className="text-xl font-extrabold tabular-nums" style={{ color: PALETTE.text }}>
               Rs. {prices.total.toFixed(2)}
             </p>
           </div>
@@ -641,12 +531,11 @@ const ConfirmBooking = () => {
             type="button"
             disabled={!termsAccepted}
             onClick={(e) => {
-              // Submit via the same handler
-              // Create a fake event so we reuse validation
+              // reuse validation
               handleSubmit({ preventDefault: () => {} });
             }}
-            className="px-6 py-3 rounded-xl text-white font-semibold shadow-md transition disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ background: PALETTE.primaryRed }}
+            className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: PALETTE.primary }}
           >
             Proceed to Pay
           </button>
