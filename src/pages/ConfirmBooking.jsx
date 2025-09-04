@@ -8,78 +8,35 @@ import {
   FaEnvelope,
   FaIdCard,
   FaBus,
-  FaCalendarAlt,
   FaChair,
   FaMapMarkerAlt,
   FaMale,
   FaFemale,
-  FaUserCircle,
-  FaUsers,
   FaChevronLeft,
   FaTimes,
 } from "react-icons/fa";
+import apiClient from "../api"; // ✅ use apiClient (configure localhost/baseURL inside ../api when running locally)
 
-/* ---- Palette ---- */
+/* --- helpers & palette --- */
 const PALETTE = {
-  primaryRed: "#D84E55",
-  textDark: "#1A1A1A",
+  primary: "#3B82F6", // matches your gradient blue
+  primaryDark: "#2563EB",
+  textDark: "#0F172A",
 };
 
-const getMobileDateParts = (dateString) => {
-  if (!dateString) return { top: "-- ---", bottom: "" };
-  const [y, m, d] = dateString.split("-").map(Number);
-  const dt = new Date(y, m - 1, d);
-  const top = dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
-  const bottom = dt.toLocaleDateString("en-GB", { weekday: "short" });
-  return { top, bottom };
+const getNiceDate = (dateStr) => {
+  try {
+    return new Date(dateStr).toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
+  } catch {
+    return dateStr || "--";
+  }
 };
 
-/* ---- Modal ---- */
-const ConfirmCancelModal = ({ open, onClose, onConfirm }) => {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-[10002] flex items-end md:items-center justify-center">
-      <button
-        className="absolute inset-0 bg-black/40"
-        aria-label="Close"
-        onClick={onClose}
-      />
-      <div className="relative w-full md:w-[420px] bg-white rounded-t-2xl md:rounded-2xl shadow-xl p-5">
-        <div className="flex items-start justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Cancel this booking?</h3>
-          <button
-            onClick={onClose}
-            className="p-2 -mr-2 rounded-full hover:bg-gray-100"
-            aria-label="Close"
-          >
-            <FaTimes />
-          </button>
-        </div>
-        <p className="mt-2 text-sm text-gray-600">
-          You’ve completed Steps 1–3. Going back will cancel this booking and you’ll
-          lose your selected seats and points.
-        </p>
-        <div className="mt-4 flex gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold"
-          >
-            Keep Booking
-          </button>
-          <button
-            onClick={onConfirm}
-            className="flex-1 px-4 py-2 rounded-lg text-white font-semibold"
-            style={{ backgroundColor: PALETTE.primaryRed }}
-          >
-            Cancel Booking
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ---- Only one layout mounted at a time ---- */
+/* --- render only one layout at a time to avoid mobile keyboard glitches --- */
 const useIsDesktop = () => {
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 1024 : false
@@ -92,7 +49,7 @@ const useIsDesktop = () => {
   return isDesktop;
 };
 
-/* ---- Simple Input Row (no placeholders, no floating labels) ---- */
+/* --- simple input row (NO placeholders) --- */
 const InputRow = ({
   id,
   name,
@@ -103,8 +60,8 @@ const InputRow = ({
   autoComplete,
   inputMode,
   enterKeyHint,
-  required,
   icon,
+  required,
 }) => (
   <div className="w-full">
     <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
@@ -112,7 +69,7 @@ const InputRow = ({
     </label>
     <div className="relative">
       {icon ? (
-        <div className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400 pointer-events-none">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
           {icon}
         </div>
       ) : null}
@@ -125,12 +82,47 @@ const InputRow = ({
         autoComplete={autoComplete}
         inputMode={inputMode}
         enterKeyHint={enterKeyHint}
-        className={`w-full ${icon ? "pl-10" : "pl-3"} pr-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-red-200 focus:border-red-500 transition`}
+        className={`w-full ${icon ? "pl-10" : "pl-3"} pr-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-blue-200 focus:border-blue-500 transition`}
         required={required}
       />
     </div>
   </div>
 );
+
+/* --- cancel modal --- */
+const ConfirmCancelModal = ({ open, onClose, onConfirm }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[10002] flex items-end md:items-center justify-center">
+      <button className="absolute inset-0 bg-black/40" onClick={onClose} aria-label="Close" />
+      <div className="relative w-full md:w-[420px] bg-white rounded-t-2xl md:rounded-2xl shadow-xl p-5">
+        <div className="flex items-start justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Cancel this booking?</h3>
+          <button onClick={onClose} className="p-2 -mr-2 rounded-full hover:bg-gray-100" aria-label="Close">
+            <FaTimes />
+          </button>
+        </div>
+        <p className="mt-2 text-sm text-gray-600">
+          Going back will cancel this booking and you’ll lose your selected seats and points.
+        </p>
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold"
+          >
+            Keep Booking
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 px-4 py-2 rounded-lg text-white font-semibold bg-red-600 hover:bg-red-700"
+          >
+            Cancel Booking
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const ConfirmBooking = () => {
   const location = useLocation();
@@ -141,23 +133,26 @@ const ConfirmBooking = () => {
     bus,
     selectedSeats,
     date,
-    priceDetails,
+    totalPrice, // may come as number
+    priceDetails, // or object { basePrice, convenienceFee, totalPrice }
     selectedBoardingPoint,
     selectedDroppingPoint,
     departureTime,
     seatGenders,
   } = location.state || {};
 
-  const [form, setForm] = useState({
-    name: "",
-    mobile: "",
-    nic: "",
-    email: "",
-  });
+  // compute prices in a normalized way
+  const computed = {
+    basePrice: priceDetails?.basePrice ?? (typeof totalPrice === "number" ? totalPrice : 0),
+    convenienceFee: priceDetails?.convenienceFee ?? 0,
+    total: priceDetails?.totalPrice ?? totalPrice ?? 0,
+  };
+
+  const [form, setForm] = useState({ name: "", mobile: "", nic: "", email: "" });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
-  // Lock back navigation
+  // Lock back navigation (mobile hardware back)
   useEffect(() => {
     const handlePop = () => {
       window.history.pushState(null, "", window.location.href);
@@ -165,70 +160,53 @@ const ConfirmBooking = () => {
     };
     window.history.pushState(null, "", window.location.href);
     window.addEventListener("popstate", handlePop);
-
     const handleBeforeUnload = (e) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handleBeforeUnload);
-
     return () => {
       window.removeEventListener("popstate", handlePop);
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
   }, []);
 
-  const initialPassengers = useMemo(() => {
-    return (selectedSeats || []).map((seatNo) => ({
-      seat: String(seatNo),
-      name: "",
-      age: "",
-      gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
-    }));
-  }, [selectedSeats, seatGenders]);
-
+  // build passengers list from selected seats (with default gender from seatGenders)
+  const initialPassengers = useMemo(
+    () =>
+      (selectedSeats || []).map((seatNo) => ({
+        seat: String(seatNo),
+        name: "",
+        age: "",
+        gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
+      })),
+    [selectedSeats, seatGenders]
+  );
   const [passengers, setPassengers] = useState(initialPassengers);
   useEffect(() => {
     setPassengers(initialPassengers);
   }, [initialPassengers]);
 
   const setPassenger = (seat, patch) => {
-    setPassengers((prev) =>
-      prev.map((p) => (p.seat === String(seat) ? { ...p, ...patch } : p))
-    );
+    setPassengers((prev) => prev.map((p) => (p.seat === String(seat) ? { ...p, ...patch } : p)));
   };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // stable functional update prevents odd focus hops
+    // stable update (no placeholder/focus tricks)
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  if (!bus || !selectedSeats || !date || !priceDetails) {
-    return (
-      <div className="text-center mt-10">
-        <p className="text-red-600 font-semibold">
-          Booking details are incomplete. Please start again.
-        </p>
-        <button
-          onClick={() => navigate("/")}
-          className="mt-4 px-4 py-2 bg-red-500 text-white rounded-md"
-        >
-          Go to Home
-        </button>
-      </div>
-    );
-  }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  const handleSubmit = (e) => {
-    if (e) e.preventDefault();
     if (!form.name || !form.mobile || !form.nic || !form.email) {
-      alert("Please fill in all contact details.");
+      alert("Please fill in all passenger contact details.");
       return;
     }
     for (const p of passengers) {
       if (!p.name || !p.gender) {
-        alert(`Please fill in the Name and Gender for the passenger in seat ${p.seat}.`);
+        alert(`Please fill in Name and Gender for seat ${p.seat}.`);
         return;
       }
     }
@@ -237,10 +215,12 @@ const ConfirmBooking = () => {
       return;
     }
 
+    // (Optional) Example of using apiClient without localhost hardcoding:
+    // await apiClient.post("/booking/validate", { busId: bus._id, seats: selectedSeats });
+
+    // Prepare genders map for next step
     const seatGendersOut = {};
-    passengers.forEach((p) => {
-      seatGendersOut[p.seat] = p.gender;
-    });
+    passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
 
     navigate("/payment", {
       state: {
@@ -249,7 +229,11 @@ const ConfirmBooking = () => {
         date,
         departureTime,
         passenger: form,
-        priceDetails,
+        priceDetails: {
+          basePrice: computed.basePrice,
+          convenienceFee: computed.convenienceFee,
+          totalPrice: computed.total,
+        },
         selectedBoardingPoint,
         selectedDroppingPoint,
         passengers: passengers.map(({ seat, name, age, gender }) => ({
@@ -263,300 +247,226 @@ const ConfirmBooking = () => {
     });
   };
 
-  /* ===================== MOBILE ===================== */
+  // guard if missing data
+  if (
+    !bus ||
+    !selectedSeats ||
+    !date ||
+    computed.total === undefined ||
+    !selectedBoardingPoint ||
+    !selectedDroppingPoint
+  ) {
+    return (
+      <div className="text-center mt-10">
+        <p className="text-red-600 font-semibold">Booking details are incomplete. Please start again.</p>
+        <button
+          onClick={() => navigate("/")}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md"
+        >
+          Go to Home
+        </button>
+      </div>
+    );
+  }
+
+  /* ========================= MOBILE (matches your basic UI) ========================= */
   const Mobile = () => (
-    <div className="bg-white min-h-screen">
-      {/* Header */}
-      <div className="sticky top-0 z-30 bg-white border-b">
-        <div className="px-4 py-2.5 flex items-center justify-between">
+    <div className="max-w-6xl mx-auto px-4 py-6 bg-[#F4F7FE] min-h-screen">
+      <div className="sticky top-0 left-0 right-0 z-20 -mx-4 px-4 py-3 bg-[#F4F7FE] border-b">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setShowCancelModal(true)}
-            className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-            aria-label="Cancel booking"
-            title="Cancel booking"
+            className="p-2 rounded-full hover:bg-gray-200"
+            aria-label="Back"
+            title="Back / Cancel"
           >
             <FaChevronLeft />
           </button>
-
-          <div className="text-center min-w-0">
-            <h2 className="text-base font-semibold truncate" style={{ color: PALETTE.textDark }}>
-              Confirm Details
-            </h2>
-            <p className="text-[11px] text-gray-500 truncate">
-              {bus?.from} → {bus?.to} • {departureTime}
-            </p>
-          </div>
-
-          <div className="flex flex-col items-center justify-center px-3 py-1 rounded-full border border-gray-200 bg-gray-50">
-            <span className="text-xs font-semibold leading-none">
-              {getMobileDateParts(date).top}
-            </span>
-            <span className="text-[10px] text-gray-500 leading-none mt-0.5">
-              {getMobileDateParts(date).bottom}
-            </span>
-          </div>
+          <h1 className="text-lg font-semibold text-[#0F172A]">Confirm Your Booking</h1>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="px-4 pt-3 pb-28 space-y-4">
-          {/* Journey card */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <div className="flex items-start justify-between">
-              <div className="min-w-0 pr-3">
-                <div
-                  className="inline-flex items-center px-2 py-0.5 rounded-lg border text-[12px] tabular-nums"
-                  style={{
-                    background: "#ECFDF5",
-                    color: "#065F46",
-                    borderColor: "#A7F3D0",
-                  }}
-                >
-                  {departureTime}
-                </div>
-                <h3 className="text-[15px] font-medium text-gray-800 mt-1 truncate">
-                  {bus?.name}
-                </h3>
-                <p className="text-xs text-gray-500">
-                  <FaBus className="inline mr-1" />
-                  {bus?.from} → {bus?.to}
-                </p>
-              </div>
-              <div className="text-right">
-                <div className="text-[11px] text-gray-500">Total</div>
-                <div className="text-xl font-semibold tabular-nums">
-                  Rs. {priceDetails?.totalPrice?.toFixed(2)}
-                </div>
-              </div>
-            </div>
+      <BookingSteps currentStep={3} />
 
-            <div className="mt-3 grid grid-cols-1 gap-2 text-[13px]">
-              <div className="flex items-start gap-2">
-                <FaChair className="text-gray-400 mt-0.5" />
-                <div className="text-gray-600">
-                  Seats:{" "}
-                  <span className="font-semibold text-red-600">
-                    {selectedSeats.join(", ")}
-                  </span>
-                </div>
+      <div className="bg-white shadow-lg rounded-xl p-6 mt-6">
+        {/* Contact form (NO placeholders) */}
+        <h2 className="text-xl font-bold mb-4 text-[#0F172A]">Contact Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <InputRow
+            id="m-name"
+            name="name"
+            label="Full Name"
+            value={form.name}
+            onChange={handleChange}
+            autoComplete="name"
+            enterKeyHint="next"
+            icon={<FaUser />}
+            required
+          />
+          <InputRow
+            id="m-mobile"
+            name="mobile"
+            label="Mobile Number"
+            type="tel"
+            value={form.mobile}
+            onChange={handleChange}
+            autoComplete="tel"
+            inputMode="tel"
+            enterKeyHint="next"
+            icon={<FaPhone />}
+            required
+          />
+          <InputRow
+            id="m-nic"
+            name="nic"
+            label="NIC / Passport"
+            value={form.nic}
+            onChange={handleChange}
+            autoComplete="off"
+            enterKeyHint="next"
+            icon={<FaIdCard />}
+            required
+          />
+          <InputRow
+            id="m-email"
+            name="email"
+            label="Email Address"
+            type="email"
+            value={form.email}
+            onChange={handleChange}
+            autoComplete="email"
+            inputMode="email"
+            enterKeyHint="done"
+            icon={<FaEnvelope />}
+            required
+          />
+        </div>
+
+        {/* Passenger details */}
+        <h2 className="text-xl font-bold mb-3 text-[#0F172A]">Passenger Details</h2>
+        <div className="space-y-4 mb-6">
+          {passengers.map((p, idx) => (
+            <div key={`m-pass-${p.seat}`} className="border p-4 rounded-lg bg-[#F8FAFF]">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-[#1F2937]">Passenger {idx + 1}</p>
+                <span className="px-2 py-0.5 rounded text-xs font-semibold border bg-[#EAF0FB] text-[#1F2937]">
+                  Seat {p.seat}
+                </span>
               </div>
-
-              <div className="flex items-start gap-2">
-                <FaMapMarkerAlt className="text-green-600 mt-0.5" />
-                <div className="min-w-0">
-                  <div className="font-medium text-gray-800">Boarding</div>
-                  <div className="text-gray-600 truncate">
-                    {selectedBoardingPoint?.point} at{" "}
-                    <span className="font-semibold">
-                      {selectedBoardingPoint?.time}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2">
-                <FaMapMarkerAlt className="text-red-600 mt-0.5" />
-                <div className="min-w-0">
-                  <div className="font-medium text-gray-800">Dropping</div>
-                  <div className="text-gray-600 truncate">
-                    {selectedDroppingPoint?.point} at{" "}
-                    <span className="font-semibold">
-                      {selectedDroppingPoint?.time}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Contact */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h4 className="text-[15px] font-semibold text-gray-800 flex items-center gap-2 mb-3">
-              <FaUserCircle className="text-red-500" /> Contact Details
-            </h4>
-            <div className="grid grid-cols-1 gap-3">
-              <InputRow
-                id="m-name"
-                name="name"
-                label="Full Name"
-                value={form.name}
-                onChange={handleChange}
-                autoComplete="name"
-                enterKeyHint="next"
-                icon={<FaUser />}
-                required
-              />
-              <InputRow
-                id="m-mobile"
-                name="mobile"
-                label="Mobile Number"
-                type="tel"
-                value={form.mobile}
-                onChange={handleChange}
-                autoComplete="tel"
-                inputMode="tel"
-                enterKeyHint="next"
-                icon={<FaPhone />}
-                required
-              />
-              <InputRow
-                id="m-nic"
-                name="nic"
-                label="NIC / Passport"
-                value={form.nic}
-                onChange={handleChange}
-                autoComplete="off"
-                enterKeyHint="next"
-                icon={<FaIdCard />}
-                required
-              />
-              <InputRow
-                id="m-email"
-                name="email"
-                label="Email Address"
-                type="email"
-                value={form.email}
-                onChange={handleChange}
-                autoComplete="email"
-                inputMode="email"
-                enterKeyHint="done"
-                icon={<FaEnvelope />}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Passengers */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h4 className="text-[15px] font-semibold text-gray-800 flex items-center gap-2 mb-2">
-              <FaUsers className="text-red-500" /> Passenger Details
-            </h4>
-            <div className="space-y-3">
-              {passengers.map((p, idx) => (
-                <div key={`m-pass-${p.seat}`} className="rounded-lg border bg-gray-50/70 p-3">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[14px] font-semibold text-gray-700">
-                      Passenger {idx + 1}
-                    </p>
-                    <span
-                      className="px-2 py-0.5 rounded-lg text-xs font-semibold border"
-                      style={{
-                        background: "#FFE4E6",
-                        color: "#9F1239",
-                        borderColor: "#FDA4AF",
-                      }}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+                <InputRow
+                  id={`m-pname-${p.seat}`}
+                  name={`m-pname-${p.seat}`}
+                  label="Name"
+                  value={p.name}
+                  onChange={(e) => setPassenger(p.seat, { name: e.target.value })}
+                  autoComplete="name"
+                  enterKeyHint="next"
+                />
+                <InputRow
+                  id={`m-page-${p.seat}`}
+                  name={`m-page-${p.seat}`}
+                  label="Age"
+                  type="number"
+                  value={p.age}
+                  onChange={(e) => setPassenger(p.seat, { age: e.target.value })}
+                  inputMode="numeric"
+                  enterKeyHint="next"
+                />
+                <div className="w-full">
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Gender</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPassenger(p.seat, { gender: "M" })}
+                      className={`flex-1 py-2.5 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                        p.gender === "M" ? "bg-blue-600 text-white border-blue-600" : "bg-white hover:bg-blue-50 border-gray-300"
+                      }`}
                     >
-                      Seat {p.seat}
-                    </span>
-                  </div>
-
-                  <div className="mt-3 grid grid-cols-1 gap-3">
-                    <InputRow
-                      id={`m-p-name-${p.seat}`}
-                      name={`m-p-name-${p.seat}`}
-                      label="Name"
-                      value={p.name}
-                      onChange={(e) => setPassenger(p.seat, { name: e.target.value })}
-                      autoComplete="name"
-                      enterKeyHint="next"
-                    />
-                    <InputRow
-                      id={`m-p-age-${p.seat}`}
-                      name={`m-p-age-${p.seat}`}
-                      label="Age"
-                      type="number"
-                      value={p.age}
-                      onChange={(e) => setPassenger(p.seat, { age: e.target.value })}
-                      inputMode="numeric"
-                      enterKeyHint="next"
-                    />
-                    <div className="flex items-center gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setPassenger(p.seat, { gender: "M" })}
-                        className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 transition
-                          ${p.gender === "M" ? "bg-violet-500 text-white border-violet-500" : "bg-white hover:bg-violet-50"}`}
-                      >
-                        <FaMale /> Male
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setPassenger(p.seat, { gender: "F" })}
-                        className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 transition
-                          ${p.gender === "F" ? "bg-pink-500 text-white border-pink-500" : "bg-white hover:bg-pink-50"}`}
-                      >
-                        <FaFemale /> Female
-                      </button>
-                    </div>
+                      <FaMale /> Male
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPassenger(p.seat, { gender: "F" })}
+                      className={`flex-1 py-2.5 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                        p.gender === "F" ? "bg-pink-600 text-white border-pink-600" : "bg-white hover:bg-pink-50 border-gray-300"
+                      }`}
+                    >
+                      <FaFemale /> Female
+                    </button>
                   </div>
                 </div>
-              ))}
+              </div>
             </div>
-          </div>
+          ))}
+        </div>
 
-          {/* Fare summary */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <h4 className="text-[15px] font-semibold text-gray-800 mb-2">Fare Summary</h4>
-            <div className="space-y-1 text-sm text-gray-700">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>Rs. {priceDetails.basePrice?.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Convenience Fee</span>
-                <span>Rs. {priceDetails.convenienceFee?.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between font-semibold pt-1 border-t">
-                <span>Total</span>
-                <span>Rs. {priceDetails.totalPrice?.toFixed(2)}</span>
-              </div>
+        {/* Journey summary (your basic card look) */}
+        <div className="border p-4 rounded-lg bg-[#EAF0FB] mb-6 text-sm space-y-2">
+          <h3 className="font-semibold mb-2 text-[#1F2937]">Journey Summary</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+            <p>
+              <strong>Bus:</strong> {bus.name}
+            </p>
+            <p>
+              <strong>Date:</strong> {getNiceDate(date)}{departureTime ? ` at ${departureTime}` : ""}
+            </p>
+            <p>
+              <strong>Route:</strong> {bus.from} to {bus.to}
+            </p>
+            <p>
+              <strong>Seats:</strong>{" "}
+              <span className="font-bold text-blue-600">{selectedSeats.join(", ")}</span>
+            </p>
+          </div>
+          <hr className="my-2 border-gray-300" />
+          <div>
+            <p>
+              <strong>Boarding Point:</strong> {selectedBoardingPoint.point} at{" "}
+              <strong>{selectedBoardingPoint.time}</strong>
+            </p>
+            <p>
+              <strong>Dropping Point:</strong> {selectedDroppingPoint.point} at{" "}
+              <strong>{selectedDroppingPoint.time}</strong>
+            </p>
+          </div>
+          <hr className="my-2 border-gray-300" />
+          <div className="space-y-1">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>Rs. {Number(computed.basePrice).toFixed(2)}</span>
             </div>
+            <div className="flex justify-between">
+              <span>Convenience Fee</span>
+              <span>Rs. {Number(computed.convenienceFee).toFixed(2)}</span>
+            </div>
+            <p className="text-lg font-bold text-right">
+              <strong>Total Price:</strong> Rs. {Number(computed.total).toFixed(2)}
+            </p>
           </div>
         </div>
 
-        {/* Fixed bottom bar */}
-        <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t">
-          <div className="px-4 pt-3">
-            <label className="flex items-start gap-2 text-[12px] text-gray-700 pb-2">
-              <input
-                type="checkbox"
-                checked={termsAccepted}
-                onChange={() => setTermsAccepted((v) => !v)}
-                className="h-4 w-4 mt-0.5 rounded text-red-600 focus:ring-red-500"
-              />
-              <span>
-                I agree to the{" "}
-                <a href="/terms" target="_blank" className="text-red-600 underline">
-                  Terms &amp; Conditions
-                </a>
-              </span>
-            </label>
-          </div>
-          <div className="px-4 pb-4 flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowCancelModal(true)}
-              className="px-4 py-3 rounded-xl font-semibold border border-gray-300 text-gray-700"
-            >
-              Cancel
-            </button>
-            <div className="flex-1 rounded-xl border px-3 py-2">
-              <div className="text-[11px] text-gray-500">To Pay</div>
-              <div className="text-xl font-bold tabular-nums">
-                Rs. {priceDetails?.totalPrice?.toFixed(2)}
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={!termsAccepted}
-              className="flex-[1.4] px-5 py-3 rounded-xl font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ backgroundColor: PALETTE.primaryRed }}
-            >
-              Proceed to Pay
-            </button>
-          </div>
+        <div className="mb-4">
+          <label className="flex items-center text-sm text-[#1F2937]">
+            <input
+              type="checkbox"
+              className="mr-2 form-checkbox"
+              checked={termsAccepted}
+              onChange={() => setTermsAccepted((v) => !v)}
+              required
+            />
+            I agree to all Terms &amp; Conditions
+          </label>
         </div>
-      </form>
+
+        <button
+          onClick={handleSubmit}
+          disabled={!termsAccepted}
+          className="w-full py-3 rounded-lg text-white font-semibold text-lg transition-all duration-300 tracking-wide shadow-md bg-gradient-to-r from-blue-400 to-blue-500 hover:scale-105 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+        >
+          Proceed to Pay
+        </button>
+      </div>
 
       {/* Cancel modal */}
       <ConfirmCancelModal
@@ -567,255 +477,201 @@ const ConfirmBooking = () => {
     </div>
   );
 
-  /* ===================== DESKTOP ===================== */
+  /* ========================= DESKTOP (same visual language) ========================= */
   const Desktop = () => (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <BookingSteps currentStep={4} />
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
-          {/* Left */}
-          <div className="lg:col-span-7 space-y-6">
-            <div className="bg-white shadow-md rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-3">
-                <FaUserCircle className="text-red-500" />
-                Contact Details (for E-ticket/SMS)
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <InputRow
-                  id="d-name"
-                  name="name"
-                  label="Full Name"
-                  value={form.name}
-                  onChange={handleChange}
-                  autoComplete="name"
-                  enterKeyHint="next"
-                  icon={<FaUser />}
-                  required
-                />
-                <InputRow
-                  id="d-mobile"
-                  name="mobile"
-                  label="Mobile Number"
-                  type="tel"
-                  value={form.mobile}
-                  onChange={handleChange}
-                  autoComplete="tel"
-                  inputMode="tel"
-                  enterKeyHint="next"
-                  icon={<FaPhone />}
-                  required
-                />
-                <InputRow
-                  id="d-nic"
-                  name="nic"
-                  label="NIC / Passport"
-                  value={form.nic}
-                  onChange={handleChange}
-                  autoComplete="off"
-                  enterKeyHint="next"
-                  icon={<FaIdCard />}
-                  required
-                />
-                <InputRow
-                  id="d-email"
-                  name="email"
-                  label="Email Address"
-                  type="email"
-                  value={form.email}
-                  onChange={handleChange}
-                  autoComplete="email"
-                  inputMode="email"
-                  enterKeyHint="done"
-                  icon={<FaEnvelope />}
-                  required
-                />
-              </div>
-            </div>
+    <div className="max-w-6xl mx-auto px-4 py-6 bg-[#F4F7FE] min-h-screen">
+      <BookingSteps currentStep={3} />
 
-            <div className="bg-white shadow-md rounded-xl p-6">
-              <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-3">
-                <FaUsers className="text-red-500" />
-                Passenger Details
-              </h2>
-              <div className="space-y-4">
-                {passengers.map((p, index) => (
-                  <div key={`d-pass-${p.seat}`} className="border rounded-lg p-4 bg-gray-50/70">
-                    <p className="font-semibold text-gray-700 mb-3">
-                      Passenger {index + 1} -{" "}
-                      <span className="text-red-500">Seat {p.seat}</span>
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                      <div className="md:col-span-2">
-                        <InputRow
-                          id={`d-p-name-${p.seat}`}
-                          name={`d-p-name-${p.seat}`}
-                          label="Name"
-                          value={p.name}
-                          onChange={(e) => setPassenger(p.seat, { name: e.target.value })}
-                          autoComplete="name"
-                          enterKeyHint="next"
-                        />
-                      </div>
-                      <div className="md:col-span-1">
-                        <InputRow
-                          id={`d-p-age-${p.seat}`}
-                          name={`d-p-age-${p.seat}`}
-                          label="Age"
-                          type="number"
-                          value={p.age}
-                          onChange={(e) => setPassenger(p.seat, { age: e.target.value })}
-                          inputMode="numeric"
-                          enterKeyHint="next"
-                        />
-                      </div>
-                      <div className="md:col-span-2 flex items-center gap-3">
-                        <button
-                          type="button"
-                          onClick={() => setPassenger(p.seat, { gender: "M" })}
-                          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 transition ${
-                            p.gender === "M"
-                              ? "bg-violet-500 text-white border-violet-500"
-                              : "bg-white hover:bg-violet-50"
-                          }`}
-                        >
-                          <FaMale /> Male
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPassenger(p.seat, { gender: "F" })}
-                          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 transition ${
-                            p.gender === "F"
-                              ? "bg-pink-500 text-white border-pink-500"
-                              : "bg-white hover:bg-pink-50"
-                          }`}
-                        >
-                          <FaFemale /> Female
-                        </button>
-                      </div>
-                    </div>
+      <div className="bg-white shadow-lg rounded-xl p-6 mt-6">
+        <h2 className="text-2xl font-bold mb-4 text-[#0F172A]">Confirm Your Booking</h2>
+
+        {/* Contact form */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+          <InputRow
+            id="d-name"
+            name="name"
+            label="Full Name"
+            value={form.name}
+            onChange={handleChange}
+            autoComplete="name"
+            enterKeyHint="next"
+            icon={<FaUser />}
+            required
+          />
+          <InputRow
+            id="d-mobile"
+            name="mobile"
+            label="Mobile Number"
+            type="tel"
+            value={form.mobile}
+            onChange={handleChange}
+            autoComplete="tel"
+            inputMode="tel"
+            enterKeyHint="next"
+            icon={<FaPhone />}
+            required
+          />
+          <InputRow
+            id="d-nic"
+            name="nic"
+            label="NIC / Passport"
+            value={form.nic}
+            onChange={handleChange}
+            autoComplete="off"
+            enterKeyHint="next"
+            icon={<FaIdCard />}
+            required
+          />
+          <InputRow
+            id="d-email"
+            name="email"
+            label="Email Address"
+            type="email"
+            value={form.email}
+            onChange={handleChange}
+            autoComplete="email"
+            inputMode="email"
+            enterKeyHint="done"
+            icon={<FaEnvelope />}
+            required
+          />
+        </div>
+
+        {/* Passengers */}
+        <h3 className="text-xl font-bold mb-3 text-[#0F172A]">Passenger Details</h3>
+        <div className="space-y-4 mb-6">
+          {passengers.map((p, idx) => (
+            <div key={`d-pass-${p.seat}`} className="border p-4 rounded-lg bg-[#F8FAFF]">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-[#1F2937]">Passenger {idx + 1}</p>
+                <span className="px-2 py-0.5 rounded text-xs font-semibold border bg-[#EAF0FB] text-[#1F2937]">
+                  Seat {p.seat}
+                </span>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-3">
+                <div className="md:col-span-2">
+                  <InputRow
+                    id={`d-pname-${p.seat}`}
+                    name={`d-pname-${p.seat}`}
+                    label="Name"
+                    value={p.name}
+                    onChange={(e) => setPassenger(p.seat, { name: e.target.value })}
+                    autoComplete="name"
+                    enterKeyHint="next"
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <InputRow
+                    id={`d-page-${p.seat}`}
+                    name={`d-page-${p.seat}`}
+                    label="Age"
+                    type="number"
+                    value={p.age}
+                    onChange={(e) => setPassenger(p.seat, { age: e.target.value })}
+                    inputMode="numeric"
+                    enterKeyHint="next"
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <span className="block text-sm font-medium text-gray-700 mb-1">Gender</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => setPassenger(p.seat, { gender: "M" })}
+                      className={`flex-1 py-2.5 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                        p.gender === "M" ? "bg-blue-600 text-white border-blue-600" : "bg-white hover:bg-blue-50 border-gray-300"
+                      }`}
+                    >
+                      <FaMale /> Male
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPassenger(p.seat, { gender: "F" })}
+                      className={`flex-1 py-2.5 rounded-lg border-2 flex items-center justify-center gap-2 ${
+                        p.gender === "F" ? "bg-pink-600 text-white border-pink-600" : "bg-white hover:bg-pink-50 border-gray-300"
+                      }`}
+                    >
+                      <FaFemale /> Female
+                    </button>
                   </div>
-                ))}
+                </div>
               </div>
             </div>
+          ))}
+        </div>
+
+        {/* Journey summary */}
+        <div className="border p-4 rounded-lg bg-[#EAF0FB] mb-6 text-sm space-y-2">
+          <h3 className="font-semibold mb-2 text-[#1F2937]">Journey Summary</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
+            <p><strong>Bus:</strong> {bus.name}</p>
+            <p>
+              <strong>Date:</strong> {getNiceDate(date)}{departureTime ? ` at ${departureTime}` : ""}
+            </p>
+            <p><strong>Route:</strong> {bus.from} to {bus.to}</p>
+            <p>
+              <strong>Seats:</strong>{" "}
+              <span className="font-bold text-blue-600">{selectedSeats.join(", ")}</span>
+            </p>
           </div>
-
-          {/* Right (sticky) */}
-          <div className="lg:col-span-5">
-            <div className="sticky top-24">
-              <div className="bg-white shadow-md rounded-xl p-6 border">
-                <h3 className="text-xl font-bold border-b pb-3 mb-4 text-gray-800">
-                  Journey Summary
-                </h3>
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-start gap-3">
-                    <FaBus className="text-gray-400 mt-1" />
-                    <div>
-                      <p className="font-semibold text-gray-800">{bus.name}</p>
-                      <p className="text-gray-500">
-                        {bus.from} to {bus.to}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <FaCalendarAlt className="text-gray-400 mt-1" />
-                    <p className="font-medium text-gray-700">
-                      {new Date(date + "T00:00:00").toLocaleDateString("en-GB", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })}{" "}
-                      at {departureTime}
-                    </p>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <FaChair className="text-gray-400 mt-1" />
-                    <p className="font-medium text-gray-700">
-                      Seats:{" "}
-                      <span className="font-bold text-red-500">
-                        {selectedSeats.join(", ")}
-                      </span>
-                    </p>
-                  </div>
-                </div>
-                <hr className="my-4 border-dashed" />
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-start gap-3">
-                    <FaMapMarkerAlt className="text-green-500 mt-1" />
-                    <div>
-                      <p className="font-semibold text-gray-800">Boarding Point</p>
-                      <p className="text-gray-600">
-                        {selectedBoardingPoint.point} at{" "}
-                        <span className="font-bold">{selectedBoardingPoint.time}</span>
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <FaMapMarkerAlt className="text-red-500 mt-1" />
-                    <div>
-                      <p className="font-semibold text-gray-800">Dropping Point</p>
-                      <p className="text-gray-600">
-                        {selectedDroppingPoint.point} at{" "}
-                        <span className="font-bold">{selectedDroppingPoint.time}</span>
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <hr className="my-4" />
-                <div className="space-y-2 text-gray-800 font-medium">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>Rs. {priceDetails.basePrice?.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Convenience Fee</span>
-                    <span>Rs. {priceDetails.convenienceFee?.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-green-700 font-bold text-xl mt-2 pt-2 border-t">
-                    <span>Total Price</span>
-                    <span>Rs. {priceDetails.totalPrice?.toFixed(2)}</span>
-                  </div>
-                </div>
-
-                <div className="mt-5 flex gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setShowCancelModal(true)}
-                    className="px-4 py-3 rounded-lg font-semibold border border-gray-300 text-gray-700"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={handleSubmit}
-                    className="flex-1 py-3 rounded-lg text-white font-semibold text-lg transition-all duration-300 shadow-lg disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 hover:bg-red-700"
-                    disabled={!termsAccepted}
-                  >
-                    Proceed to Pay
-                  </button>
-                </div>
-
-                <div className="mt-4">
-                  <label className="flex items-center text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={termsAccepted}
-                      onChange={() => setTermsAccepted((v) => !v)}
-                      className="h-4 w-4 mr-2 form-checkbox rounded text-red-600 focus:ring-red-500"
-                      required
-                    />
-                    I agree to the{" "}
-                    <a href="/terms" target="_blank" className="text-red-500 underline ml-1">
-                      Terms & Conditions
-                    </a>
-                  </label>
-                </div>
-              </div>
-            </div>
+          <hr className="my-2 border-gray-300" />
+          <div>
+            <p>
+              <strong>Boarding Point:</strong> {selectedBoardingPoint.point} at{" "}
+              <strong>{selectedBoardingPoint.time}</strong>
+            </p>
+            <p>
+              <strong>Dropping Point:</strong> {selectedDroppingPoint.point} at{" "}
+              <strong>{selectedDroppingPoint.time}</strong>
+            </p>
           </div>
-          {/* /Right */}
+          <hr className="my-2 border-gray-300" />
+          <div className="space-y-1">
+            <div className="flex justify-between">
+              <span>Subtotal</span>
+              <span>Rs. {Number(computed.basePrice).toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Convenience Fee</span>
+              <span>Rs. {Number(computed.convenienceFee).toFixed(2)}</span>
+            </div>
+            <p className="text-lg font-bold text-right">
+              <strong>Total Price:</strong> Rs. {Number(computed.total).toFixed(2)}
+            </p>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <label className="flex items-center text-sm text-[#1F2937]">
+            <input
+              type="checkbox"
+              className="mr-2 form-checkbox"
+              checked={termsAccepted}
+              onChange={() => setTermsAccepted((v) => !v)}
+              required
+            />
+            I agree to all Terms &amp; Conditions
+          </label>
+        </div>
+
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={() => setShowCancelModal(true)}
+            className="px-4 py-3 rounded-lg font-semibold border border-gray-300 text-gray-700"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!termsAccepted}
+            className="flex-1 py-3 rounded-lg text-white font-semibold text-lg transition-all duration-300 tracking-wide shadow-md bg-gradient-to-r from-blue-400 to-blue-500 hover:scale-105 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            Proceed to Pay
+          </button>
         </div>
       </div>
 
-      {/* Cancel modal for desktop */}
       <ConfirmCancelModal
         open={showCancelModal}
         onClose={() => setShowCancelModal(false)}
@@ -828,3 +684,4 @@ const ConfirmBooking = () => {
 };
 
 export default ConfirmBooking;
+
