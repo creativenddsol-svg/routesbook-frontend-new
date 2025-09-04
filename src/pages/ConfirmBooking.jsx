@@ -1,4 +1,3 @@
-// src/pages/ConfirmBooking.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
@@ -22,7 +21,11 @@ import {
 /* ---- Palette + date helpers (match SearchResults mobile look) ---- */
 const PALETTE = {
   primaryRed: "#D84E55",
+  accentBlue: "#3A86FF",
   textDark: "#1A1A1A",
+  textLight: "#4B5563",
+  white: "#FFFFFF",
+  borderLight: "#E9ECEF",
 };
 
 const getMobileDateParts = (dateString) => {
@@ -79,9 +82,70 @@ const ConfirmCancelModal = ({ open, onClose, onConfirm }) => {
   );
 };
 
+/* ---- Render only one layout at a time (prevents mobile blur/focus loss) ---- */
+const useIsDesktop = () => {
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== "undefined" ? window.innerWidth >= 1024 : false
+  );
+  useEffect(() => {
+    const onResize = () => setIsDesktop(window.innerWidth >= 1024);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return isDesktop;
+};
+
+// Floating label input (reusable)
+const FloatingInput = ({
+  icon,
+  label,
+  id,
+  name,
+  type = "text",
+  value,
+  onChange,
+  autoComplete,
+  inputMode,
+  enterKeyHint,
+  required,
+  spellCheck = "false",
+}) => (
+  <div className="relative">
+    {icon && (
+      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
+        {icon}
+      </div>
+    )}
+    <input
+      id={id}
+      name={name}
+      type={type}
+      value={value}
+      onChange={onChange}
+      autoComplete={autoComplete}
+      inputMode={inputMode}
+      enterKeyHint={enterKeyHint}
+      spellCheck={spellCheck}
+      className={`peer w-full ${icon ? "pl-10" : "pl-3"} pr-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-red-200 focus:border-red-500 transition placeholder-transparent`}
+      placeholder=" "
+      required={required}
+    />
+    <label
+      htmlFor={id}
+      className="absolute left-10 -top-2.5 bg-white px-1 text-sm text-gray-500 transition-all
+                 peer-placeholder-shown:top-2.5 peer-placeholder-shown:text-base
+                 peer-placeholder-shown:text-gray-400 peer-focus:-top-2.5
+                 peer-focus:text-sm peer-focus:text-red-600"
+    >
+      {label}
+    </label>
+  </div>
+);
+
 const ConfirmBooking = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const isDesktop = useIsDesktop();
 
   const {
     bus,
@@ -104,9 +168,10 @@ const ConfirmBooking = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
 
-  /* ---------- Lock back navigation while on this page ---------- */
+  // ---------- Lock back navigation while on this page ----------
   useEffect(() => {
     const handlePop = () => {
+      // Don’t navigate away—show cancel confirm
       window.history.pushState(null, "", window.location.href);
       setShowCancelModal(true);
     };
@@ -135,6 +200,9 @@ const ConfirmBooking = () => {
   }, [selectedSeats, seatGenders]);
 
   const [passengers, setPassengers] = useState(initialPassengers);
+  useEffect(() => {
+    setPassengers(initialPassengers);
+  }, [initialPassengers]);
 
   const setPassenger = (seat, patch) => {
     setPassengers((prev) =>
@@ -143,7 +211,9 @@ const ConfirmBooking = () => {
   };
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+    // keep object reference stable to avoid excessive rerenders/focus blips
+    setForm((prev) => (prev[name] === value ? prev : { ...prev, [name]: value }));
   };
 
   if (!bus || !selectedSeats || !date || !priceDetails) {
@@ -163,16 +233,14 @@ const ConfirmBooking = () => {
   }
 
   const handleSubmit = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     if (!form.name || !form.mobile || !form.nic || !form.email) {
       alert("Please fill in all contact details.");
       return;
     }
     for (const p of passengers) {
       if (!p.name || !p.gender) {
-        alert(
-          `Please fill in the Name and Gender for the passenger in seat ${p.seat}.`
-        );
+        alert(`Please fill in the Name and Gender for the passenger in seat ${p.seat}.`);
         return;
       }
     }
@@ -207,35 +275,12 @@ const ConfirmBooking = () => {
     });
   };
 
-  // Floating label input
-  const FormInput = ({ icon, label, ...props }) => (
-    <div className="relative">
-      <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
-        {icon}
-      </div>
-      <input
-        {...props}
-        className="peer w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-red-200 focus:border-red-500 transition placeholder-transparent"
-        placeholder=" "
-      />
-      <label
-        htmlFor={props.id}
-        className="absolute left-10 -top-2.5 bg-white px-1 text-sm text-gray-500 transition-all
-                 peer-placeholder-shown:top-2.5 peer-placeholder-shown:text-base
-                 peer-placeholder-shown:text-gray-400 peer-focus:-top-2.5
-                 peer-focus:text-sm peer-focus:text-red-600"
-      >
-        {label}
-      </label>
-    </div>
-  );
-
   /* ===================== MOBILE (locked, step 4) ===================== */
   const Mobile = () => (
-    <div className="lg:hidden bg-white min-h-screen">
+    <div className="bg-white min-h-screen">
+      {/* Header */}
       <div className="sticky top-0 z-30 bg-white border-b">
         <div className="px-4 py-2.5 flex items-center justify-between">
-          {/* Back button now triggers cancel modal instead of navigating back */}
           <button
             onClick={() => setShowCancelModal(true)}
             className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
@@ -246,10 +291,7 @@ const ConfirmBooking = () => {
           </button>
 
           <div className="text-center min-w-0">
-            <h2
-              className="text-base font-semibold truncate"
-              style={{ color: PALETTE.textDark }}
-            >
+            <h2 className="text-base font-semibold truncate" style={{ color: PALETTE.textDark }}>
               Confirm Details
             </h2>
             <p className="text-[11px] text-gray-500 truncate">
@@ -303,13 +345,11 @@ const ConfirmBooking = () => {
             <div className="mt-3 grid grid-cols-1 gap-2 text-[13px]">
               <div className="flex items-start gap-2">
                 <FaChair className="text-gray-400 mt-0.5" />
-                <div>
-                  <div className="text-gray-600">
-                    Seats:{" "}
-                    <span className="font-semibold text-red-600">
-                      {selectedSeats.join(", ")}
-                    </span>
-                  </div>
+                <div className="text-gray-600">
+                  Seats:{" "}
+                  <span className="font-semibold text-red-600">
+                    {selectedSeats.join(", ")}
+                  </span>
                 </div>
               </div>
 
@@ -347,44 +387,54 @@ const ConfirmBooking = () => {
               <FaUserCircle className="text-red-500" /> Contact Details
             </h4>
             <div className="grid grid-cols-1 gap-3">
-              <FormInput
+              <FloatingInput
                 icon={<FaUser />}
-                id="name"
+                id="m-name"
                 name="name"
                 type="text"
                 label="Full Name"
                 value={form.name}
                 onChange={handleChange}
+                autoComplete="name"
+                enterKeyHint="next"
                 required
               />
-              <FormInput
+              <FloatingInput
                 icon={<FaPhone />}
-                id="mobile"
+                id="m-mobile"
                 name="mobile"
                 type="tel"
                 label="Mobile Number"
                 value={form.mobile}
                 onChange={handleChange}
+                autoComplete="tel"
+                inputMode="tel"
+                enterKeyHint="next"
                 required
               />
-              <FormInput
+              <FloatingInput
                 icon={<FaIdCard />}
-                id="nic"
+                id="m-nic"
                 name="nic"
                 type="text"
                 label="NIC / Passport"
                 value={form.nic}
                 onChange={handleChange}
+                autoComplete="off"
+                enterKeyHint="next"
                 required
               />
-              <FormInput
+              <FloatingInput
                 icon={<FaEnvelope />}
-                id="email"
+                id="m-email"
                 name="email"
                 type="email"
                 label="Email Address"
                 value={form.email}
                 onChange={handleChange}
+                autoComplete="email"
+                inputMode="email"
+                enterKeyHint="done"
                 required
               />
             </div>
@@ -397,7 +447,7 @@ const ConfirmBooking = () => {
             </h4>
             <div className="space-y-3">
               {passengers.map((p, idx) => (
-                <div key={p.seat} className="rounded-lg border bg-gray-50/70 p-3">
+                <div key={`m-pass-${p.seat}`} className="rounded-lg border bg-gray-50/70 p-3">
                   <div className="flex items-center justify-between">
                     <p className="text-[14px] font-semibold text-gray-700">
                       Passenger {idx + 1}
@@ -415,21 +465,26 @@ const ConfirmBooking = () => {
                   </div>
 
                   <div className="mt-3 grid grid-cols-1 gap-3">
-                    <FormInput
+                    <FloatingInput
                       type="text"
-                      id={`p-name-${p.seat}`}
+                      id={`m-p-name-${p.seat}`}
+                      name={`m-p-name-${p.seat}`}
                       label="Name"
                       value={p.name}
                       onChange={(e) => setPassenger(p.seat, { name: e.target.value })}
+                      autoComplete="name"
+                      enterKeyHint="next"
                       required
                     />
-                    <FormInput
+                    <FloatingInput
                       type="number"
-                      id={`p-age-${p.seat}`}
-                      min="0"
+                      id={`m-p-age-${p.seat}`}
+                      name={`m-p-age-${p.seat}`}
                       label="Age"
                       value={p.age}
                       onChange={(e) => setPassenger(p.seat, { age: e.target.value })}
+                      inputMode="numeric"
+                      enterKeyHint="next"
                     />
                     <div className="flex items-center gap-3">
                       <button
@@ -482,7 +537,7 @@ const ConfirmBooking = () => {
               <input
                 type="checkbox"
                 checked={termsAccepted}
-                onChange={() => setTermsAccepted(!termsAccepted)}
+                onChange={() => setTermsAccepted((v) => !v)}
                 className="h-4 w-4 mt-0.5 rounded text-red-600 focus:ring-red-500"
               />
               <span>
@@ -530,7 +585,7 @@ const ConfirmBooking = () => {
 
   /* ===================== DESKTOP (unchanged layout, + cancel) ===================== */
   const Desktop = () => (
-    <div className="hidden lg:block bg-gray-50 min-h-screen">
+    <div className="bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-6">
         {/* Step 4 now */}
         <BookingSteps currentStep={4} />
@@ -543,44 +598,54 @@ const ConfirmBooking = () => {
                 Contact Details (for E-ticket/SMS)
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormInput
+                <FloatingInput
                   icon={<FaUser />}
-                  id="name"
+                  id="d-name"
                   name="name"
                   type="text"
                   label="Full Name"
                   value={form.name}
                   onChange={handleChange}
+                  autoComplete="name"
+                  enterKeyHint="next"
                   required
                 />
-                <FormInput
+                <FloatingInput
                   icon={<FaPhone />}
-                  id="mobile"
+                  id="d-mobile"
                   name="mobile"
                   type="tel"
                   label="Mobile Number"
                   value={form.mobile}
                   onChange={handleChange}
+                  autoComplete="tel"
+                  inputMode="tel"
+                  enterKeyHint="next"
                   required
                 />
-                <FormInput
+                <FloatingInput
                   icon={<FaIdCard />}
-                  id="nic"
+                  id="d-nic"
                   name="nic"
                   type="text"
                   label="NIC / Passport"
                   value={form.nic}
                   onChange={handleChange}
+                  autoComplete="off"
+                  enterKeyHint="next"
                   required
                 />
-                <FormInput
+                <FloatingInput
                   icon={<FaEnvelope />}
-                  id="email"
+                  id="d-email"
                   name="email"
                   type="email"
                   label="Email Address"
                   value={form.email}
                   onChange={handleChange}
+                  autoComplete="email"
+                  inputMode="email"
+                  enterKeyHint="done"
                   required
                 />
               </div>
@@ -593,30 +658,35 @@ const ConfirmBooking = () => {
               </h2>
               <div className="space-y-4">
                 {passengers.map((p, index) => (
-                  <div key={p.seat} className="border rounded-lg p-4 bg-gray-50/70">
+                  <div key={`d-pass-${p.seat}`} className="border rounded-lg p-4 bg-gray-50/70">
                     <p className="font-semibold text-gray-700 mb-3">
                       Passenger {index + 1} -{" "}
                       <span className="text-red-500">Seat {p.seat}</span>
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                       <div className="md:col-span-2">
-                        <FormInput
+                        <FloatingInput
                           type="text"
-                          id={`p-name-${p.seat}`}
+                          id={`d-p-name-${p.seat}`}
+                          name={`d-p-name-${p.seat}`}
                           label="Name"
                           value={p.name}
                           onChange={(e) => setPassenger(p.seat, { name: e.target.value })}
+                          autoComplete="name"
+                          enterKeyHint="next"
                           required
                         />
                       </div>
                       <div className="md:col-span-1">
-                        <FormInput
+                        <FloatingInput
                           type="number"
-                          id={`p-age-${p.seat}`}
-                          min="0"
+                          id={`d-p-age-${p.seat}`}
+                          name={`d-p-age-${p.seat}`}
                           label="Age"
                           value={p.age}
                           onChange={(e) => setPassenger(p.seat, { age: e.target.value })}
+                          inputMode="numeric"
+                          enterKeyHint="next"
                         />
                       </div>
                       <div className="md:col-span-2 flex items-center gap-3">
@@ -749,7 +819,7 @@ const ConfirmBooking = () => {
                     <input
                       type="checkbox"
                       checked={termsAccepted}
-                      onChange={() => setTermsAccepted(!termsAccepted)}
+                      onChange={() => setTermsAccepted((v) => !v)}
                       className="h-4 w-4 mr-2 form-checkbox rounded text-red-600 focus:ring-red-500"
                       required
                     />
@@ -775,13 +845,7 @@ const ConfirmBooking = () => {
     </div>
   );
 
-  return (
-    <>
-      {/* Step index here is 4 (1: Seats, 2: Points, 3: Summary, 4: Confirm, 5: Payment, 6: Ticket) */}
-      <Mobile />
-      <Desktop />
-    </>
-  );
+  return isDesktop ? <Desktop /> : <Mobile />;
 };
 
 export default ConfirmBooking;
