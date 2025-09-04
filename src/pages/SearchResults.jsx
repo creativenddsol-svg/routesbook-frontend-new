@@ -484,16 +484,50 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setSearchDate(searchDateParam || toLocalYYYYMMDD(new Date()));
   }, [from, to, searchDateParam, fetchData, location.search]);
 
-  // LOCK BODY SCROLL when filter drawer or mobile full-page flow is open
+  // ==== BODY SCROLL LOCK (robust on iOS/Android) ====
+  const scrollLockRef = useRef({ y: 0 });
   useEffect(() => {
     const mobileFlowOpen = !!expandedBusId && window.innerWidth < 1024;
-    if (isFilterOpen || mobileFlowOpen) {
-      document.body.style.overflow = "hidden";
-      document.body.style.touchAction = "none";
+    const shouldLock = isFilterOpen || mobileFlowOpen;
+
+    if (shouldLock) {
+      // remember scroll position
+      scrollLockRef.current.y = window.scrollY || window.pageYOffset || 0;
+
+      // lock body with fixed positioning (prevents iOS background scroll + bounce)
+      const body = document.body;
+      body.style.position = "fixed";
+      body.style.top = `-${scrollLockRef.current.y}px`;
+      body.style.left = "0";
+      body.style.right = "0";
+      body.style.width = "100%";
+      body.style.overflow = "hidden";
+      body.style.touchAction = "none";
     } else {
-      document.body.style.overflow = "unset";
-      document.body.style.touchAction = "auto";
+      // restore
+      const body = document.body;
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      body.style.overflow = "";
+      body.style.touchAction = "";
+      // jump back to where the user was
+      window.scrollTo(0, scrollLockRef.current.y || 0);
     }
+
+    return () => {
+      // cleanup on unmount
+      const body = document.body;
+      body.style.position = "";
+      body.style.top = "";
+      body.style.left = "";
+      body.style.right = "";
+      body.style.width = "";
+      body.style.overflow = "";
+      body.style.touchAction = "";
+    };
   }, [isFilterOpen, expandedBusId]);
 
   const { filteredBuses } = useMemo(() => {
@@ -1216,7 +1250,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     return createPortal(
       expandedBusId ? (
         <motion.div
-          className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white"
+          className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white overscroll-contain"
+          style={{ touchAction: "none" }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 1 }}
@@ -1468,7 +1503,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             const busAvailability = availability?.[availabilityKey];
             const availableSeats = busAvailability?.available;
             const availableWindowSeats = busAvailability?.window;
-            const isSoldOut = !availableSeats || availableSeats === 0;
+
+            // FIX: don't treat null/undefined as sold out (only 0 is sold out)
+            const isSoldOut = availableSeats === 0;
 
             const currentBusBookingData = busSpecificBookingData[busKey] || {
               selectedSeats: [],
@@ -1524,7 +1561,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                               bus.arrivalTime
                             )}
                           </span>
-                          {!isSoldOut && typeof availableSeats === "number" && (
+                          {typeof availableSeats === "number" && (
                             <>
                               <span className="mx-2">&middot;</span>
                               <span className="text-red-500">
@@ -1744,7 +1781,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       >
                         {isSoldOut
                           ? "Sold Out"
-                          : availableSeats === null
+                          : availableSeats === null || availableSeats === undefined
                           ? "Checking..."
                           : `${availableSeats} Seats Left`}
                       </p>
