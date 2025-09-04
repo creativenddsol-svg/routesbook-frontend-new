@@ -1,4 +1,4 @@
-=import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
@@ -137,7 +137,6 @@ const ConfirmBooking = () => {
     });
   };
 
-  // Floating-label input that matches your search flow fields
   const FormInput = ({ icon, label, ...props }) => (
     <div className="relative">
       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
@@ -163,7 +162,6 @@ const ConfirmBooking = () => {
   // ---------- MOBILE LAYOUT ----------
   const Mobile = () => (
     <div className="lg:hidden bg-white min-h-screen">
-      {/* Header (matches search mobile sheet style) */}
       <div className="sticky top-0 z-30 bg-white border-b">
         <div className="px-4 py-2.5 flex items-center justify-between">
           <button
@@ -197,15 +195,19 @@ const ConfirmBooking = () => {
         </div>
       </div>
 
-      {/* Content */}
       <form onSubmit={handleSubmit}>
         <div className="px-4 pt-3 pb-28 space-y-4">
-          {/* Journey Summary Card (compact, to match your mobile summary look) */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-start justify-between">
               <div className="min-w-0 pr-3">
-                <div className="inline-flex items-center px-2 py-0.5 rounded-lg border text-[12px] tabular-nums"
-                     style={{ background: "#ECFDF5", color: "#065F46", borderColor: "#A7F3D0" }}>
+                <div
+                  className="inline-flex items-center px-2 py-0.5 rounded-lg border text-[12px] tabular-nums"
+                  style={{
+                    background: "#ECFDF5",
+                    color: "#065F46",
+                    borderColor: "#A7F3D0",
+                  }}
+                >
                   {departureTime}
                 </div>
                 <h3 className="text-[15px] font-medium text-gray-800 mt-1 truncate">
@@ -265,7 +267,6 @@ const ConfirmBooking = () => {
             </div>
           </div>
 
-          {/* Contact Details */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <h4 className="text-[15px] font-semibold text-gray-800 flex items-center gap-2 mb-3">
               <FaUserCircle className="text-red-500" /> Contact Details
@@ -314,7 +315,6 @@ const ConfirmBooking = () => {
             </div>
           </div>
 
-          {/* Passenger Details */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <h4 className="text-[15px] font-semibold text-gray-800 flex items-center gap-2 mb-2">
               <FaUsers className="text-red-500" /> Passenger Details
@@ -326,8 +326,14 @@ const ConfirmBooking = () => {
                     <p className="text-[14px] font-semibold text-gray-700">
                       Passenger {idx + 1}
                     </p>
-                    <span className="px-2 py-0.5 rounded-lg text-xs font-semibold border"
-                          style={{ background: "#FFE4E6", color: "#9F1239", borderColor: "#FDA4AF" }}>
+                    <span
+                      className="px-2 py-0.5 rounded-lg text-xs font-semibold border"
+                      style={{
+                        background: "#FFE4E6",
+                        color: "#9F1239",
+                        borderColor: "#FDA4AF",
+                      }}
+                    >
                       Seat {p.seat}
                     </span>
                   </div>
@@ -373,7 +379,6 @@ const ConfirmBooking = () => {
             </div>
           </div>
 
-          {/* Mini price breakdown (optional) */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <h4 className="text-[15px] font-semibold text-gray-800 mb-2">Fare Summary</h4>
             <div className="space-y-1 text-sm text-gray-700">
@@ -393,7 +398,6 @@ const ConfirmBooking = () => {
           </div>
         </div>
 
-        {/* Sticky bottom CTA like mobile summary step */}
         <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t">
           <div className="px-4 pt-3">
             <label className="flex items-start gap-2 text-[12px] text-gray-700 pb-2">
@@ -440,7 +444,6 @@ const ConfirmBooking = () => {
       <div className="max-w-7xl mx-auto px-4 py-6">
         <BookingSteps currentStep={3} />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
-          {/* Left Column: Forms */}
           <div className="lg:col-span-7 space-y-6">
             <div className="bg-white shadow-md rounded-xl p-6">
               <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-3">
@@ -555,7 +558,6 @@ const ConfirmBooking = () => {
             </div>
           </div>
 
-          {/* Right Column: Sticky Summary (UNCHANGED) */}
           <div className="lg:col-span-5">
             <div className="sticky top-24">
               <div className="bg-white shadow-md rounded-xl p-6 border">
