@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
@@ -15,8 +15,10 @@ import {
   FaUserCircle,
   FaUsers,
   FaChevronLeft,
+  FaTimes,
 } from "react-icons/fa";
 
+/* ---- Palette + date helpers (match SearchResults mobile look) ---- */
 const PALETTE = {
   primaryRed: "#D84E55",
   textDark: "#1A1A1A",
@@ -29,6 +31,51 @@ const getMobileDateParts = (dateString) => {
   const top = dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
   const bottom = dt.toLocaleDateString("en-GB", { weekday: "short" });
   return { top, bottom };
+};
+
+/* ---- Small confirm-modal used for Cancel action and back-block ---- */
+const ConfirmCancelModal = ({ open, onClose, onConfirm }) => {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-[10002] flex items-end md:items-center justify-center">
+      <button
+        className="absolute inset-0 bg-black/40"
+        aria-label="Close"
+        onClick={onClose}
+      />
+      <div className="relative w-full md:w-[420px] bg-white rounded-t-2xl md:rounded-2xl shadow-xl p-5">
+        <div className="flex items-start justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Cancel this booking?</h3>
+          <button
+            onClick={onClose}
+            className="p-2 -mr-2 rounded-full hover:bg-gray-100"
+            aria-label="Close"
+          >
+            <FaTimes />
+          </button>
+        </div>
+        <p className="mt-2 text-sm text-gray-600">
+          You’ve completed Steps 1–3. Going back will cancel this booking and you’ll
+          lose your selected seats and points.
+        </p>
+        <div className="mt-4 flex gap-3">
+          <button
+            onClick={onClose}
+            className="flex-1 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-semibold"
+          >
+            Keep Booking
+          </button>
+          <button
+            onClick={onConfirm}
+            className="flex-1 px-4 py-2 rounded-lg text-white font-semibold"
+            style={{ backgroundColor: PALETTE.primaryRed }}
+          >
+            Cancel Booking
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 const ConfirmBooking = () => {
@@ -54,6 +101,30 @@ const ConfirmBooking = () => {
   });
 
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+
+  /* ---------- Lock back navigation while on this page ---------- */
+  useEffect(() => {
+    // If user tries browser back, immediately push state back and show cancel modal
+    const handlePop = () => {
+      window.history.pushState(null, "", window.location.href);
+      setShowCancelModal(true);
+    };
+    window.history.pushState(null, "", window.location.href);
+    window.addEventListener("popstate", handlePop);
+
+    // Warn on tab close/refresh
+    const handleBeforeUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("popstate", handlePop);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
 
   const initialPassengers = useMemo(() => {
     return (selectedSeats || []).map((seatNo) => ({
@@ -137,6 +208,7 @@ const ConfirmBooking = () => {
     });
   };
 
+  // Floating label input
   const FormInput = ({ icon, label, ...props }) => (
     <div className="relative">
       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
@@ -159,15 +231,17 @@ const ConfirmBooking = () => {
     </div>
   );
 
-  // ---------- MOBILE LAYOUT ----------
+  /* ===================== MOBILE (locked, step 4) ===================== */
   const Mobile = () => (
     <div className="lg:hidden bg-white min-h-screen">
       <div className="sticky top-0 z-30 bg-white border-b">
         <div className="px-4 py-2.5 flex items-center justify-between">
+          {/* Back button now triggers cancel modal instead of navigating back */}
           <button
-            onClick={() => navigate(-1)}
+            onClick={() => setShowCancelModal(true)}
             className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-            aria-label="Back"
+            aria-label="Cancel booking"
+            title="Cancel booking"
           >
             <FaChevronLeft />
           </button>
@@ -177,7 +251,7 @@ const ConfirmBooking = () => {
               className="text-base font-semibold truncate"
               style={{ color: PALETTE.textDark }}
             >
-              Confirm Booking
+              Confirm Details
             </h2>
             <p className="text-[11px] text-gray-500 truncate">
               {bus?.from} → {bus?.to} • {departureTime}
@@ -197,6 +271,7 @@ const ConfirmBooking = () => {
 
       <form onSubmit={handleSubmit}>
         <div className="px-4 pt-3 pb-28 space-y-4">
+          {/* Journey card */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex items-start justify-between">
               <div className="min-w-0 pr-3">
@@ -267,6 +342,7 @@ const ConfirmBooking = () => {
             </div>
           </div>
 
+          {/* Contact */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <h4 className="text-[15px] font-semibold text-gray-800 flex items-center gap-2 mb-3">
               <FaUserCircle className="text-red-500" /> Contact Details
@@ -315,6 +391,7 @@ const ConfirmBooking = () => {
             </div>
           </div>
 
+          {/* Passengers */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <h4 className="text-[15px] font-semibold text-gray-800 flex items-center gap-2 mb-2">
               <FaUsers className="text-red-500" /> Passenger Details
@@ -379,6 +456,7 @@ const ConfirmBooking = () => {
             </div>
           </div>
 
+          {/* Fare summary */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <h4 className="text-[15px] font-semibold text-gray-800 mb-2">Fare Summary</h4>
             <div className="space-y-1 text-sm text-gray-700">
@@ -398,6 +476,7 @@ const ConfirmBooking = () => {
           </div>
         </div>
 
+        {/* Fixed bottom bar */}
         <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t">
           <div className="px-4 pt-3">
             <label className="flex items-start gap-2 text-[12px] text-gray-700 pb-2">
@@ -415,35 +494,49 @@ const ConfirmBooking = () => {
               </span>
             </label>
           </div>
-          <div className="px-4 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="flex-1 rounded-xl border px-3 py-2">
-                <div className="text-[11px] text-gray-500">To Pay</div>
-                <div className="text-xl font-bold tabular-nums">
-                  Rs. {priceDetails?.totalPrice?.toFixed(2)}
-                </div>
+          <div className="px-4 pb-4 flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setShowCancelModal(true)}
+              className="px-4 py-3 rounded-xl font-semibold border border-gray-300 text-gray-700"
+            >
+              Cancel
+            </button>
+            <div className="flex-1 rounded-xl border px-3 py-2">
+              <div className="text-[11px] text-gray-500">To Pay</div>
+              <div className="text-xl font-bold tabular-nums">
+                Rs. {priceDetails?.totalPrice?.toFixed(2)}
               </div>
-              <button
-                type="submit"
-                disabled={!termsAccepted}
-                className="flex-[1.6] px-5 py-3 rounded-xl font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
-                style={{ backgroundColor: PALETTE.primaryRed }}
-              >
-                Proceed to Pay
-              </button>
             </div>
+            <button
+              type="submit"
+              disabled={!termsAccepted}
+              className="flex-[1.4] px-5 py-3 rounded-xl font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ backgroundColor: PALETTE.primaryRed }}
+            >
+              Proceed to Pay
+            </button>
           </div>
         </div>
       </form>
+
+      {/* Cancel modal */}
+      <ConfirmCancelModal
+        open={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={() => navigate("/")}
+      />
     </div>
   );
 
-  // ---------- DESKTOP LAYOUT (UNCHANGED) ----------
+  /* ===================== DESKTOP (unchanged layout, + cancel) ===================== */
   const Desktop = () => (
     <div className="hidden lg:block bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-6">
-        <BookingSteps currentStep={3} />
+        {/* Step 4 now */}
+        <BookingSteps currentStep={4} />
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
+          {/* Left */}
           <div className="lg:col-span-7 space-y-6">
             <div className="bg-white shadow-md rounded-xl p-6">
               <h2 className="text-xl font-bold mb-4 text-gray-800 flex items-center gap-3">
@@ -558,6 +651,7 @@ const ConfirmBooking = () => {
             </div>
           </div>
 
+          {/* Right (sticky) */}
           <div className="lg:col-span-5">
             <div className="sticky top-24">
               <div className="bg-white shadow-md rounded-xl p-6 border">
@@ -633,10 +727,25 @@ const ConfirmBooking = () => {
                     <span>Rs. {priceDetails.totalPrice?.toFixed(2)}</span>
                   </div>
                 </div>
-              </div>
 
-              <div className="mt-6">
-                <div className="mb-4">
+                <div className="mt-5 flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowCancelModal(true)}
+                    className="px-4 py-3 rounded-lg font-semibold border border-gray-300 text-gray-700"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    className="flex-1 py-3 rounded-lg text-white font-semibold text-lg transition-all duration-300 shadow-lg disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 hover:bg-red-700"
+                    disabled={!termsAccepted}
+                  >
+                    Proceed to Pay
+                  </button>
+                </div>
+
+                <div className="mt-4">
                   <label className="flex items-center text-sm text-gray-700">
                     <input
                       type="checkbox"
@@ -651,23 +760,26 @@ const ConfirmBooking = () => {
                     </a>
                   </label>
                 </div>
-                <button
-                  onClick={handleSubmit}
-                  className="w-full py-3 rounded-lg text-white font-semibold text-lg transition-all duration-300 shadow-lg disabled:opacity-60 disabled:cursor-not-allowed bg-red-600 hover:bg-red-700"
-                  disabled={!termsAccepted}
-                >
-                  Proceed to Pay
-                </button>
               </div>
             </div>
           </div>
+          {/* /Right */}
         </div>
       </div>
+
+      {/* Cancel modal for desktop route */}
+      <ConfirmCancelModal
+        open={showCancelModal}
+        onClose={() => setShowCancelModal(false)}
+        onConfirm={() => navigate("/")}
+      />
     </div>
   );
 
   return (
     <>
+      {/* Step index here is 4 (1: Seats, 2: Points, 3: Summary, 4: Confirm, 5: Payment, 6: Ticket) */}
+      {/* Mobile header shows "Confirm Details", desktop shows BookingSteps at step 4 */}
       <Mobile />
       <Desktop />
     </>
