@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+=import { useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
@@ -14,7 +14,22 @@ import {
   FaFemale,
   FaUserCircle,
   FaUsers,
+  FaChevronLeft,
 } from "react-icons/fa";
+
+const PALETTE = {
+  primaryRed: "#D84E55",
+  textDark: "#1A1A1A",
+};
+
+const getMobileDateParts = (dateString) => {
+  if (!dateString) return { top: "-- ---", bottom: "" };
+  const [y, m, d] = dateString.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const top = dt.toLocaleDateString("en-GB", { day: "2-digit", month: "short" });
+  const bottom = dt.toLocaleDateString("en-GB", { weekday: "short" });
+  return { top, bottom };
+};
 
 const ConfirmBooking = () => {
   const location = useLocation();
@@ -122,7 +137,7 @@ const ConfirmBooking = () => {
     });
   };
 
-  // ✅ UPDATED: FormInput component now has floating label logic
+  // Floating-label input that matches your search flow fields
   const FormInput = ({ icon, label, ...props }) => (
     <div className="relative">
       <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-gray-400">
@@ -130,26 +145,300 @@ const ConfirmBooking = () => {
       </div>
       <input
         {...props}
-        className="peer w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-red-300 focus:border-red-500 transition placeholder-transparent"
+        className="peer w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg shadow-sm focus:ring-2 focus:ring-red-200 focus:border-red-500 transition placeholder-transparent"
         placeholder=" "
       />
       <label
         htmlFor={props.id}
-        className="absolute left-10 -top-2.5 bg-white px-1 text-sm text-gray-500 transition-all 
-                   peer-placeholder-shown:top-2.5 peer-placeholder-shown:text-base 
-                   peer-placeholder-shown:text-gray-400 peer-focus:-top-2.5 
-                   peer-focus:text-sm peer-focus:text-red-600"
+        className="absolute left-10 -top-2.5 bg-white px-1 text-sm text-gray-500 transition-all
+                 peer-placeholder-shown:top-2.5 peer-placeholder-shown:text-base
+                 peer-placeholder-shown:text-gray-400 peer-focus:-top-2.5
+                 peer-focus:text-sm peer-focus:text-red-600"
       >
         {label}
       </label>
     </div>
   );
 
-  return (
-    <div className="bg-gray-50 min-h-screen">
+  // ---------- MOBILE LAYOUT ----------
+  const Mobile = () => (
+    <div className="lg:hidden bg-white min-h-screen">
+      {/* Header (matches search mobile sheet style) */}
+      <div className="sticky top-0 z-30 bg-white border-b">
+        <div className="px-4 py-2.5 flex items-center justify-between">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+            aria-label="Back"
+          >
+            <FaChevronLeft />
+          </button>
+
+          <div className="text-center min-w-0">
+            <h2
+              className="text-base font-semibold truncate"
+              style={{ color: PALETTE.textDark }}
+            >
+              Confirm Booking
+            </h2>
+            <p className="text-[11px] text-gray-500 truncate">
+              {bus?.from} → {bus?.to} • {departureTime}
+            </p>
+          </div>
+
+          <div className="flex flex-col items-center justify-center px-3 py-1 rounded-full border border-gray-200 bg-gray-50">
+            <span className="text-xs font-semibold leading-none">
+              {getMobileDateParts(date).top}
+            </span>
+            <span className="text-[10px] text-gray-500 leading-none mt-0.5">
+              {getMobileDateParts(date).bottom}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Content */}
+      <form onSubmit={handleSubmit}>
+        <div className="px-4 pt-3 pb-28 space-y-4">
+          {/* Journey Summary Card (compact, to match your mobile summary look) */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex items-start justify-between">
+              <div className="min-w-0 pr-3">
+                <div className="inline-flex items-center px-2 py-0.5 rounded-lg border text-[12px] tabular-nums"
+                     style={{ background: "#ECFDF5", color: "#065F46", borderColor: "#A7F3D0" }}>
+                  {departureTime}
+                </div>
+                <h3 className="text-[15px] font-medium text-gray-800 mt-1 truncate">
+                  {bus?.name}
+                </h3>
+                <p className="text-xs text-gray-500">
+                  <FaBus className="inline mr-1" />
+                  {bus?.from} → {bus?.to}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="text-[11px] text-gray-500">Total</div>
+                <div className="text-xl font-semibold tabular-nums">
+                  Rs. {priceDetails?.totalPrice?.toFixed(2)}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-3 grid grid-cols-1 gap-2 text-[13px]">
+              <div className="flex items-start gap-2">
+                <FaChair className="text-gray-400 mt-0.5" />
+                <div>
+                  <div className="text-gray-600">
+                    Seats:{" "}
+                    <span className="font-semibold text-red-600">
+                      {selectedSeats.join(", ")}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <FaMapMarkerAlt className="text-green-600 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-medium text-gray-800">Boarding</div>
+                  <div className="text-gray-600 truncate">
+                    {selectedBoardingPoint?.point} at{" "}
+                    <span className="font-semibold">
+                      {selectedBoardingPoint?.time}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-2">
+                <FaMapMarkerAlt className="text-red-600 mt-0.5" />
+                <div className="min-w-0">
+                  <div className="font-medium text-gray-800">Dropping</div>
+                  <div className="text-gray-600 truncate">
+                    {selectedDroppingPoint?.point} at{" "}
+                    <span className="font-semibold">
+                      {selectedDroppingPoint?.time}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Contact Details */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h4 className="text-[15px] font-semibold text-gray-800 flex items-center gap-2 mb-3">
+              <FaUserCircle className="text-red-500" /> Contact Details
+            </h4>
+            <div className="grid grid-cols-1 gap-3">
+              <FormInput
+                icon={<FaUser />}
+                id="name"
+                name="name"
+                type="text"
+                label="Full Name"
+                value={form.name}
+                onChange={handleChange}
+                required
+              />
+              <FormInput
+                icon={<FaPhone />}
+                id="mobile"
+                name="mobile"
+                type="tel"
+                label="Mobile Number"
+                value={form.mobile}
+                onChange={handleChange}
+                required
+              />
+              <FormInput
+                icon={<FaIdCard />}
+                id="nic"
+                name="nic"
+                type="text"
+                label="NIC / Passport"
+                value={form.nic}
+                onChange={handleChange}
+                required
+              />
+              <FormInput
+                icon={<FaEnvelope />}
+                id="email"
+                name="email"
+                type="email"
+                label="Email Address"
+                value={form.email}
+                onChange={handleChange}
+                required
+              />
+            </div>
+          </div>
+
+          {/* Passenger Details */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h4 className="text-[15px] font-semibold text-gray-800 flex items-center gap-2 mb-2">
+              <FaUsers className="text-red-500" /> Passenger Details
+            </h4>
+            <div className="space-y-3">
+              {passengers.map((p, idx) => (
+                <div key={p.seat} className="rounded-lg border bg-gray-50/70 p-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[14px] font-semibold text-gray-700">
+                      Passenger {idx + 1}
+                    </p>
+                    <span className="px-2 py-0.5 rounded-lg text-xs font-semibold border"
+                          style={{ background: "#FFE4E6", color: "#9F1239", borderColor: "#FDA4AF" }}>
+                      Seat {p.seat}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 gap-3">
+                    <FormInput
+                      type="text"
+                      id={`p-name-${p.seat}`}
+                      label="Name"
+                      value={p.name}
+                      onChange={(e) => setPassenger(p.seat, { name: e.target.value })}
+                      required
+                    />
+                    <FormInput
+                      type="number"
+                      id={`p-age-${p.seat}`}
+                      min="0"
+                      label="Age"
+                      value={p.age}
+                      onChange={(e) => setPassenger(p.seat, { age: e.target.value })}
+                    />
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPassenger(p.seat, { gender: "M" })}
+                        className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 transition
+                          ${p.gender === "M" ? "bg-violet-500 text-white border-violet-500" : "bg-white hover:bg-violet-50"}`}
+                      >
+                        <FaMale /> Male
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPassenger(p.seat, { gender: "F" })}
+                        className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 transition
+                          ${p.gender === "F" ? "bg-pink-500 text-white border-pink-500" : "bg-white hover:bg-pink-50"}`}
+                      >
+                        <FaFemale /> Female
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Mini price breakdown (optional) */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <h4 className="text-[15px] font-semibold text-gray-800 mb-2">Fare Summary</h4>
+            <div className="space-y-1 text-sm text-gray-700">
+              <div className="flex justify-between">
+                <span>Subtotal</span>
+                <span>Rs. {priceDetails.basePrice?.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Convenience Fee</span>
+                <span>Rs. {priceDetails.convenienceFee?.toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between font-semibold pt-1 border-t">
+                <span>Total</span>
+                <span>Rs. {priceDetails.totalPrice?.toFixed(2)}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Sticky bottom CTA like mobile summary step */}
+        <div className="fixed bottom-0 inset-x-0 z-40 bg-white border-t">
+          <div className="px-4 pt-3">
+            <label className="flex items-start gap-2 text-[12px] text-gray-700 pb-2">
+              <input
+                type="checkbox"
+                checked={termsAccepted}
+                onChange={() => setTermsAccepted(!termsAccepted)}
+                className="h-4 w-4 mt-0.5 rounded text-red-600 focus:ring-red-500"
+              />
+              <span>
+                I agree to the{" "}
+                <a href="/terms" target="_blank" className="text-red-600 underline">
+                  Terms &amp; Conditions
+                </a>
+              </span>
+            </label>
+          </div>
+          <div className="px-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-1 rounded-xl border px-3 py-2">
+                <div className="text-[11px] text-gray-500">To Pay</div>
+                <div className="text-xl font-bold tabular-nums">
+                  Rs. {priceDetails?.totalPrice?.toFixed(2)}
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={!termsAccepted}
+                className="flex-[1.6] px-5 py-3 rounded-xl font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ backgroundColor: PALETTE.primaryRed }}
+              >
+                Proceed to Pay
+              </button>
+            </div>
+          </div>
+        </div>
+      </form>
+    </div>
+  );
+
+  // ---------- DESKTOP LAYOUT (UNCHANGED) ----------
+  const Desktop = () => (
+    <div className="hidden lg:block bg-gray-50 min-h-screen">
       <div className="max-w-7xl mx-auto px-4 py-6">
         <BookingSteps currentStep={3} />
-
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
           {/* Left Column: Forms */}
           <div className="lg:col-span-7 space-y-6">
@@ -159,7 +448,6 @@ const ConfirmBooking = () => {
                 Contact Details (for E-ticket/SMS)
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* ✅ UPDATED: Switched from "placeholder" to "label" and added "id" */}
                 <FormInput
                   icon={<FaUser />}
                   id="name"
@@ -210,43 +498,35 @@ const ConfirmBooking = () => {
               </h2>
               <div className="space-y-4">
                 {passengers.map((p, index) => (
-                  <div
-                    key={p.seat}
-                    className="border rounded-lg p-4 bg-gray-50/70"
-                  >
+                  <div key={p.seat} className="border rounded-lg p-4 bg-gray-50/70">
                     <p className="font-semibold text-gray-700 mb-3">
                       Passenger {index + 1} -{" "}
                       <span className="text-red-500">Seat {p.seat}</span>
                     </p>
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                       <div className="md:col-span-2">
-                        {/* ✅ UPDATED: Switched from "placeholder" to "label" and added unique "id" */}
                         <FormInput
                           type="text"
                           id={`p-name-${p.seat}`}
                           label="Name"
                           value={p.name}
-                          onChange={(e) =>
-                            setPassenger(p.seat, { name: e.target.value })
-                          }
+                          onChange={(e) => setPassenger(p.seat, { name: e.target.value })}
                           required
                         />
                       </div>
                       <div className="md:col-span-1">
-                        {/* ✅ UPDATED: Switched from "placeholder" to "label" and added unique "id" */}
                         <FormInput
                           type="number"
                           id={`p-age-${p.seat}`}
                           min="0"
                           label="Age"
                           value={p.age}
-                          onChange={(e) =>
-                            setPassenger(p.seat, { age: e.target.value })
-                          }
+                          onChange={(e) => setPassenger(p.seat, { age: e.target.value })}
                         />
                       </div>
                       <div className="md:col-span-2 flex items-center gap-3">
                         <button
+                          type="button"
                           onClick={() => setPassenger(p.seat, { gender: "M" })}
                           className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 transition ${
                             p.gender === "M"
@@ -257,6 +537,7 @@ const ConfirmBooking = () => {
                           <FaMale /> Male
                         </button>
                         <button
+                          type="button"
                           onClick={() => setPassenger(p.seat, { gender: "F" })}
                           className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg border-2 transition ${
                             p.gender === "F"
@@ -294,10 +575,11 @@ const ConfirmBooking = () => {
                   <div className="flex items-start gap-3">
                     <FaCalendarAlt className="text-gray-400 mt-1" />
                     <p className="font-medium text-gray-700">
-                      {new Date(date + "T00:00:00").toLocaleDateString(
-                        "en-GB",
-                        { day: "numeric", month: "long", year: "numeric" }
-                      )}{" "}
+                      {new Date(date + "T00:00:00").toLocaleDateString("en-GB", {
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}{" "}
                       at {departureTime}
                     </p>
                   </div>
@@ -316,28 +598,20 @@ const ConfirmBooking = () => {
                   <div className="flex items-start gap-3">
                     <FaMapMarkerAlt className="text-green-500 mt-1" />
                     <div>
-                      <p className="font-semibold text-gray-800">
-                        Boarding Point
-                      </p>
+                      <p className="font-semibold text-gray-800">Boarding Point</p>
                       <p className="text-gray-600">
                         {selectedBoardingPoint.point} at{" "}
-                        <span className="font-bold">
-                          {selectedBoardingPoint.time}
-                        </span>
+                        <span className="font-bold">{selectedBoardingPoint.time}</span>
                       </p>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
                     <FaMapMarkerAlt className="text-red-500 mt-1" />
                     <div>
-                      <p className="font-semibold text-gray-800">
-                        Dropping Point
-                      </p>
+                      <p className="font-semibold text-gray-800">Dropping Point</p>
                       <p className="text-gray-600">
                         {selectedDroppingPoint.point} at{" "}
-                        <span className="font-bold">
-                          {selectedDroppingPoint.time}
-                        </span>
+                        <span className="font-bold">{selectedDroppingPoint.time}</span>
                       </p>
                     </div>
                   </div>
@@ -370,11 +644,7 @@ const ConfirmBooking = () => {
                       required
                     />
                     I agree to the{" "}
-                    <a
-                      href="/terms"
-                      target="_blank"
-                      className="text-red-500 underline ml-1"
-                    >
+                    <a href="/terms" target="_blank" className="text-red-500 underline ml-1">
                       Terms & Conditions
                     </a>
                   </label>
@@ -392,6 +662,13 @@ const ConfirmBooking = () => {
         </div>
       </div>
     </div>
+  );
+
+  return (
+    <>
+      <Mobile />
+      <Desktop />
+    </>
   );
 };
 
