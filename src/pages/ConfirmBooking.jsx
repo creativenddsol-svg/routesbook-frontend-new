@@ -2,25 +2,57 @@
 import { useMemo, useState, useCallback, memo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
-import { FaUser, FaPhone, FaEnvelope, FaIdCard, FaMale, FaFemale, FaBus, FaChair, FaMapMarkerAlt } from "react-icons/fa";
-import apiClient from "../api"; // configure baseURL (localhost) inside ../api
+import {
+  FaUser,
+  FaPhone,
+  FaEnvelope,
+  FaIdCard,
+  FaMale,
+  FaFemale,
+  FaBus,
+  FaChair,
+  FaMapMarkerAlt,
+} from "react-icons/fa";
+import apiClient from "../api"; // set baseURL inside ../api (e.g., localhost when dev)
 
-/* -------- UI helpers -------- */
+/* ---------------- UI helpers ---------------- */
 const getNiceDate = (dateStr, time) => {
   try {
     const d = new Date(dateStr);
-    const ds = d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+    const ds = d.toLocaleDateString("en-GB", {
+      day: "numeric",
+      month: "long",
+      year: "numeric",
+    });
     return time ? `${ds} at ${time}` : ds;
   } catch {
     return dateStr || "--";
   }
 };
 
-const RowInput = ({ id, name, label, type = "text", value, onChange, autoComplete, inputMode, enterKeyHint, icon, required }) => (
+const RowInput = ({
+  id,
+  name,
+  label,
+  type = "text",
+  value,
+  onChange,
+  autoComplete,
+  inputMode,
+  enterKeyHint,
+  icon,
+  required,
+}) => (
   <div className="w-full">
-    <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">
+      {label}
+    </label>
     <div className="relative">
-      {icon ? <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">{icon}</div> : null}
+      {icon ? (
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-400 pointer-events-none">
+          {icon}
+        </div>
+      ) : null}
       <input
         id={id}
         name={name}
@@ -37,7 +69,7 @@ const RowInput = ({ id, name, label, type = "text", value, onChange, autoComplet
   </div>
 );
 
-/* -------- Passenger row (memoized to prevent remounting inputs) -------- */
+/* -------- Passenger row (memoized; inputs won't remount) -------- */
 const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGender }) {
   return (
     <div className="border p-4 rounded-lg bg-[#F8FAFF]">
@@ -78,7 +110,9 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
               type="button"
               onClick={() => onGender(p.seat, "M")}
               className={`flex-1 py-2.5 rounded-lg border-2 flex items-center justify-center gap-2 ${
-                p.gender === "M" ? "bg-blue-600 text-white border-blue-600" : "bg-white hover:bg-blue-50 border-gray-300"
+                p.gender === "M"
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-white hover:bg-blue-50 border-gray-300"
               }`}
             >
               <FaMale /> Male
@@ -87,7 +121,9 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
               type="button"
               onClick={() => onGender(p.seat, "F")}
               className={`flex-1 py-2.5 rounded-lg border-2 flex items-center justify-center gap-2 ${
-                p.gender === "F" ? "bg-pink-600 text-white border-pink-600" : "bg-white hover:bg-pink-50 border-gray-300"
+                p.gender === "F"
+                  ? "bg-pink-600 text-white border-pink-600"
+                  : "bg-white hover:bg-pink-50 border-gray-300"
               }`}
             >
               <FaFemale /> Female
@@ -99,27 +135,29 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
   );
 });
 
+/* ========================= Component ========================= */
 const ConfirmBooking = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
+  // ---- read route state ----
   const {
     bus,
     selectedSeats,
     date,
-    totalPrice,               // number OR
-    priceDetails,             // { basePrice, convenienceFee, totalPrice }
+    totalPrice, // number OR
+    priceDetails, // { basePrice, convenienceFee, totalPrice }
     selectedBoardingPoint,
     selectedDroppingPoint,
     departureTime,
     seatGenders,
   } = location.state || {};
 
-  // Normalize pricing
+  // ---- normalized pricing (stable) ----
   const prices = useMemo(() => {
     const base = priceDetails?.basePrice ?? (typeof totalPrice === "number" ? totalPrice : 0);
-    const fee  = priceDetails?.convenienceFee ?? 0;
-    const tot  = priceDetails?.totalPrice ?? totalPrice ?? base + fee;
+    const fee = priceDetails?.convenienceFee ?? 0;
+    const tot = priceDetails?.totalPrice ?? totalPrice ?? base + fee;
     return {
       basePrice: Number(base) || 0,
       convenienceFee: Number(fee) || 0,
@@ -127,15 +165,14 @@ const ConfirmBooking = () => {
     };
   }, [priceDetails, totalPrice]);
 
-  // Contact form (simple, controlled)
+  // ---- contact form (controlled) ----
   const [form, setForm] = useState({ name: "", mobile: "", nic: "", email: "" });
   const onChangeForm = useCallback((e) => {
     const { name, value } = e.target;
-    // functional update keeps object reference changes minimal
     setForm((prev) => (prev[name] === value ? prev : { ...prev, [name]: value }));
   }, []);
 
-  // Initialize passengers ONCE (important: do NOT reset from props after mount)
+  // ---- passengers initialized once; never reset from props while typing ----
   const initialPassengers = useMemo(
     () =>
       (selectedSeats || []).map((seatNo) => ({
@@ -144,109 +181,135 @@ const ConfirmBooking = () => {
         age: "",
         gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
       })),
-    // Only dependent on stable props. Avoid extra objects here.
     [selectedSeats, seatGenders]
   );
   const [passengers, setPassengers] = useState(initialPassengers);
 
-  // Stable per-field setters (avoid re-creating input elements)
   const setPassengerName = useCallback((seat, name) => {
     setPassengers((prev) => {
-      const idx = prev.findIndex((x) => x.seat === String(seat));
-      if (idx === -1) return prev;
+      const i = prev.findIndex((x) => x.seat === String(seat));
+      if (i === -1) return prev;
+      if (prev[i].name === name) return prev;
       const next = prev.slice();
-      if (next[idx].name === name) return prev;
-      next[idx] = { ...next[idx], name };
+      next[i] = { ...next[i], name };
       return next;
     });
   }, []);
 
   const setPassengerAge = useCallback((seat, age) => {
     setPassengers((prev) => {
-      const idx = prev.findIndex((x) => x.seat === String(seat));
-      if (idx === -1) return prev;
+      const i = prev.findIndex((x) => x.seat === String(seat));
+      if (i === -1) return prev;
+      if (prev[i].age === age) return prev;
       const next = prev.slice();
-      if (next[idx].age === age) return prev;
-      next[idx] = { ...next[idx], age };
+      next[i] = { ...next[i], age };
       return next;
     });
   }, []);
 
   const setPassengerGender = useCallback((seat, gender) => {
     setPassengers((prev) => {
-      const idx = prev.findIndex((x) => x.seat === String(seat));
-      if (idx === -1) return prev;
-      if (prev[idx].gender === gender) return prev;
+      const i = prev.findIndex((x) => x.seat === String(seat));
+      if (i === -1) return prev;
+      if (prev[i].gender === gender) return prev;
       const next = prev.slice();
-      next[idx] = { ...next[idx], gender };
+      next[i] = { ...next[i], gender };
       return next;
     });
   }, []);
 
-  // Guard missing data
-  if (!bus || !selectedSeats || !date || !selectedBoardingPoint || !selectedDroppingPoint) {
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const handleSubmit = useCallback(
+    async (e) => {
+      e.preventDefault();
+
+      if (!form.name || !form.mobile || !form.nic || !form.email) {
+        alert("Please fill in all contact details.");
+        return;
+      }
+      for (const p of passengers) {
+        if (!p.name || !p.gender) {
+          alert(`Please fill in Name and Gender for seat ${p.seat}.`);
+          return;
+        }
+      }
+      if (!termsAccepted) {
+        alert("Please agree to the Terms & Conditions.");
+        return;
+      }
+
+      // Example api call (baseURL configured in ../api)
+      // await apiClient.post("/booking/validate", { busId: bus?._id, seats: selectedSeats });
+
+      const seatGendersOut = {};
+      passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
+
+      navigate("/payment", {
+        state: {
+          bus,
+          selectedSeats,
+          date,
+          departureTime,
+          passenger: form,
+          priceDetails: {
+            basePrice: prices.basePrice,
+            convenienceFee: prices.convenienceFee,
+            totalPrice: prices.total,
+          },
+          selectedBoardingPoint,
+          selectedDroppingPoint,
+          passengers: passengers.map(({ seat, name, age, gender }) => ({
+            seat,
+            name,
+            age: age === "" ? undefined : Number(age),
+            gender,
+          })),
+          seatGenders: seatGendersOut,
+        },
+      });
+    },
+    [
+      bus,
+      date,
+      departureTime,
+      form,
+      navigate,
+      passengers,
+      selectedSeats,
+      selectedDroppingPoint,
+      selectedBoardingPoint,
+      prices,
+      termsAccepted,
+    ]
+  );
+
+  // ---- guard (AFTER all hooks; safe for rules-of-hooks) ----
+  const missingData =
+    !bus ||
+    !selectedSeats ||
+    !date ||
+    !selectedBoardingPoint ||
+    !selectedDroppingPoint ||
+    prices.total === undefined;
+
+  if (missingData) {
     return (
       <div className="text-center mt-10">
-        <p className="text-red-600 font-semibold">Booking details are incomplete. Please start again.</p>
-        <button onClick={() => navigate("/")} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md">
+        <p className="text-red-600 font-semibold">
+          Booking details are incomplete. Please start again.
+        </p>
+        <button
+          onClick={() => navigate("/")}
+          className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-md"
+        >
           Go to Home
         </button>
       </div>
     );
   }
 
-  const [terms, setTerms] = useState(false);
-
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault();
-
-    if (!form.name || !form.mobile || !form.nic || !form.email) {
-      alert("Please fill in all contact details.");
-      return;
-    }
-    for (const p of passengers) {
-      if (!p.name || !p.gender) {
-        alert(`Please fill Name and Gender for seat ${p.seat}.`);
-        return;
-      }
-    }
-    if (!terms) {
-      alert("Please agree to the Terms & Conditions.");
-      return;
-    }
-
-    // (Optional) example of apiClient usage (no localhost in component):
-    // await apiClient.post("/booking/validate", { busId: bus._id, seats: selectedSeats });
-
-    const seatGendersOut = {};
-    passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
-
-    navigate("/payment", {
-      state: {
-        bus,
-        selectedSeats,
-        date,
-        departureTime,
-        passenger: form,
-        priceDetails: {
-          basePrice: prices.basePrice,
-          convenienceFee: prices.convenienceFee,
-          totalPrice: prices.total,
-        },
-        selectedBoardingPoint,
-        selectedDroppingPoint,
-        passengers: passengers.map(({ seat, name, age, gender }) => ({
-          seat,
-          name,
-          age: age === "" ? undefined : Number(age),
-          gender,
-        })),
-        seatGenders: seatGendersOut,
-      },
-    });
-  }, [bus, date, departureTime, form, navigate, passengers, selectedSeats, selectedBoardingPoint, selectedDroppingPoint, prices, terms]);
-
-  /* -------------------- UI (single responsive page) -------------------- */
+  /* -------------------- UI (single responsive layout) -------------------- */
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 bg-[#F4F7FE] min-h-screen">
       <BookingSteps currentStep={3} />
@@ -312,10 +375,10 @@ const ConfirmBooking = () => {
         <div className="space-y-4 mb-6">
           {passengers.map((p, idx) => (
             <PassengerRow
-              key={p.seat}
+              key={p.seat}                // stable key prevents remount
               p={p}
               index={idx}
-              onName={setPassengerName}
+              onName={setPassengerName}   // stable callbacks
               onAge={setPassengerAge}
               onGender={setPassengerGender}
             />
@@ -326,9 +389,15 @@ const ConfirmBooking = () => {
         <div className="border p-4 rounded-lg bg-[#EAF0FB] mb-6 text-sm space-y-2">
           <h3 className="font-semibold mb-2 text-[#1F2937]">Journey Summary</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-            <p><strong>Bus:</strong> {bus.name}</p>
-            <p><strong>Date:</strong> {getNiceDate(date, departureTime)}</p>
-            <p><strong>Route:</strong> {bus.from} to {bus.to}</p>
+            <p>
+              <strong>Bus:</strong> {bus.name}
+            </p>
+            <p>
+              <strong>Date:</strong> {getNiceDate(date, departureTime)}
+            </p>
+            <p>
+              <strong>Route:</strong> {bus.from} to {bus.to}
+            </p>
             <p>
               <strong>Seats:</strong>{" "}
               <span className="font-bold text-blue-600">{selectedSeats.join(", ")}</span>
@@ -367,8 +436,8 @@ const ConfirmBooking = () => {
             <input
               type="checkbox"
               className="mr-2 form-checkbox"
-              checked={terms}
-              onChange={() => setTerms((v) => !v)}
+              checked={termsAccepted}
+              onChange={() => setTermsAccepted((v) => !v)}
               required
             />
             I agree to all Terms &amp; Conditions
@@ -377,7 +446,7 @@ const ConfirmBooking = () => {
 
         <button
           type="submit"
-          disabled={!terms}
+          disabled={!termsAccepted}
           className="w-full py-3 rounded-lg text-white font-semibold text-lg transition-all duration-300 tracking-wide shadow-md bg-gradient-to-r from-blue-400 to-blue-500 hover:scale-105 hover:brightness-110 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           Proceed to Pay
