@@ -1,3 +1,4 @@
+// src/pages/ConfirmBooking.jsx
 import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
@@ -105,7 +106,6 @@ const ConfirmBooking = () => {
 
   /* ---------- Lock back navigation while on this page ---------- */
   useEffect(() => {
-    // If user tries browser back, immediately push state back and show cancel modal
     const handlePop = () => {
       window.history.pushState(null, "", window.location.href);
       setShowCancelModal(true);
@@ -113,7 +113,6 @@ const ConfirmBooking = () => {
     window.history.pushState(null, "", window.location.href);
     window.addEventListener("popstate", handlePop);
 
-    // Warn on tab close/refresh
     const handleBeforeUnload = (e) => {
       e.preventDefault();
       e.returnValue = "";
@@ -779,7 +778,6 @@ const ConfirmBooking = () => {
   return (
     <>
       {/* Step index here is 4 (1: Seats, 2: Points, 3: Summary, 4: Confirm, 5: Payment, 6: Ticket) */}
-      {/* Mobile header shows "Confirm Details", desktop shows BookingSteps at step 4 */}
       <Mobile />
       <Desktop />
     </>
