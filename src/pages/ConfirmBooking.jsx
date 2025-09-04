@@ -4,9 +4,9 @@ import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import apiClient from "../api"; // baseURL configured inside ../api
 
-/* ---------------- Matte palette (keeps your red hue, desaturated) ---------------- */
+/* ---------------- Matte palette ---------------- */
 const PALETTE = {
-  primary: "#C74A50",      // matte version of your SearchResults red
+  primary: "#C74A50",      // matte red to match SearchResults
   bg: "#F5F6F8",
   surface: "#FFFFFF",
   surfaceAlt: "#FAFBFC",
@@ -14,6 +14,12 @@ const PALETTE = {
   text: "#1A1A1A",
   textSubtle: "#6B7280",
   pillBg: "#F3F4F6",
+
+  // New: gender tones
+  violet: "#6D5BD0",
+  violetBg: "#F1EFFF",
+  pink: "#E05B88",
+  pinkBg: "#FFEAF2",
 };
 
 /* ---------------- Helpers ---------------- */
@@ -136,21 +142,32 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
         <div className="md:col-span-2">
           <Label>Gender</Label>
           <div className="grid grid-cols-2 gap-2">
-            {["M", "F"].map((g) => (
-              <button
-                key={g}
-                type="button"
-                onClick={() => onGender(p.seat, g)}
-                className="py-2.5 rounded-xl border text-sm font-medium transition"
-                style={{
-                  borderColor: p.gender === g ? PALETTE.primary : PALETTE.border,
-                  background: p.gender === g ? "#FBEDEF" : "#FFFFFF",
-                  color: p.gender === g ? PALETTE.primary : PALETTE.text,
-                }}
-              >
-                {g === "M" ? "Male" : "Female"}
-              </button>
-            ))}
+            {/* Male = violet pill */}
+            <button
+              type="button"
+              onClick={() => onGender(p.seat, "M")}
+              className="py-2.5 rounded-full border text-sm font-medium transition"
+              style={{
+                borderColor: p.gender === "M" ? PALETTE.violet : PALETTE.border,
+                background: p.gender === "M" ? PALETTE.violetBg : "#FFFFFF",
+                color: p.gender === "M" ? PALETTE.violet : PALETTE.text,
+              }}
+            >
+              Male
+            </button>
+            {/* Female = pink pill */}
+            <button
+              type="button"
+              onClick={() => onGender(p.seat, "F")}
+              className="py-2.5 rounded-full border text-sm font-medium transition"
+              style={{
+                borderColor: p.gender === "F" ? PALETTE.pink : PALETTE.border,
+                background: p.gender === "F" ? PALETTE.pinkBg : "#FFFFFF",
+                color: p.gender === "F" ? PALETTE.pink : PALETTE.text,
+              }}
+            >
+              Female
+            </button>
           </div>
         </div>
       </div>
@@ -262,7 +279,7 @@ const ConfirmBooking = () => {
         return;
       }
 
-      // Optionally validate seats before payment
+      // Optional: validate seats on server
       // await apiClient.post("/booking/validate", { busId: bus?._id, seats: selectedSeats });
 
       const seatGendersOut = {};
@@ -356,18 +373,23 @@ const ConfirmBooking = () => {
 
         {/* Journey Overview (minimal) */}
         <SectionCard>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div>
-              <h2 className="text-lg font-bold" style={{ color: PALETTE.text }}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold truncate" style={{ color: PALETTE.text }}>
                 {bus?.name || "Bus"}
               </h2>
               <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
                 {bus?.from} → {bus?.to}
               </p>
             </div>
-            <div className="flex flex-wrap gap-2">
+
+            {/* Right-side pills with space-managed wrap, now includes DATE */}
+            <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
+              <Pill>{getNiceDate(date, departureTime)}</Pill>
               <Pill>{bus?.busType || "Seating"}</Pill>
-              <Pill>{selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}</Pill>
+              <Pill>
+                {selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}
+              </Pill>
             </div>
           </div>
 
