@@ -2,7 +2,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 
-/* --------- Matte palette (same family as pages) --------- */
+/* -------- Matte palette -------- */
 const PALETTE = {
   primary: "#C74A50",
   surface: "#FFFFFF",
@@ -12,7 +12,7 @@ const PALETTE = {
   pillBg: "#F3F4F6",
 };
 
-/* --------- Small UI atoms --------- */
+/* -------- UI atoms -------- */
 const Pill = ({ children }) => (
   <span
     className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
@@ -28,12 +28,11 @@ const Label = ({ children }) => (
   </span>
 );
 
-/* --------- Helpers --------- */
+/* -------- Helpers -------- */
 const getReadableDate = (dateString) => {
   if (!dateString) return "N/A";
   const [year, month, day] = dateString.split("-").map(Number);
-  // UTC avoids off-by-one issues
-  const dateObj = new Date(Date.UTC(year, month - 1, day));
+  const dateObj = new Date(Date.UTC(year, month - 1, day)); // UTC avoids off-by-one
   return dateObj.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
@@ -48,7 +47,7 @@ const money = (n) =>
     maximumFractionDigits: 2,
   });
 
-/* ======================================================== */
+/* ================= BookingSummary ================= */
 const BookingSummary = ({
   bus,
   selectedSeats,
@@ -67,37 +66,38 @@ const BookingSummary = ({
       className="rounded-2xl p-5 h-full flex flex-col shadow-sm"
       style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}` }}
     >
-      {/* Header */}
+      {/* Header: one-line title, pills on the right */}
       <div
-        className="flex items-start justify-between gap-3 mb-4 pb-3"
+        className="mb-4 pb-3"
         style={{ borderBottom: `1px solid ${PALETTE.border}` }}
       >
-        <div className="min-w-0">
-          {/* No truncate here → shows full title */}
-          <h3 className="text-lg font-semibold" style={{ color: PALETTE.text }}>
+        <div className="flex items-center justify-between gap-3">
+          <h3
+            className="text-lg font-semibold whitespace-nowrap"
+            style={{ color: PALETTE.text }}
+          >
             Booking Summary
           </h3>
 
-          {/* Bus meta (wraps on small widths, no clipping) */}
-          <div className="mt-1 space-y-0.5">
-            {bus?.name ? (
-              <p className="text-sm font-medium" style={{ color: PALETTE.text }}>
-                {bus.name}
-              </p>
-            ) : null}
-            <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
-              {bus?.from} → {bus?.to}
-            </p>
+          <div className="flex flex-wrap gap-2 justify-end shrink-0">
+            <Pill>{getReadableDate(date)}</Pill>
+            {bus?.busType ? <Pill>{bus.busType}</Pill> : null}
+            <Pill>
+              {selectedSeats.length} Seat{selectedSeats.length > 1 ? "s" : ""}
+            </Pill>
           </div>
         </div>
 
-        {/* Right-side chips */}
-        <div className="flex flex-wrap gap-2 justify-end shrink-0">
-          <Pill>{getReadableDate(date)}</Pill>
-          {bus?.busType ? <Pill>{bus.busType}</Pill> : null}
-          <Pill>
-            {selectedSeats.length} Seat{selectedSeats.length > 1 ? "s" : ""}
-          </Pill>
+        {/* Bus meta below title (never truncates the title) */}
+        <div className="mt-2">
+          {bus?.name ? (
+            <p className="text-sm font-medium" style={{ color: PALETTE.text }}>
+              {bus.name}
+            </p>
+          ) : null}
+          <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
+            {bus?.from} → {bus?.to}
+          </p>
         </div>
       </div>
 
@@ -110,9 +110,7 @@ const BookingSummary = ({
             {boardingPoint ? (
               <p className="font-medium" style={{ color: PALETTE.text }}>
                 <span className="tabular-nums font-semibold">{boardingPoint.time}</span>{" "}
-                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>
-                  at
-                </span>{" "}
+                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>at</span>{" "}
                 {boardingPoint.point}
               </p>
             ) : (
@@ -127,9 +125,7 @@ const BookingSummary = ({
             {droppingPoint ? (
               <p className="font-medium" style={{ color: PALETTE.text }}>
                 <span className="tabular-nums font-semibold">{droppingPoint.time}</span>{" "}
-                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>
-                  at
-                </span>{" "}
+                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>at</span>{" "}
                 {droppingPoint.point}
               </p>
             ) : (
@@ -182,7 +178,7 @@ const BookingSummary = ({
               </span>
             </div>
             <hr className="my-2" style={{ borderColor: PALETTE.border }} />
-            <div className="flex justify-between text-base" aria-live="polite">
+            <div className="flex justify-between text-base">
               <span className="font-bold" style={{ color: PALETTE.text }}>
                 Total
               </span>
@@ -206,7 +202,7 @@ const BookingSummary = ({
   );
 };
 
-/* --------- PropTypes --------- */
+/* -------- PropTypes -------- */
 Pill.propTypes = { children: PropTypes.node.isRequired };
 
 BookingSummary.propTypes = {
@@ -222,3 +218,4 @@ BookingSummary.propTypes = {
 };
 
 export default BookingSummary;
+
