@@ -1,12 +1,39 @@
+// src/components/BookingSummary.jsx
 import React from "react";
 import PropTypes from "prop-types";
-import {
-  FaBus,
-  FaCalendarAlt,
-  FaMapMarkerAlt,
-  FaChair,
-  FaArrowRight,
-} from "react-icons/fa";
+
+/* Matte palette to match the pages */
+const PALETTE = {
+  primary: "#C74A50",   // matte red
+  bg: "#F5F6F8",
+  surface: "#FFFFFF",
+  border: "#E5E7EB",
+  text: "#1A1A1A",
+  textSubtle: "#6B7280",
+  pillBg: "#F3F4F6",
+};
+
+const Pill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+    style={{ background: PALETTE.pillBg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
+
+const getReadableDate = (dateString) => {
+  if (!dateString) return "N/A";
+  const [year, month, day] = dateString.split("-").map(Number);
+  // Use UTC to prevent timezone off-by-one errors
+  const dateObj = new Date(Date.UTC(year, month - 1, day));
+  return dateObj.toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+};
 
 const BookingSummary = ({
   bus,
@@ -19,110 +46,101 @@ const BookingSummary = ({
   boardingPoint,
   droppingPoint,
 }) => {
-  const getReadableDate = (dateString) => {
-    if (!dateString) return "N/A";
-    const [year, month, day] = dateString.split("-").map(Number);
-    // Use UTC to prevent timezone off-by-one errors
-    const dateObj = new Date(Date.UTC(year, month - 1, day));
-    return dateObj.toLocaleDateString("en-GB", {
-      day: "numeric",
-      month: "long",
-      year: "numeric",
-      timeZone: "UTC",
-    });
-  };
-
   const hasSelection =
     selectedSeats.length > 0 && boardingPoint && droppingPoint;
 
   return (
-    <div className="bg-white rounded-xl p-5 border border-gray-200 h-full flex flex-col shadow-sm">
+    <div
+      className="rounded-2xl p-5 h-full flex flex-col shadow-sm"
+      style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}` }}
+    >
       {/* Header */}
-      <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-3 mb-4">
-        Booking Summary
-      </h3>
+      <div className="flex items-start justify-between gap-3 mb-4 pb-3"
+           style={{ borderBottom: `1px solid ${PALETTE.border}` }}>
+        <div className="min-w-0">
+          <h3 className="text-lg font-semibold truncate" style={{ color: PALETTE.text }}>
+            Booking Summary
+          </h3>
+          <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
+            {bus.name}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: PALETTE.textSubtle }}>
+            {bus.from} → {bus.to}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 justify-end">
+          <Pill>{getReadableDate(date)}</Pill>
+          {bus.busType ? <Pill>{bus.busType}</Pill> : null}
+          <Pill>
+            {selectedSeats.length} Seat{selectedSeats.length > 1 ? "s" : ""}
+          </Pill>
+        </div>
+      </div>
 
       {/* Main Content Area */}
       <div className="flex-grow space-y-4">
-        {/* Bus and Journey Info */}
-        <div className="space-y-3 text-sm">
-          <div className="flex items-center gap-3">
-            <FaBus className="text-gray-400" />
-            <div className="flex-1">
-              <p className="font-semibold text-gray-800">{bus.name}</p>
-              <p className="text-gray-500">
-                {bus.from} <FaArrowRight className="inline mx-1 text-xs" />{" "}
-                {bus.to}
+        {/* Points */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <div>
+            <p className="text-xs font-semibold mb-1" style={{ color: PALETTE.textSubtle }}>
+              Boarding Point
+            </p>
+            {boardingPoint ? (
+              <p className="font-medium" style={{ color: PALETTE.text }}>
+                <span className="tabular-nums font-semibold">{boardingPoint.time}</span>{" "}
+                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>at</span>{" "}
+                {boardingPoint.point}
               </p>
-            </div>
+            ) : (
+              <p className="text-sm" style={{ color: PALETTE.primary }}>
+                Please select a point
+              </p>
+            )}
           </div>
-          <div className="flex items-center gap-3">
-            <FaCalendarAlt className="text-gray-400" />
-            <p className="text-gray-600 font-medium">{getReadableDate(date)}</p>
+
+          <div>
+            <p className="text-xs font-semibold mb-1" style={{ color: PALETTE.textSubtle }}>
+              Dropping Point
+            </p>
+            {droppingPoint ? (
+              <p className="font-medium" style={{ color: PALETTE.text }}>
+                <span className="tabular-nums font-semibold">{droppingPoint.time}</span>{" "}
+                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>at</span>{" "}
+                {droppingPoint.point}
+              </p>
+            ) : (
+              <p className="text-sm" style={{ color: PALETTE.primary }}>
+                Please select a point
+              </p>
+            )}
           </div>
         </div>
 
         {/* Divider */}
-        <hr className="border-dashed border-gray-200" />
-
-        {/* Boarding and Dropping Points */}
-        <div className="space-y-3 text-sm">
-          <div className="flex items-start gap-3">
-            <FaMapMarkerAlt className="text-green-500 mt-1" />
-            <div className="flex-1">
-              <p className="font-semibold text-gray-800">Boarding Point</p>
-              {boardingPoint ? (
-                <p className="text-gray-600">
-                  <span className="font-bold">{boardingPoint.time}</span> -{" "}
-                  {boardingPoint.point}
-                </p>
-              ) : (
-                <p className="text-red-500">Please select a point</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-start gap-3">
-            <FaMapMarkerAlt className="text-red-500 mt-1" />
-            <div className="flex-1">
-              <p className="font-semibold text-gray-800">Dropping Point</p>
-              {droppingPoint ? (
-                <p className="text-gray-600">
-                  <span className="font-bold">{droppingPoint.time}</span> -{" "}
-                  {droppingPoint.point}
-                </p>
-              ) : (
-                <p className="text-red-500">Please select a point</p>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Divider */}
-        <hr className="border-dashed border-gray-200" />
+        <hr className="my-1" style={{ borderColor: PALETTE.border }} />
 
         {/* Selected Seats */}
         <div>
-          <div className="flex items-center gap-3 mb-2">
-            <FaChair className="text-gray-400" />
-            <h4 className="font-semibold text-gray-800 text-sm">
+          <div className="mb-2">
+            <h4 className="font-semibold text-sm" style={{ color: PALETTE.text }}>
               Selected Seats ({selectedSeats.length})
             </h4>
           </div>
           {selectedSeats.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {selectedSeats.map((seat) => (
-                <span
-                  key={seat}
-                  className="bg-gray-100 text-gray-800 font-semibold px-3 py-1 text-xs rounded-full"
-                >
-                  {seat}
-                </span>
+                <Pill key={seat}>Seat {seat}</Pill>
               ))}
             </div>
           ) : (
-            <p className="text-gray-500 text-sm">No seats selected</p>
+            <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
+              No seats selected
+            </p>
           )}
         </div>
+
+        {/* Divider */}
+        <hr className="my-1" style={{ borderColor: PALETTE.border }} />
       </div>
 
       {/* Footer with Price and Button */}
@@ -130,17 +148,26 @@ const BookingSummary = ({
         {/* Price Breakdown */}
         {selectedSeats.length > 0 && (
           <div className="space-y-2 text-sm mb-4">
-            <div className="flex justify-between text-gray-600">
+            <div className="flex justify-between" style={{ color: PALETTE.textSubtle }}>
               <span>Subtotal</span>
-              <span>Rs. {basePrice?.toFixed(2) || "0.00"}</span>
+              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
+                Rs. {basePrice?.toFixed(2) || "0.00"}
+              </span>
             </div>
-            <div className="flex justify-between text-gray-600">
+            <div className="flex justify-between" style={{ color: PALETTE.textSubtle }}>
               <span>Convenience Fee</span>
-              <span>Rs. {convenienceFee?.toFixed(2) || "0.00"}</span>
+              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
+                Rs. {convenienceFee?.toFixed(2) || "0.00"}
+              </span>
             </div>
-            <div className="flex justify-between text-gray-900 font-bold text-base mt-2 pt-2 border-t border-dashed">
-              <span>Total Price</span>
-              <span>Rs. {totalPrice?.toFixed(2) || "0.00"}</span>
+            <hr className="my-2" style={{ borderColor: PALETTE.border }} />
+            <div className="flex justify-between text-base">
+              <span className="font-bold" style={{ color: PALETTE.text }}>
+                Total
+              </span>
+              <span className="tabular-nums font-extrabold" style={{ color: PALETTE.text }}>
+                Rs. {totalPrice?.toFixed(2) || "0.00"}
+              </span>
             </div>
           </div>
         )}
@@ -149,9 +176,9 @@ const BookingSummary = ({
         <button
           onClick={onProceed}
           disabled={!hasSelection}
-          className="w-full px-6 py-3 text-white font-semibold rounded-lg transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed text-base"
+          className="w-full px-6 py-3 text-white font-semibold rounded-xl transition disabled:opacity-60 disabled:cursor-not-allowed text-base"
           style={{
-            backgroundColor: hasSelection ? "#DC2626" : "#9CA3AF",
+            background: hasSelection ? PALETTE.primary : "#9CA3AF",
           }}
         >
           Proceed to Payment
@@ -161,7 +188,10 @@ const BookingSummary = ({
   );
 };
 
-// Adding PropTypes for better component contract and error checking
+Pill.propTypes = {
+  children: PropTypes.node.isRequired,
+};
+
 BookingSummary.propTypes = {
   bus: PropTypes.object.isRequired,
   selectedSeats: PropTypes.arrayOf(PropTypes.string).isRequired,
