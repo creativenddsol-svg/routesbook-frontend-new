@@ -26,10 +26,8 @@ const PALETTE = {
   acPillBg: "#EAF5FF",    // very light blue
   seatPillBg: "#FFE9EC",  // very light red (matches matte red theme)
 
-  // NEW: very light green for boarding time pill
+  // Very light green for time pill
   timeGreenBg: "#ECFDF5",
-  timeGreenText: "#065F46",
-  timeGreenBorder: "#A7F3D0",
 };
 
 /* ---------------- Helpers ---------------- */
@@ -96,19 +94,8 @@ const SeatPill = ({ children }) => (
   </span>
 );
 
-// NEW: very light green pill for boarding time
-const TimeGreenPill = ({ children }) => (
-  <span
-    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums"
-    style={{
-      background: PALETTE.timeGreenBg,
-      color: PALETTE.timeGreenText,
-      border: `1px solid ${PALETTE.timeGreenBorder}`,
-    }}
-  >
-    {children}
-  </span>
-);
+// UPDATED: green time pill now matches other pills (no border)
+const TimeGreenPill = ({ children }) => <SoftPill bg={PALETTE.timeGreenBg}>{children}</SoftPill>;
 
 // Seat pill that follows selected gender (PassengerRow)
 const GenderSeatPill = ({ gender, children }) => {
@@ -458,7 +445,7 @@ const ConfirmBooking = () => {
               <Label>Boarding</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
                 {selectedBoardingPoint.point} <span className="text-xs">at</span>{" "}
-                {/* Boarding time ONLY: very light green pill */}
+                {/* Boarding time pill (now borderless & consistent) */}
                 <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
               </p>
             </div>
