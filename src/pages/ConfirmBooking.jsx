@@ -21,10 +21,15 @@ const PALETTE = {
   pink: "#E05B88",
   pinkBg: "#FFEAF2",
 
-  // New: soft pill backgrounds (requested)
+  // Soft pill backgrounds
   datePillBg: "#FFF9DB",  // very light yellow
   acPillBg: "#EAF5FF",    // very light blue
   seatPillBg: "#FFE9EC",  // very light red (matches matte red theme)
+
+  // NEW: very light green for boarding time pill
+  timeGreenBg: "#ECFDF5",
+  timeGreenText: "#065F46",
+  timeGreenBorder: "#A7F3D0",
 };
 
 /* ---------------- Helpers ---------------- */
@@ -71,7 +76,7 @@ const Pill = ({ children }) => (
   </span>
 );
 
-// New: soft-colored pill variants (used for the three summary pills)
+// Soft-colored pill variants (summary pills)
 const SoftPill = ({ children, bg }) => (
   <span
     className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
@@ -91,7 +96,21 @@ const SeatPill = ({ children }) => (
   </span>
 );
 
-// New: Seat pill that follows selected gender (used inside PassengerRow)
+// NEW: very light green pill for boarding time
+const TimeGreenPill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums"
+    style={{
+      background: PALETTE.timeGreenBg,
+      color: PALETTE.timeGreenText,
+      border: `1px solid ${PALETTE.timeGreenBorder}`,
+    }}
+  >
+    {children}
+  </span>
+);
+
+// Seat pill that follows selected gender (PassengerRow)
 const GenderSeatPill = ({ gender, children }) => {
   const isMale = gender === "M";
   const bg = isMale ? PALETTE.violetBg : PALETTE.pinkBg;
@@ -439,7 +458,8 @@ const ConfirmBooking = () => {
               <Label>Boarding</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
                 {selectedBoardingPoint.point} <span className="text-xs">at</span>{" "}
-                <span className="tabular-nums">{selectedBoardingPoint.time}</span>
+                {/* Boarding time ONLY: very light green pill */}
+                <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
               </p>
             </div>
             <div>
@@ -452,7 +472,7 @@ const ConfirmBooking = () => {
             <div className="sm:col-span-2">
               <Label>Selected Seats</Label>
               <div className="flex flex-wrap gap-2">
-                {/* Each seat chip now uses the same low-red style as the seat-count pill */}
+                {/* Each seat chip uses the same low-red style as the seat-count pill */}
                 {selectedSeats.map((s) => (
                   <SeatPill key={s}>Seat {s}</SeatPill>
                 ))}
