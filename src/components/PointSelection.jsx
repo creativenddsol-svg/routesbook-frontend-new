@@ -105,21 +105,29 @@ const PointSelection = ({
 }) => {
   const [activeTab, setActiveTab] = useState("boarding");
 
-  // tiny flicker flags
+  // flicker flags
   const [flashBoarding, setFlashBoarding] = useState(false);
   const [flashDropping, setFlashDropping] = useState(false);
 
+  const triggerFlicker = (which) => {
+    if (which === "boarding") {
+      setFlashBoarding(true);
+      setTimeout(() => setFlashBoarding(false), 450);
+    } else {
+      setFlashDropping(true);
+      setTimeout(() => setFlashDropping(false), 450);
+    }
+  };
+
   const handleBoardingPointSelect = (point) => {
     setSelectedBoardingPoint(point);
-    setFlashBoarding(true);
-    setTimeout(() => setFlashBoarding(false), 450); // short dim/light flicker
+    triggerFlicker("boarding");
     setActiveTab("dropping"); // proceed flow
   };
 
   const handleDroppingPointSelect = (point) => {
     setSelectedDroppingPoint(point);
-    setFlashDropping(true);
-    setTimeout(() => setFlashDropping(false), 450);
+    triggerFlicker("dropping");
   };
 
   return (
@@ -127,6 +135,17 @@ const PointSelection = ({
       className="rounded-2xl p-4 sm:p-5 h-full flex flex-col"
       style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}` }}
     >
+      {/* Local keyframes for dim/light flicker */}
+      <style>{`
+        @keyframes flashDimLight {
+          0%   { opacity: 1; }
+          35%  { opacity: 0.35; }
+          70%  { opacity: 1; }
+          85%  { opacity: 0.75; }
+          100% { opacity: 1; }
+        }
+      `}</style>
+
       {/* Pinned summary (matches cards) */}
       <div
         className="p-3 rounded-xl text-sm mb-4"
@@ -136,8 +155,11 @@ const PointSelection = ({
           <div className="min-w-0 pr-2">
             <Label>Boarding</Label>
             <p
-              className={`font-semibold truncate ${flashBoarding ? "animate-pulse" : ""}`}
-              style={{ color: PALETTE.text }}
+              className="font-semibold truncate"
+              style={{
+                color: PALETTE.text,
+                animation: flashBoarding ? "flashDimLight 450ms ease-in-out" : "none",
+              }}
               title={selectedBoardingPoint ? selectedBoardingPoint.point : ""}
             >
               {selectedBoardingPoint ? selectedBoardingPoint.point : "Not Selected"}
@@ -145,7 +167,10 @@ const PointSelection = ({
           </div>
           {/* Small filled button with low light red */}
           <button
-            onClick={() => setActiveTab("boarding")}
+            onClick={() => {
+              setActiveTab("boarding");
+              triggerFlicker("boarding");
+            }}
             className="text-sm font-semibold rounded-full px-3 py-1 border transition active:scale-[.98]"
             style={{
               background: PALETTE.softRedBg,
@@ -163,8 +188,11 @@ const PointSelection = ({
           <div className="min-w-0 pr-2">
             <Label>Dropping</Label>
             <p
-              className={`font-semibold truncate ${flashDropping ? "animate-pulse" : ""}`}
-              style={{ color: PALETTE.text }}
+              className="font-semibold truncate"
+              style={{
+                color: PALETTE.text,
+                animation: flashDropping ? "flashDimLight 450ms ease-in-out" : "none",
+              }}
               title={selectedDroppingPoint ? selectedDroppingPoint.point : ""}
             >
               {selectedDroppingPoint ? selectedDroppingPoint.point : "Not Selected"}
@@ -172,7 +200,10 @@ const PointSelection = ({
           </div>
           {/* Small filled button with low light red */}
           <button
-            onClick={() => setActiveTab("dropping")}
+            onClick={() => {
+              setActiveTab("dropping");
+              triggerFlicker("dropping");
+            }}
             className="text-sm font-semibold rounded-full px-3 py-1 border transition active:scale-[.98]"
             style={{
               background: PALETTE.softRedBg,
