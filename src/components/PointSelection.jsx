@@ -10,22 +10,11 @@ const PALETTE = {
   border: "#E5E7EB",
   text: "#1A1A1A",
   textSubtle: "#6B7280",
-  // soft boarding-time pill
-  timeGreenBg: "#ECFDF5",
 };
 
 /* ---------- Small atoms ---------- */
 const Label = ({ children }) => (
   <span className="block text-xs font-semibold mb-1" style={{ color: PALETTE.textSubtle }}>
-    {children}
-  </span>
-);
-
-const TimeGreenPill = ({ children }) => (
-  <span
-    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums"
-    style={{ background: PALETTE.timeGreenBg, color: PALETTE.text }}
-  >
     {children}
   </span>
 );
@@ -68,14 +57,10 @@ const SinglePointList = ({ points, selectedPoint, onSelect, mode }) => {
               </div>
 
               <div className="flex items-center gap-3 flex-shrink-0 pl-3">
-                {/* Boarding list shows time in soft-green pill; dropping is clean numeric */}
-                {mode === "boarding" ? (
-                  <TimeGreenPill>{point.time}</TimeGreenPill>
-                ) : (
-                  <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
-                    {point.time}
-                  </span>
-                )}
+                {/* Clean numeric time for both lists (no green pill) */}
+                <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
+                  {point.time}
+                </span>
 
                 {/* Radio look */}
                 <span
@@ -143,10 +128,15 @@ const PointSelection = ({
               {selectedBoardingPoint ? selectedBoardingPoint.point : "Not Selected"}
             </p>
           </div>
+          {/* Small matching button */}
           <button
             onClick={() => setActiveTab("boarding")}
-            className="text-sm font-semibold"
-            style={{ color: PALETTE.primary }}
+            className="text-sm font-semibold rounded-full px-3 py-1 border transition hover:bg-red-50 active:scale-[.98]"
+            style={{
+              borderColor: PALETTE.primary,
+              color: PALETTE.primary,
+              background: PALETTE.surface,
+            }}
           >
             Change
           </button>
@@ -165,10 +155,15 @@ const PointSelection = ({
               {selectedDroppingPoint ? selectedDroppingPoint.point : "Not Selected"}
             </p>
           </div>
+          {/* Small matching button */}
           <button
             onClick={() => setActiveTab("dropping")}
-            className="text-sm font-semibold"
-            style={{ color: PALETTE.primary }}
+            className="text-sm font-semibold rounded-full px-3 py-1 border transition hover:bg-red-50 active:scale-[.98]"
+            style={{
+              borderColor: PALETTE.primary,
+              color: PALETTE.primary,
+              background: PALETTE.surface,
+            }}
           >
             Change
           </button>
@@ -270,6 +265,5 @@ SinglePointList.propTypes = {
 };
 
 Label.propTypes = { children: PropTypes.node.isRequired };
-TimeGreenPill.propTypes = { children: PropTypes.node.isRequired };
 
 export default PointSelection;
