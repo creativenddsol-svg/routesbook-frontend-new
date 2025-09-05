@@ -3,18 +3,22 @@ import React from "react";
 import PropTypes from "prop-types";
 import { FaMale, FaFemale } from "react-icons/fa";
 
-/* ---------- Matte palette (matches the rest of the app) ---------- */
+/* ---------- Matte palette (selected = blue) ---------- */
 const PALETTE = {
-  primary: "#C74A50",     // selected seat matte red
-  primaryBorder: "#B14147",
+  // Selected seat
+  blue: "#4C6EF5",          // matte blue
+  blueBorder: "#3F5ED8",
+  blueHoverTint: "#EEF2FF",
+
+  // General UI
   border: "#E5E7EB",
   text: "#1A1A1A",
   textSubtle: "#6B7280",
-  hoverTint: "#FBEDEF",
 
-  male: "#6D5BD0",        // booked male (violet)
+  // Booked seats
+  male: "#6D5BD0",          // violet
   maleBorder: "#5B4FCF",
-  female: "#E05B88",      // booked female (pink)
+  female: "#E05B88",        // pink
   femaleBorder: "#D04B78",
 };
 
@@ -25,8 +29,8 @@ const Seat = ({ seat, isBooked, isSelected, gender, onClick, title }) => {
       ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed" // female booked
       : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed" // male booked
     : isSelected
-    ? "bg-[#C74A50] text-white border-[#B14147] scale-105 shadow-sm cursor-pointer"
-    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#FBEDEF] hover:border-[#C74A50] cursor-pointer";
+    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] scale-105 shadow-sm cursor-pointer" // SELECTED = matte blue
+    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5] cursor-pointer"; // available + blue hover
 
   return (
     <div
@@ -96,17 +100,12 @@ const SeatLayout = ({
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
             return (
-              <div
-                key={`aisle-${rowIndex}-${i}`}
-                className="w-6 h-8 sm:w-10 sm:h-10"
-              />
+              <div key={`aisle-${rowIndex}-${i}`} className="w-6 h-8 sm:w-10 sm:h-10" />
             );
           }
           const seat = String(seatNumber);
           if (!seatLayout.includes(seat)) {
-            return (
-              <div key={`placeholder-${seat}`} className="w-8 h-8 sm:w-10 sm:h-10" />
-            );
+            return <div key={`placeholder-${seat}`} className="w-8 h-8 sm:w-10 sm:h-10" />;
           }
 
           const seatStatus = getSeatStatus(seat);
@@ -195,7 +194,7 @@ const SeatLayout = ({
         {layoutGrid.length > 0 ? (
           renderLayout(layoutGrid)
         ) : (
-          <p className="text-center" style={{ color: PALETTE.primary }}>
+          <p className="text-center" style={{ color: PALETTE.blue }}>
             Unsupported seat layout.
           </p>
         )}
