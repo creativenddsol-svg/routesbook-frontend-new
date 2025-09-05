@@ -46,6 +46,11 @@ const PALETTE = {
   green: "#28a745",
   orange: "#fd7e14",
   yellow: "#FFC107",
+
+  // NEW — soft pill backgrounds to match ConfirmBooking
+  datePillBg: "#FFF9DB",  // very light yellow
+  acPillBg:   "#EAF5FF",  // very light blue
+  seatPillBg: "#FFE9EC",  // very light red
 };
 
 // --- Constants (TIME_SLOTS, RESULTS_PER_PAGE) ---
@@ -1566,7 +1571,14 @@ const MobileBottomSheet = () => {
                           {typeof availableSeats === "number" && (
                             <>
                               <span className="mx-2">&middot;</span>
-                              <span className="text-red-500">
+                              {/* NEW seats-left pill (soft red) */}
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                style={{
+                                  background: PALETTE.seatPillBg,
+                                  color: PALETTE.primaryRed,
+                                }}
+                              >
                                 {availableSeats} seats left
                               </span>
                             </>
@@ -1623,7 +1635,7 @@ const MobileBottomSheet = () => {
                           {bus.name}
                         </h4>
 
-                        {/* Bus type */}
+                        {/* Bus type with soft AC pill */}
                         <div className="flex items-center gap-2">
                           {isACType(bus.busType) ? (
                             <>
@@ -1635,7 +1647,7 @@ const MobileBottomSheet = () => {
                               <span
                                 className="px-2 py-0.5 rounded-lg text-[11px] font-semibold"
                                 style={{
-                                  backgroundColor: "#EFF6FF",
+                                  backgroundColor: PALETTE.acPillBg,
                                   color: "#1D4ED8",
                                 }}
                               >
@@ -1666,7 +1678,7 @@ const MobileBottomSheet = () => {
                   </div>
                 </div>
 
-                {/* --- DESKTOP VIEW (unchanged) --- */}
+                {/* --- DESKTOP VIEW (unchanged layout; AC pill added) --- */}
                 <div className="hidden md:block p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-2">
@@ -1693,12 +1705,37 @@ const MobileBottomSheet = () => {
                           >
                             {bus.name}
                           </h3>
-                          <p
-                            className="text-sm font-medium"
-                            style={{ color: "#4B5563" }}
-                          >
-                            {bus.busType}
-                          </p>
+                          {/* AC pill for desktop too */}
+                          <div className="flex items-center gap-2">
+                            {isACType(bus.busType) ? (
+                              <>
+                                {stripACWord(bus.busType) && (
+                                  <p
+                                    className="text-sm font-medium"
+                                    style={{ color: "#4B5563" }}
+                                  >
+                                    {stripACWord(bus.busType)}
+                                  </p>
+                                )}
+                                <span
+                                  className="px-2 py-0.5 rounded-lg text-xs font-semibold"
+                                  style={{
+                                    backgroundColor: PALETTE.acPillBg,
+                                    color: "#1D4ED8",
+                                  }}
+                                >
+                                  AC
+                                </span>
+                              </>
+                            ) : (
+                              <p
+                                className="text-sm font-medium"
+                                style={{ color: "#4B5563" }}
+                              >
+                                {bus.busType}
+                              </p>
+                            )}
+                          </div>
                           {bus.liveTracking && (
                             <p
                               className="text-xs font-medium mt-1 flex items-center gap-1"
@@ -1944,16 +1981,20 @@ const MobileBottomSheet = () => {
                 <FaChevronLeft className="text-xl" />
               </button>
 
-              {/* Date chip on the right */}
+              {/* Date chip on the right (soft yellow) */}
               <button
                 onClick={handleMobileDateChipClick}
-                className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border border-gray-200 bg-gray-50"
+                className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
                 aria-label="Change date"
+                style={{
+                  background: PALETTE.datePillBg,
+                  borderColor: "#FCEFC7",
+                }}
               >
                 <span className="text-sm font-semibold leading-none">
                   {getMobileDateParts(searchDate).top}
                 </span>
-                <span className="text-[10px] text-gray-500 leading-none mt-0.5">
+                <span className="text-[10px] text-gray-600 leading-none mt-0.5">
                   {getMobileDateParts(searchDate).bottom}
                 </span>
               </button>
