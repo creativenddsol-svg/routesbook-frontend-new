@@ -1,32 +1,58 @@
+// src/components/SeatLayout.jsx
 import React from "react";
 import PropTypes from "prop-types";
 import { FaMale, FaFemale } from "react-icons/fa";
 
-const Seat = ({ seat, isBooked, isSelected, gender, onClick, title }) => (
-  <div
-    onClick={!isBooked ? onClick : undefined}
-    title={title}
-    className={`flex items-center justify-center font-bold border-2 rounded-lg transition-all duration-200
-      w-8 h-8 text-xs sm:w-10 sm:h-10 sm:text-sm
-      ${
-        isBooked
-          ? gender === "F" // ✅ FIX: Check gender for booked seats
-            ? "bg-pink-500 text-white border-pink-600 cursor-not-allowed" // Female is Pink
-            : "bg-violet-500 text-white border-violet-600 cursor-not-allowed" // Male is Violet
-          : isSelected
-          ? "bg-blue-600 text-white border-blue-700 scale-110 shadow-lg cursor-pointer"
-          : "bg-white text-gray-700 border-gray-300 hover:border-blue-500 hover:bg-blue-50 cursor-pointer"
-      }`}
-  >
-    {isBooked ? gender === "F" ? <FaFemale /> : <FaMale /> : seat}
-  </div>
-);
+/* ---------- Matte palette (matches the rest of the app) ---------- */
+const PALETTE = {
+  primary: "#C74A50",     // selected seat matte red
+  primaryBorder: "#B14147",
+  border: "#E5E7EB",
+  text: "#1A1A1A",
+  textSubtle: "#6B7280",
+  hoverTint: "#FBEDEF",
 
-// ... (The rest of the SeatLayout component does not need to be changed)
+  male: "#6D5BD0",        // booked male (violet)
+  maleBorder: "#5B4FCF",
+  female: "#E05B88",      // booked female (pink)
+  femaleBorder: "#D04B78",
+};
 
+/* ---------- Single Seat ---------- */
+const Seat = ({ seat, isBooked, isSelected, gender, onClick, title }) => {
+  const stateClasses = isBooked
+    ? gender === "F"
+      ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed" // female booked
+      : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed" // male booked
+    : isSelected
+    ? "bg-[#C74A50] text-white border-[#B14147] scale-105 shadow-sm cursor-pointer"
+    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#FBEDEF] hover:border-[#C74A50] cursor-pointer";
+
+  return (
+    <div
+      onClick={!isBooked ? onClick : undefined}
+      title={title}
+      className={`flex items-center justify-center font-semibold border-2 rounded-lg transition-all duration-200 select-none
+        w-8 h-8 text-xs sm:w-10 sm:h-10 sm:text-sm ${stateClasses}`}
+    >
+      {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
+    </div>
+  );
+};
+
+Seat.propTypes = {
+  seat: PropTypes.string.isRequired,
+  isBooked: PropTypes.bool.isRequired,
+  isSelected: PropTypes.bool.isRequired,
+  gender: PropTypes.string,
+  onClick: PropTypes.func.isRequired,
+  title: PropTypes.string,
+};
+
+/* ---------- Layout ---------- */
 const SeatLayout = ({
   seatLayout,
-  bookedSeats,
+  bookedSeats,            // kept for API compatibility (unused directly)
   selectedSeats,
   onSeatClick,
   bookedSeatGenders,
@@ -36,17 +62,15 @@ const SeatLayout = ({
 
   const getAdjacentSeatInfo = (seatNumber, layoutGrid) => {
     for (const row of layoutGrid) {
-      const seatIndex = row.indexOf(seatNumber);
-      if (seatIndex !== -1) {
-        if (seatIndex > 0 && row[seatIndex - 1] !== null) {
-          const neighborSeat = String(row[seatIndex - 1]);
-          if (bookedSeatGenders[neighborSeat])
-            return bookedSeatGenders[neighborSeat];
+      const idx = row.indexOf(seatNumber);
+      if (idx !== -1) {
+        if (idx > 0 && row[idx - 1] !== null) {
+          const neighborSeat = String(row[idx - 1]);
+          if (bookedSeatGenders[neighborSeat]) return bookedSeatGenders[neighborSeat];
         }
-        if (seatIndex < row.length - 1 && row[seatIndex + 1] !== null) {
-          const neighborSeat = String(row[seatIndex + 1]);
-          if (bookedSeatGenders[neighborSeat])
-            return bookedSeatGenders[neighborSeat];
+        if (idx < row.length - 1 && row[idx + 1] !== null) {
+          const neighborSeat = String(row[idx + 1]);
+          if (bookedSeatGenders[neighborSeat]) return bookedSeatGenders[neighborSeat];
         }
         return null;
       }
@@ -63,40 +87,33 @@ const SeatLayout = ({
     };
   };
 
-  const renderLayout = (layoutGrid) => {
-    return layoutGrid.map((row, rowIndex) => (
+  const renderLayout = (layoutGrid) =>
+    layoutGrid.map((row, rowIndex) => (
       <div
         key={`row-${rowIndex}`}
         className="flex justify-center items-center gap-x-1 sm:gap-x-2"
       >
-        {row.map((seatNumber) => {
+        {row.map((seatNumber, i) => {
           if (seatNumber === null) {
             return (
               <div
-                key={`aisle-${rowIndex}-${Math.random()}`}
+                key={`aisle-${rowIndex}-${i}`}
                 className="w-6 h-8 sm:w-10 sm:h-10"
-              ></div>
+              />
             );
           }
           const seat = String(seatNumber);
           if (!seatLayout.includes(seat)) {
             return (
-              <div
-                key={`placeholder-${seat}`}
-                className="w-8 h-8 sm:w-10 sm:h-10"
-              ></div>
+              <div key={`placeholder-${seat}`} className="w-8 h-8 sm:w-10 sm:h-10" />
             );
           }
 
           const seatStatus = getSeatStatus(seat);
           let tooltipTitle = "";
           if (!seatStatus.isBooked && !seatStatus.isSelected) {
-            const adjacentGender = getAdjacentSeatInfo(seatNumber, layoutGrid);
-            if (adjacentGender) {
-              tooltipTitle = `Adjacent seat booked by a ${
-                adjacentGender === "F" ? "Female" : "Male"
-              }`;
-            }
+            const adj = getAdjacentSeatInfo(seatNumber, layoutGrid);
+            if (adj) tooltipTitle = `Adjacent seat booked by a ${adj === "F" ? "Female" : "Male"}`;
           }
 
           return (
@@ -111,7 +128,6 @@ const SeatLayout = ({
         })}
       </div>
     ));
-  };
 
   const getLayoutGrid = () => {
     if (is49Seater) {
@@ -141,13 +157,21 @@ const SeatLayout = ({
   const layoutGrid = getLayoutGrid();
 
   return (
-    <div className="p-4 bg-white rounded-xl border border-gray-200 overflow-x-auto">
+    <div
+      className="p-4 rounded-xl overflow-x-auto"
+      style={{ background: "#FFFFFF", border: `1px solid ${PALETTE.border}` }}
+    >
+      {/* Header (Front / wheel) */}
       <div className="relative flex justify-between items-center mb-4 px-2 sm:px-4">
-        <span className="font-bold text-sm uppercase tracking-wider text-gray-500">
+        <span
+          className="font-bold text-sm uppercase tracking-wider"
+          style={{ color: PALETTE.textSubtle }}
+        >
           Front
         </span>
         <svg
-          className="w-8 h-8 sm:w-10 sm:h-10 text-gray-400"
+          className="w-8 h-8 sm:w-10 sm:h-10"
+          style={{ color: "#9CA3AF" }}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -165,14 +189,23 @@ const SeatLayout = ({
           <line x1="6.5" y1="14" x2="3.61" y2="15.39"></line>
         </svg>
       </div>
+
+      {/* Seat grid */}
       <div className="space-y-1 sm:space-y-2 inline-block min-w-full">
         {layoutGrid.length > 0 ? (
           renderLayout(layoutGrid)
         ) : (
-          <p className="text-center text-red-500">Unsupported seat layout.</p>
+          <p className="text-center" style={{ color: PALETTE.primary }}>
+            Unsupported seat layout.
+          </p>
         )}
       </div>
-      <div className="font-bold text-sm uppercase tracking-wider text-gray-500 text-center mt-4">
+
+      {/* Footer label */}
+      <div
+        className="font-bold text-sm uppercase tracking-wider text-center mt-4"
+        style={{ color: PALETTE.textSubtle }}
+      >
         Rear
       </div>
     </div>
@@ -185,15 +218,6 @@ SeatLayout.propTypes = {
   selectedSeats: PropTypes.arrayOf(PropTypes.string).isRequired,
   onSeatClick: PropTypes.func.isRequired,
   bookedSeatGenders: PropTypes.object.isRequired,
-};
-
-Seat.propTypes = {
-  seat: PropTypes.string.isRequired,
-  isBooked: PropTypes.bool.isRequired,
-  isSelected: PropTypes.bool.isRequired,
-  gender: PropTypes.string,
-  onClick: PropTypes.func.isRequired,
-  title: PropTypes.string,
 };
 
 export default SeatLayout;
