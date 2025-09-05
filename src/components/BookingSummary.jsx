@@ -1,16 +1,21 @@
 // src/components/BookingSummary.jsx
 import React from "react";
 import PropTypes from "prop-types";
-import { FaSnowflake } from "react-icons/fa";
 
 /* -------- Matte palette -------- */
 const PALETTE = {
-  primary: "#C74A50",
+  primary: "#C74A50",      // matte red
   surface: "#FFFFFF",
   border: "#E5E7EB",
   text: "#1A1A1A",
   textSubtle: "#6B7280",
   pillBg: "#F3F4F6",
+
+  // New soft pills (to match ConfirmBooking/SearchResults)
+  datePillBg: "#FFF9DB",   // very light yellow
+  acPillBg:   "#EAF5FF",   // very light blue
+  seatPillBg: "#FFE9EC",   // very light red
+  acText:     "#1D4ED8",   // blue text for AC
 };
 
 /* -------- UI atoms -------- */
@@ -18,6 +23,34 @@ const Pill = ({ children }) => (
   <span
     className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
     style={{ background: PALETTE.pillBg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
+
+// Specialized pills
+const DatePill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+    style={{ background: PALETTE.datePillBg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
+
+const AcPill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-semibold"
+    style={{ background: PALETTE.acPillBg, color: PALETTE.acText }}
+  >
+    {children}
+  </span>
+);
+
+const SeatPill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+    style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
   >
     {children}
   </span>
@@ -75,7 +108,6 @@ const BookingSummary = ({
           <h3 className="text-lg font-semibold whitespace-nowrap" style={{ color: PALETTE.text }}>
             Booking Summary
           </h3>
-          {/* (removed seats count from header; date moved to bottom) */}
         </div>
 
         {/* Bus meta */}
@@ -86,16 +118,9 @@ const BookingSummary = ({
                 {bus.name}
               </p>
 
-              {/* AC icon right next to bus name; fallback to type pill if not AC */}
+              {/* AC pill (icon removed) or generic type pill */}
               {isAC ? (
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                  style={{ background: PALETTE.pillBg, color: PALETTE.text }}
-                  title="Air Conditioned"
-                >
-                  <FaSnowflake className="opacity-80" />
-                  AC
-                </span>
+                <AcPill>AC</AcPill>
               ) : busType ? (
                 <Pill>{busType}</Pill>
               ) : null}
@@ -159,7 +184,7 @@ const BookingSummary = ({
           {selectedSeats.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {selectedSeats.map((seat) => (
-                <Pill key={seat}>Seat {seat}</Pill>
+                <SeatPill key={seat}>Seat {seat}</SeatPill>
               ))}
             </div>
           ) : (
@@ -173,7 +198,7 @@ const BookingSummary = ({
 
         {/* Date at the bottom-right of the details card */}
         <div className="flex justify-end">
-          <Pill>{getReadableDate(date)}</Pill>
+          <DatePill>{getReadableDate(date)}</DatePill>
         </div>
       </div>
 
@@ -220,6 +245,9 @@ const BookingSummary = ({
 
 /* -------- PropTypes -------- */
 Pill.propTypes = { children: PropTypes.node.isRequired };
+DatePill.propTypes = { children: PropTypes.node.isRequired };
+AcPill.propTypes = { children: PropTypes.node.isRequired };
+SeatPill.propTypes = { children: PropTypes.node.isRequired };
 
 BookingSummary.propTypes = {
   bus: PropTypes.object.isRequired,
