@@ -1,6 +1,7 @@
 // src/components/BookingSummary.jsx
 import React from "react";
 import PropTypes from "prop-types";
+import { FaSnowflake } from "react-icons/fa";
 
 /* -------- Matte palette -------- */
 const PALETTE = {
@@ -31,9 +32,9 @@ const Label = ({ children }) => (
 /* -------- Helpers -------- */
 const getReadableDate = (dateString) => {
   if (!dateString) return "N/A";
-  const [year, month, day] = dateString.split("-").map(Number);
-  const dateObj = new Date(Date.UTC(year, month - 1, day)); // UTC avoids off-by-one
-  return dateObj.toLocaleDateString("en-GB", {
+  const [y, m, d] = dateString.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d)); // UTC avoids off-by-one
+  return dt.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "long",
     year: "numeric",
@@ -60,41 +61,47 @@ const BookingSummary = ({
   droppingPoint,
 }) => {
   const hasSelection = selectedSeats.length > 0 && !!boardingPoint && !!droppingPoint;
+  const busType = bus?.busType || "";
+  const isAC = /(^|\s)ac(\s|$)/i.test(busType); // true if type contains "AC"
 
   return (
     <div
       className="rounded-2xl p-5 h-full flex flex-col shadow-sm"
       style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}` }}
     >
-      {/* Header: one-line title, pills on the right */}
-      <div
-        className="mb-4 pb-3"
-        style={{ borderBottom: `1px solid ${PALETTE.border}` }}
-      >
+      {/* Header */}
+      <div className="mb-4 pb-3" style={{ borderBottom: `1px solid ${PALETTE.border}` }}>
         <div className="flex items-center justify-between gap-3">
-          <h3
-            className="text-lg font-semibold whitespace-nowrap"
-            style={{ color: PALETTE.text }}
-          >
+          <h3 className="text-lg font-semibold whitespace-nowrap" style={{ color: PALETTE.text }}>
             Booking Summary
           </h3>
-
-          <div className="flex flex-wrap gap-2 justify-end shrink-0">
-            <Pill>{getReadableDate(date)}</Pill>
-            {bus?.busType ? <Pill>{bus.busType}</Pill> : null}
-            <Pill>
-              {selectedSeats.length} Seat{selectedSeats.length > 1 ? "s" : ""}
-            </Pill>
-          </div>
+          {/* (removed seats count from header; date moved to bottom) */}
         </div>
 
-        {/* Bus meta below title (never truncates the title) */}
+        {/* Bus meta */}
         <div className="mt-2">
           {bus?.name ? (
-            <p className="text-sm font-medium" style={{ color: PALETTE.text }}>
-              {bus.name}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-medium" style={{ color: PALETTE.text }}>
+                {bus.name}
+              </p>
+
+              {/* AC icon right next to bus name; fallback to type pill if not AC */}
+              {isAC ? (
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                  style={{ background: PALETTE.pillBg, color: PALETTE.text }}
+                  title="Air Conditioned"
+                >
+                  <FaSnowflake className="opacity-80" />
+                  AC
+                </span>
+              ) : busType ? (
+                <Pill>{busType}</Pill>
+              ) : null}
+            </div>
           ) : null}
+
           <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
             {bus?.from} → {bus?.to}
           </p>
@@ -110,7 +117,9 @@ const BookingSummary = ({
             {boardingPoint ? (
               <p className="font-medium" style={{ color: PALETTE.text }}>
                 <span className="tabular-nums font-semibold">{boardingPoint.time}</span>{" "}
-                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>at</span>{" "}
+                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>
+                  at
+                </span>{" "}
                 {boardingPoint.point}
               </p>
             ) : (
@@ -125,7 +134,9 @@ const BookingSummary = ({
             {droppingPoint ? (
               <p className="font-medium" style={{ color: PALETTE.text }}>
                 <span className="tabular-nums font-semibold">{droppingPoint.time}</span>{" "}
-                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>at</span>{" "}
+                <span className="text-xs" style={{ color: PALETTE.textSubtle }}>
+                  at
+                </span>{" "}
                 {droppingPoint.point}
               </p>
             ) : (
@@ -159,10 +170,15 @@ const BookingSummary = ({
         </div>
 
         <hr className="my-1" style={{ borderColor: PALETTE.border }} />
+
+        {/* Date at the bottom-right of the details card */}
+        <div className="flex justify-end">
+          <Pill>{getReadableDate(date)}</Pill>
+        </div>
       </div>
 
       {/* Footer (prices + CTA) */}
-      <div className="mt-auto pt-4">
+      <div className="mt-4 pt-4" style={{ borderTop: `1px solid ${PALETTE.border}` }}>
         {selectedSeats.length > 0 && (
           <div className="space-y-2 text-sm mb-4">
             <div className="flex justify-between" style={{ color: PALETTE.textSubtle }}>
@@ -218,4 +234,3 @@ BookingSummary.propTypes = {
 };
 
 export default BookingSummary;
-
