@@ -20,6 +20,11 @@ const PALETTE = {
   violetBg: "#F1EFFF",
   pink: "#E05B88",
   pinkBg: "#FFEAF2",
+
+  // New: soft pill backgrounds (requested)
+  datePillBg: "#FFF9DB",  // very light yellow
+  acPillBg: "#EAF5FF",    // very light blue
+  seatPillBg: "#FFE9EC",  // very light red (matches matte red theme)
 };
 
 /* ---------------- Helpers ---------------- */
@@ -65,6 +70,19 @@ const Pill = ({ children }) => (
     {children}
   </span>
 );
+
+// New: soft-colored pill variants (used only for the three summary pills)
+const SoftPill = ({ children, bg }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+    style={{ background: bg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
+const DatePill = ({ children }) => <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>;
+const AcPill   = ({ children }) => <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>;
+const SeatPill = ({ children }) => <SoftPill bg={PALETTE.seatPillBg}>{children}</SoftPill>;
 
 const RowInput = ({
   id,
@@ -383,13 +401,13 @@ const ConfirmBooking = () => {
               </p>
             </div>
 
-            {/* Right-side pills with space-managed wrap, now includes DATE */}
+            {/* Right-side pills with space-managed wrap, now includes DATE with colors */}
             <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
-              <Pill>{getNiceDate(date, departureTime)}</Pill>
-              <Pill>{bus?.busType || "Seating"}</Pill>
-              <Pill>
+              <DatePill>{getNiceDate(date, departureTime)}</DatePill>
+              <AcPill>{bus?.busType || "Seating"}</AcPill>
+              <SeatPill>
                 {selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}
-              </Pill>
+              </SeatPill>
             </div>
           </div>
 
