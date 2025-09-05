@@ -71,7 +71,7 @@ const Pill = ({ children }) => (
   </span>
 );
 
-// New: soft-colored pill variants (used only for the three summary pills)
+// New: soft-colored pill variants (used for the three summary pills)
 const SoftPill = ({ children, bg }) => (
   <span
     className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
@@ -82,7 +82,29 @@ const SoftPill = ({ children, bg }) => (
 );
 const DatePill = ({ children }) => <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>;
 const AcPill   = ({ children }) => <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>;
-const SeatPill = ({ children }) => <SoftPill bg={PALETTE.seatPillBg}>{children}</SoftPill>;
+const SeatPill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+    style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
+  >
+    {children}
+  </span>
+);
+
+// New: Seat pill that follows selected gender (used inside PassengerRow)
+const GenderSeatPill = ({ gender, children }) => {
+  const isMale = gender === "M";
+  const bg = isMale ? PALETTE.violetBg : PALETTE.pinkBg;
+  const fg = isMale ? PALETTE.violet : PALETTE.pink;
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ background: bg, color: fg }}
+    >
+      {children}
+    </span>
+  );
+};
 
 const RowInput = ({
   id,
@@ -127,7 +149,8 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
         <p className="font-semibold" style={{ color: PALETTE.text }}>
           Passenger {index + 1}
         </p>
-        <Pill>Seat {p.seat}</Pill>
+        {/* Seat pill now changes color with gender */}
+        <GenderSeatPill gender={p.gender}>Seat {p.seat}</GenderSeatPill>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-3">
@@ -429,8 +452,9 @@ const ConfirmBooking = () => {
             <div className="sm:col-span-2">
               <Label>Selected Seats</Label>
               <div className="flex flex-wrap gap-2">
+                {/* Each seat chip now uses the same low-red style as the seat-count pill */}
                 {selectedSeats.map((s) => (
-                  <Pill key={s}>Seat {s}</Pill>
+                  <SeatPill key={s}>Seat {s}</SeatPill>
                 ))}
               </div>
             </div>
