@@ -16,6 +16,9 @@ const PALETTE = {
   acPillBg:   "#EAF5FF",   // very light blue
   seatPillBg: "#FFE9EC",   // very light red
   acText:     "#1D4ED8",   // blue text for AC
+
+  // Very light green for boarding time pill (borderless)
+  timeGreenBg: "#ECFDF5",
 };
 
 /* -------- UI atoms -------- */
@@ -51,6 +54,16 @@ const SeatPill = ({ children }) => (
   <span
     className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
     style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
+  >
+    {children}
+  </span>
+);
+
+// NEW: borderless soft-green pill for boarding time (matches ConfirmBooking)
+const TimeGreenPill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold tabular-nums"
+    style={{ background: PALETTE.timeGreenBg, color: PALETTE.text }}
   >
     {children}
   </span>
@@ -141,7 +154,7 @@ const BookingSummary = ({
             <Label>Boarding Point</Label>
             {boardingPoint ? (
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                <span className="tabular-nums font-semibold">{boardingPoint.time}</span>{" "}
+                <TimeGreenPill>{boardingPoint.time}</TimeGreenPill>{" "}
                 <span className="text-xs" style={{ color: PALETTE.textSubtle }}>
                   at
                 </span>{" "}
@@ -248,6 +261,7 @@ Pill.propTypes = { children: PropTypes.node.isRequired };
 DatePill.propTypes = { children: PropTypes.node.isRequired };
 AcPill.propTypes = { children: PropTypes.node.isRequired };
 SeatPill.propTypes = { children: PropTypes.node.isRequired };
+TimeGreenPill.propTypes = { children: PropTypes.node.isRequired };
 
 BookingSummary.propTypes = {
   bus: PropTypes.object.isRequired,
