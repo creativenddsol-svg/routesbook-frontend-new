@@ -3,44 +3,64 @@ import React from "react";
 import PropTypes from "prop-types";
 import { FaMale, FaFemale } from "react-icons/fa";
 
-/* ---------- Matte palette (selected = blue) ---------- */
+/* --------- Matte palette (aligned with ConfirmBooking) --------- */
 const PALETTE = {
-  // Selected seat
-  blue: "#4C6EF5",          // matte blue
-  blueBorder: "#3F5ED8",
-  blueHoverTint: "#EEF2FF",
-
-  // General UI
+  surface: "#FFFFFF",
   border: "#E5E7EB",
   text: "#1A1A1A",
   textSubtle: "#6B7280",
+  pillBg: "#F3F4F6",
 
-  // Booked seats
-  male: "#6D5BD0",          // violet
-  maleBorder: "#5B4FCF",
-  female: "#E05B88",        // pink
-  femaleBorder: "#D04B78",
+  // Selected / hovers
+  blue: "#4C6EF5",
+  blueBorder: "#3F5ED8",
+  blueHoverTint: "#EEF2FF",
+
+  // Booked by gender
+  violet: "#6D5BD0",
+  violetBorder: "#5B4FCF",
+  pink: "#E05B88",
+  pinkBorder: "#D04B78",
 };
 
-/* ---------- Single Seat ---------- */
+/* --------- Small UI atoms --------- */
+const Pill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+    style={{ background: PALETTE.pillBg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
+
+Pill.propTypes = { children: PropTypes.node.isRequired };
+
+/* --------- Single seat (accessible) --------- */
 const Seat = ({ seat, isBooked, isSelected, gender, onClick, title }) => {
-  const stateClasses = isBooked
+  const base =
+    "flex items-center justify-center font-semibold border-2 rounded-lg transition-all duration-150 select-none w-8 h-8 text-xs sm:w-10 sm:h-10 sm:text-sm focus:outline-none";
+
+  // states
+  const cls = isBooked
     ? gender === "F"
-      ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed" // female booked
-      : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed" // male booked
+      ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed"
+      : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed"
     : isSelected
-    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] scale-105 shadow-sm cursor-pointer" // SELECTED = matte blue
-    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5] cursor-pointer"; // available + blue hover
+    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] shadow-sm scale-105 cursor-pointer"
+    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5] cursor-pointer";
 
   return (
-    <div
-      onClick={!isBooked ? onClick : undefined}
+    <button
+      type="button"
+      disabled={isBooked}
+      aria-pressed={isSelected}
+      aria-label={isBooked ? `Seat ${seat} booked` : `Seat ${seat}`}
       title={title}
-      className={`flex items-center justify-center font-semibold border-2 rounded-lg transition-all duration-200 select-none
-        w-8 h-8 text-xs sm:w-10 sm:h-10 sm:text-sm ${stateClasses}`}
+      onClick={!isBooked ? onClick : undefined}
+      className={`${base} ${cls}`}
     >
       {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
-    </div>
+    </button>
   );
 };
 
@@ -53,10 +73,10 @@ Seat.propTypes = {
   title: PropTypes.string,
 };
 
-/* ---------- Layout ---------- */
+/* --------- Layout --------- */
 const SeatLayout = ({
   seatLayout,
-  bookedSeats,            // kept for API compatibility (unused directly)
+  bookedSeats, // kept for API compatibility (not used directly)
   selectedSeats,
   onSeatClick,
   bookedSeatGenders,
@@ -66,14 +86,14 @@ const SeatLayout = ({
 
   const getAdjacentSeatInfo = (seatNumber, layoutGrid) => {
     for (const row of layoutGrid) {
-      const idx = row.indexOf(seatNumber);
-      if (idx !== -1) {
-        if (idx > 0 && row[idx - 1] !== null) {
-          const neighborSeat = String(row[idx - 1]);
+      const seatIndex = row.indexOf(seatNumber);
+      if (seatIndex !== -1) {
+        if (seatIndex > 0 && row[seatIndex - 1] !== null) {
+          const neighborSeat = String(row[seatIndex - 1]);
           if (bookedSeatGenders[neighborSeat]) return bookedSeatGenders[neighborSeat];
         }
-        if (idx < row.length - 1 && row[idx + 1] !== null) {
-          const neighborSeat = String(row[idx + 1]);
+        if (seatIndex < row.length - 1 && row[seatIndex + 1] !== null) {
+          const neighborSeat = String(row[seatIndex + 1]);
           if (bookedSeatGenders[neighborSeat]) return bookedSeatGenders[neighborSeat];
         }
         return null;
@@ -93,15 +113,11 @@ const SeatLayout = ({
 
   const renderLayout = (layoutGrid) =>
     layoutGrid.map((row, rowIndex) => (
-      <div
-        key={`row-${rowIndex}`}
-        className="flex justify-center items-center gap-x-1 sm:gap-x-2"
-      >
-        {row.map((seatNumber, i) => {
+      <div key={`row-${rowIndex}`} className="flex justify-center items-center gap-x-1.5 sm:gap-x-2">
+        {row.map((seatNumber, colIndex) => {
           if (seatNumber === null) {
-            return (
-              <div key={`aisle-${rowIndex}-${i}`} className="w-6 h-8 sm:w-10 sm:h-10" />
-            );
+            // aisle spacer
+            return <div key={`aisle-${rowIndex}-${colIndex}`} className="w-6 h-8 sm:w-10 sm:h-10" />;
           }
           const seat = String(seatNumber);
           if (!seatLayout.includes(seat)) {
@@ -111,8 +127,8 @@ const SeatLayout = ({
           const seatStatus = getSeatStatus(seat);
           let tooltipTitle = "";
           if (!seatStatus.isBooked && !seatStatus.isSelected) {
-            const adj = getAdjacentSeatInfo(seatNumber, layoutGrid);
-            if (adj) tooltipTitle = `Adjacent seat booked by a ${adj === "F" ? "Female" : "Male"}`;
+            const neighbor = getAdjacentSeatInfo(seatNumber, layoutGrid);
+            if (neighbor) tooltipTitle = `Adjacent seat booked by a ${neighbor === "F" ? "Female" : "Male"}`;
           }
 
           return (
@@ -157,55 +173,71 @@ const SeatLayout = ({
 
   return (
     <div
-      className="p-4 rounded-xl overflow-x-auto"
-      style={{ background: "#FFFFFF", border: `1px solid ${PALETTE.border}` }}
+      className="rounded-2xl p-4 sm:p-5"
+      style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}` }}
     >
-      {/* Header (Front / wheel) */}
-      <div className="relative flex justify-between items-center mb-4 px-2 sm:px-4">
+      {/* Header: title + legend (matches ConfirmBooking chips) */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+        <h3 className="text-base sm:text-lg font-semibold" style={{ color: PALETTE.text }}>
+          Seat Layout
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          <Pill>Available</Pill>
+          <Pill>
+            <span
+              className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle"
+              style={{ background: PALETTE.blue }}
+            />
+            Selected
+          </Pill>
+          <Pill>
+            <span
+              className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle"
+              style={{ background: PALETTE.violet }}
+            />
+            Booked (Male)
+          </Pill>
+          <Pill>
+            <span
+              className="inline-block w-2 h-2 rounded-sm mr-1.5 align-middle"
+              style={{ background: PALETTE.pink }}
+            />
+            Booked (Female)
+          </Pill>
+        </div>
+      </div>
+
+      {/* Front mark */}
+      <div className="flex items-center justify-between mb-3 px-1">
         <span
-          className="font-bold text-sm uppercase tracking-wider"
+          className="font-bold text-xs uppercase tracking-wider"
           style={{ color: PALETTE.textSubtle }}
         >
           Front
         </span>
-        <svg
-          className="w-8 h-8 sm:w-10 sm:h-10"
-          style={{ color: "#9CA3AF" }}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <circle cx="12" cy="12" r="10"></circle>
-          <circle cx="12" cy="12" r="3"></circle>
-          <line x1="12" y1="22" x2="12" y2="18"></line>
-          <line x1="12" y1="6" x2="12" y2="2"></line>
-          <line x1="20.39" y1="15.39" x2="17.5" y2="14"></line>
-          <line x1="6.5" y1="10" x2="3.61" y2="8.61"></line>
-          <line x1="20.39" y1="8.61" x2="17.5" y2="10"></line>
-          <line x1="6.5" y1="14" x2="3.61" y2="15.39"></line>
-        </svg>
+        <div className="h-px flex-1 mx-2" style={{ background: PALETTE.border }} />
       </div>
 
-      {/* Seat grid */}
+      {/* Grid */}
       <div className="space-y-1 sm:space-y-2 inline-block min-w-full">
         {layoutGrid.length > 0 ? (
           renderLayout(layoutGrid)
         ) : (
-          <p className="text-center" style={{ color: PALETTE.blue }}>
+          <p className="text-center" style={{ color: PALETTE.textSubtle }}>
             Unsupported seat layout.
           </p>
         )}
       </div>
 
-      {/* Footer label */}
-      <div
-        className="font-bold text-sm uppercase tracking-wider text-center mt-4"
-        style={{ color: PALETTE.textSubtle }}
-      >
-        Rear
+      {/* Rear mark */}
+      <div className="flex items-center justify-between mt-4 px-1">
+        <div className="h-px flex-1 mx-2" style={{ background: PALETTE.border }} />
+        <span
+          className="font-bold text-xs uppercase tracking-wider"
+          style={{ color: PALETTE.textSubtle }}
+        >
+          Rear
+        </span>
       </div>
     </div>
   );
