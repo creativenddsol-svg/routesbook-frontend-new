@@ -10,6 +10,9 @@ const PALETTE = {
   border: "#E5E7EB",
   text: "#1A1A1A",
   textSubtle: "#6B7280",
+  // low light red fill for small buttons
+  softRedBg: "#FFE9EC",
+  softRedBorder: "#FAD1D6",
 };
 
 /* ---------- Small atoms ---------- */
@@ -57,7 +60,7 @@ const SinglePointList = ({ points, selectedPoint, onSelect, mode }) => {
               </div>
 
               <div className="flex items-center gap-3 flex-shrink-0 pl-3">
-                {/* Clean numeric time for both lists (no green pill) */}
+                {/* Clean numeric time for both lists */}
                 <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
                   {point.time}
                 </span>
@@ -102,9 +105,21 @@ const PointSelection = ({
 }) => {
   const [activeTab, setActiveTab] = useState("boarding");
 
+  // tiny flicker flags
+  const [flashBoarding, setFlashBoarding] = useState(false);
+  const [flashDropping, setFlashDropping] = useState(false);
+
   const handleBoardingPointSelect = (point) => {
     setSelectedBoardingPoint(point);
+    setFlashBoarding(true);
+    setTimeout(() => setFlashBoarding(false), 450); // short dim/light flicker
     setActiveTab("dropping"); // proceed flow
+  };
+
+  const handleDroppingPointSelect = (point) => {
+    setSelectedDroppingPoint(point);
+    setFlashDropping(true);
+    setTimeout(() => setFlashDropping(false), 450);
   };
 
   return (
@@ -121,21 +136,21 @@ const PointSelection = ({
           <div className="min-w-0 pr-2">
             <Label>Boarding</Label>
             <p
-              className="font-semibold truncate"
+              className={`font-semibold truncate ${flashBoarding ? "animate-pulse" : ""}`}
               style={{ color: PALETTE.text }}
               title={selectedBoardingPoint ? selectedBoardingPoint.point : ""}
             >
               {selectedBoardingPoint ? selectedBoardingPoint.point : "Not Selected"}
             </p>
           </div>
-          {/* Small matching button */}
+          {/* Small filled button with low light red */}
           <button
             onClick={() => setActiveTab("boarding")}
-            className="text-sm font-semibold rounded-full px-3 py-1 border transition hover:bg-red-50 active:scale-[.98]"
+            className="text-sm font-semibold rounded-full px-3 py-1 border transition active:scale-[.98]"
             style={{
-              borderColor: PALETTE.primary,
+              background: PALETTE.softRedBg,
+              borderColor: PALETTE.softRedBorder,
               color: PALETTE.primary,
-              background: PALETTE.surface,
             }}
           >
             Change
@@ -148,21 +163,21 @@ const PointSelection = ({
           <div className="min-w-0 pr-2">
             <Label>Dropping</Label>
             <p
-              className="font-semibold truncate"
+              className={`font-semibold truncate ${flashDropping ? "animate-pulse" : ""}`}
               style={{ color: PALETTE.text }}
               title={selectedDroppingPoint ? selectedDroppingPoint.point : ""}
             >
               {selectedDroppingPoint ? selectedDroppingPoint.point : "Not Selected"}
             </p>
           </div>
-          {/* Small matching button */}
+          {/* Small filled button with low light red */}
           <button
             onClick={() => setActiveTab("dropping")}
-            className="text-sm font-semibold rounded-full px-3 py-1 border transition hover:bg-red-50 active:scale-[.98]"
+            className="text-sm font-semibold rounded-full px-3 py-1 border transition active:scale-[.98]"
             style={{
-              borderColor: PALETTE.primary,
+              background: PALETTE.softRedBg,
+              borderColor: PALETTE.softRedBorder,
               color: PALETTE.primary,
-              background: PALETTE.surface,
             }}
           >
             Change
@@ -239,7 +254,7 @@ const PointSelection = ({
             mode="dropping"
             points={droppingPoints}
             selectedPoint={selectedDroppingPoint}
-            onSelect={setSelectedDroppingPoint}
+            onSelect={handleDroppingPointSelect}
           />
         )}
       </div>
