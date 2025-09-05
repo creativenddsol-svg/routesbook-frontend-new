@@ -243,11 +243,12 @@ const BookingSummary = ({
           </div>
         )}
 
+        {/* Button color now always matte red; disabled uses opacity like ConfirmBooking */}
         <button
           onClick={onProceed}
           disabled={!hasSelection}
           className="w-full px-6 py-3 text-white font-semibold rounded-xl transition disabled:opacity-60 disabled:cursor-not-allowed text-base"
-          style={{ background: hasSelection ? PALETTE.primary : "#9CA3AF" }}
+          style={{ background: PALETTE.primary }}
         >
           Proceed to Payment
         </button>
