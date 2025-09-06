@@ -24,7 +24,7 @@ import {
   FaExchangeAlt,
   FaSearch,
 } from "react-icons/fa";
-import { createPortal } from "react-dom"; // for portaled mobile full-page flow
+import { createPortal } from "react-dom";
 
 import SpecialNoticeCard, {
   SpecialNoticeSkeleton,
@@ -34,7 +34,7 @@ import PointSelection from "../components/PointSelection";
 import BookingSummary from "../components/BookingSummary";
 import SeatLegend from "../components/SeatLegend";
 
-// --- Consistent Color Palette (PALETTE) ---
+/* ---------------- Palette ---------------- */
 const PALETTE = {
   primaryRed: "#D84E55",
   accentBlue: "#3A86FF",
@@ -46,14 +46,12 @@ const PALETTE = {
   green: "#28a745",
   orange: "#fd7e14",
   yellow: "#FFC107",
-
-  // NEW — soft pill backgrounds to match ConfirmBooking
-  datePillBg: "#FFF9DB",  // very light yellow
-  acPillBg:   "#EAF5FF",  // very light blue
-  seatPillBg: "#FFE9EC",  // very light red
+  datePillBg: "#FFF9DB",
+  acPillBg: "#EAF5FF",
+  seatPillBg: "#FFE9EC",
 };
 
-// --- Constants (TIME_SLOTS, RESULTS_PER_PAGE) ---
+/* ---------------- Constants ---------------- */
 const TIME_SLOTS = {
   Morning: [4, 12],
   Afternoon: [12, 17],
@@ -62,7 +60,7 @@ const TIME_SLOTS = {
 };
 const RESULTS_PER_PAGE = 5;
 
-// --- Helper Functions ---
+/* ---------------- Helpers ---------------- */
 const toLocalYYYYMMDD = (dateObj) => {
   const year = dateObj.getFullYear();
   const month = String(dateObj.getMonth() + 1).padStart(2, "0");
@@ -82,7 +80,6 @@ const getReadableDate = (dateString) => {
   });
 };
 
-// compact label for mobile date chip (e.g. "03 Sep" + "Wed")
 const getMobileDateParts = (dateString) => {
   if (!dateString) return { top: "-- ---", bottom: "" };
   const [y, m, d] = dateString.split("-").map(Number);
@@ -107,7 +104,6 @@ const calculateDuration = (startTime, endTime) => {
   return `${hours}h ${minutes}m`;
 };
 
-// --- Price Calculation Helper ---
 const getDisplayPrice = (bus, from, to) => {
   if (bus.fares && Array.isArray(bus.fares)) {
     const specificFare = bus.fares.find(
@@ -120,23 +116,32 @@ const getDisplayPrice = (bus, from, to) => {
   return bus.price;
 };
 
-// helper to detect AC without matching "Non-AC"
 const isACType = (t = "") => {
   const s = t.toLowerCase();
   return s.includes("ac") && !s.includes("non-ac") && !s.includes("non ac");
 };
 
-// mobile-only: strip standalone "AC" word from bus type when showing AC pill
 const stripACWord = (type = "") =>
   type.replace(/\bAC\b/gi, "").replace(/\s{2,}/g, " ").replace(/^\s+|\s+$/g, "");
 
-// --- BookingDeadlineTimer Component ---
+/* -------- auth helpers (NEW) -------- */
+const getAuthToken = () =>
+  localStorage.getItem("token") ||
+  localStorage.getItem("authToken") ||
+  localStorage.getItem("jwt") ||
+  sessionStorage.getItem("token") ||
+  null;
+const buildAuthConfig = (token) =>
+  token ? { headers: { Authorization: `Bearer ${token}` } } : {};
+
+/* ---------------- BookingDeadlineTimer ---------------- */
 const BookingDeadlineTimer = ({
   deadlineTimestamp,
   departureTimestamp,
   onDeadline,
 }) => {
   const [timeLeft, setTimeLeft] = useState(deadlineTimestamp - Date.now());
+
   useEffect(() => {
     if (Date.now() >= deadlineTimestamp || Date.now() >= departureTimestamp) {
       setTimeLeft(0);
@@ -164,20 +169,14 @@ const BookingDeadlineTimer = ({
 
   if (Date.now() >= departureTimestamp) {
     return (
-      <p
-        className="text-xs font-medium mt-1"
-        style={{ color: PALETTE.textLight }}
-      >
+      <p className="text-xs font-medium mt-1" style={{ color: PALETTE.textLight }}>
         <FaHourglassHalf className="inline mr-1" /> Departed
       </p>
     );
   }
   if (timeLeft <= 0) {
     return (
-      <p
-        className="text-xs font-bold mt-1"
-        style={{ color: PALETTE.primaryRed }}
-      >
+      <p className="text-xs font-bold mt-1" style={{ color: PALETTE.primaryRed }}>
         <FaHourglassHalf className="inline mr-1" /> Booking Closed
       </p>
     );
@@ -197,7 +196,7 @@ const BookingDeadlineTimer = ({
   );
 };
 
-// --- Reusable Components (BusCardSkeleton) ---
+/* ---------------- Skeleton ---------------- */
 const BusCardSkeleton = () => (
   <div className="bg-white rounded-2xl p-6 animate-pulse border border-gray-300">
     <div className="flex justify-between items-start">
@@ -218,19 +217,19 @@ const BusCardSkeleton = () => (
   </div>
 );
 
-// --- Main Search Results Component ---
+/* ======================================================= */
+/*                     MAIN COMPONENT                      */
+/* ======================================================= */
 const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const {
-    from,
-    to,
-    date: searchDateParam,
-  } = Object.fromEntries(searchParams.entries());
+  const { from, to, date: searchDateParam } = Object.fromEntries(
+    searchParams.entries()
+  );
 
-  // --- State for the results list ---
+  /* -------- State -------- */
   const [buses, setBuses] = useState([]);
   const [availability, setAvailability] = useState({});
   const [loading, setLoading] = useState(true);
@@ -257,18 +256,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const mobileDateInputRef = useRef(null);
 
   const stickySearchCardRef = useRef(null);
-  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] =
-    useState(0);
+  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = toLocalYYYYMMDD(tomorrow);
 
-  // --- State for inline booking ---
+  /* -------- Inline booking state -------- */
   const [expandedBusId, setExpandedBusId] = useState(null);
   const [busSpecificBookingData, setBusSpecificBookingData] = useState({});
-  // mobile full-page step per bus (1..3)
   const [mobileSheetStepByBus, setMobileSheetStepByBus] = useState({});
 
   useEffect(() => {
@@ -277,9 +274,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     }
   }, [loading, fetchError, from, to, searchDate]);
 
-  const searchCardStickyTopOffset = useMemo(() => {
-    return showNavbar ? headerHeight : 0;
-  }, [showNavbar, headerHeight]);
+  const searchCardStickyTopOffset = useMemo(
+    () => (showNavbar ? headerHeight : 0),
+    [showNavbar, headerHeight]
+  );
 
   useEffect(() => {
     const fetchSpecialNotices = async () => {
@@ -309,16 +307,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   }, []);
 
   const fromOptions = [...new Set(allBusesForDropdown.map((b) => b.from))].map(
-    (val) => ({
-      value: val,
-      label: val,
-    })
+    (val) => ({ value: val, label: val })
   );
   const toOptions = [...new Set(allBusesForDropdown.map((b) => b.to))].map(
-    (val) => ({
-      value: val,
-      label: val,
-    })
+    (val) => ({ value: val, label: val })
   );
 
   const handleModifySearch = () => {
@@ -337,7 +329,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setExpandedBusId(null);
   };
 
-  // used by mobile date picker to apply immediately
   const updateSearchWithDate = (newDate) => {
     if (!searchFrom || !searchTo || !newDate) return;
     navigate({
@@ -359,11 +350,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const handleDateContainerClick = () => {
     dateInputRef.current?.showPicker();
   };
-
   const handleMobileDateChipClick = () => {
     mobileDateInputRef.current?.showPicker();
   };
-
   const handleMobileDateChange = (e) => {
     const d = e.target.value;
     setSearchDate(d);
@@ -371,42 +360,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   const selectStyles = {
-    control: (p) => ({
-      ...p,
-      border: "none",
-      boxShadow: "none",
-      backgroundColor: "transparent",
-      minHeight: "auto",
-      height: "auto",
-      cursor: "pointer",
-    }),
+    control: (p) => ({ ...p, border: "none", boxShadow: "none", backgroundColor: "transparent", minHeight: "auto", height: "auto", cursor: "pointer" }),
     valueContainer: (p) => ({ ...p, padding: "0" }),
-    placeholder: (p) => ({
-      ...p,
-      color: PALETTE.textLight,
-      fontSize: "16px",
-      fontWeight: "500",
-    }),
-    singleValue: (p) => ({
-      ...p,
-      color: PALETTE.textDark,
-      fontSize: "18px",
-      fontWeight: "600",
-    }),
-    menu: (p) => ({
-      ...p,
-      borderRadius: "12px",
-      boxShadow:
-        "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-    }),
+    placeholder: (p) => ({ ...p, color: PALETTE.textLight, fontSize: "16px", fontWeight: "500" }),
+    singleValue: (p) => ({ ...p, color: PALETTE.textDark, fontSize: "18px", fontWeight: "600" }),
+    menu: (p) => ({ ...p, borderRadius: "12px", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" }),
     menuPortal: (p) => ({ ...p, zIndex: 9999 }),
     option: (p, state) => ({
       ...p,
-      backgroundColor: state.isSelected
-        ? PALETTE.primaryRed
-        : state.isFocused
-        ? "#FEE2E2"
-        : PALETTE.white,
+      backgroundColor: state.isSelected ? PALETTE.primaryRed : state.isFocused ? "#FEE2E2" : PALETTE.white,
       color: state.isSelected ? PALETTE.white : PALETTE.textDark,
       cursor: "pointer",
       padding: "12px 16px",
@@ -414,28 +376,56 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     }),
   };
 
-  // --- Seat lock helpers (NEW) ---
+  /* ---------------- Seat lock helpers (UPDATED) ---------------- */
   const lockSeat = async (bus, seat) => {
+    const token = getAuthToken();
+    if (!token) {
+      // guest mode: skip calling API, allow local selection
+      return { ok: true, skipped: true };
+    }
     const payload = {
       busId: bus._id,
       date: searchDateParam,
       departureTime: bus.departureTime,
       seats: [String(seat)],
     };
-    const res = await apiClient.post("/bookings/lock", payload);
-    return res.data;
+    try {
+      const res = await apiClient.post(
+        "/bookings/lock",
+        payload,
+        buildAuthConfig(token)
+      );
+      return res.data;
+    } catch (err) {
+      // If backend still requires auth or rejects, fall back to guest mode
+      if (err?.response?.status === 400 || err?.response?.status === 401) {
+        console.warn("Seat lock skipped (guest fallback):", err?.response?.data || err.message);
+        return { ok: true, skipped: true };
+      }
+      throw err;
+    }
   };
 
   const releaseSeats = async (bus, seats) => {
+    const token = getAuthToken();
+    if (!token) return; // guest mode: nothing to release server-side
     const payload = {
       busId: bus._id,
       date: searchDateParam,
       departureTime: bus.departureTime,
       seats: seats.map(String),
     };
-    await apiClient.delete("/bookings/release", { data: payload });
+    try {
+      await apiClient.delete("/bookings/release", {
+        ...buildAuthConfig(token),
+        data: payload,
+      });
+    } catch (e) {
+      console.warn("Release seats failed:", e?.response?.data || e.message);
+    }
   };
 
+  /* ---------------- Fetch data ---------------- */
   const fetchData = useCallback(async () => {
     if (!from || !to || !searchDateParam) {
       setLoading(false);
@@ -453,21 +443,17 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         params: { from, to, date: searchDateParam },
       });
       setBuses(res.data);
+
       const seatData = {};
       await Promise.all(
         res.data.map(async (bus) => {
           try {
-            const availabilityKey = `${bus._id}-${bus.departureTime}`;
+            const key = `${bus._id}-${bus.departureTime}`;
             const availabilityRes = await apiClient.get(
               `/bookings/availability/${bus._id}`,
-              {
-                params: {
-                  date: searchDateParam,
-                  departureTime: bus.departureTime,
-                },
-              }
+              { params: { date: searchDateParam, departureTime: bus.departureTime } }
             );
-            seatData[availabilityKey] = {
+            seatData[key] = {
               available: availabilityRes.data.availableSeats,
               window: availabilityRes.data.availableWindowSeats || null,
               bookedSeats: Array.isArray(availabilityRes.data.bookedSeats)
@@ -480,8 +466,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               `Could not fetch availability for bus ${bus._id} at ${bus.departureTime}:`,
               availErr
             );
-            const availabilityKey = `${bus._id}-${bus.departureTime}`;
-            seatData[availabilityKey] = {
+            const keyFallback = `${bus._id}-${bus.departureTime}`;
+            seatData[keyFallback] = {
               available: null,
               window: null,
               bookedSeats: [],
@@ -511,17 +497,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setSearchDate(searchDateParam || toLocalYYYYMMDD(new Date()));
   }, [from, to, searchDateParam, fetchData, location.search]);
 
-  // ==== BODY SCROLL LOCK (robust on iOS/Android) ====
+  /* ---------------- Body scroll lock for mobile flows ---------------- */
   const scrollLockRef = useRef({ y: 0 });
   useEffect(() => {
     const mobileFlowOpen = !!expandedBusId && window.innerWidth < 1024;
     const shouldLock = isFilterOpen || mobileFlowOpen;
 
     if (shouldLock) {
-      // remember scroll position
-      scrollLockRef.current.y = window.scrollY || window.pageYOffset || 0;
-
-      // lock body with fixed positioning (prevents iOS background scroll + bounce)
+      scrollLockRef.current.y =
+        window.scrollY || window.pageYOffset || 0;
       const body = document.body;
       body.style.position = "fixed";
       body.style.top = `-${scrollLockRef.current.y}px`;
@@ -531,7 +515,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       body.style.overflow = "hidden";
       body.style.touchAction = "none";
     } else {
-      // restore
       const body = document.body;
       body.style.position = "";
       body.style.top = "";
@@ -540,12 +523,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       body.style.width = "";
       body.style.overflow = "";
       body.style.touchAction = "";
-      // jump back to where the user was
       window.scrollTo(0, scrollLockRef.current.y || 0);
     }
 
     return () => {
-      // cleanup on unmount
       const body = document.body;
       body.style.position = "";
       body.style.top = "";
@@ -557,6 +538,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     };
   }, [isFilterOpen, expandedBusId]);
 
+  /* ---------------- Filtering/sorting ---------------- */
   const { filteredBuses } = useMemo(() => {
     const now = new Date();
     const today = new Date();
@@ -568,16 +550,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         if (!searchDateParam || !bus.departureTime) return false;
 
         const [depHour, depMinute] = bus.departureTime.split(":").map(Number);
-        const [searchYear, searchMonth, searchDay] = searchDateParam
-          .split("-")
-          .map(Number);
-        const departureDateTime = new Date(
-          searchYear,
-          searchMonth - 1,
-          searchDay,
-          depHour,
-          depMinute
-        );
+        const [y, m, d] = searchDateParam.split("-").map(Number);
+        const departureDateTime = new Date(y, m - 1, d, depHour, depMinute);
         const busDepartureTimestamp = departureDateTime.getTime();
 
         if (searchingToday && busDepartureTimestamp <= now.getTime()) {
@@ -630,7 +604,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   const totalPages = Math.ceil(sortedBuses.length / RESULTS_PER_PAGE);
 
-  // --- Infinite Scroll ---
+  /* ---------------- Infinite scroll ---------------- */
   useEffect(() => {
     const handleScroll = () => {
       if (
@@ -641,7 +615,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       ) {
         return;
       }
-      setPage((prevPage) => prevPage + 1);
+      setPage((prev) => prev + 1);
     };
 
     window.addEventListener("scroll", handleScroll);
@@ -660,7 +634,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setPage(1);
   };
 
-  // ===== Special Notices Section =====
+  /* ---------------- Special notices ---------------- */
   const SpecialNoticesSection = () => {
     const itemsToRender = noticesLoading
       ? Array.from({ length: 4 })
@@ -744,9 +718,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   onClick={() => goToPage(i)}
                   className={[
                     "h-2.5 rounded-full transition-all duration-200",
-                    active
-                      ? "w-6 bg-gray-900"
-                      : "w-2.5 bg-gray-300 hover:bg-gray-400",
+                    active ? "w-6 bg-gray-900" : "w-2.5 bg-gray-300 hover:bg-gray-400",
                   ].join(" ")}
                   aria-label={`Go to page ${i + 1}`}
                 />
@@ -768,10 +740,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         className="mx-auto text-6xl mb-4"
         style={{ color: PALETTE.yellow }}
       />
-      <h3
-        className="text-2xl font-bold mb-2"
-        style={{ color: PALETTE.textDark }}
-      >
+      <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
         Oops! Something went wrong.
       </h3>
       <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>
@@ -807,16 +776,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           className="mx-auto text-6xl mb-4"
           style={{ color: `${PALETTE.primaryRed}50` }}
         />
-        <h3
-          className="text-2xl font-bold mb-2"
-          style={{ color: PALETTE.textDark }}
-        >
+        <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
           {title}
         </h3>
-        <p
-          className="max-w-md mx-auto mb-6"
-          style={{ color: PALETTE.textLight }}
-        >
+        <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>
           {message}
         </p>
         <motion.button
@@ -836,16 +799,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     hidden: { opacity: 0 },
     visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
   };
-  const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
-    visible: { y: 0, opacity: 1 },
-  };
+  const itemVariants = { hidden: { y: 20, opacity: 0 }, visible: { y: 0, opacity: 1 } };
   const drawerVariants = {
     hidden: { x: "-100%" },
-    visible: {
-      x: 0,
-      transition: { type: "spring", stiffness: 300, damping: 30 },
-    },
+    visible: { x: 0, transition: { type: "spring", stiffness: 300, damping: 30 } },
   };
 
   const FilterPanel = ({ isMobile, sortBy, setSortBy }) => {
@@ -868,10 +825,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             className="text-xl font-bold flex items-center gap-3"
             style={{ color: PALETTE.textDark }}
           >
-            <FaSlidersH
-              className="lg:hidden"
-              style={{ color: PALETTE.accentBlue }}
-            />{" "}
+            <FaSlidersH className="lg:hidden" style={{ color: PALETTE.accentBlue }} />{" "}
             {headerText}
           </h3>
           {isMobile ? (
@@ -888,10 +842,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 activeFilterCount > 0 ? "text-red-600 font-semibold" : ""
               }`}
               style={{
-                color:
-                  activeFilterCount > 0
-                    ? PALETTE.primaryRed
-                    : PALETTE.textLight,
+                color: activeFilterCount > 0 ? PALETTE.primaryRed : PALETTE.textLight,
               }}
             >
               <FaSyncAlt /> {resetText}
@@ -906,10 +857,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
             className="w-full border-2 rounded-lg px-3 py-2 text-sm transition-all focus:border-blue-500 focus:ring-0"
-            style={{
-              borderColor: PALETTE.borderLight,
-              color: PALETTE.textDark,
-            }}
+            style={{ borderColor: PALETTE.borderLight, color: PALETTE.textDark }}
           >
             <option value="time-asc">Departure: Earliest</option>
             <option value="time-desc">Departure: Latest</option>
@@ -935,9 +883,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   backgroundColor: filters.timeSlots[slot]
                     ? PALETTE.accentBlue
                     : PALETTE.white,
-                  color: filters.timeSlots[slot]
-                    ? PALETTE.white
-                    : PALETTE.textDark,
+                  color: filters.timeSlots[slot] ? PALETTE.white : PALETTE.textDark,
                 }}
               >
                 {slot}
@@ -955,10 +901,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               setFilters((prev) => ({ ...prev, type: e.target.value }))
             }
             className="w-full border-2 rounded-lg px-3 py-2 text-sm transition-all focus:border-blue-500 focus:ring-0"
-            style={{
-              borderColor: PALETTE.borderLight,
-              color: PALETTE.textDark,
-            }}
+            style={{ borderColor: PALETTE.borderLight, color: PALETTE.textDark }}
           >
             <option value="">All Types</option>
             <option value="AC">AC</option>
@@ -972,25 +915,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           <input
             type="range"
             className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-            style={{
-              backgroundColor: PALETTE.borderLight,
-              accentColor: PALETTE.primaryRed,
-            }}
+            style={{ backgroundColor: PALETTE.borderLight, accentColor: PALETTE.primaryRed }}
             min={500}
             max={5000}
             step={100}
             value={filters.maxPrice}
             onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                maxPrice: Number(e.target.value),
-              }))
+              setFilters((prev) => ({ ...prev, maxPrice: Number(e.target.value) }))
             }
           />
-          <div
-            className="text-sm mt-2 text-center font-medium"
-            style={{ color: PALETTE.textLight }}
-          >
+          <div className="text-sm mt-2 text-center font-medium" style={{ color: PALETTE.textLight }}>
             Up to{" "}
             <span className="font-bold" style={{ color: PALETTE.primaryRed }}>
               Rs. {filters.maxPrice}
@@ -998,10 +932,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           </div>
         </section>
         {isMobile && (
-          <div
-            className="pt-4 border-t"
-            style={{ borderColor: PALETTE.borderLight }}
-          >
+          <div className="pt-4 border-t" style={{ borderColor: PALETTE.borderLight }}>
             <button
               onClick={() => setIsFilterOpen(false)}
               className="w-full py-3 font-bold text-white rounded-lg"
@@ -1033,7 +964,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...prev,
         [busKey]: {
           selectedSeats: [],
-          seatGenders: {}, // { "A1":"M" | "F" }
+          seatGenders: {},
           selectedBoardingPoint: bus.boardingPoints?.[0] || null,
           selectedDroppingPoint: bus.droppingPoints?.[0] || null,
           basePrice: 0,
@@ -1047,7 +978,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const handleToggleSeatLayout = async (bus) => {
     const busKey = `${bus._id}-${bus.departureTime}`;
     if (expandedBusId === busKey) {
-      // Closing sheet: release any selected seats for this bus
       const seatsToRelease = (busSpecificBookingData[busKey]?.selectedSeats || []);
       if (seatsToRelease.length) {
         try {
@@ -1071,15 +1001,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const currentBusData = busSpecificBookingData[busKey];
     if (!currentBusData) return;
 
-    const { bookedSeats: unavailable = [] } = availability[availabilityKey] || { bookedSeats: [] };
+    const { bookedSeats: unavailable = [] } = availability[availabilityKey] || {
+      bookedSeats: [],
+    };
     const seatStr = String(seat);
     const alreadySelected = currentBusData.selectedSeats.includes(seatStr);
 
-    // If trying to select a seat that's unavailable (booked/locked by others), block it
     if (!alreadySelected && unavailable.includes(seatStr)) return;
 
     if (!alreadySelected) {
-      // Enforce max selection
       if (currentBusData.selectedSeats.length >= 4) {
         toast.error("🚫 You can select a maximum of 4 seats.");
         return;
@@ -1108,7 +1038,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         },
       }));
     } else {
-      // Deselect -> release
       try {
         await releaseSeats(bus, [seatStr]);
       } catch (e) {
@@ -1143,16 +1072,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     }));
   };
 
-  // Price Calculation Logic
+  /* -------- Price calculation -------- */
   useEffect(() => {
     if (!expandedBusId || !buses.length) return;
 
-    // safer split in case _id contains '-'
     const lastDash = expandedBusId.lastIndexOf("-");
     const currentBusId =
       lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
-    const currentBusTime =
-      lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
+    const currentBusTime = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
 
     const currentBus = buses.find(
       (b) => b._id === currentBusId && b.departureTime === currentBusTime
@@ -1161,11 +1088,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
     if (!currentBus || !busData) return;
 
-    const { selectedSeats, selectedBoardingPoint, selectedDroppingPoint } =
-      busData;
+    const { selectedSeats, selectedBoardingPoint, selectedDroppingPoint } = busData;
 
     let pricePerSeat = currentBus.price;
-
     if (
       selectedBoardingPoint &&
       selectedDroppingPoint &&
@@ -1187,11 +1112,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
     if (currentBus.convenienceFee) {
       if (currentBus.convenienceFee.amountType === "percentage") {
-        convenienceFeeValue =
-          (basePrice * currentBus.convenienceFee.value) / 100;
+        convenienceFeeValue = (basePrice * currentBus.convenienceFee.value) / 100;
       } else {
-        convenienceFeeValue =
-          currentBus.convenienceFee.value * selectedSeats.length;
+        convenienceFeeValue = currentBus.convenienceFee.value * selectedSeats.length;
       }
     }
 
@@ -1205,7 +1128,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...prev,
         [expandedBusId]: {
           ...prev[expandedBusId],
-          basePrice: basePrice,
+          basePrice,
           convenienceFee: convenienceFeeValue,
           totalPrice: newTotalPrice,
         },
@@ -1264,8 +1187,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     });
   };
 
-  // --- MOBILE FULL-PAGE FLOW (global + PORTALED) ---
-  // NOTE: Stable mount, no AnimatePresence here to avoid flicker on state updates.
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
@@ -1293,220 +1215,217 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
 
   const setCurrentMobileStep = (n) =>
-    setMobileSheetStepByBus((prev) => ({
-      ...prev,
-      [expandedBusId]: n,
-    }));
+    setMobileSheetStepByBus((prev) => ({ ...prev, [expandedBusId]: n }));
 
-  // --- MOBILE FULL-PAGE FLOW (global + PORTALED) ---
-const MobileBottomSheet = () => {
-  if (!selectedBus) return null;
+  const MobileBottomSheet = () => {
+    if (!selectedBus) return null;
 
-  const inactive = "#6B7280";
-  const active = PALETTE.primaryRed;
+    const inactive = "#6B7280";
+    const active = PALETTE.primaryRed;
 
-  return createPortal(
-    expandedBusId ? (
-      <motion.div
-        key={`mobile-sheet-${expandedBusId}`}             // keep the instance stable per bus
-        className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white overscroll-contain"
-        style={{
-          touchAction: "none",
-          willChange: "opacity, transform",               // promote to its own layer (iOS/Android)
-          transform: "translateZ(0)",
-          backfaceVisibility: "hidden"
-        }}
-        initial={false}                                   // ✅ prevents re-entrance animation (stops blink)
-        animate={{ opacity: 1 }}
-      >
-        {/* Header */}
-        <div className="pt-3 pb-2 px-4 border-b bg-white">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => {
-                if (currentMobileStep > 1) {
-                  setCurrentMobileStep(currentMobileStep - 1);
-                } else {
-                  setExpandedBusId(null);
-                }
-              }}
-              className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-              aria-label="Back"
-            >
-              <FaChevronLeft />
-            </button>
-
-            <div className="min-w-0 px-2 text-center">
-              <h3
-                className="text-base font-semibold truncate"
-                style={{ color: PALETTE.textDark }}
+    return createPortal(
+      expandedBusId ? (
+        <motion.div
+          key={`mobile-sheet-${expandedBusId}`}
+          className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white overscroll-contain"
+          style={{
+            touchAction: "none",
+            willChange: "opacity, transform",
+            transform: "translateZ(0)",
+            backfaceVisibility: "hidden",
+          }}
+          initial={false}
+          animate={{ opacity: 1 }}
+        >
+          {/* Header */}
+          <div className="pt-3 pb-2 px-4 border-b bg-white">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => {
+                  if (currentMobileStep > 1) {
+                    setCurrentMobileStep(currentMobileStep - 1);
+                  } else {
+                    setExpandedBusId(null);
+                  }
+                }}
+                className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                aria-label="Back"
               >
-                {selectedBus.name}
-              </h3>
-              <p className="text-xs text-gray-500 truncate">
-                {from} → {to} • {selectedBus.departureTime}
-              </p>
+                <FaChevronLeft />
+              </button>
+
+              <div className="min-w-0 px-2 text-center">
+                <h3
+                  className="text-base font-semibold truncate"
+                  style={{ color: PALETTE.textDark }}
+                >
+                  {selectedBus.name}
+                </h3>
+                <p className="text-xs text-gray-500 truncate">
+                  {from} → {to} • {selectedBus.departureTime}
+                </p>
+              </div>
+
+              <button
+                onClick={() => setExpandedBusId(null)}
+                className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                aria-label="Close"
+              >
+                <FaTimes />
+              </button>
             </div>
 
-            <button
-              onClick={() => setExpandedBusId(null)}
-              className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-              aria-label="Close"
-            >
-              <FaTimes />
-            </button>
-          </div>
-
-          {/* Stepper */}
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {[1, 2, 3].map((n) => (
-              <button
-                key={n}
-                onClick={() => setCurrentMobileStep(n)}
-                className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
-                style={{
-                  borderColor: currentMobileStep === n ? active : "#E5E7EB",
-                  background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
-                  color: currentMobileStep === n ? active : inactive,
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                <span
-                  className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
+            {/* Stepper */}
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {[1, 2, 3].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setCurrentMobileStep(n)}
+                  className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
                   style={{
-                    borderColor: currentMobileStep === n ? active : "#D1D5DB",
-                    background: currentMobileStep === n ? active : "#FFF",
-                    color: currentMobileStep === n ? "#FFF" : inactive,
-                    fontWeight: 800,
+                    borderColor: currentMobileStep === n ? active : "#E5E7EB",
+                    background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
+                    color: currentMobileStep === n ? active : inactive,
+                    fontWeight: 700,
                     fontSize: 12,
                   }}
                 >
-                  {n}
-                </span>
-                <span className="truncate">
-                  {n === 1 ? "Select Seats" : n === 2 ? "Select Points" : "Summary"}
-                </span>
-              </button>
-            ))}
+                  <span
+                    className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
+                    style={{
+                      borderColor: currentMobileStep === n ? active : "#D1D5DB",
+                      background: currentMobileStep === n ? active : "#FFF",
+                      color: currentMobileStep === n ? "#FFF" : inactive,
+                      fontWeight: 800,
+                      fontSize: 12,
+                    }}
+                  >
+                    {n}
+                  </span>
+                  <span className="truncate">
+                    {n === 1 ? "Select Seats" : n === 2 ? "Select Points" : "Summary"}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Content */}
-        <div
-          className="flex-1 overflow-y-auto px-4 pb-6 pt-3 bg-white"
-          style={{ WebkitOverflowScrolling: "touch" }}
-        >
-          {/* STEP 1: Seats */}
-          {currentMobileStep === 1 && (
-            <div className="space-y-3">
-              <SeatLegend />
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                <SeatLayout
-                  seatLayout={selectedBus.seatLayout}
-                  bookedSeats={selectedAvailability?.bookedSeats || []}
-                  selectedSeats={selectedBookingData.selectedSeats}
-                  onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
-                  bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
-                  selectedSeatGenders={selectedBookingData.seatGenders}
+          {/* Content */}
+          <div
+            className="flex-1 overflow-y-auto px-4 pb-6 pt-3 bg-white"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+            {/* STEP 1: Seats */}
+            {currentMobileStep === 1 && (
+              <div className="space-y-3">
+                <SeatLegend />
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <SeatLayout
+                    seatLayout={selectedBus.seatLayout}
+                    bookedSeats={selectedAvailability?.bookedSeats || []}
+                    selectedSeats={selectedBookingData.selectedSeats}
+                    onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
+                    bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
+                    selectedSeatGenders={selectedBookingData.seatGenders}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>
+                    Selected: <b>{selectedBookingData.selectedSeats.length}</b>
+                  </span>
+                  <button
+                    onClick={() => setCurrentMobileStep(2)}
+                    className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
+                    style={{ background: PALETTE.primaryRed }}
+                    disabled={selectedBookingData.selectedSeats.length === 0}
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: Points */}
+            {currentMobileStep === 2 && (
+              <div className="space-y-4">
+                <PointSelection
+                  boardingPoints={selectedBus.boardingPoints}
+                  droppingPoints={selectedBus.droppingPoints}
+                  selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
+                  setSelectedBoardingPoint={(p) => handleBoardingPointSelect(selectedBus, p)}
+                  selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
+                  setSelectedDroppingPoint={(p) => handleDroppingPointSelect(selectedBus, p)}
                 />
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentMobileStep(1)}
+                    className="px-4 py-2 rounded-lg font-bold"
+                    style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setCurrentMobileStep(3)}
+                    className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
+                    style={{ background: PALETTE.primaryRed }}
+                    disabled={
+                      !selectedBookingData.selectedBoardingPoint ||
+                      !selectedBookingData.selectedDroppingPoint ||
+                      selectedBookingData.selectedSeats.length === 0
+                    }
+                  >
+                    Continue
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>
-                  Selected: <b>{selectedBookingData.selectedSeats.length}</b>
-                </span>
-                <button
-                  onClick={() => setCurrentMobileStep(2)}
-                  className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                  style={{ background: PALETTE.primaryRed }}
-                  disabled={selectedBookingData.selectedSeats.length === 0}
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          )}
+            )}
 
-          {/* STEP 2: Points */}
-          {currentMobileStep === 2 && (
-            <div className="space-y-4">
-              <PointSelection
-                boardingPoints={selectedBus.boardingPoints}
-                droppingPoints={selectedBus.droppingPoints}
-                selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
-                setSelectedBoardingPoint={(p) => handleBoardingPointSelect(selectedBus, p)}
-                selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
-                setSelectedDroppingPoint={(p) => handleDroppingPointSelect(selectedBus, p)}
-              />
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentMobileStep(1)}
-                  className="px-4 py-2 rounded-lg font-bold"
-                  style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => setCurrentMobileStep(3)}
-                  className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                  style={{ background: PALETTE.primaryRed }}
-                  disabled={
-                    !selectedBookingData.selectedBoardingPoint ||
-                    !selectedBookingData.selectedDroppingPoint ||
-                    selectedBookingData.selectedSeats.length === 0
-                  }
-                >
-                  Continue
-                </button>
+            {/* STEP 3: Summary */}
+            {currentMobileStep === 3 && (
+              <div className="space-y-4">
+                <BookingSummary
+                  bus={selectedBus}
+                  selectedSeats={selectedBookingData.selectedSeats}
+                  date={searchDateParam}
+                  basePrice={selectedBookingData.basePrice}
+                  convenienceFee={selectedBookingData.convenienceFee}
+                  totalPrice={selectedBookingData.totalPrice}
+                  onProceed={() => handleProceedToPayment(selectedBus)}
+                  boardingPoint={selectedBookingData.selectedBoardingPoint}
+                  droppingPoint={selectedBookingData.selectedDroppingPoint}
+                />
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentMobileStep(2)}
+                    className="px-4 py-2 rounded-lg font-bold"
+                    style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => handleProceedToPayment(selectedBus)}
+                    className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
+                    style={{ background: PALETTE.primaryRed }}
+                    disabled={
+                      selectedBookingData.selectedSeats.length === 0 ||
+                      !selectedBookingData.selectedBoardingPoint ||
+                      !selectedBookingData.selectedDroppingPoint ||
+                      selectedBookingData.totalPrice <= 0
+                    }
+                  >
+                    Proceed
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        </motion.div>
+      ) : null,
+      document.body
+    );
+  };
 
-          {/* STEP 3: Summary */}
-          {currentMobileStep === 3 && (
-            <div className="space-y-4">
-              <BookingSummary
-                bus={selectedBus}
-                selectedSeats={selectedBookingData.selectedSeats}
-                date={searchDateParam}
-                basePrice={selectedBookingData.basePrice}
-                convenienceFee={selectedBookingData.convenienceFee}
-                totalPrice={selectedBookingData.totalPrice}
-                onProceed={() => handleProceedToPayment(selectedBus)}
-                boardingPoint={selectedBookingData.selectedBoardingPoint}
-                droppingPoint={selectedBookingData.selectedDroppingPoint}
-              />
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentMobileStep(2)}
-                  className="px-4 py-2 rounded-lg font-bold"
-                  style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => handleProceedToPayment(selectedBus)}
-                  className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                  style={{ background: PALETTE.primaryRed }}
-                  disabled={
-                    selectedBookingData.selectedSeats.length === 0 ||
-                    !selectedBookingData.selectedBoardingPoint ||
-                    !selectedBookingData.selectedDroppingPoint ||
-                    selectedBookingData.totalPrice <= 0
-                  }
-                >
-                  Proceed
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.div>
-    ) : null,
-    document.body
-  );
-};
-
+  /* ---------------- Card list ---------------- */
   const renderMainContent = () => {
     if (loading) {
       return Array.from({ length: RESULTS_PER_PAGE }).map((_, i) => (
@@ -1518,11 +1437,7 @@ const MobileBottomSheet = () => {
     }
     if (visibleBuses.length > 0) {
       return (
-        <motion.div
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
+        <motion.div variants={containerVariants} initial="hidden" animate="visible">
           {visibleBuses.map((bus) => {
             const busKey = `${bus._id}-${bus.departureTime}`;
             const displayPrice = getDisplayPrice(bus, from, to);
@@ -1530,17 +1445,9 @@ const MobileBottomSheet = () => {
             let timerProps = null;
             if (searchDateParam && bus.departureTime) {
               const now = new Date();
-              const [depHour, depMinute] = bus.departureTime
-                .split(":")
-                .map(Number);
+              const [depHour, depMinute] = bus.departureTime.split(":").map(Number);
               const [year, month, day] = searchDateParam.split("-").map(Number);
-              const departureDateTime = new Date(
-                year,
-                month - 1,
-                day,
-                depHour,
-                depMinute
-              );
+              const departureDateTime = new Date(year, month - 1, day, depHour, depMinute);
               const busDepartureTimestamp = departureDateTime.getTime();
               const diffMilliseconds = busDepartureTimestamp - now.getTime();
               const diffHours = diffMilliseconds / (1000 * 60 * 60);
@@ -1563,7 +1470,6 @@ const MobileBottomSheet = () => {
             const availableSeats = busAvailability?.available;
             const availableWindowSeats = busAvailability?.window;
 
-            // FIX: don't treat null/undefined as sold out (only 0 is sold out)
             const isSoldOut = availableSeats === 0;
 
             const currentBusBookingData = busSpecificBookingData[busKey] || {
@@ -1586,7 +1492,7 @@ const MobileBottomSheet = () => {
                 key={busKey}
                 className="bg-white rounded-xl transition-shadow duration-300 mb-3 md:mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
               >
-                {/* --- MOBILE CARD (opens full-page flow) --- */}
+                {/* MOBILE CARD */}
                 <div
                   className={`md:hidden block ${
                     isSoldOut ? "opacity-60 bg-gray-50" : "cursor-pointer"
@@ -1596,7 +1502,6 @@ const MobileBottomSheet = () => {
                   }}
                 >
                   <div className="p-3 md:p-4">
-                    {/* Row: Time & Price */}
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
@@ -1615,15 +1520,11 @@ const MobileBottomSheet = () => {
                         <div className="mt-1.5 text-xs text-gray-500 flex items-center">
                           <span className="inline-flex items-center gap-1">
                             <FaClock className="text-[10px]" />
-                            {calculateDuration(
-                              bus.departureTime,
-                              bus.arrivalTime
-                            )}
+                            {calculateDuration(bus.departureTime, bus.arrivalTime)}
                           </span>
                           {typeof availableSeats === "number" && (
                             <>
                               <span className="mx-2">&middot;</span>
-                              {/* NEW seats-left pill (soft red) */}
                               <span
                                 className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
                                 style={{
@@ -1637,22 +1538,15 @@ const MobileBottomSheet = () => {
                           )}
                         </div>
 
-                        {/* Countdown pill */}
                         {timerProps && (
                           <div className="mt-2 inline-flex">
                             <div
                               className="px-2 py-0.5 rounded-lg text-[11px]"
-                              style={{
-                                backgroundColor: "#FFF7ED",
-                              }}
+                              style={{ backgroundColor: "#FFF7ED" }}
                             >
                               <BookingDeadlineTimer
-                                deadlineTimestamp={
-                                  timerProps.deadlineTimestamp
-                                }
-                                departureTimestamp={
-                                  timerProps.departureTimestamp
-                                }
+                                deadlineTimestamp={timerProps.deadlineTimestamp}
+                                departureTimestamp={timerProps.departureTimestamp}
                                 onDeadline={timerProps.onDeadline}
                               />
                             </div>
@@ -1680,14 +1574,11 @@ const MobileBottomSheet = () => {
 
                     <hr className="my-2 md:my-3 border-t border-gray-100" />
 
-                    {/* Row: Name / Type / Logo */}
                     <div className="flex items-center justify-between">
                       <div className="min-w-0 pr-3">
                         <h4 className="text-[15px] font-medium text-gray-800 truncate">
                           {bus.name}
                         </h4>
-
-                        {/* Bus type with soft AC pill */}
                         <div className="flex items-center gap-2">
                           {isACType(bus.busType) ? (
                             <>
@@ -1698,10 +1589,7 @@ const MobileBottomSheet = () => {
                               )}
                               <span
                                 className="px-2 py-0.5 rounded-lg text-[11px] font-semibold"
-                                style={{
-                                  backgroundColor: PALETTE.acPillBg,
-                                  color: "#1D4ED8",
-                                }}
+                                style={{ backgroundColor: PALETTE.acPillBg, color: "#1D4ED8" }}
                               >
                                 AC
                               </span>
@@ -1730,7 +1618,7 @@ const MobileBottomSheet = () => {
                   </div>
                 </div>
 
-                {/* --- DESKTOP VIEW (unchanged layout; AC pill added) --- */}
+                {/* DESKTOP CARD */}
                 <div className="hidden md:block p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-2">
@@ -1744,46 +1632,30 @@ const MobileBottomSheet = () => {
                               style={{ border: "none", boxShadow: "none" }}
                             />
                           ) : (
-                            <FaBus
-                              className="text-3xl"
-                              style={{ color: "#6B7280" }}
-                            />
+                            <FaBus className="text-3xl" style={{ color: "#6B7280" }} />
                           )}
                         </div>
                         <div>
-                          <h3
-                            className="text-base font-semibold"
-                            style={{ color: "#111827" }}
-                          >
+                          <h3 className="text-base font-semibold" style={{ color: "#111827" }}>
                             {bus.name}
                           </h3>
-                          {/* AC pill for desktop too */}
                           <div className="flex items-center gap-2">
                             {isACType(bus.busType) ? (
                               <>
                                 {stripACWord(bus.busType) && (
-                                  <p
-                                    className="text-sm font-medium"
-                                    style={{ color: "#4B5563" }}
-                                  >
+                                  <p className="text-sm font-medium" style={{ color: "#4B5563" }}>
                                     {stripACWord(bus.busType)}
                                   </p>
                                 )}
                                 <span
                                   className="px-2 py-0.5 rounded-lg text-xs font-semibold"
-                                  style={{
-                                    backgroundColor: PALETTE.acPillBg,
-                                    color: "#1D4ED8",
-                                  }}
+                                  style={{ backgroundColor: PALETTE.acPillBg, color: "#1D4ED8" }}
                                 >
                                   AC
                                 </span>
                               </>
                             ) : (
-                              <p
-                                className="text-sm font-medium"
-                                style={{ color: "#4B5563" }}
-                              >
+                              <p className="text-sm font-medium" style={{ color: "#4B5563" }}>
                                 {bus.busType}
                               </p>
                             )}
@@ -1801,58 +1673,33 @@ const MobileBottomSheet = () => {
                       <div className="mb-1">
                         <div className="flex items-center">
                           <div className="flex flex-col min-w-[84px]">
-                            <span
-                              className="text-[11px] uppercase tracking-wide"
-                              style={{ color: "#6B7280" }}
-                            >
+                            <span className="text-[11px] uppercase tracking-wide" style={{ color: "#6B7280" }}>
                               Departs
                             </span>
-                            <span
-                              className="text-xl font-semibold tabular-nums"
-                              style={{ color: "#111827" }}
-                            >
+                            <span className="text-xl font-semibold tabular-nums" style={{ color: "#111827" }}>
                               {bus.departureTime}
                             </span>
                           </div>
                           <div className="flex-1 mx-3">
-                            <div
-                              className="h-[2px] w-full rounded"
-                              style={{ backgroundColor: "#E5E7EB" }}
-                            />
+                            <div className="h-[2px] w-full rounded" style={{ backgroundColor: "#E5E7EB" }} />
                           </div>
                           <div className="flex flex-col min-w-[84px] text-right">
-                            <span
-                              className="text-[11px] uppercase tracking-wide"
-                              style={{ color: "#6B7280" }}
-                            >
+                            <span className="text-[11px] uppercase tracking-wide" style={{ color: "#6B7280" }}>
                               Arrives
                             </span>
-                            <span
-                              className="text-xl font-semibold tabular-nums"
-                              style={{ color: "#111827" }}
-                            >
+                            <span className="text-xl font-semibold tabular-nums" style={{ color: "#111827" }}>
                               {bus.arrivalTime}
                             </span>
                           </div>
                         </div>
-                        <div
-                          className="mt-1 flex flex-wrap items-center gap-3 text-xs"
-                          style={{ color: "#6B7280" }}
-                        >
+                        <div className="mt-1 flex flex-wrap items-center gap-3 text-xs" style={{ color: "#6B7280" }}>
                           <span className="inline-flex items-center gap-1">
-                            <FaClock />{" "}
-                            {calculateDuration(
-                              bus.departureTime,
-                              bus.arrivalTime
-                            )}
+                            <FaClock /> {calculateDuration(bus.departureTime, bus.arrivalTime)}
                           </span>
-                          {typeof availableSeats === "number" && (
-                            <span>{availableSeats} seats</span>
+                          {typeof availableSeats === "number" && <span>{availableSeats} seats</span>}
+                          {typeof availableWindowSeats === "number" && availableWindowSeats > 0 && (
+                            <span>{availableWindowSeats} window</span>
                           )}
-                          {typeof availableWindowSeats === "number" &&
-                            availableWindowSeats > 0 && (
-                              <span>{availableWindowSeats} window</span>
-                            )}
                         </div>
                       </div>
                       {timerProps && (
@@ -1866,9 +1713,7 @@ const MobileBottomSheet = () => {
                     <div className="flex flex-col items-start md:items-end">
                       <p
                         className="text-sm font-medium"
-                        style={{
-                          color: availableSeats > 0 ? "#EF4444" : "#9CA3AF",
-                        }}
+                        style={{ color: availableSeats > 0 ? "#EF4444" : "#9CA3AF" }}
                       >
                         {isSoldOut
                           ? "Sold Out"
@@ -1878,31 +1723,19 @@ const MobileBottomSheet = () => {
                       </p>
                       <div className="mt-2 inline-block text-right">
                         {hasStrike && (
-                          <div
-                            className="text-xs line-through"
-                            style={{ color: "#9CA3AF" }}
-                          >
+                          <div className="text-xs line-through" style={{ color: "#9CA3AF" }}>
                             Rs. {bus.originalPrice}
                           </div>
                         )}
                         <div className="leading-tight">
-                          <span
-                            className="text-[11px] font-medium mr-1 align-top"
-                            style={{ color: "#6B7280" }}
-                          >
+                          <span className="text-[11px] font-medium mr-1 align-top" style={{ color: "#6B7280" }}>
                             Rs.
                           </span>
-                          <span
-                            className="text-2xl font-bold tabular-nums"
-                            style={{ color: "#111827" }}
-                          >
+                          <span className="text-2xl font-bold tabular-nums" style={{ color: "#111827" }}>
                             {displayPrice}
                           </span>
                         </div>
-                        <div
-                          className="text-[11px] font-medium mt-0.5"
-                          style={{ color: "#6B7280" }}
-                        >
+                        <div className="text-[11px] font-medium mt-0.5" style={{ color: "#6B7280" }}>
                           Onwards
                         </div>
                       </div>
@@ -1912,9 +1745,7 @@ const MobileBottomSheet = () => {
                         onClick={() => handleToggleSeatLayout(bus)}
                         disabled={isSoldOut}
                         className="w-full md:w-auto mt-3 px-6 py-2.5 text-white font-semibold rounded-full transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-                        style={{
-                          backgroundColor: isSoldOut ? "#9CA3AF" : "#DC2626",
-                        }}
+                        style={{ backgroundColor: isSoldOut ? "#9CA3AF" : "#DC2626" }}
                       >
                         {isSoldOut
                           ? "Sold Out"
@@ -1924,6 +1755,7 @@ const MobileBottomSheet = () => {
                       </motion.button>
                     </div>
                   </div>
+
                   {expandedBusId === busKey && (
                     <AnimatePresence>
                       <motion.div
@@ -1940,18 +1772,10 @@ const MobileBottomSheet = () => {
                               <SeatLayout
                                 seatLayout={bus.seatLayout}
                                 bookedSeats={busAvailability?.bookedSeats || []}
-                                selectedSeats={
-                                  currentBusBookingData.selectedSeats
-                                }
-                                onSeatClick={(seat) =>
-                                  handleSeatToggle(bus, seat)
-                                }
-                                bookedSeatGenders={
-                                  busAvailability?.seatGenderMap || {}
-                                }
-                                selectedSeatGenders={
-                                  currentBusBookingData.seatGenders
-                                }
+                                selectedSeats={currentBusBookingData.selectedSeats}
+                                onSeatClick={(seat) => handleSeatToggle(bus, seat)}
+                                bookedSeatGenders={busAvailability?.seatGenderMap || {}}
+                                selectedSeatGenders={currentBusBookingData.seatGenders}
                               />
                             </div>
                           </div>
@@ -1960,39 +1784,23 @@ const MobileBottomSheet = () => {
                               <PointSelection
                                 boardingPoints={bus.boardingPoints}
                                 droppingPoints={bus.droppingPoints}
-                                selectedBoardingPoint={
-                                  currentBusBookingData.selectedBoardingPoint
-                                }
-                                setSelectedBoardingPoint={(point) =>
-                                  handleBoardingPointSelect(bus, point)
-                                }
-                                selectedDroppingPoint={
-                                  currentBusBookingData.selectedDroppingPoint
-                                }
-                                setSelectedDroppingPoint={(point) =>
-                                  handleDroppingPointSelect(bus, point)
-                                }
+                                selectedBoardingPoint={currentBusBookingData.selectedBoardingPoint}
+                                setSelectedBoardingPoint={(point) => handleBoardingPointSelect(bus, point)}
+                                selectedDroppingPoint={currentBusBookingData.selectedDroppingPoint}
+                                setSelectedDroppingPoint={(point) => handleDroppingPointSelect(bus, point)}
                               />
                             </div>
                             <div className="w-full mx-auto xs:max-w-xs sm:max-w-sm">
                               <BookingSummary
                                 bus={bus}
-                                selectedSeats={
-                                  currentBusBookingData.selectedSeats
-                                }
+                                selectedSeats={currentBusBookingData.selectedSeats}
                                 date={searchDateParam}
                                 basePrice={currentBusBookingData.basePrice}
-                                convenienceFee={
-                                  currentBusBookingData.convenienceFee
-                                }
+                                convenienceFee={currentBusBookingData.convenienceFee}
                                 totalPrice={currentBusBookingData.totalPrice}
                                 onProceed={() => handleProceedToPayment(bus)}
-                                boardingPoint={
-                                  currentBusBookingData.selectedBoardingPoint
-                                }
-                                droppingPoint={
-                                  currentBusBookingData.selectedDroppingPoint
-                                }
+                                boardingPoint={currentBusBookingData.selectedBoardingPoint}
+                                droppingPoint={currentBusBookingData.selectedDroppingPoint}
                               />
                             </div>
                           </div>
@@ -2019,7 +1827,7 @@ const MobileBottomSheet = () => {
     <div className="flex flex-col min-h-screen font-sans">
       <Toaster position="top-right" />
 
-      {/* ======= HEADER (Mobile + Desktop) ======= */}
+      {/* HEADER */}
       <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           {/* Mobile header */}
@@ -2033,15 +1841,11 @@ const MobileBottomSheet = () => {
                 <FaChevronLeft className="text-xl" />
               </button>
 
-              {/* Date chip on the right (soft yellow) */}
               <button
                 onClick={handleMobileDateChipClick}
                 className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
                 aria-label="Change date"
-                style={{
-                  background: PALETTE.datePillBg,
-                  borderColor: "#FCEFC7",
-                }}
+                style={{ background: PALETTE.datePillBg, borderColor: "#FCEFC7" }}
               >
                 <span className="text-sm font-semibold leading-none">
                   {getMobileDateParts(searchDate).top}
@@ -2052,28 +1856,20 @@ const MobileBottomSheet = () => {
               </button>
             </div>
 
-            {/* Route title */}
             <div className="mt-2">
-              <h1
-                className="text-2xl font-bold tracking-tight"
-                style={{ color: PALETTE.textDark }}
-              >
+              <h1 className="text-2xl font-bold tracking-tight" style={{ color: PALETTE.textDark }}>
                 {from} <span className="mx-1.5">→</span> {to}
               </h1>
               {!loading && !fetchError && (
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {sortedBuses.length} buses
-                </p>
+                <p className="text-xs text-gray-500 mt-0.5">{sortedBuses.length} buses</p>
               )}
             </div>
 
-            {/* Breadcrumb (tiny, subdued) */}
             <div className="mt-2 text-[11px] text-gray-500">
               Bus Ticket <span className="mx-1 text-gray-400">›</span>
               {from} to {to} Bus
             </div>
 
-            {/* hidden mobile date picker */}
             <input
               ref={mobileDateInputRef}
               type="date"
@@ -2093,42 +1889,28 @@ const MobileBottomSheet = () => {
                 className="text-xl mr-2 cursor-pointer"
                 onClick={() => navigate("/")}
               />
-              <span
-                className="text-sm font-medium"
-                style={{ color: PALETTE.textLight }}
-              >
+              <span className="text-sm font-medium" style={{ color: PALETTE.textLight }}>
                 Bus Ticket
               </span>
               <span className="mx-1 text-gray-400 text-sm">&gt;</span>
-              <span
-                className="text-sm font-medium"
-                style={{ color: PALETTE.textLight }}
-              >
+              <span className="text-sm font-medium" style={{ color: PALETTE.textLight }}>
                 {from} to {to} Bus
               </span>
             </div>
-            <h1
-              className="text-2xl font-bold"
-              style={{ color: PALETTE.textDark }}
-            >
-              {from}{" "}
-              <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
+            <h1 className="text-2xl font-bold" style={{ color: PALETTE.textDark }}>
+              {from} <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
             </h1>
             {!loading && !fetchError && (
-              <p className="text-sm text-gray-500 mb-4">
-                {sortedBuses.length} buses
-              </p>
+              <p className="text-sm text-gray-500 mb-4">{sortedBuses.length} buses</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Sticky search controls (desktop only) */}
+      {/* Sticky search controls (desktop) */}
       <div
         ref={stickySearchCardRef}
-        className={`${
-          !isNavbarAnimating ? "sticky" : ""
-        } z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
+        className={`${!isNavbarAnimating ? "sticky" : ""} z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
         style={{
           top: `${searchCardStickyTopOffset}px`,
           backgroundColor: `${PALETTE.white}F2`,
@@ -2137,7 +1919,6 @@ const MobileBottomSheet = () => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="bg-white border border-gray-300 rounded-3xl">
-            {/* Desktop search controls */}
             <div className="hidden lg:flex rounded-2xl">
               <div
                 className="relative flex-1 p-4 flex items-center border-r"
@@ -2153,20 +1934,13 @@ const MobileBottomSheet = () => {
                   </label>
                   <Select
                     options={fromOptions}
-                    value={
-                      searchFrom
-                        ? { value: searchFrom, label: searchFrom }
-                        : null
-                    }
+                    value={searchFrom ? { value: searchFrom, label: searchFrom } : null}
                     onChange={(s) => setSearchFrom(s?.value || "")}
                     placeholder="Select departure"
                     isClearable
                     styles={selectStyles}
                     menuPortalTarget={document.body}
-                    components={{
-                      DropdownIndicator: () => null,
-                      IndicatorSeparator: () => null,
-                    }}
+                    components={{ DropdownIndicator: () => null, IndicatorSeparator: () => null }}
                   />
                 </div>
                 <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 z-20">
@@ -2196,18 +1970,13 @@ const MobileBottomSheet = () => {
                   </label>
                   <Select
                     options={toOptions}
-                    value={
-                      searchTo ? { value: searchTo, label: searchTo } : null
-                    }
+                    value={searchTo ? { value: searchTo, label: searchTo } : null}
                     onChange={(s) => setSearchTo(s?.value || "")}
                     placeholder="Select destination"
                     isClearable
                     styles={selectStyles}
                     menuPortalTarget={document.body}
-                    components={{
-                      DropdownIndicator: () => null,
-                      IndicatorSeparator: () => null,
-                    }}
+                    components={{ DropdownIndicator: () => null, IndicatorSeparator: () => null }}
                   />
                 </div>
               </div>
@@ -2220,14 +1989,8 @@ const MobileBottomSheet = () => {
                   >
                     Date of Journey
                   </label>
-                  <div
-                    onClick={handleDateContainerClick}
-                    className="cursor-pointer"
-                  >
-                    <span
-                      className="text-lg font-medium"
-                      style={{ color: PALETTE.textDark }}
-                    >
+                  <div onClick={handleDateContainerClick} className="cursor-pointer">
+                    <span className="text-lg font-medium" style={{ color: PALETTE.textDark }}>
                       {getReadableDate(searchDate)}
                     </span>
                   </div>
@@ -2237,9 +2000,7 @@ const MobileBottomSheet = () => {
                       className={`text-xs font-medium mr-3 hover:underline`}
                       style={{
                         color:
-                          searchDate === todayStr
-                            ? PALETTE.primaryRed
-                            : PALETTE.accentBlue,
+                          searchDate === todayStr ? PALETTE.primaryRed : PALETTE.accentBlue,
                       }}
                     >
                       Today
@@ -2249,9 +2010,7 @@ const MobileBottomSheet = () => {
                       className={`text-xs font-medium hover:underline`}
                       style={{
                         color:
-                          searchDate === tomorrowStr
-                            ? PALETTE.primaryRed
-                            : PALETTE.accentBlue,
+                          searchDate === tomorrowStr ? PALETTE.primaryRed : PALETTE.accentBlue,
                       }}
                     >
                       Tomorrow
@@ -2279,15 +2038,12 @@ const MobileBottomSheet = () => {
                 </motion.button>
               </div>
             </div>
-            {/* No mobile modify-search bar */}
           </div>
         </div>
       </div>
 
-      <div
-        className="flex-1 w-full pb-8"
-        style={{ backgroundColor: PALETTE.bgLight }}
-      >
+      {/* Content */}
+      <div className="flex-1 w-full pb-8" style={{ backgroundColor: PALETTE.bgLight }}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
             <aside
@@ -2300,16 +2056,12 @@ const MobileBottomSheet = () => {
                 transition: "top 0.3s ease-in-out",
               }}
             >
-              <FilterPanel
-                isMobile={false}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-              />
+              <FilterPanel isMobile={false} sortBy={sortBy} setSortBy={setSortBy} />
             </aside>
             <main className="lg:col-span-3 space-y-5">
               <SpecialNoticesSection />
 
-              {/* Mobile: Show Filters & Sort button (opens drawer) */}
+              {/* Mobile drawer button */}
               <button
                 onClick={() => setIsFilterOpen(true)}
                 className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg lg:hidden text-white"
@@ -2329,7 +2081,7 @@ const MobileBottomSheet = () => {
         </div>
       </div>
 
-      {/* MOBILE FILTER DRAWER + BACKDROP */}
+      {/* Mobile filter drawer */}
       <AnimatePresence>
         {isFilterOpen && (
           <>
@@ -2349,17 +2101,13 @@ const MobileBottomSheet = () => {
               animate="visible"
               exit="hidden"
             >
-              <FilterPanel
-                isMobile={true}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-              />
+              <FilterPanel isMobile={true} sortBy={sortBy} setSortBy={setSortBy} />
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
-      {/* GLOBAL MOBILE FULL-PAGE FLOW (PORTALED, stable) */}
+      {/* Global mobile full-page flow */}
       <MobileBottomSheet />
     </div>
   );
