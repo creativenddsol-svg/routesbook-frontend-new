@@ -2,16 +2,13 @@
 import axios from "axios";
 
 /**
- * Resolve API base URL from env (CRA or Vite) with a safe fallback.
- * Change the fallback to your own production URL if needed.
+ * Resolve API base URL from env with a safe fallback.
+ * Set REACT_APP_API_URL in Vercel → Project → Settings → Environment Variables.
  */
 const API_BASE_URL =
   (typeof process !== "undefined" &&
     process.env &&
     process.env.REACT_APP_API_URL) ||
-  (typeof import.meta !== "undefined" &&
-    import.meta.env &&
-    import.meta.env.VITE_API_URL) ||
   "https://routesbook-backend-api.onrender.com/api"; // fallback
 
 /**
@@ -24,29 +21,48 @@ const apiClient = axios.create({
 
 /**
  * Generate / read a persistent, anonymous client id.
- * Used to safely identify a user before login for seat locking.
+ * Avoids `globalThis` to satisfy CRA/ESLint.
  */
 export const getClientId = () => {
   try {
     let id = localStorage.getItem("rb_client_id");
     if (!id) {
-      // Use crypto UUID when available; fall back to a short random id
-      id =
-        (globalThis.crypto && crypto.randomUUID && crypto.randomUUID()) ||
-        `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      // Prefer crypto.randomUUID when available in the browser
+      const hasUUID =
+        typeof window !== "undefined" &&
+        window.crypto &&
+        typeof window.crypto.randomUUID === "function";
+      if (hasUUID) {
+        id = window.crypto.randomUUID();
+      } else {
+        // Fallbacks for older browsers
+        const hasRand =
+          typeof window !== "undefined" &&
+          window.crypto &&
+          typeof window.crypto.getRandomValues === "function";
+        if (hasRand) {
+          const buf = new Uint32Array(2);
+          window.crypto.getRandomValues(buf);
+          id = `${Date.now()}-${Array.from(buf)
+            .map((n) => n.toString(16))
+            .join("")}`;
+        } else {
+          id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+        }
+      }
       localStorage.setItem("rb_client_id", id);
     }
     return id;
   } catch {
-    // In very restricted environments, fall back to a non-persistent id
+    // Non-persistent fallback (very restricted environments)
     return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
   }
 };
 
 /**
  * Request interceptor:
- * - Attaches Authorization header if a token exists (adjust key if your app uses a different one)
- * - Adds a persistent clientId to seat-lock related routes (body/params as needed)
+ * - Attaches Authorization header if a token exists
+ * - Adds a persistent clientId for seat-lock related routes
  */
 apiClient.interceptors.request.use(
   (config) => {
@@ -59,7 +75,7 @@ apiClient.interceptors.request.use(
 
     const clientId = getClientId();
     config.headers = config.headers || {};
-    config.headers["x-client-id"] = clientId; // optional header (useful for logs)
+    config.headers["x-client-id"] = clientId; // optional (useful for logs)
 
     const url = (config.url || "").toLowerCase();
     const method = (config.method || "get").toLowerCase();
@@ -75,7 +91,7 @@ apiClient.interceptors.request.use(
       config.params = { ...(config.params || {}), clientId };
     };
 
-    // Automatically include clientId for these endpoints
+    // Auto-include clientId where the backend expects it
     if (url.includes("/bookings/lock") && method === "post") {
       attachClientIdToData();
     }
@@ -91,10 +107,6 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/**
- * (Optional) Response interceptor – here just passes errors through.
- * You can add global handling for 401/403, logging, etc.
- */
 apiClient.interceptors.response.use(
   (res) => res,
   (err) => Promise.reject(err)
