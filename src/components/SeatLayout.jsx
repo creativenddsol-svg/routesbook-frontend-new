@@ -23,18 +23,20 @@ const PALETTE = {
 };
 
 /* ---------- Single Seat ---------- */
-const Seat = ({ seat, isBooked, isSelected, gender, onClick, title }) => {
+const Seat = ({ seat, isBooked, isLocked, isSelected, gender, onClick, title }) => {
   const stateClasses = isBooked
     ? gender === "F"
       ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed" // female booked
       : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed" // male booked
+    : isLocked
+    ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5] cursor-not-allowed" // LOCKED (low red)
     : isSelected
     ? "bg-[#4C6EF5] text-white border-[#3F5ED8] scale-105 shadow-sm cursor-pointer" // SELECTED = matte blue
     : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5] cursor-pointer"; // available + blue hover
 
   return (
     <div
-      onClick={!isBooked ? onClick : undefined}
+      onClick={!isBooked && !isLocked ? onClick : undefined}
       title={title}
       className={`flex items-center justify-center font-semibold border-2 rounded-lg transition-all duration-200 select-none
         w-8 h-8 text-xs sm:w-10 sm:h-10 sm:text-sm ${stateClasses}`}
@@ -47,6 +49,7 @@ const Seat = ({ seat, isBooked, isSelected, gender, onClick, title }) => {
 Seat.propTypes = {
   seat: PropTypes.string.isRequired,
   isBooked: PropTypes.bool.isRequired,
+  isLocked: PropTypes.bool.isRequired,
   isSelected: PropTypes.bool.isRequired,
   gender: PropTypes.string,
   onClick: PropTypes.func.isRequired,
@@ -84,8 +87,17 @@ const SeatLayout = ({
 
   const getSeatStatus = (seat) => {
     const isBooked = !!bookedSeatGenders[seat];
+    // A seat is considered "locked (by others)" if it's in bookedSeats but has no gender mapping
+    // AND it's not one of my currently selected seats.
+    const isLocked =
+      Array.isArray(bookedSeats) &&
+      bookedSeats.includes(seat) &&
+      !bookedSeatGenders[seat] &&
+      !selectedSeats.includes(seat);
+
     return {
       isBooked,
+      isLocked,
       isSelected: selectedSeats.includes(seat),
       gender: isBooked ? bookedSeatGenders[seat] : null,
     };
@@ -110,7 +122,7 @@ const SeatLayout = ({
 
           const seatStatus = getSeatStatus(seat);
           let tooltipTitle = "";
-          if (!seatStatus.isBooked && !seatStatus.isSelected) {
+          if (!seatStatus.isBooked && !seatStatus.isLocked && !seatStatus.isSelected) {
             const adj = getAdjacentSeatInfo(seatNumber, layoutGrid);
             if (adj) tooltipTitle = `Adjacent seat booked by a ${adj === "F" ? "Female" : "Male"}`;
           }
