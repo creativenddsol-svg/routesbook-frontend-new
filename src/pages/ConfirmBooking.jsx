@@ -1,5 +1,5 @@
 // src/pages/ConfirmBooking.jsx
-import { useMemo, useState, useCallback, memo } from "react";
+import { useMemo, useState, useCallback, memo, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import apiClient from "../api"; // baseURL configured inside ../api
@@ -108,6 +108,94 @@ const GenderSeatPill = ({ gender, children }) => {
       style={{ background: bg, color: fg }}
     >
       {children}
+    </span>
+  );
+};
+
+// --- Live hold countdown (15 min seat lock) ---
+const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [remainingMs, setRemainingMs] = useState(null);
+
+  // Try multiple endpoints; fallback to 15 minutes from now if unavailable
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchRemaining = async () => {
+      const params = { busId, date, departureTime };
+      let ms = null;
+      let serverExpiry = null;
+      try {
+        const r1 = await apiClient.get("/bookings/lock-remaining", { params });
+        ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
+        serverExpiry = r1?.data?.expiresAt || null;
+      } catch {
+        try {
+          const r2 = await apiClient.get("/bookings/lock/remaining", { params });
+          ms = r2?.data?.remainingMs ?? r2?.data?.ms ?? null;
+          serverExpiry = r2?.data?.expiresAt || null;
+        } catch {
+          // ignore; will fallback
+        }
+      }
+      const fallback = Date.now() + 15 * 60 * 1000;
+      const target = serverExpiry
+        ? new Date(serverExpiry).getTime()
+        : ms != null
+        ? Date.now() + Math.max(0, Number(ms))
+        : fallback;
+
+      if (mounted) {
+        setExpiresAt(target);
+        setRemainingMs(Math.max(0, target - Date.now()));
+      }
+    };
+
+    fetchRemaining();
+
+    const id = setInterval(() => {
+      if (!expiresAt) return;
+      const left = Math.max(0, expiresAt - Date.now());
+      setRemainingMs(left);
+      if (left <= 0) {
+        clearInterval(id);
+        onExpire && onExpire();
+      }
+    }, 1000);
+
+    return () => {
+      mounted = false;
+      clearInterval(id);
+    };
+  }, [busId, date, departureTime, expiresAt, onExpire]);
+
+  if (remainingMs == null) {
+    return (
+      <span
+        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+        style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
+      >
+        Securing seats…
+      </span>
+    );
+  }
+
+  const total = Math.ceil(remainingMs / 1000);
+  const mm = String(Math.floor(total / 60)).padStart(2, "0");
+  const ss = String(total % 60).padStart(2, "0");
+
+  const expired = total <= 0;
+
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-extrabold tabular-nums"
+      style={{
+        background: expired ? "#FEE2E2" : PALETTE.seatPillBg,
+        color: expired ? "#991B1B" : PALETTE.primary,
+      }}
+      title="Your reserved seats are held for 15 minutes"
+    >
+      {expired ? "Hold expired" : `Hold: ${mm}:${ss}`}
     </span>
   );
 };
@@ -307,9 +395,17 @@ const ConfirmBooking = () => {
 
   const [termsAccepted, setTermsAccepted] = useState(false);
 
+  // track hold status to protect proceed action
+  const [holdExpired, setHoldExpired] = useState(false);
+
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
+
+      if (holdExpired) {
+        alert("Your seat hold has expired. Please go back and reselect seats.");
+        return;
+      }
 
       if (!form.name || !form.mobile || !form.nic || !form.email) {
         alert("Please fill in all contact details.");
@@ -368,6 +464,7 @@ const ConfirmBooking = () => {
       selectedBoardingPoint,
       prices,
       termsAccepted,
+      holdExpired,
     ]
   );
 
@@ -437,6 +534,13 @@ const ConfirmBooking = () => {
               <SeatPill>
                 {selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
+              {/* Live hold countdown */}
+              <HoldCountdown
+                busId={bus?._id}
+                date={date}
+                departureTime={departureTime}
+                onExpire={() => setHoldExpired(true)}
+              />
             </div>
           </div>
 
@@ -566,6 +670,11 @@ const ConfirmBooking = () => {
                 Rs. {prices.total.toFixed(2)}
               </span>
             </div>
+            {holdExpired && (
+              <p className="text-xs mt-2 font-semibold" style={{ color: "#991B1B" }}>
+                Your seat hold has expired. Please go back and reselect seats.
+              </p>
+            )}
           </div>
         </SectionCard>
 
@@ -600,7 +709,7 @@ const ConfirmBooking = () => {
           </div>
           <button
             type="button"
-            disabled={!termsAccepted}
+            disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
               // reuse validation
               handleSubmit({ preventDefault: () => {} });
