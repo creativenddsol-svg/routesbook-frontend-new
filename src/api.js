@@ -77,8 +77,15 @@ apiClient.interceptors.request.use(
 
     if (url.includes("/bookings/lock") && method === "post") addToData();
     if (url.includes("/bookings/release") && method === "delete") addToData();
-    if (url.includes("/bookings/lock-remaining") && method === "get")
+
+    // 🔁 Also support both "lock-remaining" and "lock/remaining"
+    if (
+      method === "get" &&
+      (url.includes("/bookings/lock-remaining") ||
+        url.includes("/bookings/lock/remaining"))
+    ) {
       addToParams();
+    }
 
     return config;
   },
