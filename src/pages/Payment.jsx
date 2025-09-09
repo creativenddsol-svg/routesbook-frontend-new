@@ -3,8 +3,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
   FaBus,
-  FaCalendarAlt,
-  FaClock,
   FaMapMarkerAlt,
   FaUserCircle,
   FaUsers,
