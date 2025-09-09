@@ -4,8 +4,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
   FaBus,
-  FaCalendarAlt,
-  FaClock,
   FaMapMarkerAlt,
   FaUserCircle,
   FaUsers,
@@ -22,7 +20,15 @@ import {
 // ✅ Use shared apiClient instead of axios
 import apiClient from "../api";
 
-const HoldCountdown = ({ busId, date, departureTime, onExpire, onTick }) => {
+/* ---------------- Hold countdown for THIS user's seats ---------------- */
+const HoldCountdown = ({
+  busId,
+  date,
+  departureTime,
+  seats, // array of seat strings
+  onExpire,
+  onTick,
+}) => {
   const [expiresAt, setExpiresAt] = useState(null);
   const [remainingMs, setRemainingMs] = useState(null);
 
@@ -32,12 +38,19 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire, onTick }) => {
 
     const fetchRemaining = async () => {
       try {
-        const r1 = await apiClient.get("/bookings/lock-remaining", {
-          params: { busId, date, departureTime },
+        const token = localStorage.getItem("token");
+        const res = await apiClient.get("/bookings/lock-remaining", {
+          params: {
+            busId,
+            date,
+            departureTime,
+            seats: Array.isArray(seats) ? seats : [],
+          },
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
-        const ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
-        const serverExpiry = r1?.data?.expiresAt || null;
 
+        const ms = res?.data?.remainingMs ?? res?.data?.ms ?? null;
+        const serverExpiry = res?.data?.expiresAt || null;
         const target = serverExpiry
           ? new Date(serverExpiry).getTime()
           : ms != null
@@ -49,7 +62,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire, onTick }) => {
           setRemainingMs(Math.max(0, target - Date.now()));
         }
       } catch {
-        // ignore; pay button will still re-lock before booking
+        // ignore: if we can't read remaining, UI will still allow re-lock and Pay will relock again.
       }
     };
 
@@ -70,7 +83,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire, onTick }) => {
       mounted = false;
       clearInterval(timerId);
     };
-  }, [busId, date, departureTime, expiresAt, onExpire, onTick]);
+  }, [busId, date, departureTime, seats, expiresAt, onExpire, onTick]);
 
   if (remainingMs == null) return null;
 
@@ -111,6 +124,17 @@ const PaymentPage = () => {
   const isIncomplete =
     !bus || !priceDetails || !passenger || !departureTime;
 
+  const selectedSeatStrings = selectedSeats.map(String);
+
+  const makeSeatAllocations = () => {
+    return passengers.length > 0
+      ? passengers.map((p) => ({ seat: String(p.seat), gender: p.gender }))
+      : selectedSeatStrings.map((s) => ({
+          seat: s,
+          gender: seatGenders[s] || "M",
+        }));
+  };
+
   const ensureSeatLock = async () => {
     if (isIncomplete) {
       setLockOk(false);
@@ -123,11 +147,12 @@ const PaymentPage = () => {
       setLockMsg("Please login to lock seats.");
       return false;
     }
-    if (!selectedSeats?.length) {
+    if (!selectedSeatStrings.length) {
       setLockOk(false);
       setLockMsg("No seats selected.");
       return false;
     }
+
     setLocking(true);
     setLockMsg("");
     try {
@@ -135,7 +160,9 @@ const PaymentPage = () => {
         busId: bus._id,
         date,
         departureTime,
-        seats: selectedSeats.map(String),
+        seats: selectedSeatStrings,
+        // 🔒 send genders too – some backends bind lock to seat+gender
+        seatAllocations: makeSeatAllocations(),
       };
       const res = await apiClient.post("/bookings/lock", payload, {
         headers: { Authorization: `Bearer ${token}` },
@@ -143,6 +170,7 @@ const PaymentPage = () => {
       const ok = res?.data?.ok !== false;
       setLockOk(ok);
       if (!ok) setLockMsg(res?.data?.message || "Seat lock failed.");
+      if (ok) setHoldExpired(false);
       return ok;
     } catch (err) {
       const msg =
@@ -164,9 +192,27 @@ const PaymentPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isIncomplete]);
 
+  const tryCreateBooking = async () => {
+    const token = localStorage.getItem("token");
+    const bookingPayload = {
+      busId: bus._id,
+      date,
+      departureTime,
+      passenger,
+      selectedSeats: selectedSeatStrings,
+      passengers,
+      seatAllocations: makeSeatAllocations(),
+      boardingPoint: selectedBoardingPoint,
+      droppingPoint: selectedDroppingPoint,
+    };
+    return apiClient.post("/bookings", bookingPayload, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  };
+
   const handleFakePayment = async () => {
     // Re-check/refresh the lock right before paying
-    const ok = await ensureSeatLock();
+    let ok = await ensureSeatLock();
     if (!ok) {
       alert(
         lockMsg ||
@@ -187,30 +233,8 @@ const PaymentPage = () => {
         return;
       }
 
-      const seatAllocations =
-        passengers.length > 0
-          ? passengers.map((p) => ({ seat: String(p.seat), gender: p.gender }))
-          : selectedSeats.map((s) => ({
-              seat: String(s),
-              gender: seatGenders[String(s)] || "M",
-            }));
-
-      const bookingPayload = {
-        busId: bus._id,
-        date,
-        departureTime,
-        passenger,
-        selectedSeats: selectedSeats.map(String),
-        passengers,
-        seatAllocations,
-        boardingPoint: selectedBoardingPoint,
-        droppingPoint: selectedDroppingPoint,
-      };
-
-      const res = await apiClient.post("/bookings", bookingPayload, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-
+      // 1st attempt
+      let res = await tryCreateBooking();
       alert("Payment successful (simulated)");
       navigate("/download-ticket", {
         state: {
@@ -219,14 +243,42 @@ const PaymentPage = () => {
       });
     } catch (err) {
       const apiMsg = err?.response?.data?.message;
-      if (
-        apiMsg &&
-        /lock(ed)?|expired|no longer locked|conflict/i.test(apiMsg)
-      ) {
-        setLockOk(false);
-        setLockMsg(apiMsg);
+      const isLockIssue =
+        err?.response?.status === 409 ||
+        /lock(ed)?|expired|no longer locked|conflict/i.test(apiMsg || "");
+
+      if (isLockIssue) {
+        // Re-lock once and retry automatically
+        const relocked = await ensureSeatLock();
+        if (relocked) {
+          try {
+            const res2 = await tryCreateBooking();
+            alert("Payment successful (simulated)");
+            navigate("/download-ticket", {
+              state: {
+                bookingDetails: {
+                  ...state,
+                  bookingId: res2?.data?.booking?._id,
+                },
+              },
+            });
+            return;
+          } catch (err2) {
+            const apiMsg2 = err2?.response?.data?.message;
+            setLockOk(false);
+            setLockMsg(apiMsg2 || "Seat lock conflict. Please try again.");
+            alert(
+              `Payment failed: ${
+                apiMsg2 ||
+                "Seat lock conflict even after re-lock. Please re-select seats."
+              }`
+            );
+            return;
+          }
+        }
       }
-      console.error("Booking error:", err.response?.data || err.message);
+
+      console.error("Booking error:", err?.response?.data || err?.message);
       alert(
         `Payment failed: ${
           apiMsg || "Could not complete booking. Please re-lock seats and retry."
@@ -429,6 +481,7 @@ const PaymentPage = () => {
                       busId={bus._id}
                       date={date}
                       departureTime={departureTime}
+                      seats={selectedSeatStrings}
                       onExpire={() => {
                         setHoldExpired(true);
                         setLockOk(false);
