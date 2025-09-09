@@ -279,6 +279,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const [expandedBusId, setExpandedBusId] = useState(null);
   const [busSpecificBookingData, setBusSpecificBookingData] = useState({});
   const [mobileSheetStepByBus, setMobileSheetStepByBus] = useState({});
+  const [locking, setLocking] = useState({}); // prevent double toggles while locking
 
   useEffect(() => {
     if (stickySearchCardRef.current) {
@@ -589,7 +590,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const now = new Date();
     const today = new Date();
     const currentDateString = toLocalYYYYMMDD(today);
-    const searchingToday = searchDateParam === currentDateString;
+    the const searchingToday = searchDateParam === currentDateString;
 
     return {
       filteredBuses: buses.filter((bus) => {
@@ -1100,56 +1101,83 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const seatStr = String(seat);
     const alreadySelected = currentBusData.selectedSeats.includes(seatStr);
 
+    // prevent toggling while this seat is in-flight
+    const lkKey = `${busKey}-${seatStr}`;
+    if (locking[lkKey]) return;
+
     if (!alreadySelected && unavailable.includes(seatStr)) return;
 
-    if (!alreadySelected) {
-      if (currentBusData.selectedSeats.length >= 4) {
-        toast.error("🚫 You can select a maximum of 4 seats.");
-        return;
-      }
-      try {
-        const resp = await lockSeat(bus, seatStr);
-        if (!resp?.ok) {
-          toast.error("Sorry, that seat was just locked by another user.");
-          return;
-        }
-      } catch (e) {
-        console.error(e);
-        toast.error("Seat lock failed. Please try again.");
-        return;
-      }
-
+    // UNSELECT (optimistic)
+    if (alreadySelected) {
       setBusSpecificBookingData((prev) => ({
         ...prev,
         [busKey]: {
           ...prev[busKey],
-          selectedSeats: [...prev[busKey].selectedSeats, seatStr],
-          seatGenders: {
-            ...prev[busKey].seatGenders,
-            [seatStr]: prev[busKey].seatGenders[seatStr] || "M",
-          },
-        },
-      }));
-    } else {
-      try {
-        await releaseSeats(bus, [seatStr]);
-      } catch (e) {
-        console.warn("Release failed:", e);
-      }
-      setBusSpecificBookingData((prev) => ({
-        ...prev,
-        [busKey]: {
-          ...prev[busKey],
-          selectedSeats: prev[busKey].selectedSeats.filter(
-            (s) => s !== seatStr
-          ),
+          selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
           seatGenders: Object.fromEntries(
-            Object.entries(prev[busKey].seatGenders).filter(
-              ([k]) => k !== seatStr
-            )
+            Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
           ),
         },
       }));
+      // Fire-and-forget release
+      releaseSeats(bus, [seatStr]).catch(() => {});
+      return;
+    }
+
+    // SELECT (optimistic)
+    if (currentBusData.selectedSeats.length >= 4) {
+      toast.error("🚫 You can select a maximum of 4 seats.");
+      return;
+    }
+
+    setBusSpecificBookingData((prev) => ({
+      ...prev,
+      [busKey]: {
+        ...prev[busKey],
+        selectedSeats: [...prev[busKey].selectedSeats, seatStr],
+        seatGenders: {
+          ...prev[busKey].seatGenders,
+          [seatStr]: prev[busKey].seatGenders[seatStr] || "M",
+        },
+      },
+    }));
+
+    setLocking((v) => ({ ...v, [lkKey]: true }));
+    try {
+      const resp = await lockSeat(bus, seatStr);
+      if (!resp?.ok) {
+        // revert on failure
+        setBusSpecificBookingData((prev) => ({
+          ...prev,
+          [busKey]: {
+            ...prev[busKey],
+            selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+            seatGenders: Object.fromEntries(
+              Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+            ),
+          },
+        }));
+        toast.error("Sorry, that seat was just locked by another user.");
+      }
+    } catch (e) {
+      // revert on error
+      setBusSpecificBookingData((prev) => ({
+        ...prev,
+        [busKey]: {
+          ...prev[busKey],
+          selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+          seatGenders: Object.fromEntries(
+            Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+          ),
+        },
+      }));
+      toast.error("Seat lock failed. Please try again.");
+    } finally {
+      setLocking((v) => {
+        const c = { ...v };
+        delete c[lkKey];
+        return c;
+      });
     }
   };
 
@@ -1429,7 +1457,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     seatLayout={selectedBus.seatLayout}
                     bookedSeats={[
                       ...(selectedAvailability?.bookedSeats || []),
-                      ...(selectedBookingData?.selectedSeats || []),
                     ]}
                     selectedSeats={selectedBookingData.selectedSeats}
                     onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
@@ -1968,8 +1995,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                                 seatLayout={bus.seatLayout}
                                 bookedSeats={[
                                   ...(busAvailability?.bookedSeats || []),
-                                  ...(currentBusBookingData?.selectedSeats ||
-                                    []),
                                 ]}
                                 selectedSeats={
                                   currentBusBookingData.selectedSeats
