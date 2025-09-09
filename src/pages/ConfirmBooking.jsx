@@ -6,7 +6,7 @@ import apiClient from "../api"; // baseURL configured inside ../api
 
 /* ---------------- Matte palette ---------------- */
 const PALETTE = {
-  primary: "#C74A50",      // matte red to match SearchResults
+  primary: "#C74A50", // matte red to match SearchResults
   bg: "#F5F6F8",
   surface: "#FFFFFF",
   surfaceAlt: "#FAFBFC",
@@ -15,10 +15,16 @@ const PALETTE = {
   textSubtle: "#6B7280",
   pillBg: "#F3F4F6",
 
+  // New: gender tones
+  violet: "#6D5BD0",
+  violetBg: "#F1EFFF",
+  pink: "#E05B88",
+  pinkBg: "#FFEAF2",
+
   // Soft pill backgrounds
-  datePillBg: "#FFF9DB",  // very light yellow
-  acPillBg: "#EAF5FF",    // very light blue
-  seatPillBg: "#FFE9EC",  // very light red (matches matte red theme)
+  datePillBg: "#FFF9DB", // very light yellow
+  acPillBg: "#EAF5FF", // very light blue
+  seatPillBg: "#FFE9EC", // very light red (matches matte red theme)
 
   // Very light green for time pill
   timeGreenBg: "#ECFDF5",
@@ -42,10 +48,16 @@ const getNiceDate = (dateStr, time) => {
 const SectionCard = ({ title, children }) => (
   <div
     className="rounded-2xl p-4 mt-4"
-    style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}` }}
+    style={{
+      background: PALETTE.surface,
+      border: `1px solid ${PALETTE.border}`,
+    }}
   >
     {title ? (
-      <h3 className="text-lg font-semibold mb-3" style={{ color: PALETTE.text }}>
+      <h3
+        className="text-lg font-semibold mb-3"
+        style={{ color: PALETTE.text }}
+      >
         {title}
       </h3>
     ) : null}
@@ -54,7 +66,10 @@ const SectionCard = ({ title, children }) => (
 );
 
 const Label = ({ children }) => (
-  <span className="block text-xs font-semibold mb-1" style={{ color: PALETTE.textSubtle }}>
+  <span
+    className="block text-xs font-semibold mb-1"
+    style={{ color: PALETTE.textSubtle }}
+  >
     {children}
   </span>
 );
@@ -77,8 +92,12 @@ const SoftPill = ({ children, bg }) => (
     {children}
   </span>
 );
-const DatePill = ({ children }) => <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>;
-const AcPill   = ({ children }) => <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>;
+const DatePill = ({ children }) => (
+  <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>
+);
+const AcPill = ({ children }) => (
+  <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>
+);
 const SeatPill = ({ children }) => (
   <span
     className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
@@ -89,7 +108,24 @@ const SeatPill = ({ children }) => (
 );
 
 // UPDATED: green time pill now matches other pills (no border)
-const TimeGreenPill = ({ children }) => <SoftPill bg={PALETTE.timeGreenBg}>{children}</SoftPill>;
+const TimeGreenPill = ({ children }) => (
+  <SoftPill bg={PALETTE.timeGreenBg}>{children}</SoftPill>
+);
+
+// Seat pill that follows selected gender (PassengerRow)
+const GenderSeatPill = ({ gender, children }) => {
+  const isMale = gender === "M";
+  const bg = isMale ? PALETTE.violetBg : PALETTE.pinkBg;
+  const fg = isMale ? PALETTE.violet : PALETTE.pink;
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ background: bg, color: fg }}
+    >
+      {children}
+    </span>
+  );
+};
 
 // --- Live hold countdown (15 min seat lock) ---
 const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
@@ -110,7 +146,9 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
         serverExpiry = r1?.data?.expiresAt || null;
       } catch {
         try {
-          const r2 = await apiClient.get("/bookings/lock/remaining", { params });
+          const r2 = await apiClient.get("/bookings/lock/remaining", {
+            params,
+          });
           ms = r2?.data?.remainingMs ?? r2?.data?.ms ?? null;
           serverExpiry = r2?.data?.expiresAt || null;
         } catch {
@@ -211,21 +249,31 @@ const RowInput = ({
   </div>
 );
 
-/* -------- Passenger row (memoized; gender removed) -------- */
-const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge }) {
+/* -------- Passenger row (memoized; minimal UI) -------- */
+const PassengerRow = memo(function PassengerRow({
+  p,
+  index,
+  onName,
+  onAge,
+  onGender,
+}) {
   return (
     <div
       className="p-4 rounded-2xl"
-      style={{ background: PALETTE.surfaceAlt, border: `1px solid ${PALETTE.border}` }}
+      style={{
+        background: PALETTE.surfaceAlt,
+        border: `1px solid ${PALETTE.border}`,
+      }}
     >
       <div className="flex items-center justify-between">
         <p className="font-semibold" style={{ color: PALETTE.text }}>
           Passenger {index + 1}
         </p>
-        <SeatPill>Seat {p.seat}</SeatPill>
+        {/* Seat pill now changes color with gender */}
+        <GenderSeatPill gender={p.gender}>Seat {p.seat}</GenderSeatPill>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-3">
         <div className="md:col-span-2">
           <RowInput
             id={`p-name-${p.seat}`}
@@ -248,9 +296,40 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge }) {
             value={p.age}
             onChange={(e) => onAge(p.seat, e.target.value)}
             inputMode="numeric"
-            enterKeyHint="done"
+            enterKeyHint="next"
             placeholder="e.g., 28"
           />
+        </div>
+        <div className="md:col-span-2">
+          <Label>Gender</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {/* Male = violet pill */}
+            <button
+              type="button"
+              onClick={() => onGender(p.seat, "M")}
+              className="py-2.5 rounded-full border text-sm font-medium transition"
+              style={{
+                borderColor: p.gender === "M" ? PALETTE.violet : PALETTE.border,
+                background: p.gender === "M" ? PALETTE.violetBg : "#FFFFFF",
+                color: p.gender === "M" ? PALETTE.violet : PALETTE.text,
+              }}
+            >
+              Male
+            </button>
+            {/* Female = pink pill */}
+            <button
+              type="button"
+              onClick={() => onGender(p.seat, "F")}
+              className="py-2.5 rounded-full border text-sm font-medium transition"
+              style={{
+                borderColor: p.gender === "F" ? PALETTE.pink : PALETTE.border,
+                background: p.gender === "F" ? PALETTE.pinkBg : "#FFFFFF",
+                color: p.gender === "F" ? PALETTE.pink : PALETTE.text,
+              }}
+            >
+              Female
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -272,11 +351,14 @@ const ConfirmBooking = () => {
     selectedBoardingPoint,
     selectedDroppingPoint,
     departureTime,
+    seatGenders,
   } = location.state || {};
 
   // ---- normalized pricing (stable) ----
   const prices = useMemo(() => {
-    const base = priceDetails?.basePrice ?? (typeof totalPrice === "number" ? totalPrice : 0);
+    const base =
+      priceDetails?.basePrice ??
+      (typeof totalPrice === "number" ? totalPrice : 0);
     const fee = priceDetails?.convenienceFee ?? 0;
     const tot = priceDetails?.totalPrice ?? totalPrice ?? base + fee;
     return {
@@ -287,21 +369,29 @@ const ConfirmBooking = () => {
   }, [priceDetails, totalPrice]);
 
   // ---- contact form (controlled) ----
-  const [form, setForm] = useState({ name: "", mobile: "", nic: "", email: "" });
+  const [form, setForm] = useState({
+    name: "",
+    mobile: "",
+    nic: "",
+    email: "",
+  });
   const onChangeForm = useCallback((e) => {
     const { name, value } = e.target;
-    setForm((prev) => (prev[name] === value ? prev : { ...prev, [name]: value }));
+    setForm((prev) =>
+      prev[name] === value ? prev : { ...prev, [name]: value }
+    );
   }, []);
 
-  // ---- passengers initialized once; gender removed ----
+  // ---- passengers initialized once; never reset from props while typing ----
   const initialPassengers = useMemo(
     () =>
       (selectedSeats || []).map((seatNo) => ({
         seat: String(seatNo),
         name: "",
         age: "",
+        gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
       })),
-    [selectedSeats]
+    [selectedSeats, seatGenders]
   );
   const [passengers, setPassengers] = useState(initialPassengers);
 
@@ -327,6 +417,17 @@ const ConfirmBooking = () => {
     });
   }, []);
 
+  const setPassengerGender = useCallback((seat, gender) => {
+    setPassengers((prev) => {
+      const i = prev.findIndex((x) => x.seat === String(seat));
+      if (i === -1) return prev;
+      if (prev[i].gender === gender) return prev;
+      const next = prev.slice();
+      next[i] = { ...next[i], gender };
+      return next;
+    });
+  }, []);
+
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   // track hold status to protect proceed action
@@ -346,8 +447,8 @@ const ConfirmBooking = () => {
         return;
       }
       for (const p of passengers) {
-        if (!p.name) {
-          alert(`Please fill in Name for seat ${p.seat}.`);
+        if (!p.name || !p.gender) {
+          alert(`Please fill in Name and Gender for seat ${p.seat}.`);
           return;
         }
       }
@@ -355,6 +456,12 @@ const ConfirmBooking = () => {
         alert("Please agree to the Terms & Conditions.");
         return;
       }
+
+      // Optional: validate seats on server
+      // await apiClient.post("/booking/validate", { busId: bus?._id, seats: selectedSeats });
+
+      const seatGendersOut = {};
+      passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
 
       navigate("/payment", {
         state: {
@@ -370,11 +477,13 @@ const ConfirmBooking = () => {
           },
           selectedBoardingPoint,
           selectedDroppingPoint,
-          passengers: passengers.map(({ seat, name, age }) => ({
+          passengers: passengers.map(({ seat, name, age, gender }) => ({
             seat,
             name,
             age: age === "" ? undefined : Number(age),
+            gender,
           })),
+          seatGenders: seatGendersOut,
         },
       });
     },
@@ -426,10 +535,15 @@ const ConfirmBooking = () => {
       {/* Matte top bar */}
       <div
         className="sticky top-0 z-30"
-        style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}
+        style={{
+          background: PALETTE.primary,
+          paddingTop: "env(safe-area-inset-top)",
+        }}
       >
         <div className="max-w-6xl mx-auto px-4 py-3">
-          <p className="text-white text-base font-semibold leading-tight">Confirm Booking</p>
+          <p className="text-white text-base font-semibold leading-tight">
+            Confirm Booking
+          </p>
           <p className="text-white/90 text-xs">
             {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
           </p>
@@ -445,7 +559,10 @@ const ConfirmBooking = () => {
         <SectionCard>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-lg font-bold truncate" style={{ color: PALETTE.text }}>
+              <h2
+                className="text-lg font-bold truncate"
+                style={{ color: PALETTE.text }}
+              >
                 {bus?.name || "Bus"}
               </h2>
               <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
@@ -458,7 +575,8 @@ const ConfirmBooking = () => {
               <DatePill>{getNiceDate(date, departureTime)}</DatePill>
               <AcPill>{bus?.busType || "Seating"}</AcPill>
               <SeatPill>
-                {selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}
+                {selectedSeats?.length} Seat
+                {selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
               {/* Live hold countdown */}
               <HoldCountdown
@@ -474,7 +592,8 @@ const ConfirmBooking = () => {
             <div>
               <Label>Boarding</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedBoardingPoint.point} <span className="text-xs">at</span>{" "}
+                {selectedBoardingPoint.point}{" "}
+                <span className="text-xs">at</span>{" "}
                 {/* Boarding time pill (now borderless & consistent) */}
                 <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
               </p>
@@ -482,8 +601,11 @@ const ConfirmBooking = () => {
             <div>
               <Label>Dropping</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedDroppingPoint.point} <span className="text-xs">at</span>{" "}
-                <span className="tabular-nums">{selectedDroppingPoint.time}</span>
+                {selectedDroppingPoint.point}{" "}
+                <span className="text-xs">at</span>{" "}
+                <span className="tabular-nums">
+                  {selectedDroppingPoint.time}
+                </span>
               </p>
             </div>
             <div className="sm:col-span-2">
@@ -562,6 +684,7 @@ const ConfirmBooking = () => {
                 index={idx}
                 onName={setPassengerName}
                 onAge={setPassengerAge}
+                onGender={setPassengerGender}
               />
             ))}
           </div>
@@ -571,18 +694,30 @@ const ConfirmBooking = () => {
         <SectionCard title="Fare Summary">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
+              <span
+                className="font-medium"
+                style={{ color: PALETTE.textSubtle }}
+              >
                 Subtotal
               </span>
-              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
+              <span
+                className="tabular-nums font-semibold"
+                style={{ color: PALETTE.text }}
+              >
                 Rs. {prices.basePrice.toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
+              <span
+                className="font-medium"
+                style={{ color: PALETTE.textSubtle }}
+              >
                 Convenience Fee
               </span>
-              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
+              <span
+                className="tabular-nums font-semibold"
+                style={{ color: PALETTE.text }}
+              >
                 Rs. {prices.convenienceFee.toFixed(2)}
               </span>
             </div>
@@ -591,12 +726,18 @@ const ConfirmBooking = () => {
               <span className="font-bold" style={{ color: PALETTE.text }}>
                 Total
               </span>
-              <span className="tabular-nums font-extrabold" style={{ color: PALETTE.text }}>
+              <span
+                className="tabular-nums font-extrabold"
+                style={{ color: PALETTE.text }}
+              >
                 Rs. {prices.total.toFixed(2)}
               </span>
             </div>
             {holdExpired && (
-              <p className="text-xs mt-2 font-semibold" style={{ color: "#991B1B" }}>
+              <p
+                className="text-xs mt-2 font-semibold"
+                style={{ color: "#991B1B" }}
+              >
                 Your seat hold has expired. Please go back and reselect seats.
               </p>
             )}
@@ -605,7 +746,10 @@ const ConfirmBooking = () => {
 
         {/* Terms */}
         <div className="mt-4">
-          <label className="flex items-center text-sm" style={{ color: PALETTE.text }}>
+          <label
+            className="flex items-center text-sm"
+            style={{ color: PALETTE.text }}
+          >
             <input
               type="checkbox"
               className="mr-2"
@@ -621,14 +765,20 @@ const ConfirmBooking = () => {
       {/* Sticky bottom CTA */}
       <div
         className="fixed bottom-0 left-0 right-0 z-40"
-        style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}` }}
+        style={{
+          background: PALETTE.surface,
+          borderTop: `1px solid ${PALETTE.border}`,
+        }}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
             <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
               Payable Amount
             </p>
-            <p className="text-xl font-extrabold tabular-nums" style={{ color: PALETTE.text }}>
+            <p
+              className="text-xl font-extrabold tabular-nums"
+              style={{ color: PALETTE.text }}
+            >
               Rs. {prices.total.toFixed(2)}
             </p>
           </div>
