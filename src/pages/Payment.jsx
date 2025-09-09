@@ -17,8 +17,8 @@ import {
   FaEnvelope,
 } from "react-icons/fa";
 
-// ✅ Use shared apiClient instead of axios
-import apiClient from "../api";
+// ✅ Use shared apiClient and getClientId
+import apiClient, { getClientId } from "../api";
 
 /* ---------------- Hold countdown for THIS user's seats ---------------- */
 const HoldCountdown = ({
@@ -204,6 +204,8 @@ const PaymentPage = () => {
       seatAllocations: makeSeatAllocations(),
       boardingPoint: selectedBoardingPoint,
       droppingPoint: selectedDroppingPoint,
+      // ✅ Ensure backend can match the held lock
+      clientId: getClientId(),
     };
     return apiClient.post("/bookings", bookingPayload, {
       headers: { Authorization: `Bearer ${token}` },
