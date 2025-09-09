@@ -4,6 +4,8 @@ import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
   FaBus,
+  FaCalendarAlt,
+  FaClock,
   FaMapMarkerAlt,
   FaUserCircle,
   FaUsers,
@@ -47,8 +49,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire, onTick }) => {
           setRemainingMs(Math.max(0, target - Date.now()));
         }
       } catch {
-        // if API not available, we don't block the user;
-        // the pay button logic will still rely on re-lock attempt
+        // ignore; pay button will still re-lock before booking
       }
     };
 
@@ -107,28 +108,15 @@ const PaymentPage = () => {
   const [lockMsg, setLockMsg] = useState("");
   const [holdExpired, setHoldExpired] = useState(false);
 
-  // Error state for incomplete data
-  if (!bus || !priceDetails || !passenger || !departureTime) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6">
-        <div className="text-center bg-white p-8 rounded-xl shadow-md border">
-          <FaExclamationTriangle className="mx-auto text-5xl text-red-400 mb-4" />
-          <h1 className="text-xl font-bold text-red-600">Booking Error</h1>
-          <p className="text-gray-700 mt-2">
-            Your booking details are incomplete. Please start over.
-          </p>
-          <button
-            onClick={() => navigate("/")}
-            className="mt-6 px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-transform hover:scale-105"
-          >
-            Go to Home
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const isIncomplete =
+    !bus || !priceDetails || !passenger || !departureTime;
 
   const ensureSeatLock = async () => {
+    if (isIncomplete) {
+      setLockOk(false);
+      setLockMsg("Booking details are incomplete.");
+      return false;
+    }
     const token = localStorage.getItem("token");
     if (!token) {
       setLockOk(false);
@@ -152,7 +140,6 @@ const PaymentPage = () => {
       const res = await apiClient.post("/bookings/lock", payload, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      // Many backends return {ok:true} or lock details. Treat non-false as success.
       const ok = res?.data?.ok !== false;
       setLockOk(ok);
       if (!ok) setLockMsg(res?.data?.message || "Seat lock failed.");
@@ -172,9 +159,10 @@ const PaymentPage = () => {
 
   // Try to secure (or refresh) the lock when user lands on Payment
   useEffect(() => {
+    if (isIncomplete) return;
     ensureSeatLock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isIncomplete]);
 
   const handleFakePayment = async () => {
     // Re-check/refresh the lock right before paying
@@ -231,7 +219,6 @@ const PaymentPage = () => {
       });
     } catch (err) {
       const apiMsg = err?.response?.data?.message;
-      // If the server says lock conflict, surface a clearer CTA.
       if (
         apiMsg &&
         /lock(ed)?|expired|no longer locked|conflict/i.test(apiMsg)
@@ -256,6 +243,26 @@ const PaymentPage = () => {
       <div className="space-y-4">{children}</div>
     </div>
   );
+
+  if (isIncomplete) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6">
+        <div className="text-center bg-white p-8 rounded-xl shadow-md border">
+          <FaExclamationTriangle className="mx-auto text-5xl text-red-400 mb-4" />
+          <h1 className="text-xl font-bold text-red-600">Booking Error</h1>
+          <p className="text-gray-700 mt-2">
+            Your booking details are incomplete. Please start over.
+          </p>
+          <button
+            onClick={() => navigate("/")}
+            className="mt-6 px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-transform hover:scale-105"
+          >
+            Go to Home
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gray-50 min-h-screen">
