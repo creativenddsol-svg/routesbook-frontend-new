@@ -59,9 +59,15 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Add clientId ONLY in payload/params for the lock APIs (no custom header)
+    // Add clientId ONLY in payload/params for the lock & booking APIs (no custom header)
     const clientId = getClientId();
-    const url = (config.url || "").toLowerCase();
+
+    // Normalize URL for matching (strip base if axios was given an absolute URL)
+    const rawUrl = (config.url || "").toLowerCase();
+    const baseLower = API_BASE_URL.toLowerCase();
+    let path = rawUrl.startsWith(baseLower) ? rawUrl.slice(baseLower.length) : rawUrl;
+    if (!path.startsWith("/")) path = `/${path}`;
+
     const method = (config.method || "get").toLowerCase();
 
     const addToData = () => {
@@ -75,16 +81,28 @@ apiClient.interceptors.request.use(
       config.params = { ...(config.params || {}), clientId };
     };
 
-    if (url.includes("/bookings/lock") && method === "post") addToData();
-    if (url.includes("/bookings/release") && method === "delete") addToData();
+    // Seat lock & release
+    if (path.includes("/bookings/lock") && method === "post") addToData();
+    if (path.includes("/bookings/release") && method === "delete") addToData();
 
-    // 🔁 Also support both "lock-remaining" and "lock/remaining"
+    // Lock remaining (both styles: /lock-remaining and /lock/remaining)
     if (
       method === "get" &&
-      (url.includes("/bookings/lock-remaining") ||
-        url.includes("/bookings/lock/remaining"))
+      (path.includes("/bookings/lock-remaining") ||
+        path.includes("/bookings/lock/remaining"))
     ) {
       addToParams();
+    }
+
+    // NEW: ensure clientId is also sent when creating the booking
+    // Matches POST /bookings and POST /bookings/... (but not the lock/release endpoints already handled)
+    if (
+      method === "post" &&
+      /(^|\/)bookings(\/|$)/.test(path) &&
+      !path.includes("/bookings/lock") &&
+      !path.includes("/bookings/release")
+    ) {
+      addToData();
     }
 
     return config;
