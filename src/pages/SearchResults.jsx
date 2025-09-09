@@ -590,7 +590,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const now = new Date();
     const today = new Date();
     const currentDateString = toLocalYYYYMMDD(today);
-    the const searchingToday = searchDateParam === currentDateString;
+    const searchingToday = searchDateParam === currentDateString;
 
     return {
       filteredBuses: buses.filter((bus) => {
