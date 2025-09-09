@@ -1,4 +1,5 @@
 // src/pages/Payment.jsx
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
@@ -19,6 +20,70 @@ import {
 // ✅ Use shared apiClient instead of axios
 import apiClient from "../api";
 
+const HoldCountdown = ({ busId, date, departureTime, onExpire, onTick }) => {
+  const [expiresAt, setExpiresAt] = useState(null);
+  const [remainingMs, setRemainingMs] = useState(null);
+
+  useEffect(() => {
+    let mounted = true;
+    let timerId;
+
+    const fetchRemaining = async () => {
+      try {
+        const r1 = await apiClient.get("/bookings/lock-remaining", {
+          params: { busId, date, departureTime },
+        });
+        const ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
+        const serverExpiry = r1?.data?.expiresAt || null;
+
+        const target = serverExpiry
+          ? new Date(serverExpiry).getTime()
+          : ms != null
+          ? Date.now() + Math.max(0, Number(ms))
+          : null;
+
+        if (mounted && target) {
+          setExpiresAt(target);
+          setRemainingMs(Math.max(0, target - Date.now()));
+        }
+      } catch {
+        // if API not available, we don't block the user;
+        // the pay button logic will still rely on re-lock attempt
+      }
+    };
+
+    fetchRemaining();
+
+    timerId = setInterval(() => {
+      if (!expiresAt) return;
+      const left = Math.max(0, expiresAt - Date.now());
+      setRemainingMs(left);
+      onTick && onTick(left);
+      if (left <= 0) {
+        clearInterval(timerId);
+        onExpire && onExpire();
+      }
+    }, 1000);
+
+    return () => {
+      mounted = false;
+      clearInterval(timerId);
+    };
+  }, [busId, date, departureTime, expiresAt, onExpire, onTick]);
+
+  if (remainingMs == null) return null;
+
+  const total = Math.ceil(remainingMs / 1000);
+  const mm = String(Math.floor(total / 60)).padStart(2, "0");
+  const ss = String(total % 60).padStart(2, "0");
+
+  return (
+    <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-700">
+      Hold: {mm}:{ss}
+    </span>
+  );
+};
+
 const PaymentPage = () => {
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -35,6 +100,12 @@ const PaymentPage = () => {
     passengers = [],
     seatGenders = {},
   } = state || {};
+
+  // ---- lock status on Payment page ----
+  const [locking, setLocking] = useState(false);
+  const [lockOk, setLockOk] = useState(false);
+  const [lockMsg, setLockMsg] = useState("");
+  const [holdExpired, setHoldExpired] = useState(false);
 
   // Error state for incomplete data
   if (!bus || !priceDetails || !passenger || !departureTime) {
@@ -57,7 +128,69 @@ const PaymentPage = () => {
     );
   }
 
+  const ensureSeatLock = async () => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setLockOk(false);
+      setLockMsg("Please login to lock seats.");
+      return false;
+    }
+    if (!selectedSeats?.length) {
+      setLockOk(false);
+      setLockMsg("No seats selected.");
+      return false;
+    }
+    setLocking(true);
+    setLockMsg("");
+    try {
+      const payload = {
+        busId: bus._id,
+        date,
+        departureTime,
+        seats: selectedSeats.map(String),
+      };
+      const res = await apiClient.post("/bookings/lock", payload, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      // Many backends return {ok:true} or lock details. Treat non-false as success.
+      const ok = res?.data?.ok !== false;
+      setLockOk(ok);
+      if (!ok) setLockMsg(res?.data?.message || "Seat lock failed.");
+      return ok;
+    } catch (err) {
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Seat lock failed. Try again.";
+      setLockOk(false);
+      setLockMsg(msg);
+      return false;
+    } finally {
+      setLocking(false);
+    }
+  };
+
+  // Try to secure (or refresh) the lock when user lands on Payment
+  useEffect(() => {
+    ensureSeatLock();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const handleFakePayment = async () => {
+    // Re-check/refresh the lock right before paying
+    const ok = await ensureSeatLock();
+    if (!ok) {
+      alert(
+        lockMsg ||
+          "Could not verify seat lock. Please press 'Re-lock seats' and try again."
+      );
+      return;
+    }
+    if (holdExpired) {
+      alert("Your seat hold has expired. Please re-lock the seats.");
+      return;
+    }
+
     try {
       const token = localStorage.getItem("token");
       if (!token) {
@@ -86,7 +219,6 @@ const PaymentPage = () => {
         droppingPoint: selectedDroppingPoint,
       };
 
-      // ✅ Use apiClient so it picks up your .env baseURL
       const res = await apiClient.post("/bookings", bookingPayload, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -98,10 +230,19 @@ const PaymentPage = () => {
         },
       });
     } catch (err) {
+      const apiMsg = err?.response?.data?.message;
+      // If the server says lock conflict, surface a clearer CTA.
+      if (
+        apiMsg &&
+        /lock(ed)?|expired|no longer locked|conflict/i.test(apiMsg)
+      ) {
+        setLockOk(false);
+        setLockMsg(apiMsg);
+      }
       console.error("Booking error:", err.response?.data || err.message);
       alert(
         `Payment failed: ${
-          err.response?.data?.message || "Could not complete booking."
+          apiMsg || "Could not complete booking. Please re-lock seats and retry."
         }`
       );
     }
@@ -265,15 +406,58 @@ const PaymentPage = () => {
                     <span>Total Payable</span>
                     <span>Rs. {priceDetails.totalPrice?.toFixed(2)}</span>
                   </div>
+
+                  {/* Lock/Hold status */}
+                  <div className="mt-3 flex items-center gap-2">
+                    {lockOk ? (
+                      <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700">
+                        Seats secured
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-700">
+                        {lockMsg || "Seats not secured"}
+                      </span>
+                    )}
+                    <HoldCountdown
+                      busId={bus._id}
+                      date={date}
+                      departureTime={departureTime}
+                      onExpire={() => {
+                        setHoldExpired(true);
+                        setLockOk(false);
+                        setLockMsg("Hold expired. Please re-lock seats.");
+                      }}
+                      onTick={(ms) => {
+                        if (ms > 0 && holdExpired) setHoldExpired(false);
+                      }}
+                    />
+                  </div>
+
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={ensureSeatLock}
+                      className="text-xs underline text-blue-600 hover:text-blue-700 disabled:text-gray-400"
+                      disabled={locking}
+                    >
+                      {locking ? "Locking…" : "Re-lock seats"}
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="mt-6">
                 <button
                   onClick={handleFakePayment}
-                  className="w-full py-3.5 rounded-lg text-white font-semibold text-lg transition-all duration-300 shadow-lg bg-red-600 hover:bg-red-700 hover:scale-[1.02]"
+                  disabled={locking || !lockOk || holdExpired}
+                  className="w-full py-3.5 rounded-lg text-white font-semibold text-lg transition-all duration-300 shadow-lg bg-red-600 hover:bg-red-700 hover:scale-[1.02] disabled:opacity-60 disabled:hover:scale-100"
                 >
                   Pay Rs. {priceDetails.totalPrice.toFixed(2)}
                 </button>
+                {!lockOk || holdExpired ? (
+                  <p className="text-xs text-center mt-2 text-gray-500">
+                    Ensure seats are locked before paying.
+                  </p>
+                ) : null}
               </div>
             </div>
           </div>
