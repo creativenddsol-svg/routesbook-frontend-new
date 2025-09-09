@@ -15,12 +15,6 @@ const PALETTE = {
   textSubtle: "#6B7280",
   pillBg: "#F3F4F6",
 
-  // New: gender tones
-  violet: "#6D5BD0",
-  violetBg: "#F1EFFF",
-  pink: "#E05B88",
-  pinkBg: "#FFEAF2",
-
   // Soft pill backgrounds
   datePillBg: "#FFF9DB",  // very light yellow
   acPillBg: "#EAF5FF",    // very light blue
@@ -96,21 +90,6 @@ const SeatPill = ({ children }) => (
 
 // UPDATED: green time pill now matches other pills (no border)
 const TimeGreenPill = ({ children }) => <SoftPill bg={PALETTE.timeGreenBg}>{children}</SoftPill>;
-
-// Seat pill that follows selected gender (PassengerRow)
-const GenderSeatPill = ({ gender, children }) => {
-  const isMale = gender === "M";
-  const bg = isMale ? PALETTE.violetBg : PALETTE.pinkBg;
-  const fg = isMale ? PALETTE.violet : PALETTE.pink;
-  return (
-    <span
-      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
-      style={{ background: bg, color: fg }}
-    >
-      {children}
-    </span>
-  );
-};
 
 // --- Live hold countdown (15 min seat lock) ---
 const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
@@ -232,8 +211,8 @@ const RowInput = ({
   </div>
 );
 
-/* -------- Passenger row (memoized; minimal UI) -------- */
-const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGender }) {
+/* -------- Passenger row (memoized; gender removed) -------- */
+const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge }) {
   return (
     <div
       className="p-4 rounded-2xl"
@@ -243,11 +222,10 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
         <p className="font-semibold" style={{ color: PALETTE.text }}>
           Passenger {index + 1}
         </p>
-        {/* Seat pill now changes color with gender */}
-        <GenderSeatPill gender={p.gender}>Seat {p.seat}</GenderSeatPill>
+        <SeatPill>Seat {p.seat}</SeatPill>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mt-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
         <div className="md:col-span-2">
           <RowInput
             id={`p-name-${p.seat}`}
@@ -270,40 +248,9 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
             value={p.age}
             onChange={(e) => onAge(p.seat, e.target.value)}
             inputMode="numeric"
-            enterKeyHint="next"
+            enterKeyHint="done"
             placeholder="e.g., 28"
           />
-        </div>
-        <div className="md:col-span-2">
-          <Label>Gender</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {/* Male = violet pill */}
-            <button
-              type="button"
-              onClick={() => onGender(p.seat, "M")}
-              className="py-2.5 rounded-full border text-sm font-medium transition"
-              style={{
-                borderColor: p.gender === "M" ? PALETTE.violet : PALETTE.border,
-                background: p.gender === "M" ? PALETTE.violetBg : "#FFFFFF",
-                color: p.gender === "M" ? PALETTE.violet : PALETTE.text,
-              }}
-            >
-              Male
-            </button>
-            {/* Female = pink pill */}
-            <button
-              type="button"
-              onClick={() => onGender(p.seat, "F")}
-              className="py-2.5 rounded-full border text-sm font-medium transition"
-              style={{
-                borderColor: p.gender === "F" ? PALETTE.pink : PALETTE.border,
-                background: p.gender === "F" ? PALETTE.pinkBg : "#FFFFFF",
-                color: p.gender === "F" ? PALETTE.pink : PALETTE.text,
-              }}
-            >
-              Female
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -325,7 +272,6 @@ const ConfirmBooking = () => {
     selectedBoardingPoint,
     selectedDroppingPoint,
     departureTime,
-    seatGenders,
   } = location.state || {};
 
   // ---- normalized pricing (stable) ----
@@ -347,16 +293,15 @@ const ConfirmBooking = () => {
     setForm((prev) => (prev[name] === value ? prev : { ...prev, [name]: value }));
   }, []);
 
-  // ---- passengers initialized once; never reset from props while typing ----
+  // ---- passengers initialized once; gender removed ----
   const initialPassengers = useMemo(
     () =>
       (selectedSeats || []).map((seatNo) => ({
         seat: String(seatNo),
         name: "",
         age: "",
-        gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
       })),
-    [selectedSeats, seatGenders]
+    [selectedSeats]
   );
   const [passengers, setPassengers] = useState(initialPassengers);
 
@@ -382,17 +327,6 @@ const ConfirmBooking = () => {
     });
   }, []);
 
-  const setPassengerGender = useCallback((seat, gender) => {
-    setPassengers((prev) => {
-      const i = prev.findIndex((x) => x.seat === String(seat));
-      if (i === -1) return prev;
-      if (prev[i].gender === gender) return prev;
-      const next = prev.slice();
-      next[i] = { ...next[i], gender };
-      return next;
-    });
-  }, []);
-
   const [termsAccepted, setTermsAccepted] = useState(false);
 
   // track hold status to protect proceed action
@@ -412,8 +346,8 @@ const ConfirmBooking = () => {
         return;
       }
       for (const p of passengers) {
-        if (!p.name || !p.gender) {
-          alert(`Please fill in Name and Gender for seat ${p.seat}.`);
+        if (!p.name) {
+          alert(`Please fill in Name for seat ${p.seat}.`);
           return;
         }
       }
@@ -421,12 +355,6 @@ const ConfirmBooking = () => {
         alert("Please agree to the Terms & Conditions.");
         return;
       }
-
-      // Optional: validate seats on server
-      // await apiClient.post("/booking/validate", { busId: bus?._id, seats: selectedSeats });
-
-      const seatGendersOut = {};
-      passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
 
       navigate("/payment", {
         state: {
@@ -442,13 +370,11 @@ const ConfirmBooking = () => {
           },
           selectedBoardingPoint,
           selectedDroppingPoint,
-          passengers: passengers.map(({ seat, name, age, gender }) => ({
+          passengers: passengers.map(({ seat, name, age }) => ({
             seat,
             name,
             age: age === "" ? undefined : Number(age),
-            gender,
           })),
-          seatGenders: seatGendersOut,
         },
       });
     },
@@ -636,7 +562,6 @@ const ConfirmBooking = () => {
                 index={idx}
                 onName={setPassengerName}
                 onAge={setPassengerAge}
-                onGender={setPassengerGender}
               />
             ))}
           </div>
