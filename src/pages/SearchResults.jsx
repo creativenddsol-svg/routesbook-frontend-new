@@ -281,6 +281,93 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const [mobileSheetStepByBus, setMobileSheetStepByBus] = useState({});
   const [locking, setLocking] = useState({}); // prevent double toggles while locking
 
+  // Refs to always have latest state inside unmount cleanup
+  const latestBookingRef = useRef(busSpecificBookingData);
+  const latestBusesRef = useRef(buses);
+  useEffect(() => {
+    latestBookingRef.current = busSpecificBookingData;
+  }, [busSpecificBookingData]);
+  useEffect(() => {
+    latestBusesRef.current = buses;
+  }, [buses]);
+
+  // Helper to parse "<id>-<time>" key
+  const parseBusKey = (key) => {
+    const lastDash = key.lastIndexOf("-");
+    return {
+      id: lastDash >= 0 ? key.slice(0, lastDash) : key,
+      time: lastDash >= 0 ? key.slice(lastDash + 1) : "",
+    };
+  };
+
+  // Release all selected seats across cards (and optionally clear local selections)
+  const releaseAllSelectedSeats = useCallback(
+    async (clearLocal = true) => {
+      const entries = Object.entries(latestBookingRef.current || {});
+      const tasks = [];
+      for (const [key, data] of entries) {
+        const seats = data?.selectedSeats || [];
+        if (!seats.length) continue;
+        const { id, time } = parseBusKey(key);
+        const busObj = (latestBusesRef.current || []).find(
+          (b) => b._id === id && b.departureTime === time
+        );
+        if (busObj) {
+          tasks.push(
+            (async () => {
+              try {
+                await apiClient.delete("/bookings/release", {
+                  ...buildAuthConfig(getAuthToken()),
+                  data: {
+                    busId: busObj._id,
+                    date: searchDateParam,
+                    departureTime: busObj.departureTime,
+                    seats: seats.map(String),
+                  },
+                });
+              } catch {
+                // ignore network/release errors here
+              }
+            })()
+          );
+        }
+      }
+      if (tasks.length) {
+        try {
+          await Promise.allSettled(tasks);
+        } catch {
+          /* no-op */
+        }
+      }
+      if (clearLocal) {
+        setBusSpecificBookingData((prev) => {
+          const next = { ...prev };
+          Object.keys(next).forEach((k) => {
+            next[k] = {
+              ...next[k],
+              selectedSeats: [],
+              seatGenders: {},
+              basePrice: 0,
+              convenienceFee: 0,
+              totalPrice: 0,
+            };
+          });
+          return next;
+        });
+      }
+    },
+    [searchDateParam]
+  );
+
+  // Release everything on page unmount (back/forward, navigating away)
+  useEffect(() => {
+    return () => {
+      // fire-and-forget; we don't await on unmount
+      releaseAllSelectedSeats(false);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (stickySearchCardRef.current) {
       setStickySearchCardOwnHeight(stickySearchCardRef.current.offsetHeight);
@@ -1079,6 +1166,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       }
       setExpandedBusId(null);
     } else {
+      // NEW: switching cards – release any seats selected on other cards
+      await releaseAllSelectedSeats(true);
       setExpandedBusId(busKey);
       initializeBusBookingData(bus);
       setMobileSheetStepByBus((prev) => ({
