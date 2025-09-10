@@ -137,6 +137,26 @@ const getAuthToken = () =>
 const buildAuthConfig = (token) =>
   token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
+/* -------- lock client id (NEW) -------- */
+const getClientLockId = () => {
+  try {
+    let id = localStorage.getItem("clientLockId");
+    if (!id) {
+      id =
+        (typeof crypto !== "undefined" &&
+          crypto.randomUUID &&
+          crypto.randomUUID()) ||
+        `clid-${Date.now().toString(36)}-${Math.random()
+          .toString(36)
+          .slice(2, 10)}`;
+      localStorage.setItem("clientLockId", id);
+    }
+    return id;
+  } catch {
+    return "anonymous";
+  }
+};
+
 /* ---------------- BookingDeadlineTimer ---------------- */
 const BookingDeadlineTimer = ({
   deadlineTimestamp,
@@ -323,6 +343,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     date: searchDateParam,
                     departureTime: busObj.departureTime,
                     seats: seats.map(String),
+                    clientId: getClientLockId(), // <<< ensure same client id
                   },
                 });
               } catch {
@@ -413,11 +434,12 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     (val) => ({ value: val, label: val })
   );
 
-  const handleModifySearch = () => {
+  const handleModifySearch = async () => {
     if (!searchFrom || !searchTo || !searchDate) {
       toast.error("Please fill all fields before searching");
       return;
     }
+    await releaseAllSelectedSeats(true);
     navigate({
       pathname: location.pathname,
       search: `?${createSearchParams({
@@ -429,8 +451,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setExpandedBusId(null);
   };
 
-  const updateSearchWithDate = (newDate) => {
+  const updateSearchWithDate = async (newDate) => {
     if (!searchFrom || !searchTo || !newDate) return;
+    await releaseAllSelectedSeats(true);
     navigate({
       pathname: location.pathname,
       search: `?${createSearchParams({
@@ -506,16 +529,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   /* ---------------- Seat lock helpers (UPDATED) ---------------- */
   const lockSeat = async (bus, seat) => {
     const token = getAuthToken();
-    if (!token) {
-      // guest mode: skip calling API, allow local selection
-      return { ok: true, skipped: true };
-    }
     const payload = {
       busId: bus._id,
       date: searchDateParam,
       departureTime: bus.departureTime,
       seats: [String(seat)],
+      clientId: getClientLockId(), // <<< make lock identifiable
     };
+    // try to lock even if not logged in; fall back gracefully
     try {
       const res = await apiClient.post(
         "/bookings/lock",
@@ -524,7 +545,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       );
       return res.data;
     } catch (err) {
-      // If backend still requires auth or rejects, fall back to guest mode
       if (err?.response?.status === 400 || err?.response?.status === 401) {
         console.warn(
           "Seat lock skipped (guest fallback):",
@@ -538,12 +558,12 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   const releaseSeats = async (bus, seats) => {
     const token = getAuthToken();
-    if (!token) return; // guest mode: nothing to release server-side
     const payload = {
       busId: bus._id,
       date: searchDateParam,
       departureTime: bus.departureTime,
       seats: seats.map(String),
+      clientId: getClientLockId(), // <<< ensure same client id
     };
     try {
       await apiClient.delete("/bookings/release", {
@@ -1401,6 +1421,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         },
         selectedBoardingPoint,
         selectedDroppingPoint,
+        clientId: getClientLockId(), // <<< pass same id to confirm page
       },
     });
   };
