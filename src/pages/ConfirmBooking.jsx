@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import apiClient from "../api"; // baseURL configured inside ../api
 import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
+import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
 /* ---------------- Matte palette ---------------- */
 const PALETTE = {
@@ -456,6 +457,15 @@ const ConfirmBooking = () => {
     [selectedSeats]
   );
 
+  // 🔧 Auto cleanup of locks when user cancels / leaves this page.
+  // Suppress cleanup when actually proceeding to payment.
+  const { releaseSeats, suppressAutoRelease } = useSeatLockCleanup({
+    busId: bus?._id,
+    date,
+    departureTime,
+    seats: selectedSeatStrings,
+  });
+
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
@@ -485,6 +495,9 @@ const ConfirmBooking = () => {
 
       const seatGendersOut = {};
       passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
+
+      // 👉 keep the lock while going to external payment flow
+      suppressAutoRelease();
 
       navigate("/payment", {
         state: {
@@ -523,6 +536,7 @@ const ConfirmBooking = () => {
       prices,
       termsAccepted,
       holdExpired,
+      suppressAutoRelease,
     ]
   );
 
@@ -616,7 +630,11 @@ const ConfirmBooking = () => {
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
-                onExpire={() => setHoldExpired(true)}
+                onExpire={() => {
+                  setHoldExpired(true);
+                  // proactively release if countdown reached zero while on page
+                  releaseSeats();
+                }}
               />
             </div>
           </div>
