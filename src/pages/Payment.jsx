@@ -20,6 +20,8 @@ import {
 // ✅ Use shared apiClient and getClientId
 import apiClient, { getClientId } from "../api";
 import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
+// ✅ NEW: auto-cleanup hook (adds release & suppression helpers)
+import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
 /* ---------------- Hold countdown for THIS user's seats ---------------- */
 const HoldCountdown = ({
@@ -137,6 +139,14 @@ const PaymentPage = () => {
     onConfirmBack: () => navigate("/"),
   });
 
+  // ✅ NEW: auto-release on unload / route change, with manual controls
+  const { releaseSeats, suppressAutoRelease } = useSeatLockCleanup({
+    busId: bus?._id,
+    date,
+    departureTime,
+    seats: selectedSeatStrings,
+  });
+
   const makeSeatAllocations = () => {
     return passengers.length > 0
       ? passengers.map((p) => ({ seat: String(p.seat), gender: p.gender }))
@@ -198,19 +208,25 @@ const PaymentPage = () => {
 
   // 🔓 Cancel helper (release lock + go Home)
   const cancelAndHome = async () => {
-    const token = localStorage.getItem("token");
     try {
-      await apiClient.delete("/bookings/release", {
-        data: {
-          busId: bus._id,
-        date,
-        departureTime,
-        seats: selectedSeatStrings,
-        },
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
+      // ✅ NEW: use shared release helper (also cleans up timers/flags)
+      await releaseSeats();
     } catch {
-      // ignore
+      // fallback to direct API in case helper fails for any reason
+      const token = localStorage.getItem("token");
+      try {
+        await apiClient.delete("/bookings/release", {
+          data: {
+            busId: bus._id,
+            date,
+            departureTime,
+            seats: selectedSeatStrings,
+          },
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+      } catch {
+        // ignore
+      }
     } finally {
       navigate("/");
     }
@@ -257,6 +273,9 @@ const PaymentPage = () => {
       alert("Your seat hold has expired. Please re-lock the seats.");
       return;
     }
+
+    // ✅ NEW: prevent auto-release while payment is in progress / redirecting
+    suppressAutoRelease();
 
     try {
       const token = localStorage.getItem("token");
