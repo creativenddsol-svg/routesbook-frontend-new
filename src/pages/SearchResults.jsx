@@ -413,12 +413,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     (val) => ({ value: val, label: val })
   );
 
-  const handleModifySearch = async () => {
+  const handleModifySearch = () => {
     if (!searchFrom || !searchTo || !searchDate) {
       toast.error("Please fill all fields before searching");
       return;
     }
-    await releaseAllSelectedSeats(true);
     navigate({
       pathname: location.pathname,
       search: `?${createSearchParams({
@@ -430,9 +429,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     setExpandedBusId(null);
   };
 
-  const updateSearchWithDate = async (newDate) => {
+  const updateSearchWithDate = (newDate) => {
     if (!searchFrom || !searchTo || !newDate) return;
-    await releaseAllSelectedSeats(true);
     navigate({
       pathname: location.pathname,
       search: `?${createSearchParams({
