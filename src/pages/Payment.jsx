@@ -19,6 +19,7 @@ import {
 
 // ✅ Use shared apiClient and getClientId
 import apiClient, { getClientId } from "../api";
+import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 
 /* ---------------- Hold countdown for THIS user's seats ---------------- */
 const HoldCountdown = ({
@@ -125,6 +126,16 @@ const PaymentPage = () => {
     !bus || !priceDetails || !passenger || !departureTime;
 
   const selectedSeatStrings = selectedSeats.map(String);
+
+  // 🔒 Back-button seat-release guard on Payment page
+  useSeatLockBackGuard({
+    enabled: !isIncomplete && !holdExpired && lockOk && selectedSeatStrings.length > 0,
+    busId: bus?._id,
+    date,
+    departureTime,
+    seats: selectedSeatStrings,
+    onConfirmBack: () => navigate(-1),
+  });
 
   const makeSeatAllocations = () => {
     return passengers.length > 0
