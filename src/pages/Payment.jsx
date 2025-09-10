@@ -127,14 +127,14 @@ const PaymentPage = () => {
 
   const selectedSeatStrings = selectedSeats.map(String);
 
-  // 🔒 Back-button seat-release guard on Payment page
+  // 🔒 Back-button seat-release guard on Payment page — go HOME on confirm
   useSeatLockBackGuard({
     enabled: !isIncomplete && !holdExpired && lockOk && selectedSeatStrings.length > 0,
     busId: bus?._id,
     date,
     departureTime,
     seats: selectedSeatStrings,
-    onConfirmBack: () => navigate(-1),
+    onConfirmBack: () => navigate("/"),
   });
 
   const makeSeatAllocations = () => {
@@ -193,6 +193,26 @@ const PaymentPage = () => {
       return false;
     } finally {
       setLocking(false);
+    }
+  };
+
+  // 🔓 Cancel helper (release lock + go Home)
+  const cancelAndHome = async () => {
+    const token = localStorage.getItem("token");
+    try {
+      await apiClient.delete("/bookings/release", {
+        data: {
+          busId: bus._id,
+        date,
+        departureTime,
+        seats: selectedSeatStrings,
+        },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+    } catch {
+      // ignore
+    } finally {
+      navigate("/");
     }
   };
 
@@ -514,6 +534,19 @@ const PaymentPage = () => {
                       disabled={locking}
                     >
                       {locking ? "Locking…" : "Re-lock seats"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const ok = window.confirm(
+                          "Release your held seats and cancel this booking?"
+                        );
+                        if (!ok) return;
+                        await cancelAndHome();
+                      }}
+                      className="ml-4 text-xs underline text-red-600 hover:text-red-700"
+                    >
+                      Cancel booking
                     </button>
                   </div>
                 </div>
