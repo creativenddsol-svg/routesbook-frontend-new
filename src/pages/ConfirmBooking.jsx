@@ -1,5 +1,5 @@
 // src/pages/ConfirmBooking.jsx
-import { useMemo, useState, useCallback, memo, useEffect } from "react";
+import { useMemo, useState, useCallback, memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import apiClient from "../api"; // baseURL configured inside ../api
@@ -130,62 +130,78 @@ const GenderSeatPill = ({ gender, children }) => {
 
 // --- Live hold countdown (15 min seat lock) ---
 const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
-  const [expiresAt, setExpiresAt] = useState(null);
   const [remainingMs, setRemainingMs] = useState(null);
+  const expiryRef = useRef(null);
+  const timerRef = useRef(null);
 
-  // Try multiple endpoints; fallback to 15 minutes from now if unavailable
   useEffect(() => {
-    let mounted = true;
+    let cancelled = false;
 
-    const fetchRemaining = async () => {
+    const startTicking = () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      const tick = () => {
+        const left = Math.max(0, (expiryRef.current ?? Date.now()) - Date.now());
+        setRemainingMs(left);
+        if (left <= 0) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          onExpire && onExpire();
+        }
+      };
+      tick();
+      timerRef.current = setInterval(tick, 1000);
+    };
+
+    const fetchOnce = async () => {
       const params = { busId, date, departureTime };
-      let ms = null;
-      let serverExpiry = null;
       try {
-        const r1 = await apiClient.get("/bookings/lock-remaining", { params });
-        ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
-        serverExpiry = r1?.data?.expiresAt || null;
-      } catch {
+        let ms = null;
+        let serverExpiry = null;
         try {
-          const r2 = await apiClient.get("/bookings/lock/remaining", {
-            params,
-          });
+          const r1 = await apiClient.get("/bookings/lock-remaining", { params });
+          ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
+          serverExpiry = r1?.data?.expiresAt || null;
+        } catch {
+          const r2 = await apiClient.get("/bookings/lock/remaining", { params });
           ms = r2?.data?.remainingMs ?? r2?.data?.ms ?? null;
           serverExpiry = r2?.data?.expiresAt || null;
-        } catch {
-          // ignore; will fallback
         }
-      }
-      const fallback = Date.now() + 15 * 60 * 1000;
-      const target = serverExpiry
-        ? new Date(serverExpiry).getTime()
-        : ms != null
-        ? Date.now() + Math.max(0, Number(ms))
-        : fallback;
-
-      if (mounted) {
-        setExpiresAt(target);
-        setRemainingMs(Math.max(0, target - Date.now()));
+        const target = serverExpiry
+          ? new Date(serverExpiry).getTime()
+          : ms != null
+          ? Date.now() + Math.max(0, Number(ms))
+          : Date.now() + 15 * 60 * 1000; // fallback 15 min
+        if (cancelled) return;
+        expiryRef.current = target;
+        startTicking();
+      } catch {
+        // conservative fallback (10 min) if API temporarily unavailable
+        expiryRef.current = Date.now() + 10 * 60 * 1000;
+        startTicking();
       }
     };
 
-    fetchRemaining();
-
-    const id = setInterval(() => {
-      if (!expiresAt) return;
-      const left = Math.max(0, expiresAt - Date.now());
-      setRemainingMs(left);
-      if (left <= 0) {
-        clearInterval(id);
-        onExpire && onExpire();
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      } else if (!timerRef.current && expiryRef.current) {
+        startTicking();
       }
-    }, 1000);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    fetchOnce();
 
     return () => {
-      mounted = false;
-      clearInterval(id);
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [busId, date, departureTime, expiresAt, onExpire]);
+    // ✅ fetch only when the identity of the hold changes
+  }, [busId, date, departureTime, onExpire]);
 
   if (remainingMs == null) {
     return (
