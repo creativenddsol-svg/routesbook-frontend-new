@@ -526,7 +526,7 @@ const ConfirmBooking = () => {
     date,
     departureTime,
     seats: selectedSeatStrings,
-    onConfirmBack: () => navigate(-1),
+    onConfirmBack: () => navigate("/"),
   });
 
   if (missingData) {
