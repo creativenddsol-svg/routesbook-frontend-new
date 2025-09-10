@@ -3,6 +3,7 @@ import { useMemo, useState, useCallback, memo, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import apiClient from "../api"; // baseURL configured inside ../api
+import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 
 /* ---------------- Matte palette ---------------- */
 const PALETTE = {
@@ -433,6 +434,12 @@ const ConfirmBooking = () => {
   // track hold status to protect proceed action
   const [holdExpired, setHoldExpired] = useState(false);
 
+  // Seats as strings (for hook)
+  const selectedSeatStrings = useMemo(
+    () => (selectedSeats || []).map(String),
+    [selectedSeats]
+  );
+
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
@@ -511,6 +518,16 @@ const ConfirmBooking = () => {
     !selectedBoardingPoint ||
     !selectedDroppingPoint ||
     prices.total === undefined;
+
+  // 🔒 Back-button seat-release guard (works on this page too)
+  useSeatLockBackGuard({
+    enabled: !missingData && !holdExpired && selectedSeatStrings.length > 0,
+    busId: bus?._id,
+    date,
+    departureTime,
+    seats: selectedSeatStrings,
+    onConfirmBack: () => navigate(-1),
+  });
 
   if (missingData) {
     return (
