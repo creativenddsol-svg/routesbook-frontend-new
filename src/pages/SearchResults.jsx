@@ -1,4 +1,3 @@
-// SearchResults.jsx
 import {
   useSearchParams,
   useNavigate,
@@ -6,7 +5,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import apiClient from "../api";
+import apiClient, { getClientId } from "../api"; // ✅ unified clientId
 import { motion, AnimatePresence } from "framer-motion";
 import Select from "react-select";
 import toast, { Toaster } from "react-hot-toast";
@@ -127,7 +126,7 @@ const stripACWord = (type = "") =>
     .replace(/\s{2,}/g, " ")
     .replace(/^\s+|\s+$/g, "");
 
-/* -------- auth helpers (NEW) -------- */
+/* -------- auth helpers -------- */
 const getAuthToken = () =>
   localStorage.getItem("token") ||
   localStorage.getItem("authToken") ||
@@ -136,26 +135,6 @@ const getAuthToken = () =>
   null;
 const buildAuthConfig = (token) =>
   token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-
-/* -------- lock client id (NEW) -------- */
-const getClientLockId = () => {
-  try {
-    let id = localStorage.getItem("clientLockId");
-    if (!id) {
-      id =
-        (typeof crypto !== "undefined" &&
-          crypto.randomUUID &&
-          crypto.randomUUID()) ||
-        `clid-${Date.now().toString(36)}-${Math.random()
-          .toString(36)
-          .slice(2, 10)}`;
-      localStorage.setItem("clientLockId", id);
-    }
-    return id;
-  } catch {
-    return "anonymous";
-  }
-};
 
 /* ---------------- BookingDeadlineTimer ---------------- */
 const BookingDeadlineTimer = ({
@@ -343,7 +322,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     date: searchDateParam,
                     departureTime: busObj.departureTime,
                     seats: seats.map(String),
-                    clientId: getClientLockId(), // <<< ensure same client id
+                    clientId: getClientId(), // ✅ unified client id
                   },
                 });
               } catch {
@@ -526,7 +505,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     }),
   };
 
-  /* ---------------- Seat lock helpers (UPDATED) ---------------- */
+  /* ---------------- Seat lock helpers (UNIFIED) ---------------- */
   const lockSeat = async (bus, seat) => {
     const token = getAuthToken();
     const payload = {
@@ -534,7 +513,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       date: searchDateParam,
       departureTime: bus.departureTime,
       seats: [String(seat)],
-      clientId: getClientLockId(), // <<< make lock identifiable
+      clientId: getClientId(), // ✅ unified client id
     };
     // try to lock even if not logged in; fall back gracefully
     try {
@@ -563,7 +542,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       date: searchDateParam,
       departureTime: bus.departureTime,
       seats: seats.map(String),
-      clientId: getClientLockId(), // <<< ensure same client id
+      clientId: getClientId(), // ✅ unified client id
     };
     try {
       await apiClient.delete("/bookings/release", {
@@ -1186,7 +1165,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       }
       setExpandedBusId(null);
     } else {
-      // NEW: switching cards – release any seats selected on other cards
+      // switching cards – release any seats selected on other cards
       await releaseAllSelectedSeats(true);
       setExpandedBusId(busKey);
       initializeBusBookingData(bus);
@@ -1421,7 +1400,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         },
         selectedBoardingPoint,
         selectedDroppingPoint,
-        clientId: getClientLockId(), // <<< pass same id to confirm page
+        clientId: getClientId(), // ✅ pass same id to confirm page
       },
     });
   };
