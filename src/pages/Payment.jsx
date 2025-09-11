@@ -232,10 +232,34 @@ const PaymentPage = () => {
     }
   };
 
-  // Try to secure (or refresh) the lock when user lands on Payment
+  // ✅ READ-ONLY check on mount (do NOT re-lock or extend 15m automatically)
   useEffect(() => {
     if (isIncomplete) return;
-    ensureSeatLock();
+    (async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const res = await apiClient.get("/bookings/lock-remaining", {
+          params: {
+            busId: bus._id,
+            date,
+            departureTime,
+            seats: selectedSeatStrings,
+          },
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const ms =
+          res?.data?.remainingMs ?? res?.data?.ms ?? 0;
+        const ok = Number(ms) > 0;
+        setLockOk(ok);
+        setHoldExpired(!ok);
+        setLockMsg(ok ? "" : "Hold expired. Please re-lock seats.");
+      } catch {
+        // If unknown, ask user to re-lock explicitly
+        setLockOk(false);
+        setHoldExpired(true);
+        setLockMsg("Hold status unknown. Please re-lock seats.");
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isIncomplete]);
 
@@ -260,21 +284,34 @@ const PaymentPage = () => {
   };
 
   const handleFakePayment = async () => {
-    // Re-check/refresh the lock right before paying
-    let ok = await ensureSeatLock();
-    if (!ok) {
+    // ✅ Re-check remaining WITHOUT extending the hold
+    try {
+      const token = localStorage.getItem("token");
+      const res = await apiClient.get("/bookings/lock-remaining", {
+        params: {
+          busId: bus._id,
+          date,
+          departureTime,
+          seats: selectedSeatStrings,
+        },
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
+      const ms = res?.data?.remainingMs ?? res?.data?.ms ?? 0;
+      if (!(Number(ms) > 0)) {
+        setLockOk(false);
+        setHoldExpired(true);
+        setLockMsg("Hold expired. Please re-lock seats.");
+        alert("Your seat hold has expired. Please re-lock the seats.");
+        return;
+      }
+    } catch {
       alert(
-        lockMsg ||
-          "Could not verify seat lock. Please press 'Re-lock seats' and try again."
+        "Could not verify your seat hold. Please press 'Re-lock seats' and try again."
       );
       return;
     }
-    if (holdExpired) {
-      alert("Your seat hold has expired. Please re-lock the seats.");
-      return;
-    }
 
-    // ✅ NEW: prevent auto-release while payment is in progress / redirecting
+    // ✅ Prevent auto-release while payment is in progress / redirecting
     suppressAutoRelease();
 
     try {
@@ -285,7 +322,7 @@ const PaymentPage = () => {
         return;
       }
 
-      // 1st attempt
+      // Create booking (server will atomically verify locks)
       let res = await tryCreateBooking();
       alert("Payment successful (simulated)");
       navigate("/download-ticket", {
@@ -295,41 +332,6 @@ const PaymentPage = () => {
       });
     } catch (err) {
       const apiMsg = err?.response?.data?.message;
-      const isLockIssue =
-        err?.response?.status === 409 ||
-        /lock(ed)?|expired|no longer locked|conflict/i.test(apiMsg || "");
-
-      if (isLockIssue) {
-        // Re-lock once and retry automatically
-        const relocked = await ensureSeatLock();
-        if (relocked) {
-          try {
-            const res2 = await tryCreateBooking();
-            alert("Payment successful (simulated)");
-            navigate("/download-ticket", {
-              state: {
-                bookingDetails: {
-                  ...state,
-                  bookingId: res2?.data?.booking?._id,
-                },
-              },
-            });
-            return;
-          } catch (err2) {
-            const apiMsg2 = err2?.response?.data?.message;
-            setLockOk(false);
-            setLockMsg(apiMsg2 || "Seat lock conflict. Please try again.");
-            alert(
-              `Payment failed: ${
-                apiMsg2 ||
-                "Seat lock conflict even after re-lock. Please re-select seats."
-              }`
-            );
-            return;
-          }
-        }
-      }
-
       console.error("Booking error:", err?.response?.data || err?.message);
       alert(
         `Payment failed: ${
@@ -540,7 +542,16 @@ const PaymentPage = () => {
                         setLockMsg("Hold expired. Please re-lock seats.");
                       }}
                       onTick={(ms) => {
-                        if (ms > 0 && holdExpired) setHoldExpired(false);
+                        // keep UI in sync with the true remaining time
+                        if (ms > 0) {
+                          if (holdExpired) setHoldExpired(false);
+                          if (!lockOk) setLockOk(true);
+                          if (lockMsg) setLockMsg("");
+                        } else {
+                          if (!holdExpired) setHoldExpired(true);
+                          if (lockOk) setLockOk(false);
+                          setLockMsg("Hold expired. Please re-lock seats.");
+                        }
                       }}
                     />
                   </div>
