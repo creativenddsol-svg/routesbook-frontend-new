@@ -130,7 +130,8 @@ const GenderSeatPill = ({ gender, children }) => {
 };
 
 // --- Live hold countdown (15 min seat lock) ---
-const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
+// UPDATED: accepts `seats` and queries remaining time scoped to these seats
+const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => {
   const [remainingMs, setRemainingMs] = useState(null);
   const expiryRef = useRef(null);
   const timerRef = useRef(null);
@@ -154,7 +155,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
     };
 
     const fetchOnce = async () => {
-      const params = { busId, date, departureTime };
+      const params = { busId, date, departureTime, seats };
       try {
         let ms = null;
         let serverExpiry = null;
@@ -202,7 +203,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
     // ✅ fetch only when the identity of the hold changes
-  }, [busId, date, departureTime, onExpire]);
+  }, [busId, date, departureTime, onExpire, JSON.stringify(seats)]);
 
   if (remainingMs == null) {
     return (
@@ -630,6 +631,7 @@ const ConfirmBooking = () => {
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
+                seats={selectedSeatStrings}
                 onExpire={() => {
                   setHoldExpired(true);
                   // proactively release if countdown reached zero while on page
