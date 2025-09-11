@@ -130,11 +130,18 @@ const GenderSeatPill = ({ gender, children }) => {
 };
 
 // --- Live hold countdown (15 min seat lock) ---
-// UPDATED: accepts `seats` and prefers server `remainingMs` to avoid clock skew.
+// UPDATED: accepts `seats` and prefers server `remainingMs`, AND does not
+// re-run effect when parent re-renders (typing) by removing onExpire from deps.
 const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => {
   const [remainingMs, setRemainingMs] = useState(null);
   const expiryRef = useRef(null);
   const timerRef = useRef(null);
+
+  // keep latest onExpire without re-subscribing
+  const onExpireRef = useRef(onExpire);
+  useEffect(() => {
+    onExpireRef.current = onExpire;
+  }, [onExpire]);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,7 +154,7 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
         if (left <= 0) {
           clearInterval(timerRef.current);
           timerRef.current = null;
-          onExpire && onExpire();
+          if (onExpireRef.current) onExpireRef.current();
         }
       };
       tick();
@@ -169,7 +176,7 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
           serverExpiry = r2?.data?.expiresAt || null;
         }
 
-        // ✅ Prefer server-computed duration to neutralize client/server clock skew
+        // Prefer server duration to neutralize clock skew
         const leftMs =
           ms != null
             ? Math.max(0, Number(ms))
@@ -206,8 +213,8 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
       document.removeEventListener("visibilitychange", onVisibility);
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // ✅ fetch only when the identity of the hold changes
-  }, [busId, date, departureTime, onExpire, JSON.stringify(seats)]);
+    // ✅ Only re-fetch if identity of the hold changes (not on every keystroke)
+  }, [busId, date, departureTime, JSON.stringify(seats)]);
 
   if (remainingMs == null) {
     return (
@@ -494,6 +501,9 @@ const ConfirmBooking = () => {
         alert("Please agree to the Terms & Conditions.");
         return;
       }
+
+      // Optional: validate seats on server
+      // await apiClient.post("/booking/validate", { busId: bus?._id, seats: selectedSeats });
 
       const seatGendersOut = {};
       passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
