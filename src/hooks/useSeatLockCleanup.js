@@ -1,6 +1,6 @@
 // src/hooks/useSeatLockCleanup.js
 import { useEffect, useRef, useCallback } from "react";
-import apiClient, { getClientId } from "../api";
+import apiClient from "../api";
 
 /* Keep these helpers consistent with your SearchResults.jsx */
 const getAuthToken = () =>
@@ -13,15 +13,37 @@ const getAuthToken = () =>
 const buildAuthConfig = (token) =>
   token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
+/** Stable per-browser client id so the backend can group locks by client */
+const getClientLockId = () => {
+  try {
+    let id = localStorage.getItem("clientLockId");
+    if (!id) {
+      id =
+        (typeof crypto !== "undefined" &&
+          crypto.randomUUID &&
+          crypto.randomUUID()) ||
+        `clid-${Date.now().toString(36)}-${Math.random()
+          .toString(36)
+          .slice(2, 10)}`;
+      localStorage.setItem("clientLockId", id);
+    }
+    return id;
+  } catch {
+    return "anonymous";
+  }
+};
+
 /**
- * useSeatLockCleanup
+ * useSeatLockCleanup (manual mode)
  *
- * Ensures seats are released when the user cancels or abandons the flow.
+ * Ensures you CAN release seats when the user cancels or the hold truly expires,
+ * but it will NOT auto-release on unmount / pagehide anymore (this was causing
+ * “Hold expired” while typing due to StrictMode/react-router remounts).
+ *
  * Returns:
- *   - releaseSeats(): call this in your "Cancel" button handler.
- *   - suppressAutoRelease(): call this right before redirecting to a payment gateway
- *     if you want the hold to persist during external payment.
- *   - allowAutoRelease(): re-enable automatic cleanup if you suppressed it earlier.
+ *   - releaseSeats(): call this in "Cancel" or when your countdown really hits 0.
+ *   - suppressAutoRelease(): kept for API compatibility (no-op now).
+ *   - allowAutoRelease(): kept for API compatibility (no-op now).
  */
 export function useSeatLockCleanup({
   busId,
@@ -31,9 +53,8 @@ export function useSeatLockCleanup({
 }) {
   const latestRef = useRef({ busId, date, departureTime, seats });
   const releasingRef = useRef(false);
-  const suppressAutoReleaseRef = useRef(false);
 
-  // Keep latest values in a ref so callbacks always see fresh data
+  // keep latest values
   useEffect(() => {
     latestRef.current = { busId, date, departureTime, seats };
   }, [busId, date, departureTime, seats]);
@@ -52,85 +73,23 @@ export function useSeatLockCleanup({
           date,
           departureTime,
           seats: seats.map(String),
-          // ✅ Use the single shared client id everywhere
-          clientId: getClientId(),
+          clientId: getClientLockId(),
         },
       });
     } catch (e) {
       // best-effort cleanup; don't throw
-      console.warn("Seat release (cleanup) failed:", e?.response?.data || e?.message || e);
+      console.warn("Seat release (manual) failed:", e?.response?.data || e?.message || e);
     } finally {
       releasingRef.current = false;
     }
   }, []);
 
-  // Automatically release on component unmount (unless suppressed)
-  useEffect(() => {
-    return () => {
-      if (!suppressAutoReleaseRef.current) {
-        // fire-and-forget; no await on unmount
-        releaseSeats();
-      }
-    };
-  }, [releaseSeats]);
+  // ❌ Removed: auto-release on unmount (caused accidental releases)
+  // ❌ Removed: pagehide/beforeunload beacon release
+  // These were the root cause of “Hold expired” while typing.
 
-  // Optional: also attempt a last-chance release on tab close/refresh.
-  // This uses sendBeacon/fetch keepalive. It will be skipped if suppressed.
-  useEffect(() => {
-    const sendBeaconRelease = () => {
-      if (suppressAutoReleaseRef.current) return;
-
-      const { busId, date, departureTime, seats } = latestRef.current || {};
-      if (!busId || !date || !departureTime || !Array.isArray(seats) || seats.length === 0) return;
-
-      const payload = JSON.stringify({
-        busId,
-        date,
-        departureTime,
-        seats: seats.map(String),
-        // ✅ Use the shared client id for beacon fallback as well
-        clientId: getClientId(),
-      });
-
-      const baseURL = apiClient?.defaults?.baseURL || "";
-      const url =
-        (baseURL ? baseURL.replace(/\/$/, "") : "") + "/bookings/release";
-
-      try {
-        if (navigator.sendBeacon) {
-          const blob = new Blob([payload], { type: "application/json" });
-          // Some servers accept POST for release when using beacons.
-          navigator.sendBeacon(url, blob);
-        } else {
-          // Fallback: keepalive POST (many browsers don't allow DELETE+keepalive reliably)
-          fetch(url, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: payload,
-            keepalive: true,
-          }).catch(() => {});
-        }
-      } catch {
-        /* no-op */
-      }
-    };
-
-    // pagehide is more reliable on mobile than beforeunload
-    window.addEventListener("pagehide", sendBeaconRelease);
-    window.addEventListener("beforeunload", sendBeaconRelease);
-    return () => {
-      window.removeEventListener("pagehide", sendBeaconRelease);
-      window.removeEventListener("beforeunload", sendBeaconRelease);
-    };
-  }, []);
-
-  const suppressAutoRelease = useCallback(() => {
-    suppressAutoReleaseRef.current = true;
-  }, []);
-
-  const allowAutoRelease = useCallback(() => {
-    suppressAutoReleaseRef.current = false;
-  }, []);
+  const suppressAutoRelease = useCallback(() => {}, []);
+  const allowAutoRelease = useCallback(() => {}, []);
 
   return { releaseSeats, suppressAutoRelease, allowAutoRelease };
 }
