@@ -1,6 +1,6 @@
 // src/hooks/useSeatLockCleanup.js
 import { useEffect, useRef, useCallback } from "react";
-import apiClient from "../api";
+import apiClient, { getClientId } from "../api";
 
 /* Keep these helpers consistent with your SearchResults.jsx */
 const getAuthToken = () =>
@@ -12,26 +12,6 @@ const getAuthToken = () =>
 
 const buildAuthConfig = (token) =>
   token ? { headers: { Authorization: `Bearer ${token}` } } : {};
-
-/** Stable per-browser client id so the backend can group locks by client */
-const getClientLockId = () => {
-  try {
-    let id = localStorage.getItem("clientLockId");
-    if (!id) {
-      id =
-        (typeof crypto !== "undefined" &&
-          crypto.randomUUID &&
-          crypto.randomUUID()) ||
-        `clid-${Date.now().toString(36)}-${Math.random()
-          .toString(36)
-          .slice(2, 10)}`;
-      localStorage.setItem("clientLockId", id);
-    }
-    return id;
-  } catch {
-    return "anonymous";
-  }
-};
 
 /**
  * useSeatLockCleanup
@@ -72,7 +52,8 @@ export function useSeatLockCleanup({
           date,
           departureTime,
           seats: seats.map(String),
-          clientId: getClientLockId(),
+          // ✅ Use the single shared client id everywhere
+          clientId: getClientId(),
         },
       });
     } catch (e) {
@@ -107,7 +88,8 @@ export function useSeatLockCleanup({
         date,
         departureTime,
         seats: seats.map(String),
-        clientId: getClientLockId(),
+        // ✅ Use the shared client id for beacon fallback as well
+        clientId: getClientId(),
       });
 
       const baseURL = apiClient?.defaults?.baseURL || "";
