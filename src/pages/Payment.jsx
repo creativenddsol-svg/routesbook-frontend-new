@@ -1,5 +1,5 @@
 // src/pages/Payment.jsx
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
@@ -35,8 +35,8 @@ const HoldCountdown = ({
   onTick,
 }) => {
   const [remainingMs, setRemainingMs] = useState(null);
-  const expiryRef = React.useRef(null);
-  const timerRef = React.useRef(null);
+  const expiryRef = useRef(null);
+  const timerRef = useRef(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -88,7 +88,7 @@ const HoldCountdown = ({
           startTicking();
         }
       } catch {
-        // graceful fallback: give a short timer so user can re-lock
+        // graceful fallback: short timer so user can re-lock
         expiryRef.current = Date.now() + 30 * 1000;
         startTicking();
       }
