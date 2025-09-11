@@ -130,76 +130,62 @@ const GenderSeatPill = ({ gender, children }) => {
 };
 
 // --- Live hold countdown (15 min seat lock) ---
-// UPDATED: polls server & revalidates before declaring expired; accepts `seats` filter
+// UPDATED: accepts `seats` and prefers server `remainingMs` to avoid clock skew.
 const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => {
   const [remainingMs, setRemainingMs] = useState(null);
   const expiryRef = useRef(null);
   const timerRef = useRef(null);
-  const pollRef = useRef(null);
-
-  const readServer = useCallback(async () => {
-    // send both seats and seats[] to be safe with different parsers
-    const params = { busId, date, departureTime, seats, "seats[]": seats };
-    try {
-      let ms = null;
-      let serverExpiry = null;
-      try {
-        const r1 = await apiClient.get("/bookings/lock-remaining", { params });
-        ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
-        serverExpiry = r1?.data?.expiresAt || null;
-      } catch {
-        const r2 = await apiClient.get("/bookings/lock/remaining", { params });
-        ms = r2?.data?.remainingMs ?? r2?.data?.ms ?? null;
-        serverExpiry = r2?.data?.expiresAt || null;
-      }
-      if (serverExpiry) {
-        expiryRef.current = new Date(serverExpiry).getTime();
-      } else if (ms != null) {
-        expiryRef.current = Date.now() + Math.max(0, Number(ms));
-      } else {
-        expiryRef.current = null;
-      }
-      if (expiryRef.current) {
-        setRemainingMs(Math.max(0, expiryRef.current - Date.now()));
-      } else {
-        setRemainingMs(0);
-      }
-    } catch {
-      // transient errors: keep current UI; don't flip to expired
-    }
-  }, [busId, date, departureTime, seats]);
 
   useEffect(() => {
     let cancelled = false;
 
     const startTicking = () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      const tick = async () => {
-        if (!expiryRef.current) return setRemainingMs(0);
-        const left = Math.max(0, expiryRef.current - Date.now());
+      const tick = () => {
+        const left = Math.max(0, (expiryRef.current ?? Date.now()) - Date.now());
         setRemainingMs(left);
         if (left <= 0) {
-          // Final revalidation with the server before expiring
-          await readServer();
-          if (!expiryRef.current || expiryRef.current - Date.now() <= 0) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-            onExpire && onExpire();
-          }
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          onExpire && onExpire();
         }
       };
       tick();
       timerRef.current = setInterval(tick, 1000);
     };
 
-    // initial fetch + start ticking
-    (async () => {
-      await readServer();
-      if (!cancelled) startTicking();
-    })();
+    const fetchOnce = async () => {
+      const params = { busId, date, departureTime, seats };
+      try {
+        let ms = null;
+        let serverExpiry = null;
+        try {
+          const r1 = await apiClient.get("/bookings/lock-remaining", { params });
+          ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
+          serverExpiry = r1?.data?.expiresAt || null;
+        } catch {
+          const r2 = await apiClient.get("/bookings/lock/remaining", { params });
+          ms = r2?.data?.remainingMs ?? r2?.data?.ms ?? null;
+          serverExpiry = r2?.data?.expiresAt || null;
+        }
 
-    // gentle poll every 15s to correct drift
-    pollRef.current = setInterval(readServer, 15000);
+        // ✅ Prefer server-computed duration to neutralize client/server clock skew
+        const leftMs =
+          ms != null
+            ? Math.max(0, Number(ms))
+            : serverExpiry
+            ? Math.max(0, new Date(serverExpiry).getTime() - Date.now())
+            : 15 * 60 * 1000; // fallback
+
+        if (cancelled) return;
+        expiryRef.current = Date.now() + leftMs;
+        startTicking();
+      } catch {
+        // conservative fallback (10 min) if API temporarily unavailable
+        expiryRef.current = Date.now() + 10 * 60 * 1000;
+        startTicking();
+      }
+    };
 
     const onVisibility = () => {
       if (document.hidden) {
@@ -207,22 +193,21 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
-      } else if (!timerRef.current) {
+      } else if (!timerRef.current && expiryRef.current) {
         startTicking();
-        readServer();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
+
+    fetchOnce();
 
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
       if (timerRef.current) clearInterval(timerRef.current);
-      if (pollRef.current) clearInterval(pollRef.current);
     };
-    // IMPORTANT: don't depend on onExpire; that causes refetches on every keystroke
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readServer]); // re-run only when identity of the hold changes
+    // ✅ fetch only when the identity of the hold changes
+  }, [busId, date, departureTime, onExpire, JSON.stringify(seats)]);
 
   if (remainingMs == null) {
     return (
@@ -509,9 +494,6 @@ const ConfirmBooking = () => {
         alert("Please agree to the Terms & Conditions.");
         return;
       }
-
-      // Optional: validate seats on server
-      // await apiClient.post("/booking/validate", { busId: bus?._id, seats: selectedSeats });
 
       const seatGendersOut = {};
       passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
@@ -843,29 +825,29 @@ const ConfirmBooking = () => {
         }}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-            <div className="flex-1">
-              <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
-                Payable Amount
-              </p>
-              <p
-                className="text-xl font-extrabold tabular-nums"
-                style={{ color: PALETTE.text }}
-              >
-                Rs. {prices.total.toFixed(2)}
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled={!termsAccepted || holdExpired}
-              onClick={(e) => {
-                // reuse validation
-                handleSubmit({ preventDefault: () => {} });
-              }}
-              className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ background: PALETTE.primary }}
+          <div className="flex-1">
+            <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
+              Payable Amount
+            </p>
+            <p
+              className="text-xl font-extrabold tabular-nums"
+              style={{ color: PALETTE.text }}
             >
-              Proceed to Pay
-            </button>
+              Rs. {prices.total.toFixed(2)}
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={!termsAccepted || holdExpired}
+            onClick={(e) => {
+              // reuse validation
+              handleSubmit({ preventDefault: () => {} });
+            }}
+            className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: PALETTE.primary }}
+          >
+            Proceed to Pay
+          </button>
         </div>
       </div>
     </div>
