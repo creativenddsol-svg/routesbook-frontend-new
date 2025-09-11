@@ -1,11 +1,21 @@
-import { Navigate } from "react-router-dom";
-import { useAuth } from "../AuthContext";
+// src/components/ProtectedRoute.jsx
+import React from "react";
+import { Navigate, useLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 const ProtectedRoute = ({ children }) => {
-  const { isLoggedIn, loading } = useAuth();
+  const { user, isAuthenticated, isLoggedIn, loading, hydrated } = useAuth() || {};
+  const location = useLocation();
 
-  // ⏳ Wait until auth state is loaded
-  if (loading) {
+  // ⏳ Wait until auth state is ready (supports either `hydrated` or `loading`)
+  const ready =
+    typeof hydrated === "boolean"
+      ? hydrated
+      : typeof loading === "boolean"
+      ? !loading
+      : true;
+
+  if (!ready) {
     return (
       <div className="flex justify-center items-center h-screen text-gray-600 text-lg animate-pulse">
         🔐 Checking authentication...
@@ -13,9 +23,14 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  // 🚫 Not logged in → redirect to login
-  if (!isLoggedIn) {
-    return <Navigate to="/login" replace />;
+  // Determine auth status (supports `isLoggedIn`, `isAuthenticated`, or `user`)
+  const authed =
+    typeof isLoggedIn !== "undefined" ? !!isLoggedIn : !!(user || isAuthenticated);
+
+  // 🚫 Not logged in → redirect to login (preserve intended destination)
+  if (!authed) {
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/login?redirect=${redirect}`} replace />;
   }
 
   // ✅ Logged in → render protected page
