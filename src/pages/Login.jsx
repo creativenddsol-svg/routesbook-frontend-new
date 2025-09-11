@@ -6,72 +6,18 @@ import toast, { Toaster } from "react-hot-toast";
 // Use the shared API client (has baseURL + withCredentials)
 import apiClient from "../api";
 
-/* ---------------- Matte palette (matches ConfirmBooking) ---------------- */
+/* ---- Shared UI (matches ConfirmBooking look & feel) ---- */
+import TopBar from "../components/ui/TopBar";
+import SectionCard from "../components/ui/SectionCard";
+import { RowInput } from "../components/ui/FormAtoms";
+
+/* ---- Page palette (fallbacks to CSS vars, matches CB) ---- */
 const PALETTE = {
-  primary: "#C74A50", // matte red
-  bg: "#F5F6F8",
-  surface: "#FFFFFF",
-  surfaceAlt: "#FAFBFC",
-  border: "#E5E7EB",
-  text: "#1A1A1A",
-  textSubtle: "#6B7280",
-  pillBg: "#F3F4F6",
+  primary: "var(--rb-primary, #D84E55)",
+  bg: "var(--rb-bg, #F5F6F8)",
+  subtle: "var(--rb-subtle, #6B7280)",
 };
 
-/* ---------------- Small shared UI atoms (styled like CB) ---------------- */
-const SectionCard = ({ title, children }) => (
-  <div
-    className="rounded-2xl p-5"
-    style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}` }}
-  >
-    {title ? (
-      <h3 className="text-lg font-semibold mb-3" style={{ color: PALETTE.text }}>
-        {title}
-      </h3>
-    ) : null}
-    {children}
-  </div>
-);
-
-const Label = ({ children }) => (
-  <span className="block text-xs font-semibold mb-1" style={{ color: PALETTE.textSubtle }}>
-    {children}
-  </span>
-);
-
-const RowInput = ({
-  id,
-  name,
-  label,
-  type = "text",
-  value,
-  onChange,
-  autoComplete,
-  inputMode,
-  enterKeyHint,
-  placeholder,
-  required,
-}) => (
-  <div className="w-full">
-    <Label>{label}</Label>
-    <input
-      id={id}
-      name={name}
-      type={type}
-      value={value}
-      onChange={onChange}
-      autoComplete={autoComplete}
-      inputMode={inputMode}
-      enterKeyHint={enterKeyHint}
-      placeholder={placeholder}
-      required={required}
-      className="w-full bg-white px-3 py-3 rounded-xl border outline-none"
-      style={{ borderColor: PALETTE.border, color: PALETTE.text }}
-    />
-  </div>
-);
-
-/* ========================= Component ========================= */
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
@@ -132,16 +78,8 @@ const Login = () => {
     <div className="min-h-screen" style={{ background: PALETTE.bg }}>
       <Toaster position="top-right" />
 
-      {/* Matte top bar (same as CB) */}
-      <div
-        className="sticky top-0 z-30"
-        style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}
-      >
-        <div className="max-w-md mx-auto px-4 py-3">
-          <p className="text-white text-base font-semibold leading-tight">Login</p>
-          <p className="text-white/90 text-xs">Sign in to continue your booking</p>
-        </div>
-      </div>
+      {/* Matte top bar identical to ConfirmBooking */}
+      <TopBar title="Login" subtitle="Sign in to continue your booking" />
 
       {/* Content */}
       <div className="max-w-md mx-auto px-4 pb-20">
@@ -200,9 +138,13 @@ const Login = () => {
               )}
             </form>
 
-            <p className="mt-4 text-sm text-center" style={{ color: PALETTE.textSubtle }}>
+            <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
               Not a user?{" "}
-              <Link to="/signup" className="font-semibold hover:underline" style={{ color: PALETTE.primary }}>
+              <Link
+                to="/signup"
+                className="font-semibold hover:underline"
+                style={{ color: PALETTE.primary }}
+              >
                 Create an account
               </Link>
             </p>
