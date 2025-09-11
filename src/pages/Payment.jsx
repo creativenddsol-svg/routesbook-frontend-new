@@ -1,5 +1,5 @@
 // src/pages/Payment.jsx
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
@@ -24,19 +24,17 @@ import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
 /* ---------------- Hold countdown for THIS user's seats ---------------- */
-// Reworked to fetch ONCE per seat set and then tick locally.
-// Also passes a cache-busting param to avoid 304/stale caching.
 const HoldCountdown = ({
   busId,
   date,
   departureTime,
-  seats = [], // array of seat strings
+  seats, // array of seat strings
   onExpire,
   onTick,
 }) => {
-  const [remainingMs, setRemainingMs] = useState(null);
   const expiryRef = useRef(null);
   const timerRef = useRef(null);
+  const [remainingMs, setRemainingMs] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,60 +42,46 @@ const HoldCountdown = ({
     const startTicking = () => {
       if (timerRef.current) clearInterval(timerRef.current);
       const tick = () => {
-        const left = Math.max(0, (expiryRef.current ?? Date.now()) - Date.now());
+        const target = expiryRef.current || Date.now();
+        const left = Math.max(0, target - Date.now());
         setRemainingMs(left);
-        onTick && onTick(left);
+        if (onTick) onTick(left);
         if (left <= 0) {
           clearInterval(timerRef.current);
           timerRef.current = null;
-          onExpire && onExpire();
+          if (onExpire) onExpire();
         }
       };
       tick();
       timerRef.current = setInterval(tick, 1000);
     };
 
-    const fetchRemaining = async () => {
+    const fetchOnce = async () => {
       try {
-        const token = localStorage.getItem("token");
-        const res = await apiClient.get("/bookings/lock-remaining", {
-          params: {
-            busId,
-            date,
-            departureTime,
-            seats: Array.isArray(seats) ? seats : [],
-            t: Date.now(), // cache-bust to avoid 304/stale issues
-          },
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            "Cache-Control": "no-cache",
-            Pragma: "no-cache",
-          },
-        });
+        const params = { busId, date, departureTime, seats: Array.isArray(seats) ? seats : [] };
+        // Try primary alias
+        let r = await apiClient.get("/bookings/lock-remaining", { params });
+        // Fallback alias if needed
+        if (!r?.data) r = await apiClient.get("/bookings/lock/remaining", { params });
 
-        const ms = res?.data?.remainingMs ?? res?.data?.ms ?? null;
-        const serverExpiry = res?.data?.expiresAt || null;
+        const ms = r?.data?.remainingMs ?? r?.data?.ms ?? null;
+        const serverExpiry = r?.data?.expiresAt || null;
         const target = serverExpiry
           ? new Date(serverExpiry).getTime()
           : ms != null
           ? Date.now() + Math.max(0, Number(ms))
-          : null;
+          : Date.now() + 15 * 60 * 1000; // fallback 15 min
 
-        if (!cancelled && target) {
-          expiryRef.current = target;
-          startTicking();
-        }
+        if (cancelled) return;
+        expiryRef.current = target;
+        startTicking();
       } catch {
-        // graceful fallback: short timer so user can re-lock
-        expiryRef.current = Date.now() + 30 * 1000;
+        // Conservative fallback if API hiccups (10 minutes)
+        expiryRef.current = Date.now() + 10 * 60 * 1000;
         startTicking();
       }
     };
 
-    // Only refetch when the identity of the lock changes (bus/date/time/seats)
-    fetchRemaining();
-
-    // Pause/resume ticking when tab visibility changes
     const onVisibility = () => {
       if (document.hidden) {
         if (timerRef.current) {
@@ -110,12 +94,14 @@ const HoldCountdown = ({
     };
     document.addEventListener("visibilitychange", onVisibility);
 
+    fetchOnce();
+
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // seats in stringified form to avoid identity churn triggering refetch
+    // ✅ IMPORTANT: seats array is stringified to avoid re-running on shallow re-renders
   }, [busId, date, departureTime, onExpire, onTick, JSON.stringify(seats)]);
 
   if (remainingMs == null) return null;
@@ -157,11 +143,7 @@ const PaymentPage = () => {
   const isIncomplete =
     !bus || !priceDetails || !passenger || !departureTime;
 
-  // 🚫 Avoid seats array identity churn across renders
-  const selectedSeatStrings = useMemo(
-    () => selectedSeats.map(String),
-    [selectedSeats]
-  );
+  const selectedSeatStrings = selectedSeats.map(String);
 
   // 🔒 Back-button seat-release guard on Payment page — go HOME on confirm
   useSeatLockBackGuard({
