@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx 
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
@@ -186,7 +186,7 @@ const App = () => (
             }
           />
 
-          {/* ───── OPERATOR ROUTES ───── */}
+          {/* ───── OPERATOR ROUTES ──── */}
           <Route
             path="/operator/dashboard"
             element={
