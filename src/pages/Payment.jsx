@@ -1,5 +1,5 @@
 // src/pages/Payment.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import BookingSteps from "../components/BookingSteps";
 import {
@@ -24,20 +24,38 @@ import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
 /* ---------------- Hold countdown for THIS user's seats ---------------- */
+// Reworked to fetch ONCE per seat set and then tick locally.
+// Also passes a cache-busting param to avoid 304/stale caching.
 const HoldCountdown = ({
   busId,
   date,
   departureTime,
-  seats, // array of seat strings
+  seats = [], // array of seat strings
   onExpire,
   onTick,
 }) => {
-  const [expiresAt, setExpiresAt] = useState(null);
   const [remainingMs, setRemainingMs] = useState(null);
+  const expiryRef = React.useRef(null);
+  const timerRef = React.useRef(null);
 
   useEffect(() => {
-    let mounted = true;
-    let timerId;
+    let cancelled = false;
+
+    const startTicking = () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      const tick = () => {
+        const left = Math.max(0, (expiryRef.current ?? Date.now()) - Date.now());
+        setRemainingMs(left);
+        onTick && onTick(left);
+        if (left <= 0) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+          onExpire && onExpire();
+        }
+      };
+      tick();
+      timerRef.current = setInterval(tick, 1000);
+    };
 
     const fetchRemaining = async () => {
       try {
@@ -48,8 +66,13 @@ const HoldCountdown = ({
             date,
             departureTime,
             seats: Array.isArray(seats) ? seats : [],
+            t: Date.now(), // cache-bust to avoid 304/stale issues
           },
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
         });
 
         const ms = res?.data?.remainingMs ?? res?.data?.ms ?? null;
@@ -60,33 +83,40 @@ const HoldCountdown = ({
           ? Date.now() + Math.max(0, Number(ms))
           : null;
 
-        if (mounted && target) {
-          setExpiresAt(target);
-          setRemainingMs(Math.max(0, target - Date.now()));
+        if (!cancelled && target) {
+          expiryRef.current = target;
+          startTicking();
         }
       } catch {
-        // ignore: if we can't read remaining, UI will still allow re-lock and Pay will relock again.
+        // graceful fallback: give a short timer so user can re-lock
+        expiryRef.current = Date.now() + 30 * 1000;
+        startTicking();
       }
     };
 
+    // Only refetch when the identity of the lock changes (bus/date/time/seats)
     fetchRemaining();
 
-    timerId = setInterval(() => {
-      if (!expiresAt) return;
-      const left = Math.max(0, expiresAt - Date.now());
-      setRemainingMs(left);
-      onTick && onTick(left);
-      if (left <= 0) {
-        clearInterval(timerId);
-        onExpire && onExpire();
+    // Pause/resume ticking when tab visibility changes
+    const onVisibility = () => {
+      if (document.hidden) {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = null;
+        }
+      } else if (!timerRef.current && expiryRef.current) {
+        startTicking();
       }
-    }, 1000);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
-      mounted = false;
-      clearInterval(timerId);
+      cancelled = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [busId, date, departureTime, seats, expiresAt, onExpire, onTick]);
+    // seats in stringified form to avoid identity churn triggering refetch
+  }, [busId, date, departureTime, onExpire, onTick, JSON.stringify(seats)]);
 
   if (remainingMs == null) return null;
 
@@ -96,7 +126,7 @@ const HoldCountdown = ({
 
   return (
     <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-700">
-      Hold: {mm}:{ss}
+      {total <= 0 ? "Hold expired" : `Hold: ${mm}:${ss}`}
     </span>
   );
 };
@@ -127,7 +157,11 @@ const PaymentPage = () => {
   const isIncomplete =
     !bus || !priceDetails || !passenger || !departureTime;
 
-  const selectedSeatStrings = selectedSeats.map(String);
+  // 🚫 Avoid seats array identity churn across renders
+  const selectedSeatStrings = useMemo(
+    () => selectedSeats.map(String),
+    [selectedSeats]
+  );
 
   // 🔒 Back-button seat-release guard on Payment page — go HOME on confirm
   useSeatLockBackGuard({
@@ -232,34 +266,10 @@ const PaymentPage = () => {
     }
   };
 
-  // ✅ READ-ONLY check on mount (do NOT re-lock or extend 15m automatically)
+  // Try to secure (or refresh) the lock when user lands on Payment
   useEffect(() => {
     if (isIncomplete) return;
-    (async () => {
-      try {
-        const token = localStorage.getItem("token");
-        const res = await apiClient.get("/bookings/lock-remaining", {
-          params: {
-            busId: bus._id,
-            date,
-            departureTime,
-            seats: selectedSeatStrings,
-          },
-          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-        });
-        const ms =
-          res?.data?.remainingMs ?? res?.data?.ms ?? 0;
-        const ok = Number(ms) > 0;
-        setLockOk(ok);
-        setHoldExpired(!ok);
-        setLockMsg(ok ? "" : "Hold expired. Please re-lock seats.");
-      } catch {
-        // If unknown, ask user to re-lock explicitly
-        setLockOk(false);
-        setHoldExpired(true);
-        setLockMsg("Hold status unknown. Please re-lock seats.");
-      }
-    })();
+    ensureSeatLock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isIncomplete]);
 
@@ -284,34 +294,21 @@ const PaymentPage = () => {
   };
 
   const handleFakePayment = async () => {
-    // ✅ Re-check remaining WITHOUT extending the hold
-    try {
-      const token = localStorage.getItem("token");
-      const res = await apiClient.get("/bookings/lock-remaining", {
-        params: {
-          busId: bus._id,
-          date,
-          departureTime,
-          seats: selectedSeatStrings,
-        },
-        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-      });
-      const ms = res?.data?.remainingMs ?? res?.data?.ms ?? 0;
-      if (!(Number(ms) > 0)) {
-        setLockOk(false);
-        setHoldExpired(true);
-        setLockMsg("Hold expired. Please re-lock seats.");
-        alert("Your seat hold has expired. Please re-lock the seats.");
-        return;
-      }
-    } catch {
+    // Re-check/refresh the lock right before paying
+    let ok = await ensureSeatLock();
+    if (!ok) {
       alert(
-        "Could not verify your seat hold. Please press 'Re-lock seats' and try again."
+        lockMsg ||
+          "Could not verify seat lock. Please press 'Re-lock seats' and try again."
       );
       return;
     }
+    if (holdExpired) {
+      alert("Your seat hold has expired. Please re-lock the seats.");
+      return;
+    }
 
-    // ✅ Prevent auto-release while payment is in progress / redirecting
+    // ✅ NEW: prevent auto-release while payment is in progress / redirecting
     suppressAutoRelease();
 
     try {
@@ -322,7 +319,7 @@ const PaymentPage = () => {
         return;
       }
 
-      // Create booking (server will atomically verify locks)
+      // 1st attempt
       let res = await tryCreateBooking();
       alert("Payment successful (simulated)");
       navigate("/download-ticket", {
@@ -332,6 +329,41 @@ const PaymentPage = () => {
       });
     } catch (err) {
       const apiMsg = err?.response?.data?.message;
+      const isLockIssue =
+        err?.response?.status === 409 ||
+        /lock(ed)?|expired|no longer locked|conflict/i.test(apiMsg || "");
+
+      if (isLockIssue) {
+        // Re-lock once and retry automatically
+        const relocked = await ensureSeatLock();
+        if (relocked) {
+          try {
+            const res2 = await tryCreateBooking();
+            alert("Payment successful (simulated)");
+            navigate("/download-ticket", {
+              state: {
+                bookingDetails: {
+                  ...state,
+                  bookingId: res2?.data?.booking?._id,
+                },
+              },
+            });
+            return;
+          } catch (err2) {
+            const apiMsg2 = err2?.response?.data?.message;
+            setLockOk(false);
+            setLockMsg(apiMsg2 || "Seat lock conflict. Please try again.");
+            alert(
+              `Payment failed: ${
+                apiMsg2 ||
+                "Seat lock conflict even after re-lock. Please re-select seats."
+              }`
+            );
+            return;
+          }
+        }
+      }
+
       console.error("Booking error:", err?.response?.data || err?.message);
       alert(
         `Payment failed: ${
@@ -542,16 +574,7 @@ const PaymentPage = () => {
                         setLockMsg("Hold expired. Please re-lock seats.");
                       }}
                       onTick={(ms) => {
-                        // keep UI in sync with the true remaining time
-                        if (ms > 0) {
-                          if (holdExpired) setHoldExpired(false);
-                          if (!lockOk) setLockOk(true);
-                          if (lockMsg) setLockMsg("");
-                        } else {
-                          if (!holdExpired) setHoldExpired(true);
-                          if (lockOk) setLockOk(false);
-                          setLockMsg("Hold expired. Please re-lock seats.");
-                        }
+                        if (ms > 0 && holdExpired) setHoldExpired(false);
                       }}
                     />
                   </div>
