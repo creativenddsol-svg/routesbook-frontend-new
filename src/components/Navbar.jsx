@@ -1,6 +1,8 @@
+// src/components/Navbar.jsx
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+// ✅ FIXED: make sure this path is the SAME file your Login.jsx uses
+import { useAuth } from "../AuthContext";
 import {
   FaUserCircle,
   FaBars,
