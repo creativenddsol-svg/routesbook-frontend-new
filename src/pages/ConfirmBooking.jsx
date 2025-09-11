@@ -130,58 +130,75 @@ const GenderSeatPill = ({ gender, children }) => {
 };
 
 // --- Live hold countdown (15 min seat lock) ---
-// UPDATED: accepts `seats` and queries remaining time scoped to these seats
+// UPDATED: polls server & revalidates before declaring expired; accepts `seats` filter
 const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => {
   const [remainingMs, setRemainingMs] = useState(null);
   const expiryRef = useRef(null);
   const timerRef = useRef(null);
+  const pollRef = useRef(null);
+
+  const readServer = useCallback(async () => {
+    const params = { busId, date, departureTime, seats };
+    try {
+      let ms = null;
+      let serverExpiry = null;
+      try {
+        const r1 = await apiClient.get("/bookings/lock-remaining", { params });
+        ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
+        serverExpiry = r1?.data?.expiresAt || null;
+      } catch {
+        const r2 = await apiClient.get("/bookings/lock/remaining", { params });
+        ms = r2?.data?.remainingMs ?? r2?.data?.ms ?? null;
+        serverExpiry = r2?.data?.expiresAt || null;
+      }
+      if (serverExpiry) {
+        expiryRef.current = new Date(serverExpiry).getTime();
+      } else if (ms != null) {
+        expiryRef.current = Date.now() + Math.max(0, Number(ms));
+      } else {
+        expiryRef.current = null;
+      }
+      if (expiryRef.current) {
+        setRemainingMs(Math.max(0, expiryRef.current - Date.now()));
+      } else {
+        setRemainingMs(0);
+      }
+    } catch {
+      // transient errors: keep current UI; don't flip to expired
+    }
+  }, [busId, date, departureTime, seats]);
 
   useEffect(() => {
     let cancelled = false;
 
     const startTicking = () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      const tick = () => {
-        const left = Math.max(0, (expiryRef.current ?? Date.now()) - Date.now());
+      const tick = async () => {
+        if (!expiryRef.current) return setRemainingMs(0);
+        const left = Math.max(0, expiryRef.current - Date.now());
         setRemainingMs(left);
         if (left <= 0) {
-          clearInterval(timerRef.current);
-          timerRef.current = null;
-          onExpire && onExpire();
+          // Final revalidation with the server before expiring
+          await readServer();
+          if (!expiryRef.current || expiryRef.current - Date.now() <= 0) {
+            clearInterval(timerRef.current);
+            timerRef.current = null;
+            onExpire && onExpire();
+          }
         }
       };
       tick();
       timerRef.current = setInterval(tick, 1000);
     };
 
-    const fetchOnce = async () => {
-      const params = { busId, date, departureTime, seats };
-      try {
-        let ms = null;
-        let serverExpiry = null;
-        try {
-          const r1 = await apiClient.get("/bookings/lock-remaining", { params });
-          ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
-          serverExpiry = r1?.data?.expiresAt || null;
-        } catch {
-          const r2 = await apiClient.get("/bookings/lock/remaining", { params });
-          ms = r2?.data?.remainingMs ?? r2?.data?.ms ?? null;
-          serverExpiry = r2?.data?.expiresAt || null;
-        }
-        const target = serverExpiry
-          ? new Date(serverExpiry).getTime()
-          : ms != null
-          ? Date.now() + Math.max(0, Number(ms))
-          : Date.now() + 15 * 60 * 1000; // fallback 15 min
-        if (cancelled) return;
-        expiryRef.current = target;
-        startTicking();
-      } catch {
-        // conservative fallback (10 min) if API temporarily unavailable
-        expiryRef.current = Date.now() + 10 * 60 * 1000;
-        startTicking();
-      }
-    };
+    // initial fetch + start ticking
+    (async () => {
+      await readServer();
+      if (!cancelled) startTicking();
+    })();
+
+    // gentle poll every 15s to correct drift
+    pollRef.current = setInterval(readServer, 15000);
 
     const onVisibility = () => {
       if (document.hidden) {
@@ -189,21 +206,21 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
-      } else if (!timerRef.current && expiryRef.current) {
+      } else if (!timerRef.current) {
         startTicking();
+        readServer();
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
-
-    fetchOnce();
 
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
       if (timerRef.current) clearInterval(timerRef.current);
+      if (pollRef.current) clearInterval(pollRef.current);
     };
-    // ✅ fetch only when the identity of the hold changes
-  }, [busId, date, departureTime, onExpire, JSON.stringify(seats)]);
+    // re-run only when identity of the hold changes
+  }, [readServer, onExpire]);
 
   if (remainingMs == null) {
     return (
