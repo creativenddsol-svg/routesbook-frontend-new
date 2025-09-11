@@ -138,7 +138,8 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
   const pollRef = useRef(null);
 
   const readServer = useCallback(async () => {
-    const params = { busId, date, departureTime, seats };
+    // send both seats and seats[] to be safe with different parsers
+    const params = { busId, date, departureTime, seats, "seats[]": seats };
     try {
       let ms = null;
       let serverExpiry = null;
@@ -219,8 +220,9 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
       if (timerRef.current) clearInterval(timerRef.current);
       if (pollRef.current) clearInterval(pollRef.current);
     };
-    // re-run only when identity of the hold changes
-  }, [readServer, onExpire]);
+    // IMPORTANT: don't depend on onExpire; that causes refetches on every keystroke
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readServer]); // re-run only when identity of the hold changes
 
   if (remainingMs == null) {
     return (
@@ -841,29 +843,29 @@ const ConfirmBooking = () => {
         }}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
-          <div className="flex-1">
-            <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
-              Payable Amount
-            </p>
-            <p
-              className="text-xl font-extrabold tabular-nums"
-              style={{ color: PALETTE.text }}
+            <div className="flex-1">
+              <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
+                Payable Amount
+              </p>
+              <p
+                className="text-xl font-extrabold tabular-nums"
+                style={{ color: PALETTE.text }}
+              >
+                Rs. {prices.total.toFixed(2)}
+              </p>
+            </div>
+            <button
+              type="button"
+              disabled={!termsAccepted || holdExpired}
+              onClick={(e) => {
+                // reuse validation
+                handleSubmit({ preventDefault: () => {} });
+              }}
+              className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ background: PALETTE.primary }}
             >
-              Rs. {prices.total.toFixed(2)}
-            </p>
-          </div>
-          <button
-            type="button"
-            disabled={!termsAccepted || holdExpired}
-            onClick={(e) => {
-              // reuse validation
-              handleSubmit({ preventDefault: () => {} });
-            }}
-            className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ background: PALETTE.primary }}
-          >
-            Proceed to Pay
-          </button>
+              Proceed to Pay
+            </button>
         </div>
       </div>
     </div>
