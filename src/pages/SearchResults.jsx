@@ -1,3 +1,4 @@
+// src/pages/SearchResults.jsx
 import {
   useSearchParams,
   useNavigate,
@@ -1346,7 +1347,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       setBusSpecificBookingData((prev) => ({
         ...prev,
         [expandedBusId]: {
-          ...prev[expandedId],
+          ...prev[expandedBusId], // ✅ FIX: use expandedBusId (not expandedId)
           basePrice,
           convenienceFee: convenienceFeeValue,
           totalPrice: newTotalPrice,
