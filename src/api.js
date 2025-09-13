@@ -54,20 +54,13 @@ apiClient.interceptors.request.use(
     // Auth
     const token =
       localStorage.getItem("token") || localStorage.getItem("authToken");
-    config.headers = config.headers || {};
-    if (token && token !== "null" && token !== "undefined") {
+    if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
-    } else if (config.headers.Authorization) {
-      delete config.headers.Authorization;
     }
 
-    // Add clientId via params/body (NOT as a header to avoid CORS)
+    // Add clientId ONLY in payload/params for the lock & booking APIs (no custom header)
     const clientId = getClientId();
-    // Ensure no custom header slips through
-    if (config.headers) {
-      delete config.headers["x-client-id"];
-      delete config.headers["X-Client-Id"];
-    }
 
     // Normalize URL for matching (strip base if axios was given an absolute URL)
     const rawUrl = (config.url || "").toLowerCase();
@@ -90,8 +83,7 @@ apiClient.interceptors.request.use(
 
     // Seat lock & release
     if (path.includes("/bookings/lock") && method === "post") addToData();
-    // Use params for DELETE because some servers ignore DELETE bodies
-    if (path.includes("/bookings/release") && method === "delete") addToParams();
+    if (path.includes("/bookings/release") && method === "delete") addToData();
 
     // Lock remaining (both styles: /lock-remaining and /lock/remaining)
     if (
