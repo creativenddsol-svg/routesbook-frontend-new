@@ -1,4 +1,4 @@
-// src/App.jsx 
+// src/App.jsx
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Layout from "./components/Layout";
@@ -45,6 +45,7 @@ import AdminRoute from "./components/AdminRoute";
 /* ───── UI ──── */
 import MobileBottomNav from "./components/MobileBottomNav";
 
+// ───── App Component ─────
 const App = () => (
   <AuthProvider>
     <Router>
@@ -186,7 +187,7 @@ const App = () => (
             }
           />
 
-          {/* ───── OPERATOR ROUTES ──── */}
+          {/* ───── OPERATOR ROUTES ───── */}
           <Route
             path="/operator/dashboard"
             element={
