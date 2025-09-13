@@ -61,9 +61,13 @@ apiClient.interceptors.request.use(
       delete config.headers.Authorization;
     }
 
-    // Add clientId: send as header always, and include in payload/params for specific booking APIs
+    // Add clientId via params/body (NOT as a header to avoid CORS)
     const clientId = getClientId();
-    config.headers["x-client-id"] = clientId;
+    // Ensure no custom header slips through
+    if (config.headers) {
+      delete config.headers["x-client-id"];
+      delete config.headers["X-Client-Id"];
+    }
 
     // Normalize URL for matching (strip base if axios was given an absolute URL)
     const rawUrl = (config.url || "").toLowerCase();
