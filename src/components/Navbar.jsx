@@ -1,8 +1,9 @@
-// src/components/Navbar.jsx
+// 🔹 React & Router imports
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
-// ✅ FIXED: make sure this path is the SAME file your Login.jsx uses
-import { useAuth } from "../AuthContext";
+import { useAuth } from "../context/AuthContext";
+
+// 🔹 Icons
 import {
   FaUserCircle,
   FaBars,
@@ -11,6 +12,7 @@ import {
   FaBus,
 } from "react-icons/fa";
 
+// 🔹 Navbar Component
 const Navbar = () => {
   const { user, logout, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -18,6 +20,7 @@ const Navbar = () => {
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
 
+  // 🔹 Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -28,6 +31,7 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // 🔹 Active link styling
   const getLinkStyle = ({ isActive }) =>
     `relative px-3 py-2 text-sm font-medium transition-colors duration-300 rounded-lg text-gray-700 hover:text-blue-600 hover:bg-blue-50${
       isActive ? " text-blue-600 bg-blue-50 font-semibold" : ""
@@ -37,10 +41,12 @@ const Navbar = () => {
 
   return (
     <>
+      {/* 🔹 Desktop Navbar */}
       <nav
         key={user?._id || "guest"}
         className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex justify-between items-center md:flex hidden"
       >
+        {/* Logo */}
         <NavLink
           to="/"
           className="flex items-center gap-2 text-2xl font-bold transition-all duration-300"
@@ -51,12 +57,14 @@ const Navbar = () => {
           </span>
         </NavLink>
 
+        {/* Mobile toggle button (hidden on desktop) */}
         <div className="md:hidden">
           <button onClick={() => setMenuOpen(true)} className="p-2 rounded-md">
             <FaBars className="text-gray-800" size={22} />
           </button>
         </div>
 
+        {/* Links & User Section */}
         <div className="hidden md:flex items-center gap-2">
           <ul className="flex items-center gap-2">
             <li>
@@ -90,8 +98,10 @@ const Navbar = () => {
             )}
           </ul>
 
+          {/* Divider */}
           <div className="w-px h-6 mx-2 bg-gray-200" />
 
+          {/* User dropdown */}
           {user ? (
             <div ref={dropdownRef} className="relative">
               <button
@@ -107,6 +117,7 @@ const Navbar = () => {
                   }`}
                 />
               </button>
+
               {dropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-lg shadow-xl border z-10">
                   <div className="p-2">
@@ -134,6 +145,7 @@ const Navbar = () => {
               )}
             </div>
           ) : (
+            // Guest view (Login / Signup)
             <div className="flex items-center gap-2">
               <NavLink
                 to="/login"
@@ -151,14 +163,22 @@ const Navbar = () => {
           )}
         </div>
       </nav>
-      {/* Mobile Menu */}
+
+      {/* 🔹 Mobile Menu */}
       <div
         className={`fixed inset-0 z-[100] md:hidden transition-transform duration-300 ${
           menuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="absolute inset-0 bg-black/30" onClick={() => setMenuOpen(false)} />
+        {/* Overlay */}
+        <div
+          className="absolute inset-0 bg-black/30"
+          onClick={() => setMenuOpen(false)}
+        />
+
+        {/* Sidebar Menu */}
         <div className="relative w-full max-w-xs h-full bg-white ml-auto flex flex-col justify-between py-6 px-4">
+          {/* Header */}
           <div>
             <div className="flex justify-between items-center mb-6">
               <span className="text-lg font-bold">Routesbook</span>
@@ -166,7 +186,8 @@ const Navbar = () => {
                 <FaTimes size={20} />
               </button>
             </div>
-            {/* Mobile links */}
+
+            {/* Mobile Links */}
             <div className="flex flex-col gap-2">
               <NavLink
                 to="/"
@@ -175,6 +196,7 @@ const Navbar = () => {
               >
                 Home
               </NavLink>
+
               {user && (
                 <NavLink
                   to="/my-bookings"
@@ -184,6 +206,7 @@ const Navbar = () => {
                   My Bookings
                 </NavLink>
               )}
+
               {user?.role === "operator" && (
                 <NavLink
                   to="/operator/dashboard"
@@ -193,6 +216,7 @@ const Navbar = () => {
                   Operator Dashboard
                 </NavLink>
               )}
+
               {user?.role === "admin" && (
                 <NavLink
                   to="/admin"
@@ -204,6 +228,8 @@ const Navbar = () => {
               )}
             </div>
           </div>
+
+          {/* Footer actions */}
           <div className="flex flex-col gap-2">
             {user ? (
               <>
@@ -222,7 +248,7 @@ const Navbar = () => {
                     logout();
                     setMenuOpen(false);
                   }}
-                  className="p-3 text-base font-medium text-red-500 rounded-lg hover:bg-red-50 text-left"
+                  className="p-3 text-base font-medium text-red-500 rounded-md hover:bg-red-50 text-left"
                 >
                   Sign Out
                 </button>
