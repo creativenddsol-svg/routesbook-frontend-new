@@ -1,16 +1,20 @@
 // src/components/AdminRoute.jsx
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext"; // <- fix path if needed
+import { useAuth } from "../context/AuthContext"; // make sure path is correct
 
 export default function AdminRoute({ children }) {
-  const { user, token, loading, isAuthenticated, hydrated } = useAuth();
+  const { user, isLoggedIn, loading } = useAuth();
   const location = useLocation();
 
-  // wait for hydration so we don't redirect prematurely
-  if (typeof hydrated === "boolean" ? !hydrated : loading) return null; // or a spinner
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen text-gray-600 text-lg animate-pulse">
+        🔐 Checking admin access...
+      </div>
+    );
+  }
 
-  // not logged in -> go to login and return here afterwards
-  if (!(user || isAuthenticated)) {
+  if (!isLoggedIn || !user) {
     return (
       <Navigate
         to={`/login?redirect=${encodeURIComponent(
@@ -21,20 +25,15 @@ export default function AdminRoute({ children }) {
     );
   }
 
-  // accept common admin shapes
   const isAdmin =
     user?.role?.toString?.().toLowerCase() === "admin" ||
     user?.isAdmin === true ||
     (Array.isArray(user?.roles) &&
-      user.roles.some((r) => {
-        const v =
-          typeof r === "string"
-            ? r
-            : r?.name ?? r?.role ?? r?.id ?? r?.title ?? "";
-        return v?.toString?.().toLowerCase() === "admin";
-      }));
+      user.roles.some((r) => r?.toString?.().toLowerCase() === "admin"));
 
-  if (!isAdmin) return <Navigate to="/" replace />; // or a 403 page
+  if (!isAdmin) {
+    return <Navigate to="/" replace />;
+  }
 
   return children;
 }
