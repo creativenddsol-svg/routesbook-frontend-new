@@ -1,9 +1,10 @@
+// 🔹 React imports
 import { createContext, useContext, useState } from "react";
 
-// 1. Create the AuthContext
+// 🔹 1. Create the AuthContext
 const AuthContext = createContext();
 
-// 2. Create the AuthProvider Component
+// 🔹 2. Create the AuthProvider Component
 export const AuthProvider = ({ children }) => {
   // ✅ Hydrate immediately using functions in useState
   const [user, setUser] = useState(() => {
@@ -27,7 +28,7 @@ export const AuthProvider = ({ children }) => {
 
   const [loading, setLoading] = useState(false); // No delayed hydration needed
 
-  // 3. Login function
+  // 🔹 3. Login function
   const login = (userData, token) => {
     localStorage.setItem("user", JSON.stringify(userData));
     localStorage.setItem("token", token);
@@ -35,7 +36,7 @@ export const AuthProvider = ({ children }) => {
     setToken(token);
   };
 
-  // 4. Logout function
+  // 🔹 4. Logout function
   const logout = () => {
     localStorage.removeItem("user");
     localStorage.removeItem("token");
@@ -43,7 +44,7 @@ export const AuthProvider = ({ children }) => {
     setToken(null);
   };
 
-  // 5. Provide context to children
+  // 🔹 5. Provide context to children
   return (
     <AuthContext.Provider value={{ user, token, login, logout, loading }}>
       {children}
@@ -51,5 +52,5 @@ export const AuthProvider = ({ children }) => {
   );
 };
 
-// 6. Custom hook to use AuthContext
+// 🔹 6. Custom hook to use AuthContext
 export const useAuth = () => useContext(AuthContext);
