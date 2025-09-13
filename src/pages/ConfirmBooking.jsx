@@ -130,18 +130,10 @@ const GenderSeatPill = ({ gender, children }) => {
 };
 
 // --- Live hold countdown (15 min seat lock) ---
-// UPDATED: accepts `seats` and prefers server `remainingMs`, AND does not
-// re-run effect when parent re-renders (typing) by removing onExpire from deps.
-const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => {
+const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
   const [remainingMs, setRemainingMs] = useState(null);
   const expiryRef = useRef(null);
   const timerRef = useRef(null);
-
-  // keep latest onExpire without re-subscribing
-  const onExpireRef = useRef(onExpire);
-  useEffect(() => {
-    onExpireRef.current = onExpire;
-  }, [onExpire]);
 
   useEffect(() => {
     let cancelled = false;
@@ -149,12 +141,15 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
     const startTicking = () => {
       if (timerRef.current) clearInterval(timerRef.current);
       const tick = () => {
-        const left = Math.max(0, (expiryRef.current ?? Date.now()) - Date.now());
+        const left = Math.max(
+          0,
+          (expiryRef.current ?? Date.now()) - Date.now()
+        );
         setRemainingMs(left);
         if (left <= 0) {
           clearInterval(timerRef.current);
           timerRef.current = null;
-          if (onExpireRef.current) onExpireRef.current();
+          onExpire && onExpire();
         }
       };
       tick();
@@ -162,30 +157,30 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
     };
 
     const fetchOnce = async () => {
-      const params = { busId, date, departureTime, seats };
+      const params = { busId, date, departureTime };
       try {
         let ms = null;
         let serverExpiry = null;
         try {
-          const r1 = await apiClient.get("/bookings/lock-remaining", { params });
+          const r1 = await apiClient.get("/bookings/lock-remaining", {
+            params,
+          });
           ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
           serverExpiry = r1?.data?.expiresAt || null;
         } catch {
-          const r2 = await apiClient.get("/bookings/lock/remaining", { params });
+          const r2 = await apiClient.get("/bookings/lock/remaining", {
+            params,
+          });
           ms = r2?.data?.remainingMs ?? r2?.data?.ms ?? null;
           serverExpiry = r2?.data?.expiresAt || null;
         }
-
-        // Prefer server duration to neutralize clock skew
-        const leftMs =
-          ms != null
-            ? Math.max(0, Number(ms))
-            : serverExpiry
-            ? Math.max(0, new Date(serverExpiry).getTime() - Date.now())
-            : 15 * 60 * 1000; // fallback
-
+        const target = serverExpiry
+          ? new Date(serverExpiry).getTime()
+          : ms != null
+          ? Date.now() + Math.max(0, Number(ms))
+          : Date.now() + 15 * 60 * 1000; // fallback 15 min
         if (cancelled) return;
-        expiryRef.current = Date.now() + leftMs;
+        expiryRef.current = target;
         startTicking();
       } catch {
         // conservative fallback (10 min) if API temporarily unavailable
@@ -213,8 +208,8 @@ const HoldCountdown = ({ busId, date, departureTime, seats = [], onExpire }) => 
       document.removeEventListener("visibilitychange", onVisibility);
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // ✅ Only re-fetch if identity of the hold changes (not on every keystroke)
-  }, [busId, date, departureTime, JSON.stringify(seats)]);
+    // ✅ fetch only when the identity of the hold changes
+  }, [busId, date, departureTime, onExpire]);
 
   if (remainingMs == null) {
     return (
@@ -642,7 +637,6 @@ const ConfirmBooking = () => {
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
-                seats={selectedSeatStrings}
                 onExpire={() => {
                   setHoldExpired(true);
                   // proactively release if countdown reached zero while on page
@@ -865,3 +859,4 @@ const ConfirmBooking = () => {
 };
 
 export default ConfirmBooking;
+
