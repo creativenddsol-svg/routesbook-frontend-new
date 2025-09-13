@@ -32,6 +32,7 @@ import SeatLayout from "../components/SeatLayout";
 import PointSelection from "../components/PointSelection";
 import BookingSummary from "../components/BookingSummary";
 import SeatLegend from "../components/SeatLegend";
+import { useAuth } from "../context/AuthContext"; // ✅ ADDED
 
 /* ---------------- Palette ---------------- */
 const PALETTE = {
@@ -232,6 +233,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth(); // ✅ ADDED
 
   const {
     from,
@@ -1344,7 +1346,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       setBusSpecificBookingData((prev) => ({
         ...prev,
         [expandedBusId]: {
-          ...prev[expandedBusId],
+          ...prev[expandedId],
           basePrice,
           convenienceFee: convenienceFeeValue,
           totalPrice: newTotalPrice,
@@ -1382,6 +1384,24 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     }
     if (totalPrice <= 0 && selectedSeats.length > 0) {
       toast.error("Price could not be determined. Please re-select points.");
+      return;
+    }
+
+    // ✅ If not logged in, remember intent and redirect to login
+    if (!user) {
+      try {
+        localStorage.setItem(
+          "pendingBooking",
+          JSON.stringify({
+            busId: bus._id,
+            date: searchDateParam,
+          })
+        );
+      } catch {}
+      const afterLogin = `/book/${bus._id}?date=${encodeURIComponent(
+        searchDateParam
+      )}`;
+      navigate(`/login?redirect=${encodeURIComponent(afterLogin)}`);
       return;
     }
 
