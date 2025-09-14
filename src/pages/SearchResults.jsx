@@ -136,6 +136,69 @@ const getAuthToken = () =>
 const buildAuthConfig = (token) =>
   token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
+/* -------------- 🆕 lock registry (cross-tab aware via logout signal) -------------- */
+const LOCK_REGISTRY_KEY = "rb_lock_registry_v1";
+const readLockReg = () => {
+  try {
+    return JSON.parse(sessionStorage.getItem(LOCK_REGISTRY_KEY) || "[]");
+  } catch {
+    return [];
+  }
+};
+const writeLockReg = (arr) =>
+  sessionStorage.setItem(LOCK_REGISTRY_KEY, JSON.stringify(arr));
+const lockKey = (busId, time, date) => `${busId}__${time}__${date}`;
+const addToRegistry = (bus, date, seats) => {
+  const key = lockKey(bus._id, bus.departureTime, date);
+  const reg = readLockReg();
+  const i = reg.findIndex((r) => r.key === key);
+  if (i >= 0) {
+    const s = new Set([...(reg[i].seats || []), ...seats.map(String)]);
+    reg[i].seats = Array.from(s);
+  } else {
+    reg.push({
+      key,
+      busId: bus._id,
+      departureTime: bus.departureTime,
+      date,
+      seats: seats.map(String),
+    });
+  }
+  writeLockReg(reg);
+};
+const removeFromRegistry = (bus, date, seats) => {
+  const key = lockKey(bus._id, bus.departureTime, date);
+  const reg = readLockReg();
+  const i = reg.findIndex((r) => r.key === key);
+  if (i >= 0) {
+    const setToRemove = new Set(seats.map(String));
+    const remaining = (reg[i].seats || []).filter((s) => !setToRemove.has(s));
+    if (remaining.length) reg[i].seats = remaining;
+    else reg.splice(i, 1);
+    writeLockReg(reg);
+  }
+};
+const releaseAllFromRegistry = async () => {
+  const reg = readLockReg();
+  if (!reg.length) return;
+  const token = getAuthToken();
+  await Promise.allSettled(
+    reg.map((r) =>
+      apiClient.delete("/bookings/release", {
+        ...buildAuthConfig(token),
+        data: {
+          busId: r.busId,
+          date: r.date,
+          departureTime: r.departureTime,
+          seats: r.seats,
+          clientId: getClientId(),
+        },
+      })
+    )
+  );
+  writeLockReg([]);
+};
+
 /* ---------------- BookingDeadlineTimer ---------------- */
 const BookingDeadlineTimer = ({
   deadlineTimestamp,
@@ -355,9 +418,39 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           return next;
         });
       }
+      // 🆕 also clear the global registry when we bulk-release
+      writeLockReg([]);
     },
     [searchDateParam]
   );
+
+  // 🆕 listen for logout (custom event) + token removal (multi-tab)
+  useEffect(() => {
+    const handleLogout = async () => {
+      try {
+        await releaseAllFromRegistry();
+      } finally {
+        // clear any local UI selection
+        setExpandedBusId(null);
+        setBusSpecificBookingData({});
+        sessionStorage.removeItem("rb_skip_release_on_unmount");
+      }
+    };
+    const onStorage = (e) => {
+      if (
+        ["token", "authToken", "jwt"].includes(e.key) &&
+        (e.newValue === null || e.newValue === "")
+      ) {
+        handleLogout();
+      }
+    };
+    window.addEventListener("rb:logout", handleLogout);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("rb:logout", handleLogout);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
 
   // Release everything on page unmount (back/forward, navigating away)
   useEffect(() => {
@@ -528,6 +621,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         payload,
         buildAuthConfig(token)
       );
+      // 🆕 register if actually locked
+      if (res?.data?.ok) addToRegistry(bus, searchDateParam, [seat]);
       return res.data;
     } catch (err) {
       if (err?.response?.status === 400 || err?.response?.status === 401) {
@@ -555,6 +650,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...buildAuthConfig(token),
         data: payload,
       });
+      // 🆕 keep registry in sync
+      removeFromRegistry(bus, searchDateParam, seats);
     } catch (e) {
       console.warn("Release seats failed:", e?.response?.data || e.message);
     }
