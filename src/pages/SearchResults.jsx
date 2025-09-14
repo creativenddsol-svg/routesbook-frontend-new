@@ -1,4 +1,4 @@
- import {
+import {
   useSearchParams,
   useNavigate,
   createSearchParams,
@@ -64,7 +64,7 @@ const toLocalYYYYMMDD = (dateObj) => {
   const year = dateObj.getFullYear();
   const month = String(dateObj.getMonth() + 1).padStart(2, "0");
   const day = String(dateObj.getDate()).padStart(2, "0");
-  return ${year}-${month}-${day};
+  return `${year}-${month}-${day}`;
 };
 
 const getReadableDate = (dateString) => {
@@ -100,7 +100,7 @@ const calculateDuration = (startTime, endTime) => {
   const duration = endMinutes - startMinutes;
   const hours = Math.floor(duration / 60);
   const minutes = duration % 60;
-  return ${hours}h ${minutes}m;
+  return `${hours}h ${minutes}m`;
 };
 
 const getDisplayPrice = (bus, from, to) => {
@@ -134,7 +134,7 @@ const getAuthToken = () =>
   sessionStorage.getItem("token") ||
   null;
 const buildAuthConfig = (token) =>
-  token ? { headers: { Authorization: Bearer ${token} } } : {};
+  token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
 /* ---------------- BookingDeadlineTimer ---------------- */
 const BookingDeadlineTimer = ({
@@ -421,11 +421,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     await releaseAllSelectedSeats(true);
     navigate({
       pathname: location.pathname,
-      search: ?${createSearchParams({
+      search: `?${createSearchParams({
         from: searchFrom,
         to: searchTo,
         date: searchDate,
-      })},
+      })}`,
     });
     setExpandedBusId(null);
   };
@@ -435,11 +435,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     await releaseAllSelectedSeats(true);
     navigate({
       pathname: location.pathname,
-      search: ?${createSearchParams({
+      search: `?${createSearchParams({
         from: searchFrom,
         to: searchTo,
         date: newDate,
-      })},
+      })}`,
     });
     setExpandedBusId(null);
   };
@@ -577,9 +577,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       await Promise.all(
         res.data.map(async (bus) => {
           try {
-            const key = ${bus._id}-${bus.departureTime};
+            const key = `${bus._id}-${bus.departureTime}`;
             const availabilityRes = await apiClient.get(
-              /bookings/availability/${bus._id},
+              `/bookings/availability/${bus._id}`,
               {
                 params: {
                   date: searchDateParam,
@@ -597,10 +597,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             };
           } catch (availErr) {
             console.warn(
-              Could not fetch availability for bus ${bus._id} at ${bus.departureTime}:,
+              `Could not fetch availability for bus ${bus._id} at ${bus.departureTime}:`,
               availErr
             );
-            const keyFallback = ${bus._id}-${bus.departureTime};
+            const keyFallback = `${bus._id}-${bus.departureTime}`;
             seatData[keyFallback] = {
               available: null,
               window: null,
@@ -641,7 +641,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       scrollLockRef.current.y = window.scrollY || window.pageYOffset || 0;
       const body = document.body;
       body.style.position = "fixed";
-      body.style.top = -${scrollLockRef.current.y}px;
+      body.style.top = `-${scrollLockRef.current.y}px`;
       body.style.left = "0";
       body.style.right = "0";
       body.style.width = "100%";
@@ -829,7 +829,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         >
           {itemsToRender.map((item, index) => (
             <div
-              key={noticesLoading ? skeleton-${index} : item._id}
+              key={noticesLoading ? `skeleton-${index}` : item._id}
               className="flex-shrink-0 w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/4 xl:w-1/4 snap-start p-2"
             >
               {noticesLoading ? (
@@ -855,7 +855,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       ? "w-6 bg-gray-900"
                       : "w-2.5 bg-gray-300 hover:bg-gray-400",
                   ].join(" ")}
-                  aria-label={Go to page ${i + 1}}
+                  aria-label={`Go to page ${i + 1}`}
                 />
               );
             })}
@@ -912,7 +912,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       >
         <FaExclamationCircle
           className="mx-auto text-6xl mb-4"
-          style={{ color: ${PALETTE.primaryRed}50 }}
+          style={{ color: `${PALETTE.primaryRed}50` }}
         />
         <h3
           className="text-2xl font-bold mb-2"
@@ -963,7 +963,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       }));
     const headerText = isMobile ? "Filter & Sort" : "Filters";
     const resetText =
-      activeFilterCount > 0 ? Reset (${activeFilterCount}) : "Reset";
+      activeFilterCount > 0 ? `Reset (${activeFilterCount})` : "Reset";
 
     return (
       <div className="p-6 space-y-8 lg:p-0">
@@ -991,9 +991,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           ) : (
             <button
               onClick={resetFilters}
-              className={text-sm font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors hover:bg-red-50 ${
+              className={`text-sm font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors hover:bg-red-50 ${
                 activeFilterCount > 0 ? "text-red-600 font-semibold" : ""
-              }}
+              }`}
               style={{
                 color:
                   activeFilterCount > 0
@@ -1033,11 +1033,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               <button
                 key={slot}
                 onClick={() => handleTimeSlotFilter(slot)}
-                className={px-2 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
+                className={`px-2 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
                   filters.timeSlots[slot]
                     ? "text-white border-blue-500"
                     : "border-gray-200"
-                }}
+                }`}
                 style={{
                   backgroundColor: filters.timeSlots[slot]
                     ? PALETTE.accentBlue
@@ -1133,7 +1133,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   const initializeBusBookingData = (bus) => {
-    const busKey = ${bus._id}-${bus.departureTime};
+    const busKey = `${bus._id}-${bus.departureTime}`;
     setBusSpecificBookingData((prev) => {
       if (prev[busKey]) return prev;
       return {
@@ -1152,7 +1152,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   const handleToggleSeatLayout = async (bus) => {
-    const busKey = ${bus._id}-${bus.departureTime};
+    const busKey = `${bus._id}-${bus.departureTime}`;
     if (expandedBusId === busKey) {
       const seatsToRelease =
         busSpecificBookingData[busKey]?.selectedSeats || [];
@@ -1177,8 +1177,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   const handleSeatToggle = async (bus, seat) => {
-    const busKey = ${bus._id}-${bus.departureTime};
-    const availabilityKey = ${bus._id}-${bus.departureTime};
+    const busKey = `${bus._id}-${bus.departureTime}`;
+    const availabilityKey = `${bus._id}-${bus.departureTime}`;
 
     const currentBusData = busSpecificBookingData[busKey];
     if (!currentBusData) return;
@@ -1190,7 +1190,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const alreadySelected = currentBusData.selectedSeats.includes(seatStr);
 
     // prevent toggling while this seat is in-flight
-    const lkKey = ${busKey}-${seatStr};
+    const lkKey = `${busKey}-${seatStr}`;
     if (locking[lkKey]) return;
 
     if (!alreadySelected && unavailable.includes(seatStr)) return;
@@ -1270,7 +1270,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   const handleBoardingPointSelect = (bus, point) => {
-    const busKey = ${bus._id}-${bus.departureTime};
+    const busKey = `${bus._id}-${bus.departureTime}`;
     setBusSpecificBookingData((prev) => ({
       ...prev,
       [busKey]: { ...prev[busKey], selectedBoardingPoint: point },
@@ -1278,7 +1278,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   const handleDroppingPointSelect = (bus, point) => {
-    const busKey = ${bus._id}-${bus.departureTime};
+    const busKey = `${bus._id}-${bus.departureTime}`;
     setBusSpecificBookingData((prev) => ({
       ...prev,
       [busKey]: { ...prev[busKey], selectedDroppingPoint: point },
@@ -1354,7 +1354,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   }, [expandedBusId, busSpecificBookingData, buses, from, to]);
 
   const handleProceedToPayment = (bus) => {
-    const busKey = ${bus._id}-${bus.departureTime};
+    const busKey = `${bus._id}-${bus.departureTime}`;
     const busData = busSpecificBookingData[busKey];
 
     if (!busData || !bus) {
@@ -1444,7 +1444,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     return createPortal(
       expandedBusId ? (
         <motion.div
-          key={mobile-sheet-${expandedBusId}}
+          key={`mobile-sheet-${expandedBusId}`}
           className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white overscroll-contain"
           style={{
             touchAction: "none",
@@ -1677,7 +1677,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           animate="visible"
         >
           {visibleBuses.map((bus) => {
-            const busKey = ${bus._id}-${bus.departureTime};
+            const busKey = `${bus._id}-${bus.departureTime}`;
             const displayPrice = getDisplayPrice(bus, from, to);
 
             let timerProps = null;
@@ -1711,7 +1711,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               }
             }
 
-            const availabilityKey = ${bus._id}-${bus.departureTime};
+            const availabilityKey = `${bus._id}-${bus.departureTime}`;
             const busAvailability = availability?.[availabilityKey];
             const availableSeats = busAvailability?.available;
             const availableWindowSeats = busAvailability?.window;
@@ -1740,9 +1740,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               >
                 {/* MOBILE CARD */}
                 <div
-                  className={md:hidden block ${
+                  className={`md:hidden block ${
                     isSoldOut ? "opacity-60 bg-gray-50" : "cursor-pointer"
-                  }}
+                  }`}
                   onClick={() => {
                     if (!isSoldOut) handleToggleSeatLayout(bus);
                   }}
@@ -1860,7 +1860,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                         {bus.operatorLogo ? (
                           <img
                             src={bus.operatorLogo}
-                            alt={${bus.name} logo}
+                            alt={`${bus.name} logo`}
                             className="max-w-full max-h-full object-contain"
                             style={{ border: "none", boxShadow: "none" }}
                           />
@@ -1881,7 +1881,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           {bus.operatorLogo ? (
                             <img
                               src={bus.operatorLogo}
-                              alt={${bus.name} logo}
+                              alt={`${bus.name} logo`}
                               className="w-full h-full object-contain"
                               style={{ border: "none", boxShadow: "none" }}
                             />
@@ -2008,7 +2008,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       <p
                         className="text-sm font-medium"
                         style={{
-                          color: availableSeats > 0 ? "#EF4444" : "#9CA3AF",
+                          color:
+                            typeof availableSeats === "number" && availableSeats > 0
+                              ? "#EF4444"
+                              : "#9CA3AF",
                         }}
                       >
                         {isSoldOut
@@ -2016,7 +2019,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           : availableSeats === null ||
                             availableSeats === undefined
                           ? "Checking..."
-                          : ${availableSeats} Seats Left}
+                          : `${availableSeats} Seats Left`}
                       </p>
                       <div className="mt-2 inline-block text-right">
                         {hasStrike && (
@@ -2265,12 +2268,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       {/* Sticky search controls (desktop) */}
       <div
         ref={stickySearchCardRef}
-        className={${
-          !isNavbarAnimating ? "sticky" : ""
-        } z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm}
+        className={`${!isNavbarAnimating ? "sticky" : ""} z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
         style={{
-          top: ${searchCardStickyTopOffset}px,
-          backgroundColor: ${PALETTE.white}F2,
+          top: `${searchCardStickyTopOffset}px`,
+          backgroundColor: `${PALETTE.white}F2`,
           transition: "top 0.3s ease-in-out",
         }}
       >
@@ -2312,7 +2313,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     whileHover={{ scale: 1.1, rotate: 180 }}
                     whileTap={{ scale: 0.9 }}
                     className="bg-white p-2 rounded-full shadow-lg"
-                    style={{ border: 2px solid ${PALETTE.borderLight} }}
+                    style={{ border: `2px solid ${PALETTE.borderLight}` }}
                     title="Swap locations"
                     onClick={swapLocations}
                   >
@@ -2372,7 +2373,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   <div className="mt-1">
                     <button
                       onClick={() => setSearchDate(todayStr)}
-                      className={text-xs font-medium mr-3 hover:underline}
+                      className="text-xs font-medium mr-3 hover:underline"
                       style={{
                         color:
                           searchDate === todayStr
@@ -2384,7 +2385,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     </button>
                     <button
                       onClick={() => setSearchDate(tomorrowStr)}
-                      className={text-xs font-medium hover:underline}
+                      className="text-xs font-medium hover:underline"
                       style={{
                         color:
                           searchDate === tomorrowStr
@@ -2429,11 +2430,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
           <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
             <aside
-              className={hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 ${
+              className={`hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 ${
                 !isNavbarAnimating ? "sticky" : ""
-              }}
+              }`}
               style={{
-                top: ${filterPanelTopOffset}px,
+                top: `${filterPanelTopOffset}px`,
                 zIndex: 20,
                 transition: "top 0.3s ease-in-out",
               }}
