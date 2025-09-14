@@ -1,10 +1,12 @@
 // src/components/AdminRoute.jsx
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../context/AuthContext"; // make sure path is correct
+import { useAuth } from "../AuthContext"; // make sure path is correct
 
 export default function AdminRoute({ children }) {
-  const { user, isLoggedIn, loading } = useAuth();
+  const { user, token, loading } = useAuth();
   const location = useLocation();
+
+  const isLoggedIn = !!(token || user);
 
   if (loading) {
     return (
