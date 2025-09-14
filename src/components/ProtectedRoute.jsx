@@ -1,8 +1,11 @@
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 
 const ProtectedRoute = ({ children }) => {
-  const { isLoggedIn, loading } = useAuth();
+  const { user, token, loading } = useAuth();
+  const location = useLocation();
+
+  const isLoggedIn = !!(token || user);
 
   // ⏳ Wait until auth state is loaded
   if (loading) {
@@ -15,7 +18,7 @@ const ProtectedRoute = ({ children }) => {
 
   // 🚫 Not logged in → redirect to login
   if (!isLoggedIn) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/login" replace state={{ from: location }} />;
   }
 
   // ✅ Logged in → render protected page
