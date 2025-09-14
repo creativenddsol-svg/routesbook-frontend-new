@@ -70,16 +70,9 @@ const Login = () => {
         return;
       }
 
-      // Smart post-login routing:
-      // 1) If we have an explicit redirect (from guard), respect it
-      // 2) Otherwise land admins on /admin, operators on /operator/dashboard, others on /
-      const role = user?.role?.toString?.().toLowerCase?.() || "";
-      if (redirect && redirect !== "/login" && redirect !== "/") {
+      // ✅ Default everyone to Home unless a redirect target exists
+      if (redirect && redirect !== "/login") {
         navigate(redirect, { replace: true });
-      } else if (role === "admin") {
-        navigate("/admin", { replace: true });
-      } else if (role === "operator") {
-        navigate("/operator/dashboard", { replace: true });
       } else {
         navigate("/", { replace: true });
       }
