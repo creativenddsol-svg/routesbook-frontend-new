@@ -1,6 +1,6 @@
 // src/pages/Login.jsx
 import { useState } from "react";
-import { useNavigate, Link, useSearchParams } from "react-router-dom";
+import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import toast, { Toaster } from "react-hot-toast";
 // Use the shared API client (has baseURL + withCredentials)
@@ -21,11 +21,16 @@ const PALETTE = {
 const Login = () => {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
 
-  const redirect = searchParams.get("redirect") || "/";
+  // Support both styles of redirect: ?redirect=/path and state.from from guards
+  const redirectQuery = searchParams.get("redirect");
+  const stateFrom = location.state?.from?.pathname || null;
+  const redirect = redirectQuery || stateFrom || "/";
 
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -34,6 +39,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setSubmitting(true);
 
     try {
       // This uses your apiClient (withCredentials: true)
@@ -60,9 +66,22 @@ const Login = () => {
       if (pending) {
         const { busId, date } = JSON.parse(pending);
         localStorage.removeItem("pendingBooking");
-        navigate(`/book/${busId}?date=${date}`);
+        navigate(`/book/${busId}?date=${date}`, { replace: true });
+        return;
+      }
+
+      // Smart post-login routing:
+      // 1) If we have an explicit redirect (from guard), respect it
+      // 2) Otherwise land admins on /admin, operators on /operator/dashboard, others on /
+      const role = user?.role?.toString?.().toLowerCase?.() || "";
+      if (redirect && redirect !== "/login" && redirect !== "/") {
+        navigate(redirect, { replace: true });
+      } else if (role === "admin") {
+        navigate("/admin", { replace: true });
+      } else if (role === "operator") {
+        navigate("/operator/dashboard", { replace: true });
       } else {
-        navigate(redirect);
+        navigate("/", { replace: true });
       }
     } catch (err) {
       const msg =
@@ -71,6 +90,8 @@ const Login = () => {
         "Login failed. Please try again.";
       setError(msg);
       toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -125,10 +146,11 @@ const Login = () => {
 
               <button
                 type="submit"
-                className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition"
+                disabled={submitting}
+                className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
                 style={{ background: PALETTE.primary }}
               >
-                Log In
+                {submitting ? "Logging in..." : "Log In"}
               </button>
 
               {error && (
