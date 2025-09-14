@@ -187,7 +187,7 @@ const App = () => (
             }
           />
 
-          {/* ───── OPERATOR ROUTES ───── */}
+          {/* ───── OPERATOR ROUTES ──── */}
           <Route
             path="/operator/dashboard"
             element={
