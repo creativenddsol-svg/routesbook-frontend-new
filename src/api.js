@@ -117,16 +117,18 @@ apiClient.interceptors.response.use(
 
 /* ---------------- Additional, non-breaking enhancements below ---------------- */
 
-/* 2nd request interceptor: attach x-client-id header & Accept without altering your logic above */
+/* 2nd request interceptor: CORS-safe guard — never send x-client-id as a header; keep Accept */
 apiClient.interceptors.request.use(
   (config) => {
     try {
-      const cid = getClientId();
-      if (cid) {
-        config.headers = config.headers || {};
-        if (!config.headers["x-client-id"]) {
-          config.headers["x-client-id"] = cid;
-        }
+      // Remove any x-client-id header injected elsewhere (CORS preflight will fail otherwise)
+      if (config && config.headers) {
+        const h = config.headers;
+        const del = (k) =>
+          typeof h.delete === "function" ? h.delete(k) : delete h[k];
+        del("x-client-id");
+        del("X-Client-Id");
+        del("xClientId");
       }
       if (!config.headers?.Accept) {
         config.headers = { ...(config.headers || {}), Accept: "application/json" };
