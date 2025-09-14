@@ -70,7 +70,14 @@ const Login = () => {
         return;
       }
 
-      // ✅ Default everyone to Home unless a redirect target exists
+      // ✅ ALWAYS land admins on Home, even if a redirect exists
+      const role = user?.role?.toString?.().toLowerCase?.() || "";
+      if (role === "admin") {
+        navigate("/", { replace: true });
+        return;
+      }
+
+      // For non-admins: honor redirect (from guards), else go Home
       if (redirect && redirect !== "/login") {
         navigate(redirect, { replace: true });
       } else {
