@@ -8,7 +8,7 @@ import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
 /* ---------------- Matte palette ---------------- */
 const PALETTE = {
-  primary: "#C74A50", // matte red to match SearchResults
+  primary: "#C74A50",
   bg: "#F5F6F8",
   surface: "#FFFFFF",
   surfaceAlt: "#FAFBFC",
@@ -16,19 +16,13 @@ const PALETTE = {
   text: "#1A1A1A",
   textSubtle: "#6B7280",
   pillBg: "#F3F4F6",
-
-  // New: gender tones
   violet: "#6D5BD0",
   violetBg: "#F1EFFF",
   pink: "#E05B88",
   pinkBg: "#FFEAF2",
-
-  // Soft pill backgrounds
-  datePillBg: "#FFF9DB", // very light yellow
-  acPillBg: "#EAF5FF", // very light blue
-  seatPillBg: "#FFE9EC", // very light red (matches matte red theme)
-
-  // Very light green for time pill
+  datePillBg: "#FFF9DB",
+  acPillBg: "#EAF5FF",
+  seatPillBg: "#FFE9EC",
   timeGreenBg: "#ECFDF5",
 };
 
@@ -56,10 +50,7 @@ const SectionCard = ({ title, children }) => (
     }}
   >
     {title ? (
-      <h3
-        className="text-lg font-semibold mb-3"
-        style={{ color: PALETTE.text }}
-      >
+      <h3 className="text-lg font-semibold mb-3" style={{ color: PALETTE.text }}>
         {title}
       </h3>
     ) : null}
@@ -68,66 +59,60 @@ const SectionCard = ({ title, children }) => (
 );
 
 const Label = ({ children }) => (
-  <span
-    className="block text-xs font-semibold mb-1"
-    style={{ color: PALETTE.textSubtle }}
-  >
+  <span className="block text-xs font-semibold mb-1" style={{ color: PALETTE.textSubtle }}>
     {children}
   </span>
 );
 
 const Pill = ({ children }) => (
-  <span
-    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
-    style={{ background: PALETTE.pillBg, color: PALETTE.text }}
-  >
+  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: PALETTE.pillBg, color: PALETTE.text }}>
     {children}
   </span>
 );
 
-// Soft-colored pill variants (summary pills)
 const SoftPill = ({ children, bg }) => (
-  <span
-    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
-    style={{ background: bg, color: PALETTE.text }}
-  >
+  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: bg, color: PALETTE.text }}>
     {children}
   </span>
 );
-const DatePill = ({ children }) => (
-  <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>
-);
-const AcPill = ({ children }) => (
-  <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>
-);
+const DatePill = ({ children }) => <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>;
+const AcPill = ({ children }) => <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>;
 const SeatPill = ({ children }) => (
-  <span
-    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
-    style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
-  >
+  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}>
     {children}
   </span>
 );
+const TimeGreenPill = ({ children }) => <SoftPill bg={PALETTE.timeGreenBg}>{children}</SoftPill>;
 
-// UPDATED: green time pill now matches other pills (no border)
-const TimeGreenPill = ({ children }) => (
-  <SoftPill bg={PALETTE.timeGreenBg}>{children}</SoftPill>
-);
-
-// Seat pill that follows selected gender (PassengerRow)
 const GenderSeatPill = ({ gender, children }) => {
   const isMale = gender === "M";
   const bg = isMale ? PALETTE.violetBg : PALETTE.pinkBg;
   const fg = isMale ? PALETTE.violet : PALETTE.pink;
   return (
-    <span
-      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
-      style={{ background: bg, color: fg }}
-    >
+    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: bg, color: fg }}>
       {children}
     </span>
   );
 };
+
+/** Query server for remaining hold time (cache-safe), return {ms, expiresAt} */
+async function fetchHoldRemaining({ busId, date, departureTime }) {
+  const params = { busId, date, departureTime, t: Date.now() }; // cache-buster
+  try {
+    const r1 = await apiClient.get("/bookings/lock-remaining", { params });
+    return { ms: r1?.data?.remainingMs ?? r1?.data?.ms ?? null, expiresAt: r1?.data?.expiresAt ?? null, headers: r1?.headers };
+  } catch {
+    const r2 = await apiClient.get("/bookings/lock/remaining", { params });
+    return { ms: r2?.data?.remainingMs ?? r2?.data?.ms ?? null, expiresAt: r2?.data?.expiresAt ?? null, headers: r2?.headers };
+  }
+}
+
+/** Get best-effort server time (to reduce local clock drift) */
+function serverNowFromHeaders(headers) {
+  const h = headers?.date;
+  const t = h ? Date.parse(h) : NaN;
+  return Number.isFinite(t) ? t : Date.now();
+}
 
 // --- Live hold countdown (15 min seat lock) ---
 const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
@@ -141,10 +126,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
     const startTicking = () => {
       if (timerRef.current) clearInterval(timerRef.current);
       const tick = () => {
-        const left = Math.max(
-          0,
-          (expiryRef.current ?? Date.now()) - Date.now()
-        );
+        const left = Math.max(0, (expiryRef.current ?? Date.now()) - Date.now());
         setRemainingMs(left);
         if (left <= 0) {
           clearInterval(timerRef.current);
@@ -156,29 +138,15 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
       timerRef.current = setInterval(tick, 1000);
     };
 
-    const fetchOnce = async () => {
-      const params = { busId, date, departureTime };
+    const init = async () => {
       try {
-        let ms = null;
-        let serverExpiry = null;
-        try {
-          const r1 = await apiClient.get("/bookings/lock-remaining", {
-            params,
-          });
-          ms = r1?.data?.remainingMs ?? r1?.data?.ms ?? null;
-          serverExpiry = r1?.data?.expiresAt || null;
-        } catch {
-          const r2 = await apiClient.get("/bookings/lock/remaining", {
-            params,
-          });
-          ms = r2?.data?.remainingMs ?? r2?.data?.ms ?? null;
-          serverExpiry = r2?.data?.expiresAt || null;
-        }
-        const target = serverExpiry
-          ? new Date(serverExpiry).getTime()
+        const { ms, expiresAt, headers } = await fetchHoldRemaining({ busId, date, departureTime });
+        const nowServer = serverNowFromHeaders(headers);
+        const target = expiresAt
+          ? new Date(expiresAt).getTime()
           : ms != null
-          ? Date.now() + Math.max(0, Number(ms))
-          : Date.now() + 15 * 60 * 1000; // fallback 15 min
+          ? nowServer + Math.max(0, Number(ms))
+          : nowServer + 15 * 60 * 1000; // conservative fallback
         if (cancelled) return;
         expiryRef.current = target;
         startTicking();
@@ -201,22 +169,18 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
     };
     document.addEventListener("visibilitychange", onVisibility);
 
-    fetchOnce();
+    init();
 
     return () => {
       cancelled = true;
       document.removeEventListener("visibilitychange", onVisibility);
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // ✅ fetch only when the identity of the hold changes
   }, [busId, date, departureTime, onExpire]);
 
   if (remainingMs == null) {
     return (
-      <span
-        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
-        style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
-      >
+      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}>
         Securing seats…
       </span>
     );
@@ -225,7 +189,6 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
   const total = Math.ceil(remainingMs / 1000);
   const mm = String(Math.floor(total / 60)).padStart(2, "0");
   const ss = String(total % 60).padStart(2, "0");
-
   const expired = total <= 0;
 
   return (
@@ -274,27 +237,14 @@ const RowInput = ({
   </div>
 );
 
-/* -------- Passenger row (memoized; minimal UI) -------- */
-const PassengerRow = memo(function PassengerRow({
-  p,
-  index,
-  onName,
-  onAge,
-  onGender,
-}) {
+/* -------- Passenger row -------- */
+const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGender }) {
   return (
-    <div
-      className="p-4 rounded-2xl"
-      style={{
-        background: PALETTE.surfaceAlt,
-        border: `1px solid ${PALETTE.border}`,
-      }}
-    >
+    <div className="p-4 rounded-2xl" style={{ background: PALETTE.surfaceAlt, border: `1px solid ${PALETTE.border}` }}>
       <div className="flex items-center justify-between">
         <p className="font-semibold" style={{ color: PALETTE.text }}>
           Passenger {index + 1}
         </p>
-        {/* Seat pill now changes color with gender */}
         <GenderSeatPill gender={p.gender}>Seat {p.seat}</GenderSeatPill>
       </div>
 
@@ -328,7 +278,6 @@ const PassengerRow = memo(function PassengerRow({
         <div className="md:col-span-2">
           <Label>Gender</Label>
           <div className="grid grid-cols-2 gap-2">
-            {/* Male = violet pill */}
             <button
               type="button"
               onClick={() => onGender(p.seat, "M")}
@@ -341,7 +290,6 @@ const PassengerRow = memo(function PassengerRow({
             >
               Male
             </button>
-            {/* Female = pink pill */}
             <button
               type="button"
               onClick={() => onGender(p.seat, "F")}
@@ -366,24 +314,20 @@ const ConfirmBooking = () => {
   const location = useLocation();
   const navigate = useNavigate();
 
-  // ---- read route state ----
   const {
     bus,
     selectedSeats,
     date,
-    totalPrice, // number OR
-    priceDetails, // { basePrice, convenienceFee, totalPrice }
+    totalPrice,
+    priceDetails,
     selectedBoardingPoint,
     selectedDroppingPoint,
     departureTime,
     seatGenders,
   } = location.state || {};
 
-  // ---- normalized pricing (stable) ----
   const prices = useMemo(() => {
-    const base =
-      priceDetails?.basePrice ??
-      (typeof totalPrice === "number" ? totalPrice : 0);
+    const base = priceDetails?.basePrice ?? (typeof totalPrice === "number" ? totalPrice : 0);
     const fee = priceDetails?.convenienceFee ?? 0;
     const tot = priceDetails?.totalPrice ?? totalPrice ?? base + fee;
     return {
@@ -393,21 +337,12 @@ const ConfirmBooking = () => {
     };
   }, [priceDetails, totalPrice]);
 
-  // ---- contact form (controlled) ----
-  const [form, setForm] = useState({
-    name: "",
-    mobile: "",
-    nic: "",
-    email: "",
-  });
+  const [form, setForm] = useState({ name: "", mobile: "", nic: "", email: "" });
   const onChangeForm = useCallback((e) => {
     const { name, value } = e.target;
-    setForm((prev) =>
-      prev[name] === value ? prev : { ...prev, [name]: value }
-    );
+    setForm((prev) => (prev[name] === value ? prev : { ...prev, [name]: value }));
   }, []);
 
-  // ---- passengers initialized once; never reset from props while typing ----
   const initialPassengers = useMemo(
     () =>
       (selectedSeats || []).map((seatNo) => ({
@@ -423,8 +358,7 @@ const ConfirmBooking = () => {
   const setPassengerName = useCallback((seat, name) => {
     setPassengers((prev) => {
       const i = prev.findIndex((x) => x.seat === String(seat));
-      if (i === -1) return prev;
-      if (prev[i].name === name) return prev;
+      if (i === -1 || prev[i].name === name) return prev;
       const next = prev.slice();
       next[i] = { ...next[i], name };
       return next;
@@ -434,8 +368,7 @@ const ConfirmBooking = () => {
   const setPassengerAge = useCallback((seat, age) => {
     setPassengers((prev) => {
       const i = prev.findIndex((x) => x.seat === String(seat));
-      if (i === -1) return prev;
-      if (prev[i].age === age) return prev;
+      if (i === -1 || prev[i].age === age) return prev;
       const next = prev.slice();
       next[i] = { ...next[i], age };
       return next;
@@ -445,8 +378,7 @@ const ConfirmBooking = () => {
   const setPassengerGender = useCallback((seat, gender) => {
     setPassengers((prev) => {
       const i = prev.findIndex((x) => x.seat === String(seat));
-      if (i === -1) return prev;
-      if (prev[i].gender === gender) return prev;
+      if (i === -1 || prev[i].gender === gender) return prev;
       const next = prev.slice();
       next[i] = { ...next[i], gender };
       return next;
@@ -454,24 +386,33 @@ const ConfirmBooking = () => {
   }, []);
 
   const [termsAccepted, setTermsAccepted] = useState(false);
-
-  // track hold status to protect proceed action
   const [holdExpired, setHoldExpired] = useState(false);
 
-  // Seats as strings (for hook)
-  const selectedSeatStrings = useMemo(
-    () => (selectedSeats || []).map(String),
-    [selectedSeats]
-  );
+  const selectedSeatStrings = useMemo(() => (selectedSeats || []).map(String), [selectedSeats]);
 
-  // 🔧 Auto cleanup of locks when user cancels / leaves this page.
-  // Suppress cleanup when actually proceeding to payment.
   const { releaseSeats, suppressAutoRelease } = useSeatLockCleanup({
     busId: bus?._id,
     date,
     departureTime,
     seats: selectedSeatStrings,
   });
+
+  // Final hold verification before navigating to payment
+  const verifyHoldAlive = useCallback(async () => {
+    try {
+      const { ms, expiresAt, headers } = await fetchHoldRemaining({
+        busId: bus?._id,
+        date,
+        departureTime,
+      });
+      const now = serverNowFromHeaders(headers);
+      const left = expiresAt ? new Date(expiresAt).getTime() - now : ms ?? 0;
+      return left > 0;
+    } catch {
+      // If API temporarily fails, be conservative: allow proceed
+      return true;
+    }
+  }, [bus?._id, date, departureTime]);
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -497,13 +438,19 @@ const ConfirmBooking = () => {
         return;
       }
 
-      // Optional: validate seats on server
-      // await apiClient.post("/booking/validate", { busId: bus?._id, seats: selectedSeats });
+      // ✅ Double-check the hold right before payment
+      const stillHeld = await verifyHoldAlive();
+      if (!stillHeld) {
+        setHoldExpired(true);
+        releaseSeats();
+        alert("Your seat hold has expired. Please go back and reselect seats.");
+        return;
+      }
 
       const seatGendersOut = {};
       passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
 
-      // 👉 keep the lock while going to external payment flow
+      // keep the lock while going to external payment flow
       suppressAutoRelease();
 
       navigate("/payment", {
@@ -544,10 +491,11 @@ const ConfirmBooking = () => {
       termsAccepted,
       holdExpired,
       suppressAutoRelease,
+      verifyHoldAlive,
+      releaseSeats,
     ]
   );
 
-  // ---- guard ----
   const missingData =
     !bus ||
     !selectedSeats ||
@@ -556,7 +504,6 @@ const ConfirmBooking = () => {
     !selectedDroppingPoint ||
     prices.total === undefined;
 
-  // 🔒 Back-button seat-release guard (works on this page too)
   useSeatLockBackGuard({
     enabled: !missingData && !holdExpired && selectedSeatStrings.length > 0,
     busId: bus?._id,
@@ -587,17 +534,9 @@ const ConfirmBooking = () => {
   return (
     <div className="min-h-screen" style={{ background: PALETTE.bg }}>
       {/* Matte top bar */}
-      <div
-        className="sticky top-0 z-30"
-        style={{
-          background: PALETTE.primary,
-          paddingTop: "env(safe-area-inset-top)",
-        }}
-      >
+      <div className="sticky top-0 z-30" style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}>
         <div className="max-w-6xl mx-auto px-4 py-3">
-          <p className="text-white text-base font-semibold leading-tight">
-            Confirm Booking
-          </p>
+          <p className="text-white text-base font-semibold leading-tight">Confirm Booking</p>
           <p className="text-white/90 text-xs">
             {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
           </p>
@@ -609,14 +548,11 @@ const ConfirmBooking = () => {
           <BookingSteps currentStep={3} />
         </div>
 
-        {/* Journey Overview (minimal) */}
+        {/* Journey Overview */}
         <SectionCard>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
-              <h2
-                className="text-lg font-bold truncate"
-                style={{ color: PALETTE.text }}
-              >
+              <h2 className="text-lg font-bold truncate" style={{ color: PALETTE.text }}>
                 {bus?.name || "Bus"}
               </h2>
               <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
@@ -624,23 +560,19 @@ const ConfirmBooking = () => {
               </p>
             </div>
 
-            {/* Right-side pills with space-managed wrap, now includes DATE with colors */}
             <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
               <DatePill>{getNiceDate(date, departureTime)}</DatePill>
               <AcPill>{bus?.busType || "Seating"}</AcPill>
               <SeatPill>
-                {selectedSeats?.length} Seat
-                {selectedSeats?.length > 1 ? "s" : ""}
+                {selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
-              {/* Live hold countdown */}
               <HoldCountdown
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
                 onExpire={() => {
                   setHoldExpired(true);
-                  // proactively release if countdown reached zero while on page
-                  releaseSeats();
+                  releaseSeats(); // proactively release if countdown hits zero
                 }}
               />
             </div>
@@ -650,26 +582,18 @@ const ConfirmBooking = () => {
             <div>
               <Label>Boarding</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedBoardingPoint.point}{" "}
-                <span className="text-xs">at</span>{" "}
-                {/* Boarding time pill (now borderless & consistent) */}
-                <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
+                {selectedBoardingPoint.point} <span className="text-xs">at</span> <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
               </p>
             </div>
             <div>
               <Label>Dropping</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedDroppingPoint.point}{" "}
-                <span className="text-xs">at</span>{" "}
-                <span className="tabular-nums">
-                  {selectedDroppingPoint.time}
-                </span>
+                {selectedDroppingPoint.point} <span className="text-xs">at</span> <span className="tabular-nums">{selectedDroppingPoint.time}</span>
               </p>
             </div>
             <div className="sm:col-span-2">
               <Label>Selected Seats</Label>
               <div className="flex flex-wrap gap-2">
-                {/* Each seat chip uses the same low-red style as the seat-count pill */}
                 {selectedSeats.map((s) => (
                   <SeatPill key={s}>Seat {s}</SeatPill>
                 ))}
@@ -681,54 +605,10 @@ const ConfirmBooking = () => {
         {/* Contact Details */}
         <SectionCard title="Contact Details">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <RowInput
-              id="name"
-              name="name"
-              label="Full Name"
-              value={form.name}
-              onChange={onChangeForm}
-              autoComplete="name"
-              enterKeyHint="next"
-              placeholder="e.g., Ramesh Perera"
-              required
-            />
-            <RowInput
-              id="mobile"
-              name="mobile"
-              label="Mobile Number"
-              type="tel"
-              value={form.mobile}
-              onChange={onChangeForm}
-              autoComplete="tel"
-              inputMode="tel"
-              enterKeyHint="next"
-              placeholder="e.g., 07XXXXXXXX"
-              required
-            />
-            <RowInput
-              id="nic"
-              name="nic"
-              label="NIC / Passport"
-              value={form.nic}
-              onChange={onChangeForm}
-              autoComplete="off"
-              enterKeyHint="next"
-              placeholder="e.g., 200012345678"
-              required
-            />
-            <RowInput
-              id="email"
-              name="email"
-              label="Email Address"
-              type="email"
-              value={form.email}
-              onChange={onChangeForm}
-              autoComplete="email"
-              inputMode="email"
-              enterKeyHint="done"
-              placeholder="e.g., ramesh@email.com"
-              required
-            />
+            <RowInput id="name" name="name" label="Full Name" value={form.name} onChange={onChangeForm} autoComplete="name" enterKeyHint="next" placeholder="e.g., Ramesh Perera" required />
+            <RowInput id="mobile" name="mobile" label="Mobile Number" type="tel" value={form.mobile} onChange={onChangeForm} autoComplete="tel" inputMode="tel" enterKeyHint="next" placeholder="e.g., 07XXXXXXXX" required />
+            <RowInput id="nic" name="nic" label="NIC / Passport" value={form.nic} onChange={onChangeForm} autoComplete="off" enterKeyHint="next" placeholder="e.g., 200012345678" required />
+            <RowInput id="email" name="email" label="Email Address" type="email" value={form.email} onChange={onChangeForm} autoComplete="email" inputMode="email" enterKeyHint="done" placeholder="e.g., ramesh@email.com" required />
           </div>
         </SectionCard>
 
@@ -736,14 +616,7 @@ const ConfirmBooking = () => {
         <SectionCard title="Passenger Details">
           <div className="space-y-4">
             {passengers.map((p, idx) => (
-              <PassengerRow
-                key={p.seat}
-                p={p}
-                index={idx}
-                onName={setPassengerName}
-                onAge={setPassengerAge}
-                onGender={setPassengerGender}
-              />
+              <PassengerRow key={p.seat} p={p} index={idx} onName={setPassengerName} onAge={setPassengerAge} onGender={setPassengerGender} />
             ))}
           </div>
         </SectionCard>
@@ -752,30 +625,18 @@ const ConfirmBooking = () => {
         <SectionCard title="Fare Summary">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span
-                className="font-medium"
-                style={{ color: PALETTE.textSubtle }}
-              >
+              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
                 Subtotal
               </span>
-              <span
-                className="tabular-nums font-semibold"
-                style={{ color: PALETTE.text }}
-              >
+              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
                 Rs. {prices.basePrice.toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span
-                className="font-medium"
-                style={{ color: PALETTE.textSubtle }}
-              >
+              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
                 Convenience Fee
               </span>
-              <span
-                className="tabular-nums font-semibold"
-                style={{ color: PALETTE.text }}
-              >
+              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
                 Rs. {prices.convenienceFee.toFixed(2)}
               </span>
             </div>
@@ -784,18 +645,12 @@ const ConfirmBooking = () => {
               <span className="font-bold" style={{ color: PALETTE.text }}>
                 Total
               </span>
-              <span
-                className="tabular-nums font-extrabold"
-                style={{ color: PALETTE.text }}
-              >
+              <span className="tabular-nums font-extrabold" style={{ color: PALETTE.text }}>
                 Rs. {prices.total.toFixed(2)}
               </span>
             </div>
             {holdExpired && (
-              <p
-                className="text-xs mt-2 font-semibold"
-                style={{ color: "#991B1B" }}
-              >
+              <p className="text-xs mt-2 font-semibold" style={{ color: "#991B1B" }}>
                 Your seat hold has expired. Please go back and reselect seats.
               </p>
             )}
@@ -804,39 +659,21 @@ const ConfirmBooking = () => {
 
         {/* Terms */}
         <div className="mt-4">
-          <label
-            className="flex items-center text-sm"
-            style={{ color: PALETTE.text }}
-          >
-            <input
-              type="checkbox"
-              className="mr-2"
-              checked={termsAccepted}
-              onChange={() => setTermsAccepted((v) => !v)}
-              required
-            />
+          <label className="flex items-center text-sm" style={{ color: PALETTE.text }}>
+            <input type="checkbox" className="mr-2" checked={termsAccepted} onChange={() => setTermsAccepted((v) => !v)} required />
             I agree to all Terms &amp; Conditions
           </label>
         </div>
       </div>
 
       {/* Sticky bottom CTA */}
-      <div
-        className="fixed bottom-0 left-0 right-0 z-40"
-        style={{
-          background: PALETTE.surface,
-          borderTop: `1px solid ${PALETTE.border}`,
-        }}
-      >
+      <div className="fixed bottom-0 left-0 right-0 z-40" style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}` }}>
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
             <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
               Payable Amount
             </p>
-            <p
-              className="text-xl font-extrabold tabular-nums"
-              style={{ color: PALETTE.text }}
-            >
+            <p className="text-xl font-extrabold tabular-nums" style={{ color: PALETTE.text }}>
               Rs. {prices.total.toFixed(2)}
             </p>
           </div>
@@ -844,7 +681,7 @@ const ConfirmBooking = () => {
             type="button"
             disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
-              // reuse validation
+              // reuse validation + final hold check
               handleSubmit({ preventDefault: () => {} });
             }}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
@@ -859,4 +696,3 @@ const ConfirmBooking = () => {
 };
 
 export default ConfirmBooking;
-
