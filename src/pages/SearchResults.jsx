@@ -362,6 +362,12 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   // Release everything on page unmount (back/forward, navigating away)
   useEffect(() => {
     return () => {
+      // 👉 Skip releasing if we're intentionally handing off to ConfirmBooking
+      const skip = sessionStorage.getItem("rb_skip_release_on_unmount");
+      if (skip === "1") {
+        sessionStorage.removeItem("rb_skip_release_on_unmount");
+        return;
+      }
       // fire-and-forget; we don't await on unmount
       releaseAllSelectedSeats(false);
     };
@@ -584,6 +590,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 params: {
                   date: searchDateParam,
                   departureTime: bus.departureTime,
+                  t: Date.now(), // 🔸 cache-buster to avoid stale 304s
                 },
               }
             );
@@ -1384,6 +1391,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       toast.error("Price could not be determined. Please re-select points.");
       return;
     }
+
+    // 👉 tell unmount cleanup not to release seats during handoff
+    sessionStorage.setItem("rb_skip_release_on_unmount", "1");
 
     navigate("/confirm-booking", {
       state: {
