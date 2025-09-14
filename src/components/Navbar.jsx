@@ -14,7 +14,7 @@ import {
 
 // 🔹 Navbar Component
 const Navbar = () => {
-  const { user, logout, loading } = useAuth();
+  const { user, token, logout, loading } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -38,6 +38,18 @@ const Navbar = () => {
     }`;
 
   if (loading) return null;
+
+  const isLoggedIn = !!(token || user);
+  const roleStr = user?.role?.toString?.().toLowerCase?.() || "";
+  const isAdmin =
+    roleStr === "admin" ||
+    user?.isAdmin === true ||
+    (Array.isArray(user?.roles) &&
+      user.roles.some((r) => r?.toString?.().toLowerCase?.() === "admin"));
+  const isOperator =
+    roleStr === "operator" ||
+    (Array.isArray(user?.roles) &&
+      user.roles.some((r) => r?.toString?.().toLowerCase?.() === "operator"));
 
   return (
     <>
@@ -73,7 +85,7 @@ const Navbar = () => {
               </NavLink>
             </li>
 
-            {user && (
+            {isLoggedIn && (
               <li>
                 <NavLink to="/my-bookings" className={getLinkStyle}>
                   My Bookings
@@ -81,7 +93,7 @@ const Navbar = () => {
               </li>
             )}
 
-            {user?.role === "operator" && (
+            {isOperator && (
               <li>
                 <NavLink to="/operator/dashboard" className={getLinkStyle}>
                   Operator Dashboard
@@ -89,7 +101,7 @@ const Navbar = () => {
               </li>
             )}
 
-            {user?.role === "admin" && (
+            {isAdmin && (
               <li>
                 <NavLink to="/admin" className={getLinkStyle}>
                   Admin
@@ -102,14 +114,14 @@ const Navbar = () => {
           <div className="w-px h-6 mx-2 bg-gray-200" />
 
           {/* User dropdown */}
-          {user ? (
+          {isLoggedIn ? (
             <div ref={dropdownRef} className="relative">
               <button
                 onClick={() => setDropdownOpen((p) => !p)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 <FaUserCircle size={20} />
-                <span className="text-sm font-medium">{user.name}</span>
+                <span className="text-sm font-medium">{user?.name || "Account"}</span>
                 <FaChevronDown
                   size={12}
                   className={`transition-transform ${
@@ -135,6 +147,7 @@ const Navbar = () => {
                       onClick={() => {
                         logout();
                         setDropdownOpen(false);
+                        navigate("/");
                       }}
                       className="w-full text-left px-3 py-2 text-sm text-red-500 rounded-md hover:bg-red-50"
                     >
@@ -197,7 +210,7 @@ const Navbar = () => {
                 Home
               </NavLink>
 
-              {user && (
+              {isLoggedIn && (
                 <NavLink
                   to="/my-bookings"
                   onClick={() => setMenuOpen(false)}
@@ -207,7 +220,7 @@ const Navbar = () => {
                 </NavLink>
               )}
 
-              {user?.role === "operator" && (
+              {isOperator && (
                 <NavLink
                   to="/operator/dashboard"
                   onClick={() => setMenuOpen(false)}
@@ -217,7 +230,7 @@ const Navbar = () => {
                 </NavLink>
               )}
 
-              {user?.role === "admin" && (
+              {isAdmin && (
                 <NavLink
                   to="/admin"
                   onClick={() => setMenuOpen(false)}
@@ -231,7 +244,7 @@ const Navbar = () => {
 
           {/* Footer actions */}
           <div className="flex flex-col gap-2">
-            {user ? (
+            {isLoggedIn ? (
               <>
                 <hr className="my-2" />
                 <button
@@ -247,6 +260,7 @@ const Navbar = () => {
                   onClick={() => {
                     logout();
                     setMenuOpen(false);
+                    navigate("/");
                   }}
                   className="p-3 text-base font-medium text-red-500 rounded-md hover:bg-red-50 text-left"
                 >
