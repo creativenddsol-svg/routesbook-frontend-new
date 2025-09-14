@@ -31,23 +31,20 @@ export const AuthProvider = ({ children }) => {
 
   const [loading, setLoading] = useState(false); // No delayed hydration needed
 
-  /* ---------------- Added: one-time hydration & cross-tab sync ---------------- */
+  /* ---------------- Updated: one-time hydration & cross-tab sync ---------------- */
 
-  // On first mount, verify/refresh session with backend and sync latest profile
+  // On first mount, just finish loading and set up cross-tab sync.
+  // (We removed /auth/refresh and /auth/me calls because your backend doesn't have them.)
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
-        // Optional: if you use httpOnly refresh cookies, this will silently refresh
-        await apiClient.post("/auth/refresh").catch(() => {});
-        // Pull the latest user (works for both token-in-header or cookie-based auth)
-        const { data } = await apiClient.get("/auth/me").catch(() => ({ data: null }));
-        const me = data?.user ?? data ?? null;
-        if (mounted && me) {
-          localStorage.setItem("user", JSON.stringify(me));
-          setUser(me);
-        }
+        // If there's no token, nothing to verify.
+        const hasToken =
+          !!(localStorage.getItem("token") || localStorage.getItem("authToken"));
+        if (!hasToken) return;
+        // If you later add a profile endpoint, you can fetch it here conditionally.
       } finally {
         if (mounted) setLoading(false);
       }
@@ -81,20 +78,8 @@ export const AuthProvider = ({ children }) => {
     setUser(userData);
     setToken(token);
 
-    // Added: verify & hydrate from backend so Home sees admin state immediately
-    setLoading(true);
-    apiClient
-      .post("/auth/refresh")
-      .catch(() => {})
-      .then(() => apiClient.get("/auth/me"))
-      .then((res) => {
-        const me = res?.data?.user ?? res?.data ?? null;
-        if (me) {
-          localStorage.setItem("user", JSON.stringify(me));
-          setUser(me);
-        }
-      })
-      .finally(() => setLoading(false));
+    // Removed post-login refresh/me calls (not available on your backend)
+    // If needed later, you can reintroduce guarded fetches here.
   };
 
   // 🔹 4. Logout function
