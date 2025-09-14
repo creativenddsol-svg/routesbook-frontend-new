@@ -115,4 +115,81 @@ apiClient.interceptors.response.use(
   (err) => Promise.reject(err)
 );
 
+/* ---------------- Additional, non-breaking enhancements below ---------------- */
+
+/* 2nd request interceptor: attach x-client-id header & Accept without altering your logic above */
+apiClient.interceptors.request.use(
+  (config) => {
+    try {
+      const cid = getClientId();
+      if (cid) {
+        config.headers = config.headers || {};
+        if (!config.headers["x-client-id"]) {
+          config.headers["x-client-id"] = cid;
+        }
+      }
+      if (!config.headers?.Accept) {
+        config.headers = { ...(config.headers || {}), Accept: "application/json" };
+      }
+    } catch {}
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+/* Safe 401 auto-refresh (cookie-based) with concurrency control */
+let isRefreshing = false;
+let refreshWaiters = [];
+
+const enqueueWait = () =>
+  new Promise((resolve, reject) => {
+    refreshWaiters.push({ resolve, reject });
+  });
+const resolveWaiters = () => {
+  refreshWaiters.forEach(({ resolve }) => resolve());
+  refreshWaiters = [];
+};
+const rejectWaiters = (err) => {
+  refreshWaiters.forEach(({ reject }) => reject(err));
+  refreshWaiters = [];
+};
+
+apiClient.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const status = error?.response?.status;
+    const original = error?.config;
+
+    if (
+      status === 401 &&
+      original &&
+      !original._retry &&
+      !String(original?.url || "").includes("/auth/login") &&
+      !String(original?.url || "").includes("/auth/refresh")
+    ) {
+      original._retry = true;
+      try {
+        if (isRefreshing) {
+          await enqueueWait(); // wait for ongoing refresh
+        } else {
+          isRefreshing = true;
+          await apiClient.post("/auth/refresh"); // expects httpOnly refresh cookie
+          isRefreshing = false;
+          resolveWaiters();
+        }
+        return apiClient(original); // retry original request
+      } catch (e) {
+        isRefreshing = false;
+        rejectWaiters(e);
+        // Optional: clear volatile tokens if you want a clean state
+        // localStorage.removeItem("token");
+        // localStorage.removeItem("authToken");
+        throw e;
+      }
+    }
+
+    throw error;
+  }
+);
+
 export default apiClient;
