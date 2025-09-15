@@ -12,7 +12,7 @@ const OperatorBusList = () => {
   useEffect(() => {
     const fetchBuses = async () => {
       try {
-        const res = await axios.get("operator/buses");
+        const res = await axios.get("/operator/buses");
         setBuses(res.data);
       } catch (err) {
         console.error("Failed to fetch buses:", err);
