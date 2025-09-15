@@ -1,8 +1,8 @@
 // 🔹 React imports
-import { createContext, useContext, useState } from "react";
-// 🔹 Added (kept original line above untouched)
-import { useEffect } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import apiClient from "../api";
+// ⬇️ NEW: bring in the pre-logout seat release
+import { releaseLocksBeforeLogout } from "../seatLockBridge";
 
 // 🔹 1. Create the AuthContext
 const AuthContext = createContext();
@@ -31,20 +31,15 @@ export const AuthProvider = ({ children }) => {
 
   const [loading, setLoading] = useState(false); // No delayed hydration needed
 
-  /* ---------------- Updated: one-time hydration & cross-tab sync ---------------- */
-
-  // On first mount, just finish loading and set up cross-tab sync.
-  // (We removed /auth/refresh and /auth/me calls because your backend doesn't have them.)
+  /* ---------------- one-time hydration & cross-tab sync ---------------- */
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         setLoading(true);
-        // If there's no token, nothing to verify.
         const hasToken =
           !!(localStorage.getItem("token") || localStorage.getItem("authToken"));
         if (!hasToken) return;
-        // If you later add a profile endpoint, you can fetch it here conditionally.
       } finally {
         if (mounted) setLoading(false);
       }
@@ -77,20 +72,32 @@ export const AuthProvider = ({ children }) => {
     localStorage.setItem("token", token);
     setUser(userData);
     setToken(token);
-
-    // Removed post-login refresh/me calls (not available on your backend)
-    // If needed later, you can reintroduce guarded fetches here.
   };
 
-  // 🔹 4. Logout function
-  const logout = () => {
+  // 🔹 4. Logout function (UPDATED)
+  const logout = async () => {
+    try {
+      // 1) release any locked seats while token is still valid
+      await releaseLocksBeforeLogout();
+      // 2) optionally tell backend you're logging out (while token still present)
+      await apiClient.post("/auth/logout").catch(() => {});
+    } catch (e) {
+      // best-effort: continue even if seat release/log out fails
+      console.warn("Pre-logout cleanup issue:", e);
+    }
+
+    // 3) broadcast so open pages (SearchResults) can reset UI immediately
+    window.dispatchEvent(new Event("rb:logout"));
+
+    // 4) now clear local state & tokens
     localStorage.removeItem("user");
     localStorage.removeItem("token");
+    localStorage.removeItem("authToken");
+    localStorage.removeItem("jwt");
+    sessionStorage.removeItem("token");
+
     setUser(null);
     setToken(null);
-
-    // Added: tell backend (ignore failures)
-    apiClient.post("/auth/logout").catch(() => {});
   };
 
   // 🔹 5. Provide context to children
