@@ -31,6 +31,8 @@ const HoldCountdown = ({
   seats, // array of seat strings
   onExpire,
   onTick,
+  // NEW: optional initial expiry (timestamp ms) passed from previous page
+  initialExpiry,
 }) => {
   const expiryRef = useRef(null);
   const timerRef = useRef(null);
@@ -58,26 +60,56 @@ const HoldCountdown = ({
 
     const fetchOnce = async () => {
       try {
-        const params = { busId, date, departureTime, seats: Array.isArray(seats) ? seats : [] };
-        // Try primary alias
+        const params = {
+          busId,
+          date,
+          departureTime,
+          seats: Array.isArray(seats) ? seats : [],
+        };
+
+        // Ask server for remaining time WITHOUT extending the lock
         let r = await apiClient.get("/bookings/lock-remaining", { params });
-        // Fallback alias if needed
-        if (!r?.data) r = await apiClient.get("/bookings/lock/remaining", { params });
+        if (!r?.data) {
+          r = await apiClient.get("/bookings/lock/remaining", { params });
+        }
 
         const ms = r?.data?.remainingMs ?? r?.data?.ms ?? null;
-        const serverExpiry = r?.data?.expiresAt || null;
-        const target = serverExpiry
-          ? new Date(serverExpiry).getTime()
+        const serverExpiryISO = r?.data?.expiresAt || null;
+        const serverExpiry = serverExpiryISO
+          ? new Date(serverExpiryISO).getTime()
           : ms != null
           ? Date.now() + Math.max(0, Number(ms))
-          : Date.now() + 15 * 60 * 1000; // fallback 15 min
+          : null;
+
+        const initial =
+          typeof initialExpiry === "number"
+            ? initialExpiry
+            : Number.isFinite(initialExpiry)
+            ? Number(initialExpiry)
+            : null;
+
+        // Pick the EARLIEST non-null expiry so we never "gift" extra time
+        const target =
+          serverExpiry && initial
+            ? Math.min(serverExpiry, initial)
+            : serverExpiry || initial || null;
 
         if (cancelled) return;
-        expiryRef.current = target;
+
+        // If we couldn't determine any expiry, don't invent 15:00 again.
+        if (!target) {
+          expiryRef.current = Date.now(); // immediately expired -> shows 00:00
+        } else {
+          expiryRef.current = target;
+        }
         startTicking();
       } catch {
-        // Conservative fallback if API hiccups (10 minutes)
-        expiryRef.current = Date.now() + 10 * 60 * 1000;
+        // If API fails, fall back to initialExpiry (if provided), else expire now
+        const fallback =
+          typeof initialExpiry === "number" && initialExpiry > Date.now()
+            ? initialExpiry
+            : Date.now();
+        expiryRef.current = fallback;
         startTicking();
       }
     };
@@ -102,7 +134,7 @@ const HoldCountdown = ({
       if (timerRef.current) clearInterval(timerRef.current);
     };
     // ✅ IMPORTANT: seats array is stringified to avoid re-running on shallow re-renders
-  }, [busId, date, departureTime, onExpire, onTick, JSON.stringify(seats)]);
+  }, [busId, date, departureTime, onExpire, onTick, JSON.stringify(seats), initialExpiry]);
 
   if (remainingMs == null) return null;
 
@@ -132,6 +164,11 @@ const PaymentPage = () => {
     departureTime,
     passengers = [],
     seatGenders = {},
+    // 🆕 accept any of these fields if ConfirmBooking passes them
+    holdExpiresAt,
+    lockExpiresAt,
+    expiresAt, // ISO or ms
+    remainingMs, // optional
   } = state || {};
 
   // ---- lock status on Payment page ----
@@ -145,9 +182,23 @@ const PaymentPage = () => {
 
   const selectedSeatStrings = selectedSeats.map(String);
 
+  // Compute an optional initial expiry timestamp from state (if present)
+  const initialHoldExpiryTs = (() => {
+    const raw =
+      holdExpiresAt || lockExpiresAt || expiresAt || null;
+    if (!raw && typeof remainingMs === "number") {
+      return Date.now() + Math.max(0, remainingMs);
+    }
+    if (!raw) return null;
+    if (typeof raw === "number") return raw;
+    const t = Date.parse(raw);
+    return Number.isFinite(t) ? t : null;
+  })();
+
   // 🔒 Back-button seat-release guard on Payment page — go HOME on confirm
   useSeatLockBackGuard({
-    enabled: !isIncomplete && !holdExpired && lockOk && selectedSeatStrings.length > 0,
+    enabled:
+      !isIncomplete && !holdExpired && lockOk && selectedSeatStrings.length > 0,
     busId: bus?._id,
     date,
     departureTime,
@@ -172,6 +223,61 @@ const PaymentPage = () => {
         }));
   };
 
+  // NEW: verify remaining hold WITHOUT extending it
+  const checkRemainingLock = async () => {
+    try {
+      const params = {
+        busId: bus._id,
+        date,
+        departureTime,
+        seats: selectedSeatStrings,
+      };
+      let r = await apiClient.get("/bookings/lock-remaining", { params });
+      if (!r?.data) {
+        r = await apiClient.get("/bookings/lock/remaining", { params });
+      }
+      const ms = r?.data?.remainingMs ?? r?.data?.ms ?? null;
+      const serverExpiryISO = r?.data?.expiresAt || null;
+      const msLeft =
+        ms != null
+          ? Math.max(0, Number(ms))
+          : serverExpiryISO
+          ? Math.max(0, new Date(serverExpiryISO).getTime() - Date.now())
+          : null;
+
+      if (msLeft != null) {
+        setLockOk(msLeft > 0);
+        setHoldExpired(msLeft <= 0);
+        setLockMsg(msLeft > 0 ? "" : "Hold expired. Please re-lock seats.");
+      } else {
+        // If we can't verify, be conservative: consider the initial expiry if present
+        if (initialHoldExpiryTs && initialHoldExpiryTs > Date.now()) {
+          setLockOk(true);
+          setHoldExpired(false);
+          setLockMsg("");
+        } else {
+          setLockOk(false);
+          setHoldExpired(true);
+          setLockMsg("Unable to verify hold. Please re-lock seats.");
+        }
+      }
+      return msLeft;
+    } catch (e) {
+      // Network/API issue — fall back to initial expiry if we have it
+      if (initialHoldExpiryTs && initialHoldExpiryTs > Date.now()) {
+        setLockOk(true);
+        setHoldExpired(false);
+        setLockMsg("");
+        return initialHoldExpiryTs - Date.now();
+      }
+      setLockOk(false);
+      setHoldExpired(true);
+      setLockMsg("Unable to verify hold. Please re-lock seats.");
+      return null;
+    }
+  };
+
+  // Ensure a valid lock (only re-lock if expired)
   const ensureSeatLock = async () => {
     if (isIncomplete) {
       setLockOk(false);
@@ -190,6 +296,14 @@ const PaymentPage = () => {
       return false;
     }
 
+    // 1) First, verify current hold WITHOUT extending it
+    const msLeft = await checkRemainingLock();
+    if (msLeft != null && msLeft > 0) {
+      // We already have a valid hold — do NOT refresh it
+      return true;
+    }
+
+    // 2) If expired/missing, now try to lock once
     setLocking(true);
     setLockMsg("");
     try {
@@ -198,7 +312,6 @@ const PaymentPage = () => {
         date,
         departureTime,
         seats: selectedSeatStrings,
-        // 🔒 send genders too – some backends bind lock to seat+gender
         seatAllocations: makeSeatAllocations(),
       };
       const res = await apiClient.post("/bookings/lock", payload, {
@@ -225,10 +338,8 @@ const PaymentPage = () => {
   // 🔓 Cancel helper (release lock + go Home)
   const cancelAndHome = async () => {
     try {
-      // ✅ NEW: use shared release helper (also cleans up timers/flags)
       await releaseSeats();
     } catch {
-      // fallback to direct API in case helper fails for any reason
       const token = localStorage.getItem("token");
       try {
         await apiClient.delete("/bookings/release", {
@@ -248,10 +359,11 @@ const PaymentPage = () => {
     }
   };
 
-  // Try to secure (or refresh) the lock when user lands on Payment
+  // ⛔️ IMPORTANT CHANGE:
+  // On mount, only VERIFY current hold; DO NOT re-lock automatically.
   useEffect(() => {
     if (isIncomplete) return;
-    ensureSeatLock();
+    checkRemainingLock();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isIncomplete]);
 
@@ -276,7 +388,7 @@ const PaymentPage = () => {
   };
 
   const handleFakePayment = async () => {
-    // Re-check/refresh the lock right before paying
+    // Re-check (without extending). If expired, we'll attempt a one-time re-lock.
     let ok = await ensureSeatLock();
     if (!ok) {
       alert(
@@ -290,7 +402,7 @@ const PaymentPage = () => {
       return;
     }
 
-    // ✅ NEW: prevent auto-release while payment is in progress / redirecting
+    // ✅ Prevent auto-release while payment is in progress / redirecting
     suppressAutoRelease();
 
     try {
@@ -550,6 +662,7 @@ const PaymentPage = () => {
                       date={date}
                       departureTime={departureTime}
                       seats={selectedSeatStrings}
+                      initialExpiry={initialHoldExpiryTs}
                       onExpire={() => {
                         setHoldExpired(true);
                         setLockOk(false);
