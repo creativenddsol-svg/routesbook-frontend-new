@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import axios from "../utils/axiosInstance";
+import apiClient from "../api";
 import { toast } from "react-hot-toast";
 import { subDays, format } from "date-fns";
 import {
@@ -42,7 +42,7 @@ const OperatorDashboard = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const res = await axios.get("/operator/dashboard", {
+        const res = await apiClient.get("/operator/dashboard", {
           // It sends startDate and endDate as required by the backend
           params: {
             startDate: format(dateRange.from, "yyyy-MM-dd"),
