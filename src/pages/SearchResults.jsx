@@ -514,6 +514,12 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     return () => window.removeEventListener("rb:login", onLogin);
   }, [refreshAvailability]);
 
+  /* 🆕 tiny memo so the polling effect doesn't capture sortedBuses before init */
+  const visibleForPolling = useMemo(() => {
+    // we only need a list to refresh; order doesn't matter
+    return buses ? [...buses] : [];
+  }, [buses]);
+
   /* 🆕 near real-time polling to reflect other users' locks without page refresh */
   useEffect(() => {
     if (!buses.length) return;
@@ -531,7 +537,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         if (b) list.push(b);
       }
       // append first N visible buses (based on current pagination)
-      const visible = sortedBuses.slice(0, page * RESULTS_PER_PAGE);
+      const visible = visibleForPolling.slice(0, page * RESULTS_PER_PAGE);
       for (const b of visible) {
         const key = `${b._id}-${b.departureTime}`;
         if (expandedBusId && key === expandedBusId) continue;
@@ -551,7 +557,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       stopped = true;
       clearInterval(id);
     };
-  }, [buses, sortedBuses, page, expandedBusId, refreshAvailability]);
+  }, [buses, visibleForPolling, page, expandedBusId, refreshAvailability]);
 
   // Release everything on page unmount (back/forward, navigating away)
   useEffect(() => {
@@ -1163,8 +1169,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     },
   };
 
-  // ⬇️ UPDATED: accept busCount as a prop instead of closing over sortedBuses
-  const FilterPanel = ({ isMobile, sortBy, setSortBy, busCount }) => {
+  const FilterPanel = ({ isMobile, sortBy, setSortBy }) => {
     const handleTimeSlotFilter = (slot) =>
       setFilters((prev) => ({
         ...prev,
@@ -1323,7 +1328,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               className="w-full py-3 font-bold text-white rounded-lg"
               style={{ backgroundColor: PALETTE.primaryRed }}
             >
-              Show {busCount} Buses
+              Show {sortedBuses.length} Buses
             </button>
             <button
               onClick={() => {
@@ -2110,7 +2115,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                               className="w-full h-full object-contain"
                               style={{ border: "none", boxShadow: "none" }}
                             />
-                          )) : (
+                          ) : (
                             <FaBus
                               className="text-3xl"
                               style={{ color: "#6B7280" }}
@@ -2671,7 +2676,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 isMobile={false}
                 sortBy={sortBy}
                 setSortBy={setSortBy}
-                busCount={sortedBuses.length}
               />
             </aside>
             <main className="lg:col-span-3 space-y-5">
@@ -2721,7 +2725,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 isMobile={true}
                 sortBy={sortBy}
                 setSortBy={setSortBy}
-                busCount={sortedBuses.length}
               />
             </motion.div>
           </>
