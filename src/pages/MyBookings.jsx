@@ -1,5 +1,6 @@
+// src/pages/MyBookings.jsx
 import { useEffect, useState, useMemo } from "react";
-import apiClient from "../api"; // ✅ use shared API client
+import apiClient from "../api"; // ✅ use the shared API client (baseURL set here)
 import { Link, useNavigate } from "react-router-dom";
 import {
   FaBus,
@@ -13,7 +14,7 @@ import {
   FaDownload,
 } from "react-icons/fa";
 
-// 🔐 helpers to attach auth header (same pattern used elsewhere)
+/* ---------- auth helpers (same pattern used elsewhere) ---------- */
 const getAuthToken = () =>
   localStorage.getItem("token") ||
   localStorage.getItem("authToken") ||
@@ -24,7 +25,7 @@ const getAuthToken = () =>
 const buildAuthConfig = (token) =>
   token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
-// Skeleton component for loading state
+/* ---------- skeleton ---------- */
 const BookingCardSkeleton = () => (
   <div className="bg-white rounded-xl shadow-md p-5 border border-gray-200 animate-pulse">
     <div className="flex justify-between items-start border-b border-gray-100 pb-3">
@@ -65,9 +66,9 @@ const MyBookings = () => {
         return;
       }
       try {
-        // ✅ use apiClient with baseURL & auth header instead of localhost axios
+        // ✅ IMPORTANT: relative path to your API base; no localhost anywhere
         const res = await apiClient.get("/bookings/me", buildAuthConfig(token));
-        setBookings(res.data);
+        setBookings(res.data || []);
       } catch (err) {
         console.error("Failed to load bookings", err?.response?.data || err);
       } finally {
@@ -77,14 +78,15 @@ const MyBookings = () => {
     fetchBookings();
   }, []);
 
-  const sortedBookings = useMemo(() => {
-    return [...bookings].sort(
-      (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
-    );
-  }, [bookings]);
+  const sortedBookings = useMemo(
+    () =>
+      [...bookings].sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      ),
+    [bookings]
+  );
 
   const handleDownloadTicket = (booking) => {
-    // Reconstruct the state object required by the ticket download page
     const bookingDetails = {
       bus: booking.bus,
       passenger: booking.passengerInfo,
@@ -96,7 +98,6 @@ const MyBookings = () => {
         convenienceFee: booking.convenienceFee,
         basePrice: booking.totalAmount - booking.convenienceFee,
       },
-      // Find the full point objects from the populated bus details
       boardingPoint: booking.bus?.boardingPoints.find(
         (p) => p.point === booking.from
       ),
