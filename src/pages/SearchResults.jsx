@@ -357,6 +357,12 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     latestBusesRef.current = buses;
   }, [buses]);
 
+  // 🆕 keep availability in a ref so refreshAvailability stays stable
+  const availabilityRef = useRef(availability);
+  useEffect(() => {
+    availabilityRef.current = availability;
+  }, [availability]);
+
   // Helper to parse "<id>-<time>" key
   const parseBusKey = (key) => {
     const lastDash = key.lastIndexOf("-");
@@ -487,7 +493,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               };
             } catch {
               // keep previous snapshot if refresh fails for a bus
-              updates[key] = availability[key] || {
+              const prev = availabilityRef.current || {};
+              updates[key] = prev[key] || {
                 available: null,
                 window: null,
                 bookedSeats: [],
@@ -503,7 +510,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         /* ignore bulk refresh failures */
       }
     },
-    [buses, searchDateParam, availability]
+    [buses, searchDateParam]
   );
 
   useEffect(() => {
@@ -520,32 +527,41 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     return buses ? [...buses] : [];
   }, [buses]);
 
+  // 🆕 prevent overlapping polls
+  const pollInFlightRef = useRef(false);
+
   /* 🆕 near real-time polling to reflect other users' locks without page refresh */
   useEffect(() => {
     if (!buses.length) return;
     let stopped = false;
 
     const tick = async () => {
-      if (document.hidden) return; // save resources in background tabs
-      // Always prioritize the currently expanded card, then visible list
-      const list = [];
-      if (expandedBusId) {
-        const lastDash = expandedBusId.lastIndexOf("-");
-        const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
-        const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
-        const b = buses.find((x) => x._id === id && x.departureTime === time);
-        if (b) list.push(b);
-      }
-      // append first N visible buses (based on current pagination)
-      const visible = visibleForPolling.slice(0, page * RESULTS_PER_PAGE);
-      for (const b of visible) {
-        const key = `${b._id}-${b.departureTime}`;
-        if (expandedBusId && key === expandedBusId) continue;
-        list.push(b);
-        if (list.length >= MAX_REFRESH_BUSES) break;
-      }
-      if (!stopped && list.length) {
-        await refreshAvailability(list);
+      if (pollInFlightRef.current) return;
+      pollInFlightRef.current = true;
+      try {
+        if (document.hidden) return; // save resources in background tabs
+        // Always prioritize the currently expanded card, then visible list
+        const list = [];
+        if (expandedBusId) {
+          const lastDash = expandedBusId.lastIndexOf("-");
+          const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+          const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
+          const b = buses.find((x) => x._id === id && x.departureTime === time);
+          if (b) list.push(b);
+        }
+        // append first N visible buses (based on current pagination)
+        const visible = visibleForPolling.slice(0, page * RESULTS_PER_PAGE);
+        for (const b of visible) {
+          const key = `${b._id}-${b.departureTime}`;
+          if (expandedBusId && key === expandedBusId) continue;
+          list.push(b);
+          if (list.length >= MAX_REFRESH_BUSES) break;
+        }
+        if (!stopped && list.length) {
+          await refreshAvailability(list);
+        }
+      } finally {
+        pollInFlightRef.current = false;
       }
     };
 
