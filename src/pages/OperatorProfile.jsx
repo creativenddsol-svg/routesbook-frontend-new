@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
-import axios from "../utils/axiosInstance";
+import apiClient from "../api";
 import { toast } from "react-hot-toast";
 import {
   Loader2,
@@ -86,7 +86,7 @@ const OperatorProfile = () => {
   const fetchProfile = useCallback(async () => {
     try {
       setLoading(true);
-      const { data } = await axios.get("/operator-profile/me");
+      const { data } = await apiClient.get("/operator-profile/me");
       if (data && data.operatorProfile) {
         setProfile(data.operatorProfile);
         setFormData(data.operatorProfile);
@@ -123,7 +123,7 @@ const OperatorProfile = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
-      const { data } = await axios.put("/operator-profile/me", {
+      const { data } = await apiClient.put("/operator-profile/me", {
         operatorProfile: formData,
       });
       setProfile(data.operatorProfile);
