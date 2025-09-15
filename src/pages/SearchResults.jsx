@@ -333,7 +333,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
-  const tomorrow = new Date();
+  thetomorrow = new Date();
+  const tomorrow = thetomorrow;
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = toLocalYYYYMMDD(tomorrow);
 
@@ -451,6 +452,58 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       window.removeEventListener("storage", onStorage);
     };
   }, []);
+
+  /* 🆕 ensure fresh availability on re-login (without resetting selections) */
+  const refreshAvailability = useCallback(async () => {
+    if (!buses || !buses.length) return;
+    try {
+      const seatData = {};
+      await Promise.all(
+        buses.map(async (bus) => {
+          const key = `${bus._id}-${bus.departureTime}`;
+          try {
+            const availabilityRes = await apiClient.get(
+              `/bookings/availability/${bus._id}`,
+              {
+                params: {
+                  date: searchDateParam,
+                  departureTime: bus.departureTime,
+                  t: Date.now(),
+                },
+              }
+            );
+            seatData[key] = {
+              available: availabilityRes.data.availableSeats,
+              window: availabilityRes.data.availableWindowSeats || null,
+              bookedSeats: Array.isArray(availabilityRes.data.bookedSeats)
+                ? availabilityRes.data.bookedSeats.map(String)
+                : [],
+              seatGenderMap: availabilityRes.data.seatGenderMap || {},
+            };
+          } catch {
+            // keep previous snapshot if refresh fails for a bus
+            seatData[key] = availability[key] || {
+              available: null,
+              window: null,
+              bookedSeats: [],
+              seatGenderMap: {},
+            };
+          }
+        })
+      );
+      setAvailability(seatData);
+    } catch {
+      /* ignore bulk refresh failures */
+    }
+  }, [buses, searchDateParam, availability]);
+
+  useEffect(() => {
+    const onLogin = () => {
+      refreshAvailability();
+    };
+    window.addEventListener("rb:login", onLogin);
+    return () => window.removeEventListener("rb:login", onLogin);
+  }, [refreshAvailability]);
 
   // Release everything on page unmount (back/forward, navigating away)
   useEffect(() => {
@@ -1287,9 +1340,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const currentBusData = busSpecificBookingData[busKey];
     if (!currentBusData) return;
 
-    const { bookedSeats: unavailable = [] } = availability[availabilityKey] || {
-      bookedSeats: [],
-    };
+    const { bookedSeats: unavailable = [] } =
+      availability[availabilityKey] || {
+        bookedSeats: [],
+      };
     const seatStr = String(seat);
     const alreadySelected = currentBusData.selectedSeats.includes(seatStr);
 
@@ -1305,9 +1359,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...prev,
         [busKey]: {
           ...prev[busKey],
-          selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+          selectedSeats: prev[busKey].selectedSeats.filter(
+            (s) => s !== seatStr
+          ),
           seatGenders: Object.fromEntries(
-            Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+            Object.entries(prev[busKey].seatGenders).filter(
+              ([k]) => k !== seatStr
+            )
           ),
         },
       }));
@@ -1343,9 +1401,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           ...prev,
           [busKey]: {
             ...prev[busKey],
-            selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+            selectedSeats: prev[busKey].selectedSeats.filter(
+              (s) => s !== seatStr
+            ),
             seatGenders: Object.fromEntries(
-              Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+              Object.entries(prev[busKey].seatGenders).filter(
+                ([k]) => k !== seatStr
+              )
             ),
           },
         }));
@@ -1357,9 +1419,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...prev,
         [busKey]: {
           ...prev[busKey],
-          selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+          selectedSeats: prev[busKey].selectedSeats.filter(
+            (s) => s !== seatStr
+          ),
           seatGenders: Object.fromEntries(
-            Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+            Object.entries(prev[busKey].seatGenders).filter(
+              ([k]) => k !== seatStr
+            )
           ),
         },
       }));
@@ -1525,16 +1591,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     ? availability[expandedBusId] || {}
     : {};
 
-  const selectedBookingData = (expandedBusId &&
-    busSpecificBookingData[expandedBusId]) || {
-    selectedSeats: [],
-    seatGenders: {},
-    selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
-    selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
-    basePrice: 0,
-    convenienceFee: 0,
-    totalPrice: 0,
-  };
+  const selectedBookingData =
+    (expandedBusId && busSpecificBookingData[expandedBusId]) || {
+      selectedSeats: [],
+      seatGenders: {},
+      selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
+      selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+      basePrice: 0,
+      convenienceFee: 0,
+      totalPrice: 0,
+    };
 
   const currentMobileStep =
     (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
@@ -2116,7 +2182,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                         className="text-sm font-medium"
                         style={{
                           color:
-                            typeof availableSeats === "number" && availableSeats > 0
+                            typeof availableSeats === "number" &&
+                            availableSeats > 0
                               ? "#EF4444"
                               : "#9CA3AF",
                         }}
@@ -2375,7 +2442,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       {/* Sticky search controls (desktop) */}
       <div
         ref={stickySearchCardRef}
-        className={`${!isNavbarAnimating ? "sticky" : ""} z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
+        className={`${
+          !isNavbarAnimating ? "sticky" : ""
+        } z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
         style={{
           top: `${searchCardStickyTopOffset}px`,
           backgroundColor: `${PALETTE.white}F2`,
