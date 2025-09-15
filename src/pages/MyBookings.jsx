@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import axios from "axios";
+import apiClient from "../api"; // ✅ use shared API client
 import { Link, useNavigate } from "react-router-dom";
 import {
   FaBus,
@@ -12,6 +12,17 @@ import {
   FaExclamationCircle,
   FaDownload,
 } from "react-icons/fa";
+
+// 🔐 helpers to attach auth header (same pattern used elsewhere)
+const getAuthToken = () =>
+  localStorage.getItem("token") ||
+  localStorage.getItem("authToken") ||
+  localStorage.getItem("jwt") ||
+  sessionStorage.getItem("token") ||
+  null;
+
+const buildAuthConfig = (token) =>
+  token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
 // Skeleton component for loading state
 const BookingCardSkeleton = () => (
@@ -47,19 +58,18 @@ const MyBookings = () => {
 
   useEffect(() => {
     const fetchBookings = async () => {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       if (!token) {
         console.error("No token found. Please login.");
         setLoading(false);
         return;
       }
       try {
-        const res = await axios.get("http://localhost:5000/api/bookings/me", {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        // ✅ use apiClient with baseURL & auth header instead of localhost axios
+        const res = await apiClient.get("/bookings/me", buildAuthConfig(token));
         setBookings(res.data);
       } catch (err) {
-        console.error("Failed to load bookings", err.response?.data || err);
+        console.error("Failed to load bookings", err?.response?.data || err);
       } finally {
         setLoading(false);
       }
@@ -211,7 +221,6 @@ const MyBookings = () => {
                     </p>
                   </div>
                   <div className="flex items-center gap-3 w-full sm:w-auto">
-                    {/* ✅ UPDATED: The only button is now for downloading the ticket */}
                     <button
                       onClick={() => handleDownloadTicket(booking)}
                       className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-red-600 rounded-lg hover:bg-red-700 transition"
