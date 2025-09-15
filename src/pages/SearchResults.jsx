@@ -1163,7 +1163,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     },
   };
 
-  const FilterPanel = ({ isMobile, sortBy, setSortBy }) => {
+  // ⬇️ UPDATED: accept busCount as a prop instead of closing over sortedBuses
+  const FilterPanel = ({ isMobile, sortBy, setSortBy, busCount }) => {
     const handleTimeSlotFilter = (slot) =>
       setFilters((prev) => ({
         ...prev,
@@ -1322,7 +1323,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               className="w-full py-3 font-bold text-white rounded-lg"
               style={{ backgroundColor: PALETTE.primaryRed }}
             >
-              Show {sortedBuses.length} Buses
+              Show {busCount} Buses
             </button>
             <button
               onClick={() => {
@@ -2109,7 +2110,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                               className="w-full h-full object-contain"
                               style={{ border: "none", boxShadow: "none" }}
                             />
-                          ) : (
+                          )) : (
                             <FaBus
                               className="text-3xl"
                               style={{ color: "#6B7280" }}
@@ -2670,6 +2671,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 isMobile={false}
                 sortBy={sortBy}
                 setSortBy={setSortBy}
+                busCount={sortedBuses.length}
               />
             </aside>
             <main className="lg:col-span-3 space-y-5">
@@ -2719,6 +2721,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 isMobile={true}
                 sortBy={sortBy}
                 setSortBy={setSortBy}
+                busCount={sortedBuses.length}
               />
             </motion.div>
           </>
