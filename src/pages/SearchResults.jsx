@@ -59,6 +59,10 @@ const TIME_SLOTS = {
 };
 const RESULTS_PER_PAGE = 5;
 
+/* Near real-time refresh cadence (fallback if no websockets) */
+const LIVE_POLL_MS = 3000; // 3s feels snappy without hammering backend
+const MAX_REFRESH_BUSES = 10; // cap concurrent availability fetches per tick
+
 /* ---------------- Helpers ---------------- */
 const toLocalYYYYMMDD = (dateObj) => {
   const year = dateObj.getFullYear();
@@ -333,8 +337,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
-  thetomorrow = new Date();
-  const tomorrow = thetomorrow;
+  const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = toLocalYYYYMMDD(tomorrow);
 
@@ -454,48 +457,54 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   }, []);
 
   /* 🆕 ensure fresh availability on re-login (without resetting selections) */
-  const refreshAvailability = useCallback(async () => {
-    if (!buses || !buses.length) return;
-    try {
-      const seatData = {};
-      await Promise.all(
-        buses.map(async (bus) => {
-          const key = `${bus._id}-${bus.departureTime}`;
-          try {
-            const availabilityRes = await apiClient.get(
-              `/bookings/availability/${bus._id}`,
-              {
-                params: {
-                  date: searchDateParam,
-                  departureTime: bus.departureTime,
-                  t: Date.now(),
-                },
-              }
-            );
-            seatData[key] = {
-              available: availabilityRes.data.availableSeats,
-              window: availabilityRes.data.availableWindowSeats || null,
-              bookedSeats: Array.isArray(availabilityRes.data.bookedSeats)
-                ? availabilityRes.data.bookedSeats.map(String)
-                : [],
-              seatGenderMap: availabilityRes.data.seatGenderMap || {},
-            };
-          } catch {
-            // keep previous snapshot if refresh fails for a bus
-            seatData[key] = availability[key] || {
-              available: null,
-              window: null,
-              bookedSeats: [],
-              seatGenderMap: {},
-            };
-          }
-        })
-      );
-      setAvailability(seatData);
-    } catch {
-      /* ignore bulk refresh failures */
-    }
-  }, [buses, searchDateParam, availability]);
+  const refreshAvailability = useCallback(
+    async (targetBuses) => {
+      const list = targetBuses && targetBuses.length ? targetBuses : buses;
+      if (!list || !list.length) return;
+      try {
+        const updates = {};
+        await Promise.all(
+          list.map(async (bus) => {
+            const key = `${bus._id}-${bus.departureTime}`;
+            try {
+              const availabilityRes = await apiClient.get(
+                `/bookings/availability/${bus._id}`,
+                {
+                  params: {
+                    date: searchDateParam,
+                    departureTime: bus.departureTime,
+                    t: Date.now(), // cache-buster
+                  },
+                }
+              );
+              updates[key] = {
+                available: availabilityRes.data.availableSeats,
+                window: availabilityRes.data.availableWindowSeats || null,
+                bookedSeats: Array.isArray(availabilityRes.data.bookedSeats)
+                  ? availabilityRes.data.bookedSeats.map(String)
+                  : [],
+                seatGenderMap: availabilityRes.data.seatGenderMap || {},
+              };
+            } catch {
+              // keep previous snapshot if refresh fails for a bus
+              updates[key] = availability[key] || {
+                available: null,
+                window: null,
+                bookedSeats: [],
+                seatGenderMap: {},
+              };
+            }
+          })
+        );
+        if (Object.keys(updates).length) {
+          setAvailability((prev) => ({ ...prev, ...updates }));
+        }
+      } catch {
+        /* ignore bulk refresh failures */
+      }
+    },
+    [buses, searchDateParam, availability]
+  );
 
   useEffect(() => {
     const onLogin = () => {
@@ -504,6 +513,45 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     window.addEventListener("rb:login", onLogin);
     return () => window.removeEventListener("rb:login", onLogin);
   }, [refreshAvailability]);
+
+  /* 🆕 near real-time polling to reflect other users' locks without page refresh */
+  useEffect(() => {
+    if (!buses.length) return;
+    let stopped = false;
+
+    const tick = async () => {
+      if (document.hidden) return; // save resources in background tabs
+      // Always prioritize the currently expanded card, then visible list
+      const list = [];
+      if (expandedBusId) {
+        const lastDash = expandedBusId.lastIndexOf("-");
+        const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+        const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
+        const b = buses.find((x) => x._id === id && x.departureTime === time);
+        if (b) list.push(b);
+      }
+      // append first N visible buses (based on current pagination)
+      const visible = sortedBuses.slice(0, page * RESULTS_PER_PAGE);
+      for (const b of visible) {
+        const key = `${b._id}-${b.departureTime}`;
+        if (expandedBusId && key === expandedBusId) continue;
+        list.push(b);
+        if (list.length >= MAX_REFRESH_BUSES) break;
+      }
+      if (!stopped && list.length) {
+        await refreshAvailability(list);
+      }
+    };
+
+    const id = setInterval(tick, LIVE_POLL_MS);
+    // prime immediately
+    tick();
+
+    return () => {
+      stopped = true;
+      clearInterval(id);
+    };
+  }, [buses, sortedBuses, page, expandedBusId, refreshAvailability]);
 
   // Release everything on page unmount (back/forward, navigating away)
   useEffect(() => {
@@ -676,6 +724,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       );
       // 🆕 register if actually locked
       if (res?.data?.ok) addToRegistry(bus, searchDateParam, [seat]);
+      // quick refresh for this bus so other users' view reflects promptly
+      refreshAvailability([bus]);
       return res.data;
     } catch (err) {
       if (err?.response?.status === 400 || err?.response?.status === 401) {
@@ -703,8 +753,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...buildAuthConfig(token),
         data: payload,
       });
-      // 🆕 keep registry in sync
+      // 🆕 keep registry in sync + refresh this bus availability
       removeFromRegistry(bus, searchDateParam, seats);
+      refreshAvailability([bus]);
     } catch (e) {
       console.warn("Release seats failed:", e?.response?.data || e.message);
     }
