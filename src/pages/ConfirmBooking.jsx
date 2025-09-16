@@ -205,6 +205,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
   );
 };
 
+/* RowInput: now supports inline errors & blur validation (desktop unchanged) */
 const RowInput = ({
   id,
   name,
@@ -217,6 +218,10 @@ const RowInput = ({
   enterKeyHint,
   placeholder,
   required,
+  onBlur,          // ✅ added
+  error,           // ✅ added
+  maxLength,       // ✅ passthrough
+  pattern,         // ✅ passthrough
 }) => (
   <div className="w-full">
     <Label>{label}</Label>
@@ -226,19 +231,28 @@ const RowInput = ({
       type={type}
       value={value}
       onChange={onChange}
+      onBlur={onBlur}
       autoComplete={autoComplete}
       inputMode={inputMode}
       enterKeyHint={enterKeyHint}
       placeholder={placeholder}
       required={required}
+      maxLength={maxLength}
+      pattern={pattern}
+      aria-invalid={!!error}
       className="w-full bg-white px-3 py-3 rounded-xl border outline-none"
-      style={{ borderColor: PALETTE.border, color: PALETTE.text }}
+      style={{ borderColor: error ? "#DC2626" : PALETTE.border, color: PALETTE.text }}
     />
+    {error ? (
+      <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
+        {error}
+      </p>
+    ) : null}
   </div>
 );
 
 /* -------- Passenger row -------- */
-const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGender }) {
+const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGender, errorsForSeat, onBlurName, onBlurAge }) {
   return (
     <div className="p-4 rounded-2xl" style={{ background: PALETTE.surfaceAlt, border: `1px solid ${PALETTE.border}` }}>
       <div className="flex items-center justify-between">
@@ -256,10 +270,12 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
             label="Name"
             value={p.name}
             onChange={(e) => onName(p.seat, e.target.value)}
+            onBlur={() => onBlurName?.(p.seat)}
             autoComplete="name"
             enterKeyHint="next"
             placeholder="e.g., Ramesh Perera"
             required
+            error={errorsForSeat?.name}
           />
         </div>
         <div className="md:col-span-1">
@@ -270,9 +286,11 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
             type="number"
             value={p.age}
             onChange={(e) => onAge(p.seat, e.target.value)}
+            onBlur={() => onBlurAge?.(p.seat)}
             inputMode="numeric"
             enterKeyHint="next"
             placeholder="e.g., 28"
+            error={errorsForSeat?.age}
           />
         </div>
         <div className="md:col-span-2">
@@ -283,7 +301,7 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
               onClick={() => onGender(p.seat, "M")}
               className="py-2.5 rounded-full border text-sm font-medium transition"
               style={{
-                borderColor: p.gender === "M" ? PALETTE.violet : PALETTE.border,
+                borderColor: p.gender === "M" ? PALETTE.violet : (errorsForSeat?.gender ? "#DC2626" : PALETTE.border),
                 background: p.gender === "M" ? PALETTE.violetBg : "#FFFFFF",
                 color: p.gender === "M" ? PALETTE.violet : PALETTE.text,
               }}
@@ -295,7 +313,7 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
               onClick={() => onGender(p.seat, "F")}
               className="py-2.5 rounded-full border text-sm font-medium transition"
               style={{
-                borderColor: p.gender === "F" ? PALETTE.pink : PALETTE.border,
+                borderColor: p.gender === "F" ? PALETTE.pink : (errorsForSeat?.gender ? "#DC2626" : PALETTE.border),
                 background: p.gender === "F" ? PALETTE.pinkBg : "#FFFFFF",
                 color: p.gender === "F" ? PALETTE.pink : PALETTE.text,
               }}
@@ -303,6 +321,11 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
               Female
             </button>
           </div>
+          {errorsForSeat?.gender ? (
+            <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
+              {errorsForSeat.gender}
+            </p>
+          ) : null}
         </div>
       </div>
     </div>
@@ -313,6 +336,7 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
 const ConfirmBooking = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const pageTopRef = useRef(null);
 
   const {
     bus,
@@ -388,6 +412,16 @@ const ConfirmBooking = () => {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [holdExpired, setHoldExpired] = useState(false);
 
+  // ✅ Inline errors
+  const [errors, setErrors] = useState({
+    name: "",
+    mobile: "",
+    nic: "",
+    email: "",
+    terms: "",
+    passengers: {}, // { [seat]: { name, age, gender } }
+  });
+
   const selectedSeatStrings = useMemo(() => (selectedSeats || []).map(String), [selectedSeats]);
 
   const { releaseSeats, suppressAutoRelease } = useSeatLockCleanup({
@@ -414,25 +448,102 @@ const ConfirmBooking = () => {
     }
   }, [bus?._id, date, departureTime]);
 
+  /* ---------- Validation helpers (mobile-first inline errors) ---------- */
+  const phoneOk = (v) => /^0\d{9,10}$/.test(String(v || "").trim());
+  const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
+  const nonEmpty = (v) => String(v || "").trim().length > 1;
+
+  const computePassengerErrors = useCallback(
+    (list) => {
+      const pe = {};
+      list.forEach((p) => {
+        const e = {};
+        if (!nonEmpty(p.name)) e.name = "Passenger name is required";
+        if (p.age && Number(p.age) < 0) e.age = "Age must be positive";
+        if (!p.gender) e.gender = "Please select gender";
+        if (Object.keys(e).length) pe[p.seat] = e;
+      });
+      return pe;
+    },
+    []
+  );
+
+  const validateAll = useCallback(() => {
+    const next = {
+      name: nonEmpty(form.name) ? "" : "Full name is required",
+      mobile: phoneOk(form.mobile) ? "" : "Enter a valid mobile number (e.g., 07XXXXXXXX)",
+      nic: nonEmpty(form.nic) ? "" : "NIC / Passport is required",
+      email: emailOk(form.email) ? "" : "Enter a valid email address",
+      terms: termsAccepted ? "" : "You must accept the Terms & Conditions",
+      passengers: computePassengerErrors(passengers),
+    };
+    setErrors(next);
+
+    // find first error key for scroll/focus
+    const firstFieldId =
+      next.name ? "name" :
+      next.mobile ? "mobile" :
+      next.nic ? "nic" :
+      next.email ? "email" :
+      Object.keys(next.passengers)[0] ? `p-name-${Object.keys(next.passengers)[0]}` :
+      "";
+
+    if (firstFieldId) {
+      const el = document.getElementById(firstFieldId);
+      if (el?.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (el?.focus) setTimeout(() => el.focus(), 200);
+      return false;
+    }
+    return true;
+  }, [form, termsAccepted, passengers, computePassengerErrors]);
+
+  const blurValidateField = useCallback((field) => {
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (field === "name") next.name = nonEmpty(form.name) ? "" : "Full name is required";
+      if (field === "mobile") next.mobile = phoneOk(form.mobile) ? "" : "Enter a valid mobile number (e.g., 07XXXXXXXX)";
+      if (field === "nic") next.nic = nonEmpty(form.nic) ? "" : "NIC / Passport is required";
+      if (field === "email") next.email = emailOk(form.email) ? "" : "Enter a valid email address";
+      return next;
+    });
+  }, [form]);
+
+  const blurValidatePassenger = useCallback((seat, field) => {
+    setErrors((prev) => {
+      const next = { ...prev, passengers: { ...prev.passengers } };
+      const p = passengers.find((x) => x.seat === String(seat));
+      const slot = { ...(next.passengers[seat] || {}) };
+      if (field === "name") slot.name = nonEmpty(p?.name) ? "" : "Passenger name is required";
+      if (field === "age" && p?.age && Number(p.age) < 0) slot.age = "Age must be positive";
+      next.passengers[seat] = slot;
+      // cleanup empty seat error object
+      if (!slot.name && !slot.age && !slot.gender) delete next.passengers[seat];
+      return next;
+    });
+  }, [passengers]);
+
+  const toggleTerms = () => {
+    setTermsAccepted((v) => {
+      const nv = !v;
+      setErrors((prev) => ({ ...prev, terms: nv ? "" : "You must accept the Terms & Conditions" }));
+      return nv;
+    });
+  };
+
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
+
+      // ✅ Inline validation first (shows messages + scroll)
+      if (!validateAll()) {
+        return;
+      }
 
       if (holdExpired) {
         alert("Your seat hold has expired. Please go back and reselect seats.");
         return;
       }
 
-      if (!form.name || !form.mobile || !form.nic || !form.email) {
-        alert("Please fill in all contact details.");
-        return;
-      }
-      for (const p of passengers) {
-        if (!p.name || !p.gender) {
-          alert(`Please fill in Name and Gender for seat ${p.seat}.`);
-          return;
-        }
-      }
       if (!termsAccepted) {
         alert("Please agree to the Terms & Conditions.");
         return;
@@ -493,6 +604,7 @@ const ConfirmBooking = () => {
       suppressAutoRelease,
       verifyHoldAlive,
       releaseSeats,
+      validateAll,
     ]
   );
 
@@ -532,7 +644,7 @@ const ConfirmBooking = () => {
 
   /* -------------------- UI -------------------- */
   return (
-    <div className="min-h-screen" style={{ background: PALETTE.bg }}>
+    <div ref={pageTopRef} className="min-h-screen" style={{ background: PALETTE.bg }}>
       {/* Matte top bar */}
       <div className="sticky top-0 z-30" style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}>
         <div className="max-w-6xl mx-auto px-4 py-3">
@@ -543,10 +655,17 @@ const ConfirmBooking = () => {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 pb-40">
+      <div className="max-w-6xl mx-auto px-4 pb-24 sm:pb-40">
         <div className="pt-4">
           <BookingSteps currentStep={3} />
         </div>
+
+        {/* Error banner (mobile-friendly) */}
+        {(errors.name || errors.mobile || errors.nic || errors.email || Object.keys(errors.passengers || {}).length || errors.terms || holdExpired) ? (
+          <div className="mt-3 rounded-xl px-3 py-2 text-xs font-medium" style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid #FECACA" }}>
+            {holdExpired ? "Your seat hold has expired. Please go back and reselect seats." : "Please correct the highlighted fields below."}
+          </div>
+        ) : null}
 
         {/* Journey Overview */}
         <SectionCard>
@@ -605,10 +724,67 @@ const ConfirmBooking = () => {
         {/* Contact Details */}
         <SectionCard title="Contact Details">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <RowInput id="name" name="name" label="Full Name" value={form.name} onChange={onChangeForm} autoComplete="name" enterKeyHint="next" placeholder="e.g., Ramesh Perera" required />
-            <RowInput id="mobile" name="mobile" label="Mobile Number" type="tel" value={form.mobile} onChange={onChangeForm} autoComplete="tel" inputMode="tel" enterKeyHint="next" placeholder="e.g., 07XXXXXXXX" required />
-            <RowInput id="nic" name="nic" label="NIC / Passport" value={form.nic} onChange={onChangeForm} autoComplete="off" enterKeyHint="next" placeholder="e.g., 200012345678" required />
-            <RowInput id="email" name="email" label="Email Address" type="email" value={form.email} onChange={onChangeForm} autoComplete="email" inputMode="email" enterKeyHint="done" placeholder="e.g., ramesh@email.com" required />
+            <RowInput
+              id="name"
+              name="name"
+              label="Full Name"
+              value={form.name}
+              onChange={onChangeForm}
+              onBlur={() => blurValidateField("name")}
+              autoComplete="name"
+              enterKeyHint="next"
+              placeholder="e.g., Ramesh Perera"
+              required
+              error={errors.name}
+              maxLength={80}
+            />
+            <RowInput
+              id="mobile"
+              name="mobile"
+              label="Mobile Number"
+              type="tel"
+              value={form.mobile}
+              onChange={onChangeForm}
+              onBlur={() => blurValidateField("mobile")}
+              autoComplete="tel"
+              inputMode="tel"
+              enterKeyHint="next"
+              placeholder="e.g., 07XXXXXXXX"
+              required
+              error={errors.mobile}
+              maxLength={11}
+              pattern="^0\d{9,10}$"
+            />
+            <RowInput
+              id="nic"
+              name="nic"
+              label="NIC / Passport"
+              value={form.nic}
+              onChange={onChangeForm}
+              onBlur={() => blurValidateField("nic")}
+              autoComplete="off"
+              enterKeyHint="next"
+              placeholder="e.g., 200012345678"
+              required
+              error={errors.nic}
+              maxLength={20}
+            />
+            <RowInput
+              id="email"
+              name="email"
+              label="Email Address"
+              type="email"
+              value={form.email}
+              onChange={onChangeForm}
+              onBlur={() => blurValidateField("email")}
+              autoComplete="email"
+              inputMode="email"
+              enterKeyHint="done"
+              placeholder="e.g., ramesh@email.com"
+              required
+              error={errors.email}
+              maxLength={100}
+            />
           </div>
         </SectionCard>
 
@@ -616,7 +792,17 @@ const ConfirmBooking = () => {
         <SectionCard title="Passenger Details">
           <div className="space-y-4">
             {passengers.map((p, idx) => (
-              <PassengerRow key={p.seat} p={p} index={idx} onName={setPassengerName} onAge={setPassengerAge} onGender={setPassengerGender} />
+              <PassengerRow
+                key={p.seat}
+                p={p}
+                index={idx}
+                onName={setPassengerName}
+                onAge={setPassengerAge}
+                onGender={setPassengerGender}
+                errorsForSeat={errors.passengers?.[p.seat]}
+                onBlurName={(seat) => blurValidatePassenger(seat, "name")}
+                onBlurAge={(seat) => blurValidatePassenger(seat, "age")}
+              />
             ))}
           </div>
         </SectionCard>
@@ -660,14 +846,44 @@ const ConfirmBooking = () => {
         {/* Terms */}
         <div className="mt-4">
           <label className="flex items-center text-sm" style={{ color: PALETTE.text }}>
-            <input type="checkbox" className="mr-2" checked={termsAccepted} onChange={() => setTermsAccepted((v) => !v)} required />
+            <input
+              type="checkbox"
+              className="mr-2"
+              checked={termsAccepted}
+              onChange={toggleTerms}
+              required
+            />
             I agree to all Terms &amp; Conditions
           </label>
+          {errors.terms ? (
+            <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
+              {errors.terms}
+            </p>
+          ) : null}
+        </div>
+
+        {/* Inline mobile CTA (shows on small screens where fixed bars can be obscured) */}
+        <div className="sm:hidden mt-6">
+          <button
+            type="button"
+            disabled={!termsAccepted || holdExpired}
+            onClick={(e) => {
+              // reuse validation + final hold check
+              handleSubmit({ preventDefault: () => {} });
+            }}
+            className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: PALETTE.primary }}
+          >
+            Proceed to Pay
+          </button>
+          <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
+            Payable Amount: <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>Rs. {prices.total.toFixed(2)}</span>
+          </p>
         </div>
       </div>
 
-      {/* Sticky bottom CTA */}
-      <div className="fixed bottom-0 left-0 right-0 z-40" style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}` }}>
+      {/* Sticky bottom CTA — visible from sm and up (desktop unchanged) */}
+      <div className="hidden sm:block fixed bottom-0 left-0 right-0 z-40" style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}`, paddingBottom: "env(safe-area-inset-bottom)" }}>
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
             <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
