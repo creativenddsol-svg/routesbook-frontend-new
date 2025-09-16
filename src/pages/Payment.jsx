@@ -23,7 +23,81 @@ import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 // ✅ NEW: auto-cleanup hook (adds release & suppression helpers)
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
-/* ---------------- Hold countdown for THIS user's seats ---------------- */
+/* ---------------- Matte palette to match ConfirmBooking ---------------- */
+const PALETTE = {
+  primary: "#C74A50",
+  bg: "#F5F6F8",
+  surface: "#FFFFFF",
+  surfaceAlt: "#FAFBFC",
+  border: "#E5E7EB",
+  text: "#1A1A1A",
+  textSubtle: "#6B7280",
+  pillBg: "#F3F4F6",
+  datePillBg: "#FFF9DB",
+  acPillBg: "#EAF5FF",
+  seatPillBg: "#FFE9EC",
+  timeGreenBg: "#ECFDF5",
+  violet: "#6D5BD0",
+  violetBg: "#F1EFFF",
+  pink: "#E05B88",
+  pinkBg: "#FFEAF2",
+};
+
+const SectionCard = ({ title, children }) => (
+  <div
+    className="rounded-2xl p-4 mt-4"
+    style={{ background: PALETTE.surface, border: `1px solid ${PALETTE.border}` }}
+  >
+    {title ? (
+      <h3 className="text-lg font-semibold mb-3" style={{ color: PALETTE.text }}>
+        {title}
+      </h3>
+    ) : null}
+    {children}
+  </div>
+);
+
+const Label = ({ children }) => (
+  <span className="block text-xs font-semibold mb-1" style={{ color: PALETTE.textSubtle }}>
+    {children}
+  </span>
+);
+
+const SoftPill = ({ children, bg }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+    style={{ background: bg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
+const DatePill = ({ children }) => <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>;
+const AcPill = ({ children }) => <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>;
+const SeatPill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+    style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
+  >
+    {children}
+  </span>
+);
+const TimeGreenPill = ({ children }) => <SoftPill bg={PALETTE.timeGreenBg}>{children}</SoftPill>;
+
+const GenderSeatPill = ({ gender, children }) => {
+  const isMale = gender === "M";
+  const bg = isMale ? PALETTE.violetBg : PALETTE.pinkBg;
+  const fg = isMale ? PALETTE.violet : PALETTE.pink;
+  return (
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ background: bg, color: fg }}
+    >
+      {children}
+    </span>
+  );
+};
+
+/* ---------------- Hold countdown (NO auto extend) ---------------- */
 const HoldCountdown = ({
   busId,
   date,
@@ -31,8 +105,7 @@ const HoldCountdown = ({
   seats, // array of seat strings
   onExpire,
   onTick,
-  // NEW: optional initial expiry (timestamp ms) passed from previous page
-  initialExpiry,
+  initialExpiry, // optional ms timestamp passed from previous page
 }) => {
   const expiryRef = useRef(null);
   const timerRef = useRef(null);
@@ -47,11 +120,11 @@ const HoldCountdown = ({
         const target = expiryRef.current || Date.now();
         const left = Math.max(0, target - Date.now());
         setRemainingMs(left);
-        if (onTick) onTick(left);
+        onTick && onTick(left);
         if (left <= 0) {
           clearInterval(timerRef.current);
           timerRef.current = null;
-          if (onExpire) onExpire();
+          onExpire && onExpire();
         }
       };
       tick();
@@ -60,18 +133,9 @@ const HoldCountdown = ({
 
     const fetchOnce = async () => {
       try {
-        const params = {
-          busId,
-          date,
-          departureTime,
-          seats: Array.isArray(seats) ? seats : [],
-        };
-
-        // Ask server for remaining time WITHOUT extending the lock
+        const params = { busId, date, departureTime, seats: Array.isArray(seats) ? seats : [] };
         let r = await apiClient.get("/bookings/lock-remaining", { params });
-        if (!r?.data) {
-          r = await apiClient.get("/bookings/lock/remaining", { params });
-        }
+        if (!r?.data) r = await apiClient.get("/bookings/lock/remaining", { params });
 
         const ms = r?.data?.remainingMs ?? r?.data?.ms ?? null;
         const serverExpiryISO = r?.data?.expiresAt || null;
@@ -88,27 +152,15 @@ const HoldCountdown = ({
             ? Number(initialExpiry)
             : null;
 
-        // Pick the EARLIEST non-null expiry so we never "gift" extra time
         const target =
-          serverExpiry && initial
-            ? Math.min(serverExpiry, initial)
-            : serverExpiry || initial || null;
+          serverExpiry && initial ? Math.min(serverExpiry, initial) : serverExpiry || initial || null;
 
         if (cancelled) return;
-
-        // If we couldn't determine any expiry, don't invent 15:00 again.
-        if (!target) {
-          expiryRef.current = Date.now(); // immediately expired -> shows 00:00
-        } else {
-          expiryRef.current = target;
-        }
+        expiryRef.current = target || Date.now(); // if unknown -> show expired
         startTicking();
       } catch {
-        // If API fails, fall back to initialExpiry (if provided), else expire now
         const fallback =
-          typeof initialExpiry === "number" && initialExpiry > Date.now()
-            ? initialExpiry
-            : Date.now();
+          typeof initialExpiry === "number" && initialExpiry > Date.now() ? initialExpiry : Date.now();
         expiryRef.current = fallback;
         startTicking();
       }
@@ -133,18 +185,34 @@ const HoldCountdown = ({
       document.removeEventListener("visibilitychange", onVisibility);
       if (timerRef.current) clearInterval(timerRef.current);
     };
-    // ✅ IMPORTANT: seats array is stringified to avoid re-running on shallow re-renders
   }, [busId, date, departureTime, onExpire, onTick, JSON.stringify(seats), initialExpiry]);
 
-  if (remainingMs == null) return null;
+  if (remainingMs == null) {
+    return (
+      <span
+        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+        style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
+      >
+        Securing seats…
+      </span>
+    );
+  }
 
   const total = Math.ceil(remainingMs / 1000);
   const mm = String(Math.floor(total / 60)).padStart(2, "0");
   const ss = String(total % 60).padStart(2, "0");
+  const expired = total <= 0;
 
   return (
-    <span className="inline-flex items-center text-xs font-bold px-2.5 py-1 rounded-full bg-red-50 text-red-700">
-      {total <= 0 ? "Hold expired" : `Hold: ${mm}:${ss}`}
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-extrabold tabular-nums"
+      style={{
+        background: expired ? "#FEE2E2" : PALETTE.seatPillBg,
+        color: expired ? "#991B1B" : PALETTE.primary,
+      }}
+      title="Your reserved seats are held for a limited time"
+    >
+      {expired ? "Hold expired" : `Hold: ${mm}:${ss}`}
     </span>
   );
 };
@@ -164,11 +232,11 @@ const PaymentPage = () => {
     departureTime,
     passengers = [],
     seatGenders = {},
-    // 🆕 accept any of these fields if ConfirmBooking passes them
+    // optional hold hints from previous step
     holdExpiresAt,
     lockExpiresAt,
-    expiresAt, // ISO or ms
-    remainingMs, // optional
+    expiresAt,
+    remainingMs,
   } = state || {};
 
   // ---- lock status on Payment page ----
@@ -177,28 +245,22 @@ const PaymentPage = () => {
   const [lockMsg, setLockMsg] = useState("");
   const [holdExpired, setHoldExpired] = useState(false);
 
-  const isIncomplete =
-    !bus || !priceDetails || !passenger || !departureTime;
-
+  const isIncomplete = !bus || !priceDetails || !passenger || !departureTime;
   const selectedSeatStrings = selectedSeats.map(String);
 
-  // Compute an optional initial expiry timestamp from state (if present)
+  // initial expiry timestamp if present
   const initialHoldExpiryTs = (() => {
-    const raw =
-      holdExpiresAt || lockExpiresAt || expiresAt || null;
-    if (!raw && typeof remainingMs === "number") {
-      return Date.now() + Math.max(0, remainingMs);
-    }
+    const raw = holdExpiresAt || lockExpiresAt || expiresAt || null;
+    if (!raw && typeof remainingMs === "number") return Date.now() + Math.max(0, remainingMs);
     if (!raw) return null;
     if (typeof raw === "number") return raw;
     const t = Date.parse(raw);
     return Number.isFinite(t) ? t : null;
   })();
 
-  // 🔒 Back-button seat-release guard on Payment page — go HOME on confirm
+  // 🔒 Back-button guard
   useSeatLockBackGuard({
-    enabled:
-      !isIncomplete && !holdExpired && lockOk && selectedSeatStrings.length > 0,
+    enabled: !isIncomplete && !holdExpired && lockOk && selectedSeatStrings.length > 0,
     busId: bus?._id,
     date,
     departureTime,
@@ -206,7 +268,7 @@ const PaymentPage = () => {
     onConfirmBack: () => navigate("/"),
   });
 
-  // ✅ NEW: auto-release on unload / route change, with manual controls
+  // ✅ Auto-release helper
   const { releaseSeats, suppressAutoRelease } = useSeatLockCleanup({
     busId: bus?._id,
     date,
@@ -214,28 +276,18 @@ const PaymentPage = () => {
     seats: selectedSeatStrings,
   });
 
-  const makeSeatAllocations = () => {
-    return passengers.length > 0
+  const makeSeatAllocations = () =>
+    passengers.length > 0
       ? passengers.map((p) => ({ seat: String(p.seat), gender: p.gender }))
-      : selectedSeatStrings.map((s) => ({
-          seat: s,
-          gender: seatGenders[s] || "M",
-        }));
-  };
+      : selectedSeatStrings.map((s) => ({ seat: s, gender: seatGenders[s] || "M" }));
 
-  // NEW: verify remaining hold WITHOUT extending it
+  // Check remaining hold (NO extension)
   const checkRemainingLock = async () => {
     try {
-      const params = {
-        busId: bus._id,
-        date,
-        departureTime,
-        seats: selectedSeatStrings,
-      };
+      const params = { busId: bus._id, date, departureTime, seats: selectedSeatStrings };
       let r = await apiClient.get("/bookings/lock-remaining", { params });
-      if (!r?.data) {
-        r = await apiClient.get("/bookings/lock/remaining", { params });
-      }
+      if (!r?.data) r = await apiClient.get("/bookings/lock/remaining", { params });
+
       const ms = r?.data?.remainingMs ?? r?.data?.ms ?? null;
       const serverExpiryISO = r?.data?.expiresAt || null;
       const msLeft =
@@ -250,7 +302,6 @@ const PaymentPage = () => {
         setHoldExpired(msLeft <= 0);
         setLockMsg(msLeft > 0 ? "" : "Hold expired. Please re-lock seats.");
       } else {
-        // If we can't verify, be conservative: consider the initial expiry if present
         if (initialHoldExpiryTs && initialHoldExpiryTs > Date.now()) {
           setLockOk(true);
           setHoldExpired(false);
@@ -262,8 +313,7 @@ const PaymentPage = () => {
         }
       }
       return msLeft;
-    } catch (e) {
-      // Network/API issue — fall back to initial expiry if we have it
+    } catch {
       if (initialHoldExpiryTs && initialHoldExpiryTs > Date.now()) {
         setLockOk(true);
         setHoldExpired(false);
@@ -277,7 +327,7 @@ const PaymentPage = () => {
     }
   };
 
-  // Ensure a valid lock (only re-lock if expired) — used by "Re-lock seats"
+  // Keep ensureSeatLock (not auto-used) to preserve logic footprint
   const ensureSeatLock = async () => {
     if (isIncomplete) {
       setLockOk(false);
@@ -295,15 +345,9 @@ const PaymentPage = () => {
       setLockMsg("No seats selected.");
       return false;
     }
-
-    // 1) First, verify current hold WITHOUT extending it
     const msLeft = await checkRemainingLock();
-    if (msLeft != null && msLeft > 0) {
-      // We already have a valid hold — do NOT refresh it
-      return true;
-    }
+    if (msLeft != null && msLeft > 0) return true;
 
-    // 2) If expired/missing, now try to lock once
     setLocking(true);
     setLockMsg("");
     try {
@@ -315,7 +359,7 @@ const PaymentPage = () => {
         seatAllocations: makeSeatAllocations(),
       };
       const res = await apiClient.post("/bookings/lock", payload, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       const ok = res?.data?.ok !== false;
       setLockOk(ok);
@@ -324,9 +368,7 @@ const PaymentPage = () => {
       return ok;
     } catch (err) {
       const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Seat lock failed. Try again.";
+        err?.response?.data?.message || err?.message || "Seat lock failed. Try again.";
       setLockOk(false);
       setLockMsg(msg);
       return false;
@@ -335,7 +377,7 @@ const PaymentPage = () => {
     }
   };
 
-  // 🔓 Cancel helper (release lock + go Home)
+  // Cancel & release
   const cancelAndHome = async () => {
     try {
       await releaseSeats();
@@ -343,24 +385,16 @@ const PaymentPage = () => {
       const token = localStorage.getItem("token");
       try {
         await apiClient.delete("/bookings/release", {
-          data: {
-            busId: bus._id,
-            date,
-            departureTime,
-            seats: selectedSeatStrings,
-          },
+          data: { busId: bus._id, date, departureTime, seats: selectedSeatStrings },
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
-      } catch {
-        // ignore
-      }
+      } catch {}
     } finally {
       navigate("/");
     }
   };
 
-  // ⛔️ IMPORTANT CHANGE:
-  // On mount, only VERIFY current hold; DO NOT re-lock automatically.
+  // On mount: verify only
   useEffect(() => {
     if (isIncomplete) return;
     checkRemainingLock();
@@ -379,7 +413,6 @@ const PaymentPage = () => {
       seatAllocations: makeSeatAllocations(),
       boardingPoint: selectedBoardingPoint,
       droppingPoint: selectedDroppingPoint,
-      // ✅ Ensure backend can match the held lock
       clientId: getClientId(),
     };
     return apiClient.post("/bookings", bookingPayload, {
@@ -388,18 +421,13 @@ const PaymentPage = () => {
   };
 
   const handleFakePayment = async () => {
-    // ✅ Verify remaining hold WITHOUT extending it. Do NOT re-lock here.
+    // Verify only; do NOT re-lock here
     const msLeft = await checkRemainingLock();
-    if (msLeft == null || msLeft <= 0) {
-      alert("Your seat hold has expired. Please click 'Re-lock seats' to continue.");
-      return;
-    }
-    if (!lockOk || holdExpired) {
-      alert("Seats are not currently secured. Please click 'Re-lock seats'.");
+    if (msLeft == null || msLeft <= 0 || !lockOk || holdExpired) {
+      alert("Your seat hold has expired. Please go back and reselect seats.");
       return;
     }
 
-    // ✅ Prevent auto-release while payment is in progress / redirecting
     suppressAutoRelease();
 
     try {
@@ -410,28 +438,23 @@ const PaymentPage = () => {
         return;
       }
 
-      let res = await tryCreateBooking();
+      const res = await tryCreateBooking();
       alert("Payment successful (simulated)");
       navigate("/download-ticket", {
-        state: {
-          bookingDetails: { ...state, bookingId: res?.data?.booking?._id },
-        },
+        state: { bookingDetails: { ...state, bookingId: res?.data?.booking?._id } },
       });
     } catch (err) {
       const apiMsg = err?.response?.data?.message;
       const lockConflict =
         err?.response?.status === 409 ||
         /lock(ed)?|expired|no longer locked|conflict/i.test(apiMsg || "");
-
       if (lockConflict) {
-        // ❌ Do NOT auto re-lock here. Ask user to re-lock explicitly.
         setLockOk(false);
         setHoldExpired(true);
         setLockMsg("Hold expired or conflict. Please re-lock seats.");
-        alert("Hold expired or conflict. Please click 'Re-lock seats' and try again.");
+        alert("Hold expired or conflict. Please go back and reselect seats.");
         return;
       }
-
       console.error("Booking error:", err?.response?.data || err?.message);
       alert(
         `Payment failed: ${
@@ -442,26 +465,26 @@ const PaymentPage = () => {
   };
 
   const InfoCard = ({ icon, title, children }) => (
-    <div className="bg-white shadow-md rounded-xl p-6 border">
-      <h3 className="text-lg font-bold text-gray-800 flex items-center gap-3 mb-4">
-        {icon} {title}
-      </h3>
+    <SectionCard title={title}>
       <div className="space-y-4">{children}</div>
-    </div>
+    </SectionCard>
   );
 
   if (isIncomplete) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-6">
-        <div className="text-center bg-white p-8 rounded-xl shadow-md border">
-          <FaExclamationTriangle className="mx-auto text-5xl text-red-400 mb-4" />
-          <h1 className="text-xl font-bold text-red-600">Booking Error</h1>
-          <p className="text-gray-700 mt-2">
+      <div className="flex flex-col items-center justify-center min-h-screen" style={{ background: PALETTE.bg }}>
+        <div className="text-center rounded-xl shadow-md border p-8" style={{ background: PALETTE.surface, borderColor: PALETTE.border }}>
+          <FaExclamationTriangle className="mx-auto text-5xl" style={{ color: "#F59E0B" }} />
+          <h1 className="text-xl font-bold mt-2" style={{ color: PALETTE.primary }}>
+            Booking Error
+          </h1>
+          <p className="mt-2" style={{ color: PALETTE.text }}>
             Your booking details are incomplete. Please start over.
           </p>
           <button
             onClick={() => navigate("/")}
-            className="mt-6 px-6 py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-transform hover:scale-105"
+            className="mt-6 px-6 py-2 rounded-lg text-white font-semibold"
+            style={{ background: PALETTE.primary }}
           >
             Go to Home
           </button>
@@ -471,126 +494,177 @@ const PaymentPage = () => {
   }
 
   return (
-    <div className="bg-gray-50 min-h-screen">
-      <div className="max-w-7xl mx-auto px-4 py-6">
-        <BookingSteps currentStep={4} />
+    <div className="min-h-screen" style={{ background: PALETTE.bg }}>
+      {/* Matte top bar to match ConfirmBooking */}
+      <div
+        className="sticky top-0 z-30"
+        style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <p className="text-white text-base font-semibold leading-tight">Payment</p>
+          <p className="text-white/90 text-xs">
+            {bus?.from} → {bus?.to} •{" "}
+            {new Date(date + "T00:00:00").toLocaleDateString("en-GB", {
+              day: "numeric",
+              month: "long",
+              year: "numeric",
+            })}{" "}
+            at {departureTime}
+          </p>
+        </div>
+      </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-6">
-          {/* Left Column: Details broken into cards */}
-          <div className="lg:col-span-7 space-y-6">
-            <InfoCard
-              icon={<FaBus className="text-red-500" />}
-              title="Journey Details"
-            >
-              <div className="text-gray-800">
-                <p className="text-xl font-semibold">{bus.name}</p>
-                <p className="text-sm text-gray-500">{bus.busType}</p>
-              </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Route:</span>
-                <span className="font-medium text-gray-800">
-                  {bus.from} to {bus.to}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm text-gray-600">
-                <span>Date & Time:</span>
-                <span className="font-medium text-gray-800">
-                  {new Date(date + "T00:00:00").toLocaleDateString("en-GB", {
-                    day: "numeric",
-                    month: "long",
-                  })}{" "}
-                  at {departureTime}
-                </span>
+      <div className="max-w-6xl mx-auto px-4 pb-40">
+        <div className="pt-4">
+          <BookingSteps currentStep={4} />
+        </div>
+
+        {/* Journey Overview pills & hold status */}
+        <SectionCard>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="text-lg font-bold truncate" style={{ color: PALETTE.text }}>
+                {bus?.name}
+              </h2>
+              <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
+                {bus?.from} → {bus?.to}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
+              <DatePill>
+                {new Date(date + "T00:00:00").toLocaleDateString("en-GB", {
+                  day: "numeric",
+                  month: "long",
+                  year: "numeric",
+                })}{" "}
+                at {departureTime}
+              </DatePill>
+              <AcPill>{bus?.busType}</AcPill>
+              <SeatPill>
+                {selectedSeats.length} Seat{selectedSeats.length > 1 ? "s" : ""}
+              </SeatPill>
+              <HoldCountdown
+                busId={bus._id}
+                date={date}
+                departureTime={departureTime}
+                seats={selectedSeatStrings}
+                initialExpiry={initialHoldExpiryTs}
+                onExpire={() => {
+                  setHoldExpired(true);
+                  setLockOk(false);
+                  setLockMsg("Hold expired. Please re-lock seats.");
+                }}
+                onTick={(ms) => {
+                  if (ms > 0 && holdExpired) setHoldExpired(false);
+                }}
+              />
+            </div>
+          </div>
+        </SectionCard>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-2">
+          {/* Left Column: Details in matte cards */}
+          <div className="lg:col-span-7">
+            <InfoCard icon={<FaBus />} title="Journey Details">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <Label>Operator</Label>
+                  <p className="font-medium" style={{ color: PALETTE.text }}>
+                    {bus.name}
+                  </p>
+                </div>
+                <div>
+                  <Label>Type</Label>
+                  <p className="font-medium" style={{ color: PALETTE.text }}>
+                    {bus.busType}
+                  </p>
+                </div>
+                <div>
+                  <Label>Boarding</Label>
+                  <p className="font-medium" style={{ color: PALETTE.text }}>
+                    {selectedBoardingPoint.point} <span className="text-xs">at</span>{" "}
+                    <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
+                  </p>
+                </div>
+                <div>
+                  <Label>Dropping</Label>
+                  <p className="font-medium" style={{ color: PALETTE.text }}>
+                    {selectedDroppingPoint.point} <span className="text-xs">at</span>{" "}
+                    <span className="tabular-nums">{selectedDroppingPoint.time}</span>
+                  </p>
+                </div>
+                <div className="sm:col-span-2">
+                  <Label>Selected Seats</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedSeats.map((s) => (
+                      <SeatPill key={s}>Seat {s}</SeatPill>
+                    ))}
+                  </div>
+                </div>
               </div>
             </InfoCard>
 
-            <InfoCard
-              icon={<FaMapMarkerAlt className="text-red-500" />}
-              title="Boarding & Dropping Points"
-            >
-              <div className="flex items-start gap-4">
-                <FaMapMarkerAlt className="text-green-500 mt-1" />
-                <div>
-                  <p className="text-sm text-gray-500">Boarding From</p>
-                  <p className="font-semibold text-gray-800">
-                    {selectedBoardingPoint.point} at {selectedBoardingPoint.time}
-                  </p>
-                </div>
-              </div>
-              <div className="pl-2">
-                <FaArrowDown className="text-gray-300" />
-              </div>
-              <div className="flex items-start gap-4">
-                <FaMapMarkerAlt className="text-red-500 mt-1" />
-                <div>
-                  <p className="text-sm text-gray-500">Dropping At</p>
-                  <p className="font-semibold text-gray-800">
-                    {selectedDroppingPoint.point} at{" "}
-                    {selectedDroppingPoint.time}
-                  </p>
-                </div>
-              </div>
-            </InfoCard>
-
-            {/* Passenger Information */}
-            <InfoCard
-              icon={<FaUsers className="text-red-500" />}
-              title="Passenger Information"
-            >
+            <InfoCard icon={<FaUsers />} title="Passenger Information">
               <div>
-                <h4 className="text-sm font-semibold text-gray-500 mb-2">
+                <h4 className="text-sm font-semibold mb-2" style={{ color: PALETTE.textSubtle }}>
                   Primary Contact
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-gray-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                   <div className="flex items-center gap-2">
-                    <FaUserCircle className="text-gray-400" />
-                    <span className="font-medium">{passenger.name}</span>
+                    <FaUserCircle className="opacity-60" />
+                    <span className="font-medium" style={{ color: PALETTE.text }}>
+                      {passenger.name}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <FaPhone className="text-gray-400" />
-                    <span className="font-medium">{passenger.mobile}</span>
+                    <FaPhone className="opacity-60" />
+                    <span className="font-medium" style={{ color: PALETTE.text }}>
+                      {passenger.mobile}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <FaIdCard className="text-gray-400" />
-                    <span className="font-medium">{passenger.nic}</span>
+                    <FaIdCard className="opacity-60" />
+                    <span className="font-medium" style={{ color: PALETTE.text }}>
+                      {passenger.nic}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <FaEnvelope className="text-gray-400" />
-                    <span className="font-medium">{passenger.email}</span>
+                    <FaEnvelope className="opacity-60" />
+                    <span className="font-medium" style={{ color: PALETTE.text }}>
+                      {passenger.email}
+                    </span>
                   </div>
                 </div>
               </div>
 
-              <hr className="border-dashed" />
+              <hr className="border-dashed" style={{ borderColor: PALETTE.border }} />
 
               <div>
-                <h4 className="text-sm font-semibold text-gray-500 mb-3">
+                <h4 className="text-sm font-semibold mb-3" style={{ color: PALETTE.textSubtle }}>
                   Travellers
                 </h4>
                 <ul className="space-y-3">
                   {passengers.map((p) => (
                     <li
                       key={p.seat}
-                      className="flex items-center justify-between p-2 border-b border-gray-100 last:border-b-0"
+                      className="flex items-center justify-between p-2 border-b last:border-b-0"
+                      style={{ borderColor: PALETTE.border }}
                     >
                       <div className="flex items-center gap-3">
-                        <span className="font-bold text-sm text-red-800 bg-red-100 rounded-full w-8 h-8 flex items-center justify-center">
+                        <span
+                          className="font-bold text-sm rounded-full w-8 h-8 flex items-center justify-center"
+                          style={{ color: "#7C1D1D", background: PALETTE.seatPillBg }}
+                        >
                           {p.seat}
                         </span>
-                        <span className="font-medium text-gray-700">
+                        <span className="font-medium" style={{ color: PALETTE.text }}>
                           {p.name || "-"}
                         </span>
                       </div>
-                      <div
-                        className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full ${
-                          p.gender === "F"
-                            ? "bg-pink-100 text-pink-800"
-                            : "bg-violet-100 text-violet-800"
-                        }`}
-                      >
-                        {p.gender === "F" ? <FaFemale /> : <FaMale />}
-                        <span>{p.gender === "F" ? "Female" : "Male"}</span>
-                      </div>
+                      <GenderSeatPill gender={p.gender}>
+                        {p.gender === "F" ? <FaFemale className="mr-1" /> : <FaMale className="mr-1" />}
+                        {p.gender === "F" ? "Female" : "Male"}
+                      </GenderSeatPill>
                     </li>
                   ))}
                 </ul>
@@ -598,36 +672,51 @@ const PaymentPage = () => {
             </InfoCard>
           </div>
 
-          {/* Right Column: Fare Summary + Pay */}
+          {/* Right Column: Fare Summary */}
           <div className="lg:col-span-5">
             <div className="sticky top-24">
-              <div className="bg-white shadow-md rounded-xl p-6 border">
-                <h3 className="text-xl font-bold border-b pb-3 mb-4 text-gray-800 flex items-center gap-3">
-                  <FaMoneyBillWave className="text-green-500" />
-                  Fare Summary
-                </h3>
-                <div className="space-y-2 text-gray-800 font-medium">
-                  <div className="flex justify-between text-gray-600">
-                    <span>Subtotal</span>
-                    <span>Rs. {priceDetails.basePrice?.toFixed(2)}</span>
+              <SectionCard title="Fare Summary">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
+                      Subtotal
+                    </span>
+                    <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
+                      Rs. {priceDetails.basePrice?.toFixed(2)}
+                    </span>
                   </div>
-                  <div className="flex justify-between text-gray-600">
-                    <span>Convenience Fee</span>
-                    <span>Rs. {priceDetails.convenienceFee?.toFixed(2)}</span>
+                  <div className="flex justify-between">
+                    <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
+                      Convenience Fee
+                    </span>
+                    <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
+                      Rs. {priceDetails.convenienceFee?.toFixed(2)}
+                    </span>
                   </div>
-                  <div className="flex justify-between text-green-700 font-bold text-2xl mt-2 pt-2 border-t">
-                    <span>Total Payable</span>
-                    <span>Rs. {priceDetails.totalPrice?.toFixed(2)}</span>
+                  <hr className="my-3" style={{ borderColor: PALETTE.border }} />
+                  <div className="flex justify-between text-base">
+                    <span className="font-bold" style={{ color: PALETTE.text }}>
+                      Total
+                    </span>
+                    <span className="tabular-nums font-extrabold" style={{ color: PALETTE.text }}>
+                      Rs. {priceDetails.totalPrice?.toFixed(2)}
+                    </span>
                   </div>
 
                   {/* Lock/Hold status */}
                   <div className="mt-3 flex items-center gap-2">
                     {lockOk ? (
-                      <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-green-50 text-green-700">
+                      <span
+                        className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full"
+                        style={{ background: "#ECFDF5", color: "#065F46" }}
+                      >
                         Seats secured
                       </span>
                     ) : (
-                      <span className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-red-700">
+                      <span
+                        className="inline-flex items-center text-xs font-semibold px-2.5 py-1 rounded-full"
+                        style={{ background: "#FEF2F2", color: "#991B1B" }}
+                      >
                         {lockMsg || "Seats not secured"}
                       </span>
                     )}
@@ -648,15 +737,8 @@ const PaymentPage = () => {
                     />
                   </div>
 
+                  {/* Cancel booking (kept, subtle) */}
                   <div className="mt-2">
-                    <button
-                      type="button"
-                      onClick={ensureSeatLock}
-                      className="text-xs underline text-blue-600 hover:text-blue-700 disabled:text-gray-400"
-                      disabled={locking}
-                    >
-                      {locking ? "Locking…" : "Re-lock seats"}
-                    </button>
                     <button
                       type="button"
                       onClick={async () => {
@@ -666,29 +748,41 @@ const PaymentPage = () => {
                         if (!ok) return;
                         await cancelAndHome();
                       }}
-                      className="ml-4 text-xs underline text-red-600 hover:text-red-700"
+                      className="text-xs underline"
+                      style={{ color: PALETTE.primary }}
                     >
                       Cancel booking
                     </button>
                   </div>
                 </div>
-              </div>
-              <div className="mt-6">
-                <button
-                  onClick={handleFakePayment}
-                  disabled={locking || !lockOk || holdExpired}
-                  className="w-full py-3.5 rounded-lg text-white font-semibold text-lg transition-all duration-300 shadow-lg bg-red-600 hover:bg-red-700 hover:scale-[1.02] disabled:opacity-60 disabled:hover:scale-100"
-                >
-                  Pay Rs. {priceDetails.totalPrice.toFixed(2)}
-                </button>
-                {!lockOk || holdExpired ? (
-                  <p className="text-xs text-center mt-2 text-gray-500">
-                    Ensure seats are locked before paying.
-                  </p>
-                ) : null}
-              </div>
+              </SectionCard>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Sticky bottom CTA to match ConfirmBooking */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-40"
+        style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}` }}
+      >
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
+          <div className="flex-1">
+            <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
+              Payable Amount
+            </p>
+            <p className="text-xl font-extrabold tabular-nums" style={{ color: PALETTE.text }}>
+              Rs. {priceDetails.totalPrice?.toFixed(2)}
+            </p>
+          </div>
+          <button
+            onClick={handleFakePayment}
+            disabled={locking || !lockOk || holdExpired}
+            className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: PALETTE.primary }}
+          >
+            Pay Now
+          </button>
         </div>
       </div>
     </div>
