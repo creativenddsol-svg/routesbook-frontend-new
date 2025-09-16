@@ -60,8 +60,11 @@ const TIME_SLOTS = {
 const RESULTS_PER_PAGE = 5;
 
 /* Near real-time refresh cadence (fallback if no websockets) */
-const LIVE_POLL_MS = 3000; // 3s feels snappy without hammering backend
+const LIVE_POLL_MS = 6000; // 🔁 lighter on server than 3s
 const MAX_REFRESH_BUSES = 10; // cap concurrent availability fetches per tick
+const AVAIL_TTL_MS = 8000; // throttle per bus normal refreshes
+const AVAIL_FORCE_TTL_MS = 2000; // tighter window right after lock/release
+const MAX_INIT_AVAIL_CONCURRENCY = 6; // limit initial fan-out
 
 /* ---------------- Helpers ---------------- */
 const toLocalYYYYMMDD = (dateObj) => {
@@ -363,6 +366,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     availabilityRef.current = availability;
   }, [availability]);
 
+  // 🆕 throttle/de-dupe/backoff refs
+  const inFlightAvailRef = useRef(new Map()); // key -> Promise
+  const lastFetchedAtRef = useRef(new Map()); // key -> timestamp
+  const backoffUntilRef = useRef(0); // global backoff timestamp
+
   // Helper to parse "<id>-<time>" key
   const parseBusKey = (key) => {
     const lastDash = key.lastIndexOf("-");
@@ -464,50 +472,81 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   /* 🆕 ensure fresh availability on re-login (without resetting selections) */
   const refreshAvailability = useCallback(
-    async (targetBuses) => {
-      const list = targetBuses && targetBuses.length ? targetBuses : buses;
-      if (!list || !list.length) return;
-      try {
-        const updates = {};
-        await Promise.all(
-          list.map(async (bus) => {
-            const key = `${bus._id}-${bus.departureTime}`;
+    async (targetBuses, opts = {}) => {
+      const { force = false } = opts;
+      const list = (targetBuses && targetBuses.length ? targetBuses : buses) || [];
+      if (!list.length) return;
+
+      const now = Date.now();
+      if (!force && now < backoffUntilRef.current) return; // global backoff
+
+      const updates = {};
+
+      await Promise.all(
+        list.map(async (bus) => {
+          const key = `${bus._id}-${bus.departureTime}`;
+          const last = lastFetchedAtRef.current.get(key) || 0;
+          const minGap = force ? AVAIL_FORCE_TTL_MS : AVAIL_TTL_MS;
+
+          // throttle per bus
+          if (!force && now - last < minGap) return;
+
+          // de-dupe: if a request is already running for this bus, reuse it
+          if (inFlightAvailRef.current.has(key)) {
             try {
-              const availabilityRes = await apiClient.get(
-                `/bookings/availability/${bus._id}`,
-                {
-                  params: {
-                    date: searchDateParam,
-                    departureTime: bus.departureTime,
-                    t: Date.now(), // cache-buster
-                  },
-                }
-              );
-              updates[key] = {
-                available: availabilityRes.data.availableSeats,
-                window: availabilityRes.data.availableWindowSeats || null,
-                bookedSeats: Array.isArray(availabilityRes.data.bookedSeats)
-                  ? availabilityRes.data.bookedSeats.map(String)
-                  : [],
-                seatGenderMap: availabilityRes.data.seatGenderMap || {},
-              };
+              const data = await inFlightAvailRef.current.get(key);
+              if (data) updates[key] = data;
             } catch {
-              // keep previous snapshot if refresh fails for a bus
-              const prev = availabilityRef.current || {};
-              updates[key] = prev[key] || {
+              /* ignore */
+            }
+            return;
+          }
+
+          const p = (async () => {
+            try {
+              const res = await apiClient.get(`/bookings/availability/${bus._id}`, {
+                params: {
+                  date: searchDateParam,
+                  departureTime: bus.departureTime,
+                },
+              });
+
+              const payload = {
+                available: res.data.availableSeats,
+                window: res.data.availableWindowSeats || null,
+                bookedSeats: Array.isArray(res.data.bookedSeats)
+                  ? res.data.bookedSeats.map(String)
+                  : [],
+                seatGenderMap: res.data.seatGenderMap || {},
+              };
+              lastFetchedAtRef.current.set(key, Date.now());
+              return payload;
+            } catch (e) {
+              if (e?.response?.status === 429) {
+                // back off a bit to be nice to the server
+                backoffUntilRef.current = Date.now() + 15000; // 15s
+              }
+              // keep whatever we had before
+              const prev = availabilityRef.current?.[key];
+              return prev || {
                 available: null,
                 window: null,
                 bookedSeats: [],
                 seatGenderMap: {},
               };
+            } finally {
+              inFlightAvailRef.current.delete(key);
             }
-          })
-        );
-        if (Object.keys(updates).length) {
-          setAvailability((prev) => ({ ...prev, ...updates }));
-        }
-      } catch {
-        /* ignore bulk refresh failures */
+          })();
+
+          inFlightAvailRef.current.set(key, p);
+          const data = await p;
+          if (data) updates[key] = data;
+        })
+      );
+
+      if (Object.keys(updates).length) {
+        setAvailability((prev) => ({ ...prev, ...updates }));
       }
     },
     [buses, searchDateParam]
@@ -747,7 +786,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       // 🆕 register if actually locked
       if (res?.data?.ok) addToRegistry(bus, searchDateParam, [seat]);
       // quick refresh for this bus so other users' view reflects promptly
-      refreshAvailability([bus]);
+      refreshAvailability([bus], { force: true });
       return res.data;
     } catch (err) {
       if (err?.response?.status === 400 || err?.response?.status === 401) {
@@ -777,7 +816,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       });
       // 🆕 keep registry in sync + refresh this bus availability
       removeFromRegistry(bus, searchDateParam, seats);
-      refreshAvailability([bus]);
+      refreshAvailability([bus], { force: true });
     } catch (e) {
       console.warn("Release seats failed:", e?.response?.data || e.message);
     }
@@ -803,43 +842,48 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       setBuses(res.data);
 
       const seatData = {};
-      await Promise.all(
-        res.data.map(async (bus) => {
-          try {
+      const items = res.data || [];
+
+      // concurrency-limited availability fan-out
+      for (let i = 0; i < items.length; i += MAX_INIT_AVAIL_CONCURRENCY) {
+        const slice = items.slice(i, i + MAX_INIT_AVAIL_CONCURRENCY);
+        await Promise.all(
+          slice.map(async (bus) => {
             const key = `${bus._id}-${bus.departureTime}`;
-            const availabilityRes = await apiClient.get(
-              `/bookings/availability/${bus._id}`,
-              {
-                params: {
-                  date: searchDateParam,
-                  departureTime: bus.departureTime,
-                  t: Date.now(), // 🔸 cache-buster to avoid stale 304s
-                },
-              }
-            );
-            seatData[key] = {
-              available: availabilityRes.data.availableSeats,
-              window: availabilityRes.data.availableWindowSeats || null,
-              bookedSeats: Array.isArray(availabilityRes.data.bookedSeats)
-                ? availabilityRes.data.bookedSeats.map(String)
-                : [],
-              seatGenderMap: availabilityRes.data.seatGenderMap || {},
-            };
-          } catch (availErr) {
-            console.warn(
-              `Could not fetch availability for bus ${bus._id} at ${bus.departureTime}:`,
-              availErr
-            );
-            const keyFallback = `${bus._id}-${bus.departureTime}`;
-            seatData[keyFallback] = {
-              available: null,
-              window: null,
-              bookedSeats: [],
-              seatGenderMap: {},
-            };
-          }
-        })
-      );
+            try {
+              const availabilityRes = await apiClient.get(
+                `/bookings/availability/${bus._id}`,
+                {
+                  params: {
+                    date: searchDateParam,
+                    departureTime: bus.departureTime,
+                  },
+                }
+              );
+              seatData[key] = {
+                available: availabilityRes.data.availableSeats,
+                window: availabilityRes.data.availableWindowSeats || null,
+                bookedSeats: Array.isArray(availabilityRes.data.bookedSeats)
+                  ? availabilityRes.data.bookedSeats.map(String)
+                  : [],
+                seatGenderMap: availabilityRes.data.seatGenderMap || {},
+              };
+              lastFetchedAtRef.current.set(key, Date.now());
+            } catch (availErr) {
+              console.warn(
+                `Could not fetch availability for bus ${bus._id} at ${bus.departureTime}:`,
+                availErr
+              );
+              seatData[key] = {
+                available: null,
+                window: null,
+                bookedSeats: [],
+                seatGenderMap: {},
+              };
+            }
+          })
+        );
+      }
       setAvailability(seatData);
     } catch (err) {
       console.error("Error fetching bus results:", err);
@@ -905,7 +949,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const { filteredBuses } = useMemo(() => {
     const now = new Date();
     const today = new Date();
-    const currentDateString = toLocalYYYYMMDD(today);
+       const currentDateString = toLocalYYYYMMDD(today);
     const searchingToday = searchDateParam === currentDateString;
 
     return {
@@ -1652,6 +1696,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
@@ -1687,6 +1732,17 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const inactive = "#6B7280";
     const active = PALETTE.primaryRed;
 
+    // 🔁 ensure seat locks are released when the sheet is closed from mobile
+    const handleCloseSheet = () => {
+      const seats =
+        busSpecificBookingData[expandedBusId]?.selectedSeats || [];
+      if (seats.length) {
+        releaseSeats(selectedBus, seats).finally(() => setExpandedBusId(null));
+      } else {
+        setExpandedBusId(null);
+      }
+    };
+
     return createPortal(
       expandedBusId ? (
         <motion.div
@@ -1709,7 +1765,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   if (currentMobileStep > 1) {
                     setCurrentMobileStep(currentMobileStep - 1);
                   } else {
-                    setExpandedBusId(null);
+                    handleCloseSheet();
                   }
                 }}
                 className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
@@ -1731,7 +1787,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               </div>
 
               <button
-                onClick={() => setExpandedBusId(null)}
+                onClick={handleCloseSheet}
                 className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
                 aria-label="Close"
               >
