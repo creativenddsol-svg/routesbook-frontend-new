@@ -48,7 +48,7 @@ const SortButton = ({ label, field, sort, setSort }) => {
 /* ---------- Hour helpers ---------- */
 const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => ({
   value: String(h).padStart(2, "0"),
-  label: new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric" }), // "12 AM", "1 AM"...
+  label: new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric" }),
 }));
 
 function computeHourWindowISO(dateStr, startHH, endHH) {
@@ -57,7 +57,6 @@ function computeHourWindowISO(dateStr, startHH, endHH) {
   const e = Number(endHH);
   if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
 
-  // Build local Date objects for the same calendar day
   const [y, m, d] = dateStr.split("-").map(Number);
   const from = new Date(y, m - 1, d, s, 0, 0, 0);
   const to = new Date(y, m - 1, d, e, 0, 0, 0);
@@ -71,7 +70,6 @@ function safeDate(val) {
 }
 
 function getCreatedAtForSort(b) {
-  // Prefer createdAt; fall back to departureAt/date
   return (
     safeDate(b.createdAt) ||
     safeDate(b.created_at) ||
@@ -84,7 +82,6 @@ function getCreatedAtForSort(b) {
 }
 
 /* ---------- Booking No helpers (NEW) ---------- */
-// Build RB code from date + sequence (pads to 4 digits)
 function buildRB(dateStr, seq) {
   if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
   const dayKey = dateStr.replaceAll("-", ""); // YYYYMMDD
@@ -92,15 +89,12 @@ function buildRB(dateStr, seq) {
   if (!raw) return `RB${dayKey}`;
   return `RB${dayKey}${raw.padStart(4, "0")}`;
 }
-
-// If user typed something that looks like RB..., normalize it
 function normalizeRBInput(s) {
   if (!s) return null;
   const t = String(s).trim().toUpperCase();
   if (!/^RB/.test(t)) return null;
-  // RB + 8 date digits + optional 1-4 seq digits
   const m = t.match(/^RB(\d{8})(\d{1,4})?$/);
-  if (!m) return t; // let server/client fuzzy match if it's a partial like "RB2025"
+  if (!m) return t; // allow partial like RB2025
   const [, dayKey, seq] = m;
   if (!seq) return `RB${dayKey}`;
   return `RB${dayKey}${String(seq).padStart(4, "0")}`;
@@ -114,13 +108,11 @@ const AdminBookings = () => {
     from: "",
     to: "",
     userEmail: "",
-    status: "",          // CONFIRMED, PENDING_PAYMENT, CANCELLED, REFUNDED
-    paymentStatus: "",   // PAID, UNPAID, FAILED, REFUNDED
-
-    // NEW: hour-by-hour window and basis
-    hourStart: "",       // "00".."23"
-    hourEnd: "",         // "01".."24" (we use 00..23; validation ensures end>start)
-    timeBasis: "created" // "created" | "departure"
+    status: "",
+    paymentStatus: "",
+    hourStart: "",
+    hourEnd: "",
+    timeBasis: "created",
   });
   const debouncedFilter = useDebouncedValue(filter, 500);
 
@@ -131,8 +123,7 @@ const AdminBookings = () => {
   /* Paging & sorting */
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
-  // NEW BOOKINGS FIRST by default:
-  const [sort, setSort] = useState("-createdAt"); // +field or -field, or null
+  const [sort, setSort] = useState("-createdAt"); // NEW BOOKINGS FIRST
 
   /* Data & UI */
   const [rows, setRows] = useState([]);
@@ -148,14 +139,12 @@ const AdminBookings = () => {
   /* Cancel token */
   const abortRef = useRef(null);
 
-  // Build query params for server; also compute local window for client-side fallback
   const timeWindow = useMemo(() => {
     const { date, hourStart, hourEnd } = debouncedFilter;
     return computeHourWindowISO(date, hourStart, hourEnd);
   }, [debouncedFilter]);
 
   const queryParams = useMemo(() => {
-    // Send only non-empty filters as query params
     const {
       date, from, to, userEmail, status, paymentStatus, timeBasis,
     } = debouncedFilter;
@@ -164,18 +153,19 @@ const AdminBookings = () => {
     if (date) clean.date = date;
     if (from) clean.from = from;
     if (to) clean.to = to;
-    if (userEmail) clean.userEmail = userEmail;
 
-    // NEW: if user typed an RB-like value, also pass it explicitly as bookingNo (backend may use it)
-    const rbGuess =
-      normalizeRBInput(userEmail) ||
-      null;
-    if (rbGuess) clean.bookingNo = rbGuess;
+    // IMPORTANT: if the input looks like an RB code, DO NOT send it as userEmail,
+    // send it only as bookingNo to avoid backend email filter removing all rows.
+    const rbGuess = normalizeRBInput(userEmail) || null;
+    if (rbGuess) {
+      clean.bookingNo = rbGuess;
+    } else if (userEmail) {
+      clean.userEmail = userEmail;
+    }
 
     if (status) clean.status = status;
     if (paymentStatus) clean.paymentStatus = paymentStatus;
 
-    // Hour-by-hour: if we have a valid window, add server params
     if (timeWindow) {
       if ((timeBasis || "created") === "created") {
         clean.createdFrom = timeWindow.fromISO;
@@ -195,7 +185,6 @@ const AdminBookings = () => {
   }, [debouncedFilter, page, pageSize, sort, timeWindow]);
 
   const clientSideFilterAndPaginate = (data) => {
-    // 1) Hour window filter (fallback if server didn't filter)
     let arr = Array.isArray(data) ? data.slice() : [];
 
     if (timeWindow) {
@@ -211,7 +200,7 @@ const AdminBookings = () => {
       });
     }
 
-    // 1.5) NEW: client-side fuzzy search by booking number OR email
+    // BookingNo / Email fuzzy search on client as well (defensive)
     const qRaw = (debouncedFilter.userEmail || "").trim();
     if (qRaw) {
       const q = qRaw.toLowerCase();
@@ -220,7 +209,6 @@ const AdminBookings = () => {
         const emailOk = (b.userEmail || b.user?.email || "").toLowerCase().includes(q);
         const bn = (b.bookingNo || "").toLowerCase();
         const bns = (b.bookingNoShort || "").toLowerCase();
-        // match raw query or normalized RB
         const byBN =
           (rbNorm ? bn === rbNorm || bns === rbNorm : false) ||
           bn.includes(q) ||
@@ -229,16 +217,14 @@ const AdminBookings = () => {
       });
     }
 
-    // 2) Sort newest first by createdAt (fallback if server didn't sort)
     arr.sort((a, b) => {
       const da = getCreatedAtForSort(a);
       const db = getCreatedAtForSort(b);
       const ta = da ? da.getTime() : 0;
       const tb = db ? db.getTime() : 0;
-      return tb - ta; // DESC
+      return tb - ta;
     });
 
-    // 3) Client-side pagination if server returned raw array
     const totalCount = arr.length;
     const start = (page - 1) * pageSize;
     const end = start + pageSize;
@@ -251,7 +237,6 @@ const AdminBookings = () => {
     setLoading(true);
     setErr(null);
 
-    // Abort any inflight request
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -272,7 +257,6 @@ const AdminBookings = () => {
         setRows(items);
         setTotal(total);
       } else if (data && Array.isArray(data.items)) {
-        // Assume server already applied time window + sorting; still keep "new first" by default via ?sort
         setRows(data.items);
         if (typeof data.total === "number") setTotal(data.total);
         if (typeof data.page === "number") setPage(data.page);
@@ -282,7 +266,7 @@ const AdminBookings = () => {
         setTotal(0);
       }
     } catch (e) {
-      if (e.name === "CanceledError") return; // ignore canceled
+      if (e.name === "CanceledError") return;
       console.error("Failed to fetch bookings", e);
       setErr("Failed to fetch bookings.");
       setRows([]);
@@ -295,7 +279,7 @@ const AdminBookings = () => {
   useEffect(() => {
     fetchBookings();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [queryParams]); // re-fetch when filters/paging/sort change
+  }, [queryParams]);
 
   const refetchAfterUpdate = async () => {
     await fetchBookings();
@@ -307,7 +291,6 @@ const AdminBookings = () => {
       await apiClient.delete(`/admin/bookings/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
-      // Optimistic remove; then refetch to be sure
       setRows((prev) => prev.filter((bk) => bk._id !== id));
       refetchAfterUpdate();
     } catch (err) {
@@ -361,182 +344,199 @@ const AdminBookings = () => {
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-4">📄 All User Bookings</h2>
 
-      {/* Toolbar: Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-8 gap-3 mb-4">
-        <input
-          type="date"
-          value={filter.date}
-          onChange={(e) => {
-            setPage(1);
-            setFilter((f) => ({ ...f, date: e.target.value }));
-          }}
-          className="border px-3 py-2 rounded"
-          placeholder="Date"
-        />
-        <input
-          type="text"
-          value={filter.from}
-          onChange={(e) => {
-            setPage(1);
-            setFilter((f) => ({ ...f, from: e.target.value }));
-          }}
-          className="border px-3 py-2 rounded"
-          placeholder="From"
-        />
-        <input
-          type="text"
-          value={filter.to}
-          onChange={(e) => {
-            setPage(1);
-            setFilter((f) => ({ ...f, to: e.target.value }));
-          }}
-          className="border px-3 py-2 rounded"
-          placeholder="To"
-        />
-        <input
-          type="text"
-          value={filter.userEmail}
-          onChange={(e) => {
-            setPage(1);
-            setFilter((f) => ({ ...f, userEmail: e.target.value }));
-          }}
-          className="border px-3 py-2 rounded"
-          placeholder="User Email or Booking No"
-        />
-
-        <select
-          value={filter.status}
-          onChange={(e) => {
-            setPage(1);
-            setFilter((f) => ({ ...f, status: e.target.value }));
-          }}
-          className="border px-3 py-2 rounded"
-          title="Booking status"
-        >
-          <option value="">Status: Any</option>
-          <option value="CONFIRMED">CONFIRMED</option>
-          <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
-          <option value="CANCELLED">CANCELLED</option>
-          <option value="REFUNDED">REFUNDED</option>
-        </select>
-
-        <select
-          value={filter.paymentStatus}
-          onChange={(e) => {
-            setPage(1);
-            setFilter((f) => ({ ...f, paymentStatus: e.target.value }));
-          }}
-          className="border px-3 py-2 rounded"
-          title="Payment status"
-        >
-          <option value="">Payment: Any</option>
-          <option value="PAID">PAID</option>
-          <option value="UNPAID">UNPAID</option>
-          <option value="FAILED">FAILED</option>
-          <option value="REFUNDED">REFUNDED</option>
-        </select>
-
-        {/* NEW: Hour-by-hour window */}
-        <select
-          value={filter.hourStart}
-          onChange={(e) => {
-            setPage(1);
-            setFilter((f) => ({ ...f, hourStart: e.target.value }));
-          }}
-          className="border px-3 py-2 rounded"
-          title="Hour start"
-        >
-          <option value="">Hour from</option>
-          {HOUR_OPTIONS.map((h) => (
-            <option key={h.value} value={h.value}>{h.label}</option>
-          ))}
-        </select>
-
-        <select
-          value={filter.hourEnd}
-          onChange={(e) => {
-            setPage(1);
-            setFilter((f) => ({ ...f, hourEnd: e.target.value }));
-          }}
-          className="border px-3 py-2 rounded"
-          title="Hour end"
-        >
-          <option value="">Hour to</option>
-          {HOUR_OPTIONS.map((h) => (
-            <option key={h.value} value={h.value}>{h.label}</option>
-          ))}
-        </select>
-      </div>
-
-      {/* Time basis row */}
-      <div className="flex flex-wrap items-center gap-3 mb-3">
-        <label className="text-sm text-gray-700">Time basis:</label>
-        <select
-          value={filter.timeBasis}
-          onChange={(e) => {
-            setPage(1);
-            setFilter((f) => ({ ...f, timeBasis: e.target.value }));
-          }}
-          className="border px-3 py-1.5 rounded"
-        >
-          <option value="created">Booking Created</option>
-          <option value="departure">Departure Time</option>
-        </select>
-        <span className="text-xs text-gray-500">
-          Tip: select a Date + Hour from/to (e.g., 12 PM → 1 PM) to see that window.
-        </span>
-      </div>
-
-      {/* NEW: Quick "RB + date + number" builder */}
-      <div className="flex flex-wrap items-end gap-2 mb-4">
-        <span className="text-sm font-medium text-gray-700">Quick booking search:</span>
-        <input
-          value="RB"
-          disabled
-          className="border px-3 py-2 rounded w-16 bg-gray-100 text-gray-600"
-          title="Prefix"
-        />
-        <input
-          type="date"
-          value={bnDate}
-          onChange={(e) => setBnDate(e.target.value)}
-          className="border px-3 py-2 rounded"
-          title="Date part"
-        />
-        <input
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          placeholder="####"
-          value={bnSeq}
-          onChange={(e) => setBnSeq(e.target.value)}
-          className="border px-3 py-2 rounded w-24"
-          title="Sequence (last 4 digits)"
-        />
-        <button
-          className="border px-3 py-2 rounded"
-          onClick={() => {
-            const rb = buildRB(bnDate, bnSeq);
-            if (rb) {
+      {/* Filters block (subtle card) */}
+      <div className="rounded-xl border bg-white shadow-sm p-4 mb-4">
+        {/* Toolbar: Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-8 gap-3">
+          <input
+            type="date"
+            value={filter.date}
+            onChange={(e) => {
               setPage(1);
-              setFilter((f) => ({ ...f, userEmail: rb }));
-            }
-          }}
-          title="Apply to the search box"
-        >
-          Find
-        </button>
-        <button
-          className="text-sm underline text-gray-600"
-          onClick={() => {
-            setBnDate("");
-            setBnSeq("");
-            setPage(1);
-            setFilter((f) => ({ ...f, userEmail: "" }));
-          }}
-        >
-          Clear
-        </button>
+              setFilter((f) => ({ ...f, date: e.target.value }));
+            }}
+            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            placeholder="Date"
+            title="Filter by booking/departure date"
+          />
+          <input
+            type="text"
+            value={filter.from}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, from: e.target.value }));
+            }}
+            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            placeholder="From"
+            title="Route start"
+          />
+          <input
+            type="text"
+            value={filter.to}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, to: e.target.value }));
+            }}
+            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            placeholder="To"
+            title="Route end"
+          />
+          <input
+            type="text"
+            value={filter.userEmail}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, userEmail: e.target.value }));
+            }}
+            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            placeholder="User Email or Booking No (RB…)"
+            title="Type an email or an RB booking number"
+          />
+
+          <select
+            value={filter.status}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, status: e.target.value }));
+            }}
+            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Booking status"
+          >
+            <option value="">Status: Any</option>
+            <option value="CONFIRMED">CONFIRMED</option>
+            <option value="PENDING_PAYMENT">PENDING_PAYMENT</option>
+            <option value="CANCELLED">CANCELLED</option>
+            <option value="REFUNDED">REFUNDED</option>
+          </select>
+
+          <select
+            value={filter.paymentStatus}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, paymentStatus: e.target.value }));
+            }}
+            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Payment status"
+          >
+            <option value="">Payment: Any</option>
+            <option value="PAID">PAID</option>
+            <option value="UNPAID">UNPAID</option>
+            <option value="FAILED">FAILED</option>
+            <option value="REFUNDED">REFUNDED</option>
+          </select>
+
+          {/* Hour-by-hour window */}
+          <select
+            value={filter.hourStart}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, hourStart: e.target.value }));
+            }}
+            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Hour from"
+          >
+            <option value="">Hour from</option>
+            {HOUR_OPTIONS.map((h) => (
+              <option key={h.value} value={h.value}>{h.label}</option>
+            ))}
+          </select>
+
+          <select
+            value={filter.hourEnd}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, hourEnd: e.target.value }));
+            }}
+            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Hour to"
+          >
+            <option value="">Hour to</option>
+            {HOUR_OPTIONS.map((h) => (
+              <option key={h.value} value={h.value}>{h.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Time basis row */}
+        <div className="flex flex-wrap items-center gap-3 mt-3">
+          <label className="text-sm text-gray-700">Time basis:</label>
+          <select
+            value={filter.timeBasis}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, timeBasis: e.target.value }));
+            }}
+            className="border px-3 py-1.5 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          >
+            <option value="created">Booking Created</option>
+            <option value="departure">Departure Time</option>
+          </select>
+          <span className="text-xs text-gray-500">
+            Tip: select a Date + Hour from/to (e.g., 12 PM → 1 PM) to see that window.
+          </span>
+        </div>
+
+        {/* Quick RB builder */}
+        <div className="flex flex-wrap items-end gap-2 mt-4">
+          <span className="text-sm font-medium text-gray-700">Quick booking search:</span>
+          <input
+            value="RB"
+            disabled
+            className="border px-3 py-2 rounded w-16 bg-gray-100 text-gray-600"
+            title="Prefix"
+          />
+          <input
+            type="date"
+            value={bnDate}
+            onChange={(e) => setBnDate(e.target.value)}
+            className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Date part"
+          />
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            placeholder="####"
+            value={bnSeq}
+            onChange={(e) => setBnSeq(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                const rb = buildRB(bnDate, bnSeq);
+                if (rb) {
+                  setPage(1);
+                  // also set date filter to the chosen date to narrow results
+                  setFilter((f) => ({ ...f, userEmail: rb, date: bnDate || f.date }));
+                }
+              }
+            }}
+            className="border px-3 py-2 rounded w-24 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Sequence (last 4 digits)"
+          />
+          <button
+            className="px-3 py-2 rounded border bg-gray-50 hover:bg-gray-100 transition"
+            onClick={() => {
+              const rb = buildRB(bnDate, bnSeq);
+              if (rb) {
+                setPage(1);
+                setFilter((f) => ({ ...f, userEmail: rb, date: bnDate || f.date }));
+              }
+            }}
+            title="Apply RB+Date+Number"
+          >
+            Find
+          </button>
+          <button
+            className="text-sm underline text-gray-600"
+            onClick={() => {
+              setBnDate("");
+              setBnSeq("");
+              setPage(1);
+              setFilter((f) => ({ ...f, userEmail: "" }));
+            }}
+          >
+            Clear
+          </button>
+        </div>
       </div>
 
       {/* Toolbar: Paging */}
@@ -547,7 +547,7 @@ const AdminBookings = () => {
         <div className="flex items-center gap-2">
           <label className="text-sm text-gray-600">Rows:</label>
           <select
-            className="border px-2 py-1 rounded"
+            className="border px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             value={pageSize}
             onChange={(e) => {
               setPage(1);
@@ -600,7 +600,6 @@ const AdminBookings = () => {
           </thead>
           <tbody>
             {loading ? (
-              // Skeleton rows
               Array.from({ length: Math.min(pageSize, 10) }).map((_, i) => (
                 <tr key={i} className="animate-pulse">
                   {Array.from({ length: 10 }).map((__, j) => (
