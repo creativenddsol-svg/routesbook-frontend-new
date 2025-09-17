@@ -45,6 +45,44 @@ const SortButton = ({ label, field, sort, setSort }) => {
   );
 };
 
+/* ---------- Hour helpers ---------- */
+const HOUR_OPTIONS = Array.from({ length: 24 }, (_, h) => ({
+  value: String(h).padStart(2, "0"),
+  label: new Date(2000, 0, 1, h).toLocaleTimeString([], { hour: "numeric" }), // "12 AM", "1 AM"...
+}));
+
+function computeHourWindowISO(dateStr, startHH, endHH) {
+  if (!dateStr || startHH === "" || endHH === "") return null;
+  const s = Number(startHH);
+  const e = Number(endHH);
+  if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
+
+  // Build local Date objects for the same calendar day
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const from = new Date(y, m - 1, d, s, 0, 0, 0);
+  const to = new Date(y, m - 1, d, e, 0, 0, 0);
+  return { fromISO: from.toISOString(), toISO: to.toISOString(), from, to };
+}
+
+function safeDate(val) {
+  if (!val) return null;
+  const d = new Date(val);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function getCreatedAtForSort(b) {
+  // Prefer createdAt; fall back to departureAt/date
+  return (
+    safeDate(b.createdAt) ||
+    safeDate(b.created_at) ||
+    safeDate(b.created) ||
+    safeDate(b.creationTime) ||
+    safeDate(b.departureAt) ||
+    safeDate(b.date) ||
+    null
+  );
+}
+
 /* ---------- Component ---------- */
 const AdminBookings = () => {
   /* Filters */
@@ -53,14 +91,20 @@ const AdminBookings = () => {
     from: "",
     to: "",
     userEmail: "",
-    status: "",          // optional: CONFIRMED, PENDING_PAYMENT, CANCELLED, REFUNDED (comma-separated allowed later)
-    paymentStatus: "",   // optional: PAID, UNPAID, FAILED, REFUNDED
+    status: "",          // CONFIRMED, PENDING_PAYMENT, CANCELLED, REFUNDED
+    paymentStatus: "",   // PAID, UNPAID, FAILED, REFUNDED
+
+    // NEW: hour-by-hour window and basis
+    hourStart: "",       // "00".."23"
+    hourEnd: "",         // "01".."24" (we use 00..23; validation ensures end>start)
+    timeBasis: "created" // "created" | "departure"
   });
   const debouncedFilter = useDebouncedValue(filter, 500);
 
   /* Paging & sorting */
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
+  // NEW BOOKINGS FIRST by default:
   const [sort, setSort] = useState("-createdAt"); // +field or -field, or null
 
   /* Data & UI */
@@ -77,21 +121,79 @@ const AdminBookings = () => {
   /* Cancel token */
   const abortRef = useRef(null);
 
+  // Build query params for server; also compute local window for client-side fallback
+  const timeWindow = useMemo(() => {
+    const { date, hourStart, hourEnd } = debouncedFilter;
+    return computeHourWindowISO(date, hourStart, hourEnd);
+  }, [debouncedFilter]);
+
   const queryParams = useMemo(() => {
     // Send only non-empty filters as query params
-    const cleanFilters = Object.fromEntries(
-      Object.entries(debouncedFilter).filter(
-        ([, v]) => v !== undefined && String(v).trim() !== ""
-      )
-    );
+    const {
+      date, from, to, userEmail, status, paymentStatus, timeBasis,
+    } = debouncedFilter;
+
+    const clean = {};
+    if (date) clean.date = date;
+    if (from) clean.from = from;
+    if (to) clean.to = to;
+    if (userEmail) clean.userEmail = userEmail;
+    if (status) clean.status = status;
+    if (paymentStatus) clean.paymentStatus = paymentStatus;
+
+    // Hour-by-hour: if we have a valid window, add server params
+    if (timeWindow) {
+      if ((timeBasis || "created") === "created") {
+        clean.createdFrom = timeWindow.fromISO;
+        clean.createdTo = timeWindow.toISO;
+      } else {
+        clean.departureFrom = timeWindow.fromISO;
+        clean.departureTo = timeWindow.toISO;
+      }
+    }
 
     return {
-      ...cleanFilters,
+      ...clean,
       page,
       pageSize,
       ...(sort ? { sort } : {}),
     };
-  }, [debouncedFilter, page, pageSize, sort]);
+  }, [debouncedFilter, page, pageSize, sort, timeWindow]);
+
+  const clientSideFilterAndPaginate = (data) => {
+    // 1) Hour window filter (fallback if server didn't filter)
+    let arr = Array.isArray(data) ? data.slice() : [];
+
+    if (timeWindow) {
+      const { from, to } = timeWindow;
+      const basis = debouncedFilter.timeBasis || "created";
+      arr = arr.filter((b) => {
+        const t =
+          basis === "created"
+            ? (safeDate(b.createdAt) || safeDate(b.created_at) || safeDate(b.created))
+            : (safeDate(b.departureAt) || safeDate(b.date));
+        if (!t) return false;
+        return t >= from && t < to;
+      });
+    }
+
+    // 2) Sort newest first by createdAt (fallback if server didn't sort)
+    arr.sort((a, b) => {
+      const da = getCreatedAtForSort(a);
+      const db = getCreatedAtForSort(b);
+      const ta = da ? da.getTime() : 0;
+      const tb = db ? db.getTime() : 0;
+      return tb - ta; // DESC
+    });
+
+    // 3) Client-side pagination if server returned raw array
+    const totalCount = arr.length;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const pageItems = arr.slice(start, end);
+
+    return { items: pageItems, total: totalCount };
+  };
 
   const fetchBookings = async () => {
     setLoading(true);
@@ -111,13 +213,14 @@ const AdminBookings = () => {
         signal: controller.signal,
       });
 
-      // Backward-compatible adapter:
-      // Support either array or { items, total, page, pageSize, totalPages }
       const data = res.data;
+
       if (Array.isArray(data)) {
-        setRows(data);
-        setTotal(data.length);
+        const { items, total } = clientSideFilterAndPaginate(data);
+        setRows(items);
+        setTotal(total);
       } else if (data && Array.isArray(data.items)) {
+        // Assume server already applied time window + sorting; still keep "new first" by default via ?sort
         setRows(data.items);
         if (typeof data.total === "number") setTotal(data.total);
         if (typeof data.page === "number") setPage(data.page);
@@ -207,7 +310,7 @@ const AdminBookings = () => {
       <h2 className="text-2xl font-bold mb-4">📄 All User Bookings</h2>
 
       {/* Toolbar: Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-3 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-8 gap-3 mb-4">
         <input
           type="date"
           value={filter.date}
@@ -248,6 +351,7 @@ const AdminBookings = () => {
           className="border px-3 py-2 rounded"
           placeholder="User Email or Booking No"
         />
+
         <select
           value={filter.status}
           onChange={(e) => {
@@ -263,6 +367,7 @@ const AdminBookings = () => {
           <option value="CANCELLED">CANCELLED</option>
           <option value="REFUNDED">REFUNDED</option>
         </select>
+
         <select
           value={filter.paymentStatus}
           onChange={(e) => {
@@ -278,6 +383,56 @@ const AdminBookings = () => {
           <option value="FAILED">FAILED</option>
           <option value="REFUNDED">REFUNDED</option>
         </select>
+
+        {/* NEW: Hour-by-hour window */}
+        <select
+          value={filter.hourStart}
+          onChange={(e) => {
+            setPage(1);
+            setFilter((f) => ({ ...f, hourStart: e.target.value }));
+          }}
+          className="border px-3 py-2 rounded"
+          title="Hour start"
+        >
+          <option value="">Hour from</option>
+          {HOUR_OPTIONS.map((h) => (
+            <option key={h.value} value={h.value}>{h.label}</option>
+          ))}
+        </select>
+
+        <select
+          value={filter.hourEnd}
+          onChange={(e) => {
+            setPage(1);
+            setFilter((f) => ({ ...f, hourEnd: e.target.value }));
+          }}
+          className="border px-3 py-2 rounded"
+          title="Hour end"
+        >
+          <option value="">Hour to</option>
+          {HOUR_OPTIONS.map((h) => (
+            <option key={h.value} value={h.value}>{h.label}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Time basis row */}
+      <div className="flex flex-wrap items-center gap-3 mb-3">
+        <label className="text-sm text-gray-700">Time basis:</label>
+        <select
+          value={filter.timeBasis}
+          onChange={(e) => {
+            setPage(1);
+            setFilter((f) => ({ ...f, timeBasis: e.target.value }));
+          }}
+          className="border px-3 py-1.5 rounded"
+        >
+          <option value="created">Booking Created</option>
+          <option value="departure">Departure Time</option>
+        </select>
+        <span className="text-xs text-gray-500">
+          Tip: select a Date + Hour from/to (e.g., 12 PM → 1 PM) to see that window.
+        </span>
       </div>
 
       {/* Toolbar: Paging */}
