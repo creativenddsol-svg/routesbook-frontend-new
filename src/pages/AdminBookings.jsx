@@ -83,6 +83,29 @@ function getCreatedAtForSort(b) {
   );
 }
 
+/* ---------- Booking No helpers (NEW) ---------- */
+// Build RB code from date + sequence (pads to 4 digits)
+function buildRB(dateStr, seq) {
+  if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
+  const dayKey = dateStr.replaceAll("-", ""); // YYYYMMDD
+  const raw = String(seq || "").replace(/\D/g, "");
+  if (!raw) return `RB${dayKey}`;
+  return `RB${dayKey}${raw.padStart(4, "0")}`;
+}
+
+// If user typed something that looks like RB..., normalize it
+function normalizeRBInput(s) {
+  if (!s) return null;
+  const t = String(s).trim().toUpperCase();
+  if (!/^RB/.test(t)) return null;
+  // RB + 8 date digits + optional 1-4 seq digits
+  const m = t.match(/^RB(\d{8})(\d{1,4})?$/);
+  if (!m) return t; // let server/client fuzzy match if it's a partial like "RB2025"
+  const [, dayKey, seq] = m;
+  if (!seq) return `RB${dayKey}`;
+  return `RB${dayKey}${String(seq).padStart(4, "0")}`;
+}
+
 /* ---------- Component ---------- */
 const AdminBookings = () => {
   /* Filters */
@@ -100,6 +123,10 @@ const AdminBookings = () => {
     timeBasis: "created" // "created" | "departure"
   });
   const debouncedFilter = useDebouncedValue(filter, 500);
+
+  // NEW: quick RB builder inputs
+  const [bnDate, setBnDate] = useState("");
+  const [bnSeq, setBnSeq] = useState("");
 
   /* Paging & sorting */
   const [page, setPage] = useState(1);
@@ -138,6 +165,13 @@ const AdminBookings = () => {
     if (from) clean.from = from;
     if (to) clean.to = to;
     if (userEmail) clean.userEmail = userEmail;
+
+    // NEW: if user typed an RB-like value, also pass it explicitly as bookingNo (backend may use it)
+    const rbGuess =
+      normalizeRBInput(userEmail) ||
+      null;
+    if (rbGuess) clean.bookingNo = rbGuess;
+
     if (status) clean.status = status;
     if (paymentStatus) clean.paymentStatus = paymentStatus;
 
@@ -174,6 +208,24 @@ const AdminBookings = () => {
             : (safeDate(b.departureAt) || safeDate(b.date));
         if (!t) return false;
         return t >= from && t < to;
+      });
+    }
+
+    // 1.5) NEW: client-side fuzzy search by booking number OR email
+    const qRaw = (debouncedFilter.userEmail || "").trim();
+    if (qRaw) {
+      const q = qRaw.toLowerCase();
+      const rbNorm = normalizeRBInput(qRaw)?.toLowerCase() || null;
+      arr = arr.filter((b) => {
+        const emailOk = (b.userEmail || b.user?.email || "").toLowerCase().includes(q);
+        const bn = (b.bookingNo || "").toLowerCase();
+        const bns = (b.bookingNoShort || "").toLowerCase();
+        // match raw query or normalized RB
+        const byBN =
+          (rbNorm ? bn === rbNorm || bns === rbNorm : false) ||
+          bn.includes(q) ||
+          bns.includes(q);
+        return emailOk || byBN;
       });
     }
 
@@ -433,6 +485,58 @@ const AdminBookings = () => {
         <span className="text-xs text-gray-500">
           Tip: select a Date + Hour from/to (e.g., 12 PM → 1 PM) to see that window.
         </span>
+      </div>
+
+      {/* NEW: Quick "RB + date + number" builder */}
+      <div className="flex flex-wrap items-end gap-2 mb-4">
+        <span className="text-sm font-medium text-gray-700">Quick booking search:</span>
+        <input
+          value="RB"
+          disabled
+          className="border px-3 py-2 rounded w-16 bg-gray-100 text-gray-600"
+          title="Prefix"
+        />
+        <input
+          type="date"
+          value={bnDate}
+          onChange={(e) => setBnDate(e.target.value)}
+          className="border px-3 py-2 rounded"
+          title="Date part"
+        />
+        <input
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          placeholder="####"
+          value={bnSeq}
+          onChange={(e) => setBnSeq(e.target.value)}
+          className="border px-3 py-2 rounded w-24"
+          title="Sequence (last 4 digits)"
+        />
+        <button
+          className="border px-3 py-2 rounded"
+          onClick={() => {
+            const rb = buildRB(bnDate, bnSeq);
+            if (rb) {
+              setPage(1);
+              setFilter((f) => ({ ...f, userEmail: rb }));
+            }
+          }}
+          title="Apply to the search box"
+        >
+          Find
+        </button>
+        <button
+          className="text-sm underline text-gray-600"
+          onClick={() => {
+            setBnDate("");
+            setBnSeq("");
+            setPage(1);
+            setFilter((f) => ({ ...f, userEmail: "" }));
+          }}
+        >
+          Clear
+        </button>
       </div>
 
       {/* Toolbar: Paging */}
