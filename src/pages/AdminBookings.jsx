@@ -1,5 +1,7 @@
+// src/pages/AdminBookings.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+// ✅ use the shared API client that points to Render/Vercel backend
+import apiClient from "../api";
 
 const AdminBookings = () => {
   const [bookings, setBookings] = useState([]);
@@ -16,22 +18,90 @@ const AdminBookings = () => {
   useEffect(() => {
     const fetchBookings = async () => {
       try {
-        const params = new URLSearchParams(filter);
-        const res = await axios.get(
-          `http://localhost:5000/api/admin/bookings?${params.toString()}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
+        // Send only non-empty filters as query params
+        const params = Object.fromEntries(
+          Object.entries(filter).filter(
+            ([, v]) => v !== undefined && String(v).trim() !== ""
+          )
         );
-        setBookings(res.data);
+
+        const res = await apiClient.get("/admin/bookings", {
+          params,
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          // withCredentials is already enabled in apiClient, but harmless to leave out
+        });
+
+        setBookings(res.data || []);
       } catch (err) {
+        console.error("Failed to fetch bookings", err);
         alert("Failed to fetch bookings");
       }
     };
+
     fetchBookings();
   }, [filter]);
+
+  const cancelBooking = async (id) => {
+    try {
+      await apiClient.delete(`/admin/bookings/${id}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+      setBookings((prev) => prev.filter((bk) => bk._id !== id));
+      alert("Booking cancelled.");
+    } catch (err) {
+      console.error("Failed to cancel booking", err);
+      alert("Failed to cancel booking.");
+    }
+  };
+
+  const refetchAfterUpdate = async () => {
+    try {
+      const params = Object.fromEntries(
+        Object.entries(filter).filter(
+          ([, v]) => v !== undefined && String(v).trim() !== ""
+        )
+      );
+      const res = await apiClient.get("/admin/bookings", {
+        params,
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+      setBookings(res.data || []);
+    } catch (e) {
+      console.error("Failed to refresh bookings after update", e);
+    }
+  };
+
+  const confirmReschedule = async () => {
+    if (!rescheduleData?._id) return;
+    try {
+      await apiClient.put(
+        `/admin/bookings/${rescheduleData._id}`,
+        {
+          date: newDate,
+          selectedSeats: newSeats
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((s) => s.toUpperCase()),
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+      alert("Booking rescheduled.");
+      setRescheduleData(null);
+      await refetchAfterUpdate(); // ✅ refresh list without full page reload
+    } catch (err) {
+      console.error("Failed to reschedule", err);
+      alert("Failed to reschedule.");
+    }
+  };
 
   return (
     <div className="p-6">
@@ -95,32 +165,15 @@ const AdminBookings = () => {
                 </td>
                 <td className="border px-3 py-2">{b.date}</td>
                 <td className="border px-3 py-2">
-                  {b.selectedSeats.join(", ")}
+                  {Array.isArray(b.selectedSeats) && b.selectedSeats.length
+                    ? b.selectedSeats.join(", ")
+                    : "-"}
                 </td>
                 <td className="border px-3 py-2">{b.paymentStatus}</td>
                 <td className="border px-3 py-2 space-x-2 text-center">
                   <button
                     className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
-                    onClick={async () => {
-                      try {
-                        await axios.delete(
-                          `http://localhost:5000/api/admin/bookings/${b._id}`,
-                          {
-                            headers: {
-                              Authorization: `Bearer ${localStorage.getItem(
-                                "token"
-                              )}`,
-                            },
-                          }
-                        );
-                        setBookings((prev) =>
-                          prev.filter((bk) => bk._id !== b._id)
-                        );
-                        alert("Booking cancelled.");
-                      } catch (err) {
-                        alert("Failed to cancel booking.");
-                      }
-                    }}
+                    onClick={() => cancelBooking(b._id)}
                   >
                     Cancel
                   </button>
@@ -128,8 +181,12 @@ const AdminBookings = () => {
                     className="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600"
                     onClick={() => {
                       setRescheduleData(b);
-                      setNewDate(b.date);
-                      setNewSeats(b.selectedSeats.join(", "));
+                      setNewDate(b.date || "");
+                      setNewSeats(
+                        Array.isArray(b.selectedSeats)
+                          ? b.selectedSeats.join(", ")
+                          : ""
+                      );
                     }}
                   >
                     Reschedule
@@ -169,31 +226,7 @@ const AdminBookings = () => {
           <div className="flex gap-4 mt-4">
             <button
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-              onClick={async () => {
-                try {
-                  await axios.put(
-                    `http://localhost:5000/api/admin/bookings/${rescheduleData._id}`,
-                    {
-                      date: newDate,
-                      selectedSeats: newSeats
-                        .split(",")
-                        .map((s) => s.trim().toUpperCase()),
-                    },
-                    {
-                      headers: {
-                        Authorization: `Bearer ${localStorage.getItem(
-                          "token"
-                        )}`,
-                      },
-                    }
-                  );
-                  alert("Booking rescheduled.");
-                  setRescheduleData(null);
-                  window.location.reload();
-                } catch (err) {
-                  alert("Failed to reschedule.");
-                }
-              }}
+              onClick={confirmReschedule}
             >
               Confirm
             </button>
