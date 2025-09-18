@@ -1,5 +1,6 @@
+// src/components/NoticesSection.jsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import axios from "axios";
+import apiClient from "../api"; // ✅ use shared API client (baseURL includes /api)
 import NoticeCard from "./NoticeCard";
 import { Link } from "react-router-dom";
 
@@ -61,11 +62,11 @@ const NoticesSection = () => {
     let live = true;
     (async () => {
       try {
-        const res = await axios.get("/api/notices/active", { withCredentials: true });
+        const res = await apiClient.get("/notices/active"); // ✅ updated
         const data = Array.isArray(res.data) ? res.data : [];
         if (live) setItems(data);
       } catch (e) {
-        if (live) setErr(e?.response?.data?.message || "Failed to load notices.");
+        if (live) setErr((e && e.response && e.response.data && e.response.data.message) || "Failed to load notices.");
       } finally {
         if (live) setLoading(false);
       }
@@ -168,4 +169,3 @@ const NoticesSection = () => {
 };
 
 export default NoticesSection;
-
