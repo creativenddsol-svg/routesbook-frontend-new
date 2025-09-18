@@ -1,11 +1,31 @@
 // src/components/SpecialNoticeCard.jsx
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
+import apiClient from "../api"; // ✅ NEW: use baseURL to build absolute image URLs
 
 const AR_MAP = {
   "16:9": "pb-[56.25%]",
   "4:3": "pb-[75%]",
   golden: "pb-[61.8%]",
+};
+
+/* ---------- Build absolute URL for images ---------- */
+const API_ORIGIN = (() => {
+  try {
+    const u = new URL(apiClient.defaults.baseURL || "");
+    // strip trailing /api if present
+    const path = u.pathname?.replace(/\/api\/?$/, "") || "";
+    return `${u.origin}${path}`;
+  } catch {
+    return "";
+  }
+})();
+const absolutize = (u) => {
+  if (!u) return u;
+  if (/^https?:\/\//i.test(u)) return u;
+  if (!API_ORIGIN) return u;
+  if (u.startsWith("/")) return `${API_ORIGIN}${u}`;
+  return `${API_ORIGIN}/${u}`;
 };
 
 const SpecialNoticeCard = ({ notice, aspect = "4:3", linkTo }) => {
@@ -14,6 +34,7 @@ const SpecialNoticeCard = ({ notice, aspect = "4:3", linkTo }) => {
     visible: { y: 0, opacity: 1 },
   };
   const pbClass = AR_MAP[aspect] || AR_MAP["4:3"];
+  const imgSrc = absolutize(notice?.imageUrl); // ✅ ensure correct host even behind Vercel/Cloudflare
 
   // ✅ In-app navigation branch
   if (linkTo) {
@@ -31,7 +52,7 @@ const SpecialNoticeCard = ({ notice, aspect = "4:3", linkTo }) => {
           title={notice?.title}
         >
           <img
-            src={notice?.imageUrl}
+            src={imgSrc}                               {/* ✅ updated */}
             alt={notice?.title || "Special notice"}
             className="absolute inset-0 w-full h-full object-cover"
             loading="lazy"
@@ -63,7 +84,7 @@ const SpecialNoticeCard = ({ notice, aspect = "4:3", linkTo }) => {
       title={notice?.title}
     >
       <img
-        src={notice?.imageUrl}
+        src={imgSrc}                                   {/* ✅ updated */}
         alt={notice?.title || "Special notice"}
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
