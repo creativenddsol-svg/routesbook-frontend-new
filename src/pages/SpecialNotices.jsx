@@ -1,6 +1,6 @@
 // src/pages/SpecialNotices.jsx
 import React, { useEffect, useRef, useState, useCallback } from "react";
-import axios from "axios";
+import apiClient from "../api"; // ✅ use shared API client (baseURL includes /api)
 import SpecialNoticeCard from "../components/SpecialNoticeCard";
 
 const SpecialNotices = () => {
@@ -26,8 +26,8 @@ const SpecialNotices = () => {
 
     while (attempt < maxTries) {
       try {
-        const res = await axios.get("/api/special-notices", {
-          withCredentials: true,
+        // ✅ call your backend through apiClient; path has no /api prefix
+        const res = await apiClient.get("/special-notices", {
           signal: source.signal,
         });
         setItems(res.data || []);
