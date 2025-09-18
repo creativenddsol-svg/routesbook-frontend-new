@@ -1,7 +1,7 @@
 // src/pages/AdminSpecialNotices.jsx
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import axios from "axios";
+import apiClient from "../api"; // ✅ use shared API client (baseURL includes /api)
 import {
   FaPlus,
   FaEdit,
@@ -15,8 +15,29 @@ import {
 } from "react-icons/fa";
 import { AnimatePresence, motion } from "framer-motion";
 
-const API_URL = "http://localhost:5000/api/special-notices"; // keep your base
-const UPLOAD_URL = "http://localhost:5000/api/upload"; // same flow you already use for notices
+/* ---------- Endpoints (no /api prefix; apiClient has it) ---------- */
+const API_URL = "/special-notices";
+const UPLOAD_URL = "/upload";
+
+/* ---------- Build absolute URL for images (no optional chaining) ---------- */
+const API_ORIGIN = (function () {
+  try {
+    const base = (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
+    const u = new URL(base);
+    const pathname = u && u.pathname ? u.pathname : "";
+    const path = pathname.replace(/\/api\/?$/, "");
+    return u.origin + path;
+  } catch (e) {
+    return "";
+  }
+})();
+function absolutize(u) {
+  if (!u) return u;
+  if (/^https?:\/\//i.test(u)) return u;
+  if (!API_ORIGIN) return u;
+  if (u.charAt(0) === "/") return API_ORIGIN + u;
+  return API_ORIGIN + "/" + u;
+}
 
 const AdminSpecialNotices = () => {
   const [notices, setNotices] = useState([]);
@@ -29,21 +50,21 @@ const AdminSpecialNotices = () => {
     link: "#",
     isActive: true,
     sortOrder: 0,
-    label: "", // optional—frontend chip
+    label: "",
   });
   const [localImage, setLocalImage] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const authHeaders = {
-    Authorization: `Bearer ${localStorage.getItem("token")}`,
+    Authorization: "Bearer " + (localStorage.getItem("token") || ""),
   };
 
   const fetchNotices = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(API_URL, { headers: authHeaders });
-      setNotices(res.data);
+      const res = await apiClient.get(API_URL, { headers: authHeaders });
+      setNotices(res.data || []);
     } catch (err) {
       toast.error("Failed to load notices");
     } finally {
@@ -59,12 +80,12 @@ const AdminSpecialNotices = () => {
   const openModal = (notice = null) => {
     setCurrentNotice(notice);
     setFormData({
-      title: notice?.title || "",
-      imageUrl: notice?.imageUrl || "",
-      link: notice?.link || "#",
-      isActive: notice?.isActive ?? true,
-      sortOrder: notice?.sortOrder || 0,
-      label: notice?.label || "",
+      title: notice && notice.title ? notice.title : "",
+      imageUrl: notice && notice.imageUrl ? notice.imageUrl : "",
+      link: notice && notice.link ? notice.link : "#",
+      isActive: notice && typeof notice.isActive === "boolean" ? notice.isActive : true,
+      sortOrder: notice && notice.sortOrder ? notice.sortOrder : 0,
+      label: notice && notice.label ? notice.label : "",
     });
     setLocalImage(null);
     setIsModalOpen(true);
@@ -82,19 +103,24 @@ const AdminSpecialNotices = () => {
       setUploading(true);
       const fd = new FormData();
       fd.append("image", file);
-      const up = await axios.post(UPLOAD_URL, fd, {
+      const up = await apiClient.post(UPLOAD_URL, fd, {
         headers: { ...authHeaders, "Content-Type": "multipart/form-data" },
         withCredentials: true,
       });
-      const url = up.data?.imageUrl;
+      const url = up && up.data ? up.data.imageUrl : "";
       if (url) {
-        setFormData((p) => ({ ...p, imageUrl: url }));
+        setFormData(function (p) {
+          return { ...p, imageUrl: url };
+        });
         toast.success("Image uploaded");
       } else {
         toast.error("Upload succeeded but no imageUrl returned");
       }
     } catch (e) {
-      toast.error(e?.response?.data?.message || "Upload failed");
+      const msg =
+        (e && e.response && e.response.data && e.response.data.message) ||
+        "Upload failed";
+      toast.error(msg);
     } finally {
       setUploading(false);
     }
@@ -109,18 +135,21 @@ const AdminSpecialNotices = () => {
     setSaving(true);
     try {
       if (currentNotice) {
-        await axios.put(`${API_URL}/${currentNotice._id}`, formData, {
+        await apiClient.put(API_URL + "/" + currentNotice._id, formData, {
           headers: authHeaders,
         });
         toast.success("Notice updated");
       } else {
-        await axios.post(API_URL, formData, { headers: authHeaders });
+        await apiClient.post(API_URL, formData, { headers: authHeaders });
         toast.success("Notice created");
       }
       fetchNotices();
       closeModal();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to save");
+      const msg =
+        (err && err.response && err.response.data && err.response.data.message) ||
+        "Failed to save";
+      toast.error(msg);
     } finally {
       setSaving(false);
     }
@@ -129,18 +158,21 @@ const AdminSpecialNotices = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure?")) return;
     try {
-      await axios.delete(`${API_URL}/${id}`, { headers: authHeaders });
+      await apiClient.delete(API_URL + "/" + id, { headers: authHeaders });
       toast.success("Notice deleted");
       fetchNotices();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Failed to delete");
+      const msg =
+        (err && err.response && err.response.data && err.response.data.message) ||
+        "Failed to delete";
+      toast.error(msg);
     }
   };
 
   const toggleActive = async (n) => {
     try {
-      await axios.put(
-        `${API_URL}/${n._id}`,
+      await apiClient.put(
+        API_URL + "/" + n._id,
         { isActive: !n.isActive },
         { headers: authHeaders }
       );
@@ -152,9 +184,10 @@ const AdminSpecialNotices = () => {
 
   const bumpOrder = async (n, delta) => {
     try {
-      await axios.put(
-        `${API_URL}/${n._id}`,
-        { sortOrder: (n.sortOrder || 0) + delta },
+      const nextOrder = (n && n.sortOrder ? n.sortOrder : 0) + delta;
+      await apiClient.put(
+        API_URL + "/" + n._id,
+        { sortOrder: nextOrder },
         { headers: authHeaders }
       );
       fetchNotices();
@@ -168,7 +201,7 @@ const AdminSpecialNotices = () => {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold">Manage Special Notices</h1>
         <button
-          onClick={() => openModal()}
+          onClick={function () { openModal(); }}
           className="bg-blue-600 text-white px-4 py-2 rounded flex items-center gap-2"
         >
           <FaPlus /> Create
@@ -181,84 +214,94 @@ const AdminSpecialNotices = () => {
         <div className="text-center text-gray-500">No notices found.</div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {notices.map((n) => (
-            <div
-              key={n._id}
-              className="bg-white rounded-2xl ring-1 ring-black/5 shadow-sm p-3 flex flex-col"
-            >
-              <div className="relative w-full h-36 rounded-xl overflow-hidden">
-                <img
-                  src={n.imageUrl}
-                  alt={n.title}
-                  className="w-full h-full object-cover"
-                />
-                {n.label ? (
-                  <div className="absolute left-2 top-2">
-                    <span className="px-2 py-1 text-[11px] font-semibold rounded-full bg-white/85 text-gray-900 ring-1 ring-black/10">
-                      {n.label}
-                    </span>
-                  </div>
-                ) : null}
-              </div>
+          {notices.map(function (n) {
+            const imgSrc = absolutize(n && n.imageUrl);
+            const title = (n && n.title) || "Untitled";
+            const link = n && n.link ? n.link : "—";
+            const active = n && n.isActive ? true : false;
+            const sortOrder = n && n.sortOrder ? n.sortOrder : 0;
+            const key = n && n._id ? n._id : String(sortOrder) + title;
 
-              <div className="mt-2">
-                <h2 className="font-bold text-gray-800 line-clamp-1">
-                  {n.title || "Untitled"}
-                </h2>
-                <p className="text-xs text-gray-500 break-all">
-                  {n.link || "—"}
-                </p>
+            return (
+              <div
+                key={key}
+                className="bg-white rounded-2xl ring-1 ring-black/5 shadow-sm p-3 flex flex-col"
+              >
+                <div className="relative w-full h-36 rounded-xl overflow-hidden">
+                  <img
+                    src={imgSrc}
+                    alt={title}
+                    className="w-full h-full object-cover"
+                  />
+                  {n && n.label ? (
+                    <div className="absolute left-2 top-2">
+                      <span className="px-2 py-1 text-[11px] font-semibold rounded-full bg-white/85 text-gray-900 ring-1 ring-black/10">
+                        {n.label}
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
 
-                <div className="mt-2 flex items-center justify-between">
-                  <button
-                    onClick={() => toggleActive(n)}
-                    className={`flex items-center gap-2 text-sm ${
-                      n.isActive ? "text-green-600" : "text-gray-400"
-                    }`}
-                    title="Toggle active"
-                  >
-                    {n.isActive ? <FaToggleOn /> : <FaToggleOff />}
-                    {n.isActive ? "Active" : "Inactive"}
-                  </button>
+                <div className="mt-2">
+                  <h2 className="font-bold text-gray-800 line-clamp-1">
+                    {title}
+                  </h2>
+                  <p className="text-xs text-gray-500 break-all">
+                    {link}
+                  </p>
 
-                  <div className="flex items-center gap-1">
+                  <div className="mt-2 flex items-center justify-between">
                     <button
-                      onClick={() => bumpOrder(n, -1)}
-                      className="p-1 rounded border hover:bg-gray-50"
-                      title="Move up"
+                      onClick={function () { toggleActive(n); }}
+                      className={
+                        "flex items-center gap-2 text-sm " +
+                        (active ? "text-green-600" : "text-gray-400")
+                      }
+                      title="Toggle active"
                     >
-                      <FaArrowUp />
+                      {active ? <FaToggleOn /> : <FaToggleOff />}
+                      {active ? "Active" : "Inactive"}
                     </button>
-                    <span className="px-2 text-sm text-gray-600">
-                      {n.sortOrder || 0}
-                    </span>
-                    <button
-                      onClick={() => bumpOrder(n, +1)}
-                      className="p-1 rounded border hover:bg-gray-50"
-                      title="Move down"
-                    >
-                      <FaArrowDown />
-                    </button>
+
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={function () { bumpOrder(n, -1); }}
+                        className="p-1 rounded border hover:bg-gray-50"
+                        title="Move up"
+                      >
+                        <FaArrowUp />
+                      </button>
+                      <span className="px-2 text-sm text-gray-600">
+                        {sortOrder}
+                      </span>
+                      <button
+                        onClick={function () { bumpOrder(n, +1); }}
+                        className="p-1 rounded border hover:bg-gray-50"
+                        title="Move down"
+                      >
+                        <FaArrowDown />
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex gap-2 mt-3">
-                <button
-                  onClick={() => openModal(n)}
-                  className="flex-1 p-2 text-blue-600 border rounded hover:bg-blue-50 transition"
-                >
-                  <FaEdit />
-                </button>
-                <button
-                  onClick={() => handleDelete(n._id)}
-                  className="flex-1 p-2 text-red-600 border rounded hover:bg-red-50 transition"
-                >
-                  <FaTrash />
-                </button>
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={function () { openModal(n); }}
+                    className="flex-1 p-2 text-blue-600 border rounded hover:bg-blue-50 transition"
+                  >
+                    <FaEdit />
+                  </button>
+                  <button
+                    onClick={function () { handleDelete(n._id); }}
+                    className="flex-1 p-2 text-red-600 border rounded hover:bg-red-50 transition"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -272,9 +315,7 @@ const AdminSpecialNotices = () => {
           >
             <div className="bg-white rounded-2xl p-6 w-full max-w-xl">
               <h2 className="text-xl font-bold mb-4">
-                {currentNotice
-                  ? "Edit Special Notice"
-                  : "Create Special Notice"}
+                {currentNotice ? "Edit Special Notice" : "Create Special Notice"}
               </h2>
 
               <form onSubmit={handleSave} className="space-y-4">
@@ -284,9 +325,9 @@ const AdminSpecialNotices = () => {
                     type="text"
                     placeholder="Title"
                     value={formData.title}
-                    onChange={(e) =>
-                      setFormData({ ...formData, title: e.target.value })
-                    }
+                    onChange={function (e) {
+                      setFormData({ ...formData, title: e.target.value });
+                    }}
                     className="w-full border px-3 py-2 rounded"
                     required
                   />
@@ -294,9 +335,9 @@ const AdminSpecialNotices = () => {
                     type="text"
                     placeholder="Label (optional)"
                     value={formData.label}
-                    onChange={(e) =>
-                      setFormData({ ...formData, label: e.target.value })
-                    }
+                    onChange={function (e) {
+                      setFormData({ ...formData, label: e.target.value });
+                    }}
                     className="w-full border px-3 py-2 rounded"
                   />
                 </div>
@@ -309,12 +350,9 @@ const AdminSpecialNotices = () => {
                         type="text"
                         placeholder="Image URL"
                         value={formData.imageUrl}
-                        onChange={(e) =>
-                          setFormData({
-                            ...formData,
-                            imageUrl: e.target.value,
-                          })
-                        }
+                        onChange={function (e) {
+                          setFormData({ ...formData, imageUrl: e.target.value });
+                        }}
                         className="flex-1 border px-3 py-2 rounded"
                         required={!localImage}
                       />
@@ -328,21 +366,20 @@ const AdminSpecialNotices = () => {
                           type="file"
                           accept="image/*"
                           className="hidden"
-                          onChange={(e) => {
-                            const f = e.target.files?.[0];
+                          onChange={function (e) {
+                            const f = e && e.target && e.target.files ? e.target.files[0] : null;
                             setLocalImage(f || null);
                             if (f) {
-                              // immediate upload to get a URL
                               handleUploadImage(f);
                             }
                           }}
                         />
                       </label>
-                      {uploading && (
+                      {uploading ? (
                         <span className="text-sm text-gray-500 flex items-center gap-2">
                           <FaSpinner className="animate-spin" /> Uploading…
                         </span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
@@ -355,7 +392,7 @@ const AdminSpecialNotices = () => {
                       />
                     ) : formData.imageUrl ? (
                       <img
-                        src={formData.imageUrl}
+                        src={absolutize(formData.imageUrl)}
                         alt="preview"
                         className="w-full h-full object-cover"
                       />
@@ -373,21 +410,18 @@ const AdminSpecialNotices = () => {
                     type="url"
                     placeholder="Link (optional)"
                     value={formData.link}
-                    onChange={(e) =>
-                      setFormData({ ...formData, link: e.target.value })
-                    }
+                    onChange={function (e) {
+                      setFormData({ ...formData, link: e.target.value });
+                    }}
                     className="border px-3 py-2 rounded md:col-span-2"
                   />
                   <input
                     type="number"
                     placeholder="Sort Order"
                     value={formData.sortOrder}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        sortOrder: Number(e.target.value),
-                      })
-                    }
+                    onChange={function (e) {
+                      setFormData({ ...formData, sortOrder: Number(e.target.value) });
+                    }}
                     className="border px-3 py-2 rounded"
                   />
                 </div>
@@ -396,9 +430,9 @@ const AdminSpecialNotices = () => {
                   <input
                     type="checkbox"
                     checked={formData.isActive}
-                    onChange={(e) =>
-                      setFormData({ ...formData, isActive: e.target.checked })
-                    }
+                    onChange={function (e) {
+                      setFormData({ ...formData, isActive: e.target.checked });
+                    }}
                   />
                   Active
                 </label>
@@ -416,7 +450,7 @@ const AdminSpecialNotices = () => {
                     disabled={saving}
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 flex items-center gap-2"
                   >
-                    {saving && <FaSpinner className="animate-spin" />}
+                    {saving ? <FaSpinner className="animate-spin" /> : null}
                     {saving ? "Saving..." : "Save"}
                   </button>
                 </div>
