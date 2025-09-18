@@ -1,6 +1,6 @@
 // src/components/SpecialNoticesCarousel.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import axios from "axios";
+import apiClient from "../api"; // ✅ use shared client (baseURL includes /api)
 import { FaChevronLeft, FaChevronRight } from "react-icons/fa";
 import { Link } from "react-router-dom";
 import SpecialNoticeCard, { SpecialNoticeSkeleton } from "./SpecialNoticeCard";
@@ -8,7 +8,7 @@ import SpecialNoticeCard, { SpecialNoticeSkeleton } from "./SpecialNoticeCard";
 const SpecialNoticesCarousel = ({
   title = "Special Notices",
   aspect = "4:3",
-  api = "/api/special-notices",
+  api = "/special-notices", // ✅ removed /api prefix
 }) => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,7 +21,7 @@ const SpecialNoticesCarousel = ({
     let mounted = true;
     (async () => {
       try {
-        const res = await axios.get(api);
+        const res = await apiClient.get(api); // ✅ use apiClient
         if (mounted) setItems(res.data || []);
       } catch (e) {
         console.error("Failed to load special notices", e);
