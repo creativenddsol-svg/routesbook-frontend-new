@@ -51,8 +51,9 @@ const SpecialNoticeCard = ({ notice, aspect = "4:3", linkTo }) => {
           animate="visible"
           title={notice?.title}
         >
+          {/* ✅ updated: use computed absolute URL */}
           <img
-            src={imgSrc}                               {/* ✅ updated */}
+            src={imgSrc}
             alt={notice?.title || "Special notice"}
             className="absolute inset-0 w-full h-full object-cover"
             loading="lazy"
@@ -83,8 +84,9 @@ const SpecialNoticeCard = ({ notice, aspect = "4:3", linkTo }) => {
       animate="visible"
       title={notice?.title}
     >
+      {/* ✅ updated: use computed absolute URL */}
       <img
-        src={imgSrc}                                   {/* ✅ updated */}
+        src={imgSrc}
         alt={notice?.title || "Special notice"}
         className="absolute inset-0 w-full h-full object-cover"
         loading="lazy"
