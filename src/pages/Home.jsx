@@ -960,7 +960,8 @@ const Home = () => {
         <div className={`${SECTION_INNER} relative z-20 mt-4 lg:-mt-32`}>
           <div className="lg:hidden text-left pb-2 px-4 pt-4">
             <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}>
-              Bus Tickets
+              {/* CHANGED (mobile only) */}
+              Get Your Bus Tickets
             </h2>
           </div>
 
@@ -1224,6 +1225,8 @@ const Home = () => {
                   className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-3.5 rounded-xl shadow-lg transition-all"
                   style={{ backgroundColor: PALETTE.primaryRed }}
                 >
+                  {/* ADDED icon (mobile only) */}
+                  <FaSearch />
                   SEARCH BUSES
                 </motion.button>
               </div>
