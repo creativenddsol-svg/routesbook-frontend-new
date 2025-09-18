@@ -6,120 +6,207 @@ import {
   FaQuestionCircle,
   FaUserCircle,
 } from "react-icons/fa";
-import { useAuth } from "../AuthContext"; // Ensure this path is correct
+import { useAuth } from "../AuthContext";
 
 const MobileBottomNav = () => {
   const { isLoggedIn, user, logout } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const navigate = useNavigate();
-  const menuRef = useRef(null);
+  const sheetRef = useRef(null);
 
-  // Close the account menu when clicking outside of it
+  // close account sheet on outside tap or route changes
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setShowMenu(false);
-      }
+    const onDown = (e) => {
+      if (sheetRef.current && !sheetRef.current.contains(e.target)) setShowMenu(false);
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  const menuItemClasses = (isActive) =>
-    `flex flex-col items-center justify-center pt-2 pb-1 w-full transition duration-300 ease-in-out ${
-      isActive
-        ? "text-[#d84e55] border-t-4 border-[#d84e55]"
-        : "text-gray-500 border-t-4 border-transparent"
-    }`;
+  const tabClasses = (isActive) =>
+    [
+      "flex flex-col items-center justify-center h-14 w-full select-none",
+      "transition-all duration-200 ease-out",
+      isActive ? "text-[#d84e55]" : "text-gray-500",
+    ].join(" ");
 
-  const iconSize = "text-2xl mb-1";
+  const IconWrap = ({ active, children }) => (
+    <div
+      className={[
+        "relative grid place-items-center",
+        "rounded-xl px-3 py-2",
+        active ? "bg-[#d84e55]/10" : "bg-transparent",
+      ].join(" ")}
+    >
+      {children}
+      {/* active dot */}
+      <span
+        className={[
+          "absolute -bottom-2 h-1.5 w-1.5 rounded-full",
+          active ? "bg-[#d84e55]" : "bg-transparent",
+        ].join(" ")}
+      />
+    </div>
+  );
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white shadow-[0_-1px_4px_rgba(0,0,0,0.1)] z-50 lg:hidden">
-      <div className="max-w-md mx-auto">
-        <ul className="flex justify-around items-start text-xs">
-          {/* Home */}
-          <li className="flex-1">
-            <NavLink
-              to="/"
-              className={({ isActive }) => menuItemClasses(isActive)}
-            >
-              <FaHome className={iconSize} />
-              <span>Home</span>
-            </NavLink>
-          </li>
+    <>
+      {/* Bottom nav */}
+      <nav
+        className="fixed inset-x-0 bottom-0 z-50 lg:hidden"
+        style={{
+          // respect device safe area
+          paddingBottom: "max(env(safe-area-inset-bottom), 8px)",
+        }}
+      >
+        {/* blurred card container */}
+        <div className="mx-auto max-w-md">
+          <div className="mx-3 rounded-2xl border border-white/60 bg-white/90 backdrop-blur shadow-[0_-6px_24px_rgba(0,0,0,0.12)]">
+            <ul className="grid grid-cols-4 text-[11px] font-medium">
+              {/* Home */}
+              <li className="col-span-1">
+                <NavLink to="/" className={({ isActive }) => tabClasses(isActive)}>
+                  {({ isActive }) => (
+                    <>
+                      <IconWrap active={isActive}>
+                        <FaHome className="text-xl" />
+                      </IconWrap>
+                      <span className="mt-1">Home</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
 
-          {/* Bookings */}
-          <li className="flex-1">
-            <NavLink
-              to="/my-bookings"
-              className={({ isActive }) => menuItemClasses(isActive)}
-            >
-              <FaTicketAlt className={iconSize} />
-              <span>Bookings</span>
-            </NavLink>
-          </li>
+              {/* Bookings */}
+              <li className="col-span-1">
+                <NavLink
+                  to="/my-bookings"
+                  className={({ isActive }) => tabClasses(isActive)}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <IconWrap active={isActive}>
+                        <FaTicketAlt className="text-xl" />
+                      </IconWrap>
+                      <span className="mt-1">Bookings</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
 
-          {/* Help */}
-          <li className="flex-1">
-            <NavLink
-              to="/help"
-              className={({ isActive }) => menuItemClasses(isActive)}
-            >
-              <FaQuestionCircle className={iconSize} />
-              <span>Help</span>
-            </NavLink>
-          </li>
+              {/* Help */}
+              <li className="col-span-1">
+                <NavLink
+                  to="/help"
+                  className={({ isActive }) => tabClasses(isActive)}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <IconWrap active={isActive}>
+                        <FaQuestionCircle className="text-xl" />
+                      </IconWrap>
+                      <span className="mt-1">Help</span>
+                    </>
+                  )}
+                </NavLink>
+              </li>
 
-          {/* Account */}
-          <li className="flex-1 relative" ref={menuRef}>
-            <button
-              onClick={() => setShowMenu((prev) => !prev)}
-              className={menuItemClasses(showMenu)}
-            >
-              <FaUserCircle className={iconSize} />
-              <span>Account</span>
-            </button>
+              {/* Account (opens bottom sheet) */}
+              <li className="col-span-1">
+                <button
+                  onClick={() => setShowMenu((v) => !v)}
+                  className={tabClasses(showMenu)}
+                  aria-expanded={showMenu}
+                  aria-controls="account-sheet"
+                >
+                  <IconWrap active={showMenu}>
+                    <FaUserCircle className="text-xl" />
+                  </IconWrap>
+                  <span className="mt-1">Account</span>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </nav>
 
-            {showMenu && (
-              <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 bg-white border border-gray-200 shadow-lg rounded-lg z-50 min-w-[180px] text-sm overflow-hidden">
+      {/* Account bottom sheet (modal) */}
+      {showMenu && (
+        <div
+          className="fixed inset-0 z-[60] lg:hidden"
+          role="dialog"
+          aria-modal="true"
+        >
+          {/* dimmed backdrop */}
+          <div
+            className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
+            onClick={() => setShowMenu(false)}
+          />
+          {/* sheet */}
+          <div
+            id="account-sheet"
+            ref={sheetRef}
+            className="absolute inset-x-0 bottom-0 max-w-md mx-auto"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
+            <div className="mx-3 rounded-t-2xl bg-white shadow-[0_-16px_40px_rgba(0,0,0,0.22)] border border-t border-gray-100">
+              {/* grabber */}
+              <div className="flex justify-center pt-3">
+                <span className="h-1.5 w-12 rounded-full bg-gray-300" />
+              </div>
+
+              {/* header */}
+              {isLoggedIn ? (
+                <div className="px-5 pt-4 pb-3 border-b">
+                  <p className="text-sm font-semibold text-gray-900">
+                    {user?.name || "User"}
+                  </p>
+                  <p className="text-xs text-gray-500">{user?.email}</p>
+                </div>
+              ) : (
+                <div className="px-5 pt-5 pb-3 border-b">
+                  <p className="text-sm font-semibold text-gray-900">
+                    Welcome
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Sign in to manage bookings faster
+                  </p>
+                </div>
+              )}
+
+              {/* actions */}
+              <div className="p-2">
                 {isLoggedIn ? (
                   <>
-                    <div className="px-4 py-3 bg-gray-50 border-b">
-                      <p className="font-semibold text-gray-800">
-                        {user?.name || "User"}
-                      </p>
-                      <p className="text-xs text-gray-500">{user?.email}</p>
-                    </div>
                     <button
                       onClick={() => {
                         navigate("/profile");
                         setShowMenu(false);
                       }}
-                      className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                      className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100"
                     >
                       My Profile
                     </button>
+
                     {user?.role === "admin" && (
                       <button
                         onClick={() => {
                           navigate("/admin");
                           setShowMenu(false);
                         }}
-                        className="block w-full text-left px-4 py-2 hover:bg-gray-100"
+                        className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100"
                       >
                         Admin Dashboard
                       </button>
                     )}
+
                     <button
                       onClick={() => {
                         logout();
                         setShowMenu(false);
                         navigate("/");
                       }}
-                      className="block w-full text-left px-4 py-2 text-red-600 hover:bg-red-50"
+                      className="w-full text-left px-4 py-3 mt-1 rounded-xl text-red-600 hover:bg-red-50 active:bg-red-100"
                     >
                       Logout
                     </button>
@@ -131,7 +218,7 @@ const MobileBottomNav = () => {
                         navigate("/login");
                         setShowMenu(false);
                       }}
-                      className="block w-full text-left px-4 py-3 hover:bg-gray-100"
+                      className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100"
                     >
                       Login
                     </button>
@@ -140,18 +227,20 @@ const MobileBottomNav = () => {
                         navigate("/signup");
                         setShowMenu(false);
                       }}
-                      className="block w-full text-left px-4 py-3 hover:bg-gray-100"
+                      className="w-full text-left px-4 py-3 mt-1 rounded-xl hover:bg-gray-50 active:bg-gray-100"
                     >
                       Signup
                     </button>
                   </>
                 )}
               </div>
-            )}
-          </li>
-        </ul>
-      </div>
-    </nav>
+
+              <div className="h-3" />
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 
