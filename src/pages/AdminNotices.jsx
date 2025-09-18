@@ -1,6 +1,6 @@
 // src/pages/AdminNotices.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from "../api"; // ✅ use shared API client (baseURL includes /api)
 
 /**
  * Kept your existing flow (upload -> save notice) but
@@ -9,6 +9,27 @@ import axios from "axios";
  *   If your backend ignores unknown fields, this “just works”.
  *   If not, you can send only imageUrl by leaving others blank.
  */
+
+/* ---------- Build absolute URL for images (no optional chaining) ---------- */
+const API_ORIGIN = (function () {
+  try {
+    const base = (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
+    const u = new URL(base);
+    const pathname = u && u.pathname ? u.pathname : "";
+    const path = pathname.replace(/\/api\/?$/, "");
+    return u.origin + path;
+  } catch (e) {
+    return "";
+  }
+})();
+function absolutize(u) {
+  if (!u) return u;
+  if (/^https?:\/\//i.test(u)) return u;
+  if (!API_ORIGIN) return u;
+  if (u.charAt(0) === "/") return API_ORIGIN + u;
+  return API_ORIGIN + "/" + u;
+}
+
 const AdminNotices = () => {
   const token = localStorage.getItem("token"); // stored JWT
 
@@ -24,7 +45,7 @@ const AdminNotices = () => {
 
   const fetchNotices = async () => {
     try {
-      const res = await axios.get("http://localhost:5000/api/notices", {
+      const res = await apiClient.get("/notices", {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
@@ -47,8 +68,8 @@ const AdminNotices = () => {
       formData.append("image", image);
 
       // 1) Upload image
-      const uploadRes = await axios.post(
-        "http://localhost:5000/api/upload",
+      const uploadRes = await apiClient.post(
+        "/upload",
         formData,
         {
           headers: {
@@ -68,7 +89,7 @@ const AdminNotices = () => {
       if (subtitle) body.subtitle = subtitle;
       if (link) body.link = link;
 
-      await axios.post("http://localhost:5000/api/notices", body, {
+      await apiClient.post("/notices", body, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
@@ -82,7 +103,7 @@ const AdminNotices = () => {
       alert("Notice saved!");
     } catch (error) {
       console.error("Upload failed", error);
-      alert(error?.response?.data?.message || "Failed to upload image");
+      alert((error && error.response && error.response.data && error.response.data.message) || "Failed to upload image");
     } finally {
       setLoading(false);
     }
@@ -94,14 +115,14 @@ const AdminNotices = () => {
 
     try {
       setDeletingId(id);
-      await axios.delete(`http://localhost:5000/api/notices/${id}`, {
+      await apiClient.delete(`/notices/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
       setNotices((prev) => prev.filter((n) => n._id !== id));
     } catch (error) {
       console.error("Delete failed", error);
-      alert(error.response?.data?.message || "Failed to delete notice");
+      alert((error && error.response && error.response.data && error.response.data.message) || "Failed to delete notice");
     } finally {
       setDeletingId(null);
     }
@@ -227,7 +248,7 @@ const AdminNotices = () => {
             className="rounded-2xl border bg-white shadow-sm overflow-hidden"
           >
             <img
-              src={n.imageUrl}
+              src={absolutize(n.imageUrl)}
               alt="Notice"
               className="w-full h-40 object-cover"
             />
