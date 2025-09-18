@@ -1,6 +1,6 @@
 // src/pages/Notices.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from "../api"; // ✅ use shared API client (baseURL includes /api)
 import NoticeCard from "../components/NoticeCard";
 
 const Notices = () => {
@@ -13,9 +13,7 @@ const Notices = () => {
     (async () => {
       try {
         // Public endpoint that only returns visible (active & not expired) notices
-        const res = await axios.get("/api/notices/active", {
-          withCredentials: true,
-        });
+        const res = await apiClient.get("/notices/active");
         if (live) setItems(res.data || []);
       } catch (e) {
         if (live)
