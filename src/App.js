@@ -31,6 +31,7 @@ import AdminSpecialNotices from "./pages/AdminSpecialNotices";
 import AdminRegisterOperator from "./pages/AdminRegisterOperator";
 import AdminOperatorList from "./pages/AdminOperatorList";
 import AdminOperatorPayments from "./pages/AdminOperatorPayments"; // ✅ NEW IMPORT
+import AdminNotices from "./pages/AdminNotices"; // ✅ ADDED
 
 /* ───── Operator Pages ──── */
 import OperatorDashboard from "./pages/OperatorDashboard";
@@ -183,6 +184,14 @@ const App = () => (
             element={
               <AdminRoute>
                 <AdminOperatorPayments />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/notices"
+            element={
+              <AdminRoute>
+                <AdminNotices />
               </AdminRoute>
             }
           />
