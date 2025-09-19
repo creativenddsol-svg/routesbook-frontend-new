@@ -1,52 +1,60 @@
 // src/components/NoticeCard.jsx
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import apiClient from "../api";
 
-/* Build absolute URL for images (kept) */
-const API_ORIGIN = (function () {
+// ---- Robust absolute URL builder (forces https if needed) ----
+const buildAbsolute = (img, base) => {
+  if (!img) return null;
   try {
-    const base =
-      (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
-    const u = new URL(base);
-    const pathname = u && u.pathname ? u.pathname : "";
-    const path = pathname.replace(/\/api\/?$/, "");
-    return u.origin + path;
-  } catch (e) {
-    return "";
+    // if already absolute
+    if (/^https?:\/\//i.test(img)) {
+      // upgrade http -> https to avoid mixed-content on vercel (https)
+      return img.replace(/^http:\/\//i, "https://");
+    }
+    // api base (e.g., https://.../api)  -> origin without /api
+    const u = new URL(base || "", typeof window !== "undefined" ? window.location.href : "https://example.com");
+    const origin = u.origin;
+    const path = (u.pathname || "").replace(/\/api\/?$/i, "");
+    // ensure 1 slash between parts
+    const joined =
+      (img.startsWith("/") ? "" : "/") +
+      img.replace(/^\//, "");
+    return (origin + path + joined).replace(/([^:]\/)\/+/g, "$1");
+  } catch {
+    return img;
   }
-})();
-function absolutize(u) {
-  if (!u) return u;
-  if (/^https?:\/\//i.test(u)) return u;
-  if (!API_ORIGIN) return u;
-  if (u.charAt(0) === "/") return API_ORIGIN + u;
-  return API_ORIGIN + "/" + u;
-}
+};
 
 const NoticeCard = ({ notice, linkTo }) => {
-  const imageUrl = notice?.imageUrl || "";
-  const src = absolutize(imageUrl);
+  const [errored, setErrored] = useState(false);
 
-  const Card = (
-    <div
-      className="
-        w-[86vw] max-w-[360px] sm:w-[340px]
-        rounded-3xl overflow-hidden shrink-0 snap-start
-        ring-1 ring-black/5 bg-white
-      "
-    >
-      {/* Taller aspect on mobile for app-feel */}
+  const base = apiClient?.defaults?.baseURL || "";
+  const src = useMemo(
+    () => buildAbsolute(notice?.imageUrl || "", base),
+    [notice?.imageUrl, base]
+  );
+
+  const CardInner = (
+    <div className="w-[86vw] max-w-[360px] sm:w-[340px] rounded-3xl overflow-hidden shrink-0 snap-start ring-1 ring-black/5 bg-white">
       <div className="relative aspect-[16/10] w-full">
-        <img
-          src={src}
-          alt="Notice"
-          className="absolute inset-0 w-full h-full object-cover"
-          loading="lazy"
-          decoding="async"
-        />
-        {/* App-like gradient + text slots (render only if provided) */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
+        {/* Image (or graceful placeholder if error/empty) */}
+        {!errored && src ? (
+          <img
+            src={src}
+            alt={notice?.title || "Notice"}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy"
+            referrerPolicy="no-referrer"
+            crossOrigin="anonymous"
+            onError={() => setErrored(true)}
+          />
+        ) : (
+          <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-gray-100 to-gray-200" />
+        )}
+
+        {/* Overlay content (optional) */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent pointer-events-none" />
         {(notice?.label || notice?.title || notice?.subtitle) && (
           <div className="absolute left-3 right-3 bottom-3 text-white">
             {notice?.label && (
@@ -66,23 +74,16 @@ const NoticeCard = ({ notice, linkTo }) => {
             )}
           </div>
         )}
-        {notice?.link && (
-          <div className="absolute right-2 bottom-2">
-            <div className="px-3 py-1.5 text-[12px] font-semibold rounded-full bg-white/90 text-gray-900 ring-1 ring-black/10">
-              Know more →
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
 
   return linkTo ? (
-    <Link to={linkTo} aria-label="View all notices">
-      {Card}
+    <Link to={linkTo} aria-label={notice?.title || "Notice"}>
+      {CardInner}
     </Link>
   ) : (
-    Card
+    CardInner
   );
 };
 
