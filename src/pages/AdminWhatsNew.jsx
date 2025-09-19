@@ -1,10 +1,31 @@
 // src/pages/AdminWhatsNew.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from "../api"; // ✅ use shared API client (baseURL includes /api)
 import { toast } from "react-hot-toast";
 import { FaPlus, FaEdit, FaTrash, FaUpload, FaTimes } from "react-icons/fa";
 
-const API = "http://localhost:5000/api/whats-new";
+const API = "/whats-new";        // ✅ no /api prefix here
+const UPLOAD_API = "/upload";    // ✅ no /api prefix here
+
+/* Build absolute URL for images (same pattern used elsewhere) */
+const API_ORIGIN = (function () {
+  try {
+    const base = (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
+    const u = new URL(base);
+    const pathname = u && u.pathname ? u.pathname : "";
+    const path = pathname.replace(/\/api\/?$/, "");
+    return u.origin + path;
+  } catch (e) {
+    return "";
+  }
+})();
+function absolutize(u) {
+  if (!u) return u;
+  if (/^https?:\/\//i.test(u)) return u;
+  if (!API_ORIGIN) return u;
+  if (u.charAt(0) === "/") return API_ORIGIN + u;
+  return API_ORIGIN + "/" + u;
+}
 
 const AdminWhatsNew = () => {
   const [items, setItems] = useState([]);
@@ -30,11 +51,11 @@ const AdminWhatsNew = () => {
 
   const load = async () => {
     try {
-      const res = await axios.get(API, {
+      const res = await apiClient.get(API, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
-      setItems(res.data);
+      setItems(res.data || []);
     } catch {
       toast.error("Failed to load items");
     }
@@ -76,18 +97,14 @@ const AdminWhatsNew = () => {
     if (!imageFile) return null;
     const formData = new FormData();
     formData.append("image", imageFile);
-    const uploadRes = await axios.post(
-      "http://localhost:5000/api/upload",
-      formData,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`,
-        },
-        withCredentials: true,
-      }
-    );
-    return uploadRes.data.imageUrl;
+    const uploadRes = await apiClient.post(UPLOAD_API, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+      withCredentials: true,
+    });
+    return uploadRes.data && uploadRes.data.imageUrl ? uploadRes.data.imageUrl : "";
   };
 
   const save = async (e) => {
@@ -107,13 +124,13 @@ const AdminWhatsNew = () => {
       const payload = { ...form, imageUrl: finalImageUrl };
 
       if (editing) {
-        await axios.put(`${API}/${editing._id}`, payload, {
+        await apiClient.put(`${API}/${editing._id}`, payload, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         });
         toast.success("Updated");
       } else {
-        await axios.post(API, payload, {
+        await apiClient.post(API, payload, {
           headers: { Authorization: `Bearer ${token}` },
           withCredentials: true,
         });
@@ -136,7 +153,7 @@ const AdminWhatsNew = () => {
       setPreviewUrl("");
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || "Save failed");
+      toast.error((err && err.response && err.response.data && err.response.data.message) || "Save failed");
     } finally {
       setSaving(false);
     }
@@ -146,7 +163,7 @@ const AdminWhatsNew = () => {
     if (!window.confirm("Delete this item?")) return;
     try {
       setDeletingId(id);
-      await axios.delete(`${API}/${id}`, {
+      await apiClient.delete(`${API}/${id}`, {
         headers: { Authorization: `Bearer ${token}` },
         withCredentials: true,
       });
@@ -178,7 +195,7 @@ const AdminWhatsNew = () => {
             <div className="rounded overflow-hidden">
               <div className="aspect-[360/170] w-full rounded bg-gray-100">
                 <img
-                  src={it.imageUrl}
+                  src={absolutize(it.imageUrl)}
                   alt={it.title}
                   className="w-full h-full object-cover"
                 />
