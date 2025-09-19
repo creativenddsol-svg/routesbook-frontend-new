@@ -1,6 +1,6 @@
 // src/pages/WhatsNew.jsx
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import apiClient from "../api"; // ✅ use shared API client (baseURL includes /api)
 import WhatsNewCard from "../components/WhatsNewCard";
 
 const WhatsNew = () => {
@@ -12,12 +12,10 @@ const WhatsNew = () => {
     let live = true;
     (async () => {
       try {
-        const res = await axios.get("/api/whats-new/active", {
-          withCredentials: true,
-        });
+        const res = await apiClient.get("/whats-new/active"); // ✅ updated
         if (live) setItems(res.data || []);
       } catch (e) {
-        if (live) setErr(e?.response?.data?.message || "Failed to load items.");
+        if (live) setErr((e && e.response && e.response.data && e.response.data.message) || "Failed to load items.");
       } finally {
         if (live) setLoading(false);
       }
