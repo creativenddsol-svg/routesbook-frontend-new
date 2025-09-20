@@ -949,7 +949,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const { filteredBuses } = useMemo(() => {
     const now = new Date();
     const today = new Date();
-       const currentDateString = toLocalYYYYMMDD(today);
+    const currentDateString = toLocalYYYYMMDD(today);
     const searchingToday = searchDateParam === currentDateString;
 
     return {
@@ -1696,7 +1696,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
@@ -1794,45 +1794,47 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 <FaTimes />
               </button>
             </div>
+          </div>
+          {/* ↑ FIX: close header div before the stepper */}
 
           {/* Stepper (MOBILE ONLY) */}
-<div className="mt-3 grid grid-cols-3 gap-1.5">
-  {[1, 2, 3].map((n) => (
-    <button
-      key={n}
-      onClick={() => setCurrentMobileStep(n)}
-      className="flex items-center justify-center gap-1.5 px-1.5 py-1.5 rounded-lg border min-w-0"
-      style={{
-        borderColor: currentMobileStep === n ? active : "#E5E7EB",
-        background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
-        color: currentMobileStep === n ? active : inactive,
-        fontWeight: 700,
-      }}
-    >
-      <span
-        className="inline-flex items-center justify-center w-5 h-5 rounded-full border flex-shrink-0"
-        style={{
-          borderColor: currentMobileStep === n ? active : "#D1D5DB",
-          background: currentMobileStep === n ? active : "#FFF",
-          color: currentMobileStep === n ? "#FFF" : inactive,
-          fontWeight: 800,
-          fontSize: 12,
-          lineHeight: "12px",
-        }}
-      >
-        {n}
-      </span>
+          <div className="mt-3 grid grid-cols-3 gap-1.5">
+            {[1, 2, 3].map((n) => (
+              <button
+                key={n}
+                onClick={() => setCurrentMobileStep(n)}
+                className="flex items-center justify-center gap-1.5 px-1.5 py-1.5 rounded-lg border min-w-0"
+                style={{
+                  borderColor: currentMobileStep === n ? active : "#E5E7EB",
+                  background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
+                  color: currentMobileStep === n ? active : inactive,
+                  fontWeight: 700,
+                }}
+              >
+                <span
+                  className="inline-flex items-center justify-center w-5 h-5 rounded-full border flex-shrink-0"
+                  style={{
+                    borderColor: currentMobileStep === n ? active : "#D1D5DB",
+                    background: currentMobileStep === n ? active : "#FFF",
+                    color: currentMobileStep === n ? "#FFF" : inactive,
+                    fontWeight: 800,
+                    fontSize: 12,
+                    lineHeight: "12px",
+                  }}
+                >
+                  {n}
+                </span>
 
-      {/* keep label on ONE line, shrink slightly on small screens */}
-      <span
-        className="whitespace-nowrap leading-none"
-        style={{ fontSize: "clamp(10px, 3.2vw, 12px)" }}
-      >
-        {n === 1 ? "Select Seats" : n === 2 ? "Select Points" : "Summary"}
-      </span>
-    </button>
-  ))}
-</div>
+                {/* keep label on ONE line, shrink slightly on small screens */}
+                <span
+                  className="whitespace-nowrap leading-none"
+                  style={{ fontSize: "clamp(10px, 3.2vw, 12px)" }}
+                >
+                  {n === 1 ? "Select Seats" : n === 2 ? "Select Points" : "Summary"}
+                </span>
+              </button>
+            ))}
+          </div>
 
           {/* Content */}
           <div
@@ -2175,6 +2177,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 </div>
 
                 {/* DESKTOP CARD */}
+                  {/* DESKTOP CARD */}
                                 {/* DESKTOP CARD */}
                 <div className="hidden md:block p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
@@ -2811,3 +2814,5 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 };
 
 export default SearchResults;
+
+
