@@ -1696,7 +1696,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
@@ -1839,15 +1839,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
           {/* Content */}
           <div
-            className="flex-1 overflow-y-auto px-4 pb-24 pt-3 bg-white"
+            className="flex-1 overflow-y-auto px-4 pb-28 pt-3 bg-white"
             style={{ WebkitOverflowScrolling: "touch" }}
           >
             {/* STEP 1: Seats */}
             {currentMobileStep === 1 && (
               <div className="space-y-3">
-                {/* Seat layout container — zoomed a bit */}
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                  <div className="origin-top scale-[1.08] sm:scale-[1.15]">
+                {/* Seat layout container — zoomed & with extra padding to avoid overlap */}
+                <div className="bg-gray-50 px-3 pt-3 pb-10 rounded-lg border border-gray-200">
+                  <div className="origin-top scale-[1.22] sm:scale-[1.28]">
                     <SeatLayout
                       seatLayout={selectedBus.seatLayout}
                       bookedSeats={[
@@ -2851,3 +2851,4 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 };
 
 export default SearchResults;
+
