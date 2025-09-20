@@ -352,7 +352,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   // Refs to always have latest state inside unmount cleanup
   const latestBookingRef = useRef(busSpecificBookingData);
-  const latestBusesRef = useRef(buses);
   useEffect(() => {
     latestBookingRef.current = busSpecificBookingData;
   }, [busSpecificBookingData]);
@@ -1743,6 +1742,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       }
     };
 
+    // 🆕 dynamic title per step (and no stepper)
+    const titleText =
+      currentMobileStep === 1
+        ? "Select Seats"
+        : currentMobileStep === 2
+        ? "Select Your Points"
+        : "Summary";
+
     return createPortal(
       expandedBusId ? (
         <motion.div
@@ -1779,11 +1786,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   className="text-base font-semibold truncate"
                   style={{ color: PALETTE.textDark }}
                 >
-                  {selectedBus.name}
+                  {titleText}
                 </h3>
-                <p className="text-xs text-gray-500 truncate">
-                  {from} → {to} • {selectedBus.departureTime}
-                </p>
               </div>
 
               <button
@@ -1793,44 +1797,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               >
                 <FaTimes />
               </button>
-            </div>
-
-            {/* Stepper */}
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {[1, 2, 3].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setCurrentMobileStep(n)}
-                  className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
-                  style={{
-                    borderColor: currentMobileStep === n ? active : "#E5E7EB",
-                    background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
-                    color: currentMobileStep === n ? active : inactive,
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  <span
-                    className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
-                    style={{
-                      borderColor: currentMobileStep === n ? active : "#D1D5DB",
-                      background: currentMobileStep === n ? active : "#FFF",
-                      color: currentMobileStep === n ? "#FFF" : inactive,
-                      fontWeight: 800,
-                      fontSize: 12,
-                    }}
-                  >
-                    {n}
-                  </span>
-                  <span className="truncate">
-                    {n === 1
-                      ? "Select Seats"
-                      : n === 2
-                      ? "Select Points"
-                      : "Summary"}
-                  </span>
-                </button>
-              ))}
             </div>
           </div>
 
@@ -1867,7 +1833,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     style={{ background: PALETTE.primaryRed }}
                     disabled={selectedBookingData.selectedSeats.length === 0}
                   >
-                    Continue
+                    {/* 🔁 label changed */}
+                    Select Points
                   </button>
                 </div>
               </div>
@@ -1910,7 +1877,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                       selectedBookingData.selectedSeats.length === 0
                     }
                   >
-                    Continue
+                    {/* 🔁 label changed */}
+                    Check Summary
                   </button>
                 </div>
               </div>
@@ -1962,6 +1930,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ---------------- Card list ---------------- */
+   /* ---------------- Card list ---------------- */
   const renderMainContent = () => {
     if (loading) {
       return Array.from({ length: RESULTS_PER_PAGE }).map((_, i) => (
@@ -2196,7 +2165,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                         </div>
                         <div>
                           <h3
-                            className="text-base font-semibold"
+                            className="text_base font-semibold"
                             style={{ color: "#111827" }}
                           >
                             {bus.name}
