@@ -1795,44 +1795,44 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               </button>
             </div>
 
-            {/* Stepper */}
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {[1, 2, 3].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setCurrentMobileStep(n)}
-                  className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
-                  style={{
-                    borderColor: currentMobileStep === n ? active : "#E5E7EB",
-                    background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
-                    color: currentMobileStep === n ? active : inactive,
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  <span
-                    className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
-                    style={{
-                      borderColor: currentMobileStep === n ? active : "#D1D5DB",
-                      background: currentMobileStep === n ? active : "#FFF",
-                      color: currentMobileStep === n ? "#FFF" : inactive,
-                      fontWeight: 800,
-                      fontSize: 12,
-                    }}
-                  >
-                    {n}
-                  </span>
-                  <span className="truncate">
-                    {n === 1
-                      ? "Select Seats"
-                      : n === 2
-                      ? "Select Points"
-                      : "Summary"}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
+          {/* Stepper (MOBILE ONLY) */}
+<div className="mt-3 grid grid-cols-3 gap-1.5">
+  {[1, 2, 3].map((n) => (
+    <button
+      key={n}
+      onClick={() => setCurrentMobileStep(n)}
+      className="flex items-center justify-center gap-1.5 px-1.5 py-1.5 rounded-lg border min-w-0"
+      style={{
+        borderColor: currentMobileStep === n ? active : "#E5E7EB",
+        background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
+        color: currentMobileStep === n ? active : inactive,
+        fontWeight: 700,
+      }}
+    >
+      <span
+        className="inline-flex items-center justify-center w-5 h-5 rounded-full border flex-shrink-0"
+        style={{
+          borderColor: currentMobileStep === n ? active : "#D1D5DB",
+          background: currentMobileStep === n ? active : "#FFF",
+          color: currentMobileStep === n ? "#FFF" : inactive,
+          fontWeight: 800,
+          fontSize: 12,
+          lineHeight: "12px",
+        }}
+      >
+        {n}
+      </span>
+
+      {/* keep label on ONE line, shrink slightly on small screens */}
+      <span
+        className="whitespace-nowrap leading-none"
+        style={{ fontSize: "clamp(10px, 3.2vw, 12px)" }}
+      >
+        {n === 1 ? "Select Seats" : n === 2 ? "Select Points" : "Summary"}
+      </span>
+    </button>
+  ))}
+</div>
 
           {/* Content */}
           <div
