@@ -352,6 +352,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   // Refs to always have latest state inside unmount cleanup
   const latestBookingRef = useRef(busSpecificBookingData);
+  const latestBusesRef = useRef(buses); // ✅ ADDED: keep latest buses for cleanup/use
   useEffect(() => {
     latestBookingRef.current = busSpecificBookingData;
   }, [busSpecificBookingData]);
@@ -2143,7 +2144,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                   </div>
                 </div>
 
-                {/* DESKTOP CARD */}
+                               {/* DESKTOP CARD */}
                 <div className="hidden md:block p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-2">
