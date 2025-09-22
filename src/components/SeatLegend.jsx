@@ -21,12 +21,6 @@ const SeatLegend = () => {
         <span className="text-gray-700 font-medium">Available</span>
       </Pill>
 
-      {/* For Female (outline) */}
-      <Pill>
-        <SeatIcon className="bg-white border-2 border-pink-400" />
-        <span className="text-gray-700 font-medium">For Female</span>
-      </Pill>
-
       {/* For Male (outline) */}
       <Pill>
         <SeatIcon className="bg-white border-2 border-indigo-400" />
@@ -41,9 +35,17 @@ const SeatLegend = () => {
         <span className="text-gray-700 font-medium">Female booked</span>
       </Pill>
 
-      {/* Booked (unknown gender) */}
+      {/* Male booked (purple) */}
       <Pill>
-        <SeatIcon className="bg-red-500" />
+        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#6D5BD0] text-white flex items-center justify-center border border-[#5B4FCF]">
+          <FaMale className="text-[10px] sm:text-xs" />
+        </div>
+        <span className="text-gray-700 font-medium">Male booked</span>
+      </Pill>
+
+      {/* Booked (match seat layout red) */}
+      <Pill>
+        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-[#EF4444] border border-[#DC2626]" />
         <span className="text-gray-700 font-medium">Booked</span>
       </Pill>
     </div>
