@@ -2214,6 +2214,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 </div>
 
                 {/* DESKTOP CARD */}
+                                {/* DESKTOP CARD */}
                   {/* DESKTOP CARD */}
                                 {/* DESKTOP CARD */}
                 <div className="hidden md:block p-6">
@@ -2851,4 +2852,3 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 };
 
 export default SearchResults;
-
