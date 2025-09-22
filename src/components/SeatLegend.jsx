@@ -1,47 +1,51 @@
+// src/components/SeatLegend.jsx
 import React from "react";
 import { FaMale, FaFemale } from "react-icons/fa";
 
+const Pill = ({ children }) => (
+  <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs sm:text-sm">
+    {children}
+  </div>
+);
+
+const SeatIcon = ({ className }) => (
+  <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-md ${className}`} />
+);
+
 const SeatLegend = () => {
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-6 gap-y-3 rounded-xl border bg-white p-3 shadow-sm">
+    <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3 bg-white border rounded-xl p-3 sm:p-4">
       {/* Available */}
-      <div className="flex items-center gap-2">
-        <div className="w-5 h-5 rounded-md bg-white border-2 border-gray-400"></div>
-        <span className="text-xs sm:text-sm text-gray-600 font-medium">
-          Available
-        </span>
-      </div>
+      <Pill>
+        <SeatIcon className="bg-white border border-gray-400" />
+        <span className="text-gray-700 font-medium">Available</span>
+      </Pill>
 
-      {/* Selected */}
-      <div className="flex items-center gap-2">
-        <div className="w-5 h-5 rounded-md bg-blue-600 border-2 border-blue-700"></div>
-        <span className="text-xs sm:text-sm text-gray-600 font-medium">
-          Selected
-        </span>
-      </div>
+      {/* For Female (outline) */}
+      <Pill>
+        <SeatIcon className="bg-white border-2 border-pink-400" />
+        <span className="text-gray-700 font-medium">For Female</span>
+      </Pill>
 
-      {/* ✅ UPDATED: Booked Group */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs sm:text-sm text-gray-600 font-medium">
-          Booked
-        </span>
-        <div className="flex items-center gap-3 sm:gap-4 p-1.5 bg-gray-100 rounded-lg">
-          {/* Male */}
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-md bg-violet-500 text-white flex items-center justify-center">
-              <FaMale size={12} />
-            </div>
-            <span className="text-xs text-violet-700 font-medium">Male</span>
-          </div>
-          {/* Female */}
-          <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-md bg-pink-500 text-white flex items-center justify-center">
-              <FaFemale size={12} />
-            </div>
-            <span className="text-xs text-pink-700 font-medium">Female</span>
-          </div>
+      {/* For Male (outline) */}
+      <Pill>
+        <SeatIcon className="bg-white border-2 border-indigo-400" />
+        <span className="text-gray-700 font-medium">For Male</span>
+      </Pill>
+
+      {/* Female booked */}
+      <Pill>
+        <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-pink-500 text-white flex items-center justify-center">
+          <FaFemale className="text-[10px] sm:text-xs" />
         </div>
-      </div>
+        <span className="text-gray-700 font-medium">Female booked</span>
+      </Pill>
+
+      {/* Booked (unknown gender) */}
+      <Pill>
+        <SeatIcon className="bg-red-500" />
+        <span className="text-gray-700 font-medium">Booked</span>
+      </Pill>
     </div>
   );
 };
