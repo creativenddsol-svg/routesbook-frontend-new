@@ -1698,6 +1698,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
