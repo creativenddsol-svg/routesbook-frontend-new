@@ -159,13 +159,12 @@ const SeatLayout = ({
       for (let i = 0; i < 11; i++) {
         grid.push([i * 4 + 1, i * 4 + 2, null, i * 4 + 3, i * 4 + 4]);
       }
-      // rear five
       grid.push([45, 46, 47, 48, 49]);
       return grid;
     }
 
     if (is37Seater) {
-      // 2 | aisle | 2 rows (keeps columns aligned throughout)
+      // Keep columns aligned (2 | aisle | 2), put 35 in the center column of the same row
       const base = [
         [1, 2,   null, 3,  4],
         [5, 6,   null, 7,  8],
@@ -176,13 +175,7 @@ const SeatLayout = ({
         [25, 26, null, 27, 28],
         [29, 30, null, 31, 32],
       ];
-      // Requested rear alignment:
-      // [33,34 | aisle | 36,37] with 35 centered beneath (same column index as aisle)
-      return [
-        ...base,
-        [33, 34, null, 36, 37],
-        [null, null, 35,  null, null],
-      ];
+      return [...base, [33, 34, 35, 36, 37]];
     }
 
     return [];
