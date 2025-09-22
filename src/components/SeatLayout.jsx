@@ -5,15 +5,20 @@ import { FaMale, FaFemale } from "react-icons/fa";
 
 /* ---------- Matte palette (selected = blue) ---------- */
 const PALETTE = {
-  blue: "#4C6EF5",
+  // Selected seat
+  blue: "#4C6EF5", // matte blue
   blueBorder: "#3F5ED8",
   blueHoverTint: "#EEF2FF",
+
+  // General UI
   border: "#E5E7EB",
   text: "#1A1A1A",
   textSubtle: "#6B7280",
-  male: "#6D5BD0",
+
+  // Booked seats
+  male: "#6D5BD0", // violet
   maleBorder: "#5B4FCF",
-  female: "#E05B88",
+  female: "#E05B88", // pink
   femaleBorder: "#D04B78",
 };
 
@@ -29,13 +34,19 @@ const Seat = ({
 }) => {
   const innerSeatClasses = isBooked
     ? gender === "F"
-      ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed"
-      : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed"
+      ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed" // female booked
+      : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed" // male booked
     : isLocked
-    ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5] cursor-not-allowed"
+    ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5] cursor-not-allowed" // LOCKED (low red)
     : isSelected
-    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] shadow-sm"
-    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5]";
+    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] shadow-sm" // SELECTED = matte blue
+    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5]"; // available + blue hover
+
+  // Small bottom bar color (AbhiBus-style)
+  let barColor = "#9CA3AF"; // default grey for available
+  if (isSelected) barColor = PALETTE.blueBorder;
+  if (isLocked) barColor = "#B91C1C"; // muted red for locked
+  if (isBooked) barColor = gender === "F" ? PALETTE.femaleBorder : PALETTE.maleBorder;
 
   const disabled = isBooked || isLocked;
 
@@ -47,6 +58,7 @@ const Seat = ({
       aria-label={`Seat ${seat}`}
       aria-pressed={isSelected}
       disabled={disabled}
+      /* Outer hitbox = larger tap target on mobile (48px). Desktop keeps your old density. */
       className={`
         relative group select-none
         w-12 h-12 sm:w-10 sm:h-10
@@ -58,6 +70,7 @@ const Seat = ({
       `}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
+      {/* Visual seat slightly inset so the hitbox is bigger than the seat */}
       <span
         className={`
           absolute inset-1 sm:inset-[3px]
@@ -65,10 +78,24 @@ const Seat = ({
           flex items-center justify-center
           font-semibold
           text-[11px] sm:text-xs
+          relative
           ${innerSeatClasses}
         `}
       >
+        {/* Seat label/icon */}
         {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
+
+        {/* --- NEW: tiny bottom bar (seat edge) --- */}
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-md"
+          style={{
+            bottom: 3, // px
+            height: 4,
+            width: "62%",
+            backgroundColor: barColor,
+          }}
+        />
       </span>
     </button>
   );
@@ -87,7 +114,7 @@ Seat.propTypes = {
 /* ---------- Layout ---------- */
 const SeatLayout = ({
   seatLayout,
-  bookedSeats,
+  bookedSeats, // kept for API compatibility (unused directly)
   selectedSeats,
   onSeatClick,
   bookedSeatGenders,
@@ -117,6 +144,7 @@ const SeatLayout = ({
 
   const getSeatStatus = (seat) => {
     const isBooked = !!bookedSeatGenders[seat];
+    // "Locked by others" if it's in bookedSeats (no gender mapping) and not selected by me
     const isLocked =
       Array.isArray(bookedSeats) &&
       bookedSeats.includes(seat) &&
@@ -135,6 +163,7 @@ const SeatLayout = ({
     layoutGrid.map((row, rowIndex) => (
       <div
         key={`row-${rowIndex}`}
+        /* Slightly wider gaps on mobile to prevent mis-taps */
         className="flex justify-center items-center gap-x-2 sm:gap-x-2"
       >
         {row.map((seatNumber, i) => {
@@ -148,9 +177,7 @@ const SeatLayout = ({
           }
           const seat = String(seatNumber);
           if (!seatLayout.includes(seat)) {
-            return (
-              <div key={`placeholder-${seat}`} className="w-12 h-12 sm:w-10 sm:h-10" />
-            );
+            return <div key={`placeholder-${seat}`} className="w-12 h-12 sm:w-10 sm:h-10" />;
           }
 
           const seatStatus = getSeatStatus(seat);
