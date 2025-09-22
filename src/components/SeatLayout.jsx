@@ -92,6 +92,10 @@ const SeatLayout = ({
   const is49Seater = layoutAsStrings.length === 49;
   const is37Seater = layoutAsStrings.length === 37;
 
+  // 🔧 Avoid repeated .map/.includes by using Sets (fixes perf hiccups on large layouts)
+  const bookedSet = new Set((Array.isArray(bookedSeats) ? bookedSeats : []).map(String));
+  const selectedSet = new Set((Array.isArray(selectedSeats) ? selectedSeats : []).map(String));
+
   const getAdjacentSeatInfo = (seatNumber, layoutGrid) => {
     for (const row of layoutGrid) {
       const idx = row.indexOf(seatNumber);
@@ -113,16 +117,12 @@ const SeatLayout = ({
   const getSeatStatus = (seat) => {
     const seatStr = String(seat);
     const isBooked = !!bookedSeatGenders[seatStr];
-    const isLocked =
-      Array.isArray(bookedSeats) &&
-      bookedSeats.map(String).includes(seatStr) &&
-      !bookedSeatGenders[seatStr] &&
-      !selectedSeats.map(String).includes(seatStr);
+    const isLocked = bookedSet.has(seatStr) && !bookedSeatGenders[seatStr] && !selectedSet.has(seatStr);
 
     return {
       isBooked,
       isLocked,
-      isSelected: selectedSeats.map(String).includes(seatStr),
+      isSelected: selectedSet.has(seatStr),
       gender: isBooked ? bookedSeatGenders[seatStr] : null,
     };
   };
