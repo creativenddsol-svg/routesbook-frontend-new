@@ -66,6 +66,10 @@ const AVAIL_TTL_MS = 8000; // throttle per bus normal refreshes
 const AVAIL_FORCE_TTL_MS = 2000; // tighter window right after lock/release
 const MAX_INIT_AVAIL_CONCURRENCY = 6; // limit initial fan-out
 
+// 🧊 Stable empty refs so we don't create new arrays/objects every render
+const EMPTY_ARR = Object.freeze([]);
+const EMPTY_OBJ = Object.freeze({});
+
 /* ---------------- Helpers ---------------- */
 const toLocalYYYYMMDD = (dateObj) => {
   const year = dateObj.getFullYear();
@@ -950,7 +954,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const now = new Date();
     const today = new Date();
     const currentDateString = toLocalYYYYMMDD(today);
-    const searchingToday = searchDateParam === currentDateString;
+    the const searchingToday = searchDateParam === currentDateString;
 
     return {
       filteredBuses: buses.filter((bus) => {
@@ -1042,152 +1046,113 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ---------------- Special notices ---------------- */
- /* ---------------- Special notices ---------------- */
-const SpecialNoticesSection = () => {
-  const itemsToRender = noticesLoading
-    ? Array.from({ length: 4 })
-    : specialNotices;
+  /* ---------------- Special notices ---------------- */
+  const SpecialNoticesSection = () => {
+    const itemsToRender = noticesLoading
+      ? Array.from({ length: 4 })
+      : specialNotices;
 
-  const trackRef = useRef(null);
-  const [pages, setPages] = useState(1);
-  const [activePage, setActivePage] = useState(0);
+    const trackRef = useRef(null);
+    const [pages, setPages] = useState(1);
+    const [activePage, setActivePage] = useState(0);
 
-  const computePages = () => {
-    const el = trackRef.current;
-    if (!el) return;
-    const total = Math.max(1, Math.ceil(el.scrollWidth / el.clientWidth));
-    setPages(total);
-    const idx = Math.round(el.scrollLeft / el.clientWidth);
-    setActivePage(Math.min(total - 1, Math.max(0, idx)));
-  };
-
-  useEffect(() => {
-    computePages();
-    const onResize = () => computePages();
-    window.addEventListener("resize", onResize, { passive: true });
-    return () => window.removeEventListener("resize", onResize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noticesLoading, specialNotices.length]);
-
-  // keep the pager in sync while user swipes the carousel
-  useEffect(() => {
-    const el = trackRef.current;
-    if (!el) return;
-    let raf = 0;
-    const onScroll = () => {
-      cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => {
-        const idx = Math.round(el.scrollLeft / el.clientWidth);
-        setActivePage(idx);
-      });
+    const computePages = () => {
+      const el = trackRef.current;
+      if (!el) return;
+      const total = Math.max(1, Math.ceil(el.scrollWidth / el.clientWidth));
+      setPages(total);
+      const idx = Math.round(el.scrollLeft / el.clientWidth);
+      setActivePage(Math.min(total - 1, Math.max(0, idx)));
     };
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => {
-      cancelAnimationFrame(raf);
-      el.removeEventListener("scroll", onScroll);
+
+    useEffect(() => {
+      computePages();
+      const onResize = () => computePages();
+      window.addEventListener("resize", onResize, { passive: true });
+      return () => window.removeEventListener("resize", onResize);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [noticesLoading, specialNotices.length]);
+
+    // keep the pager in sync while user swipes the carousel
+    useEffect(() => {
+      const el = trackRef.current;
+      if (!el) return;
+      let raf = 0;
+      const onScroll = () => {
+        cancelAnimationFrame(raf);
+        raf = requestAnimationFrame(() => {
+          const idx = Math.round(el.scrollLeft / el.clientWidth);
+          setActivePage(idx);
+        });
+      };
+      el.addEventListener("scroll", onScroll, { passive: true });
+      return () => {
+        cancelAnimationFrame(raf);
+        el.removeEventListener("scroll", onScroll);
+      };
+    }, []);
+
+    const goToPage = (idx) => {
+      const el = trackRef.current;
+      if (!el) return;
+      const clamped = Math.min(pages - 1, Math.max(0, idx));
+      el.scrollTo({ left: clamped * el.clientWidth, behavior: "smooth" });
+      setActivePage(clamped);
     };
-  }, []);
 
-  const goToPage = (idx) => {
-    const el = trackRef.current;
-    if (!el) return;
-    const clamped = Math.min(pages - 1, Math.max(0, idx));
-    el.scrollTo({ left: clamped * el.clientWidth, behavior: "smooth" });
-    setActivePage(clamped);
-  };
+    if (!noticesLoading && specialNotices.length === 0) return null;
 
-  if (!noticesLoading && specialNotices.length === 0) return null;
-
-  return (
-    <motion.div
-      className="mb-8 relative"
-      initial="hidden"
-      animate="visible"
-      variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
-    >
-      <div
-        ref={trackRef}
-        className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-2 lg:pb-0"
-        style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
+    return (
+      <motion.div
+        className="mb-8 relative"
+        initial="hidden"
+        animate="visible"
+        variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
       >
-        {itemsToRender.map((item, index) => (
-          <div
-            key={noticesLoading ? `skeleton-${index}` : item._id}
-            className="flex-shrink-0 w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/4 xl:w-1/4 snap-start p-2"
-          >
-            {noticesLoading ? (
-              <SpecialNoticeSkeleton />
-            ) : (
-              <SpecialNoticeCard notice={item} linkTo="/special-notices" />
-            )}
-          </div>
-        ))}
-      </div>
-
-      {pages > 1 && (
-        <div className="mt-3 flex items-center justify-center gap-2">
-          {Array.from({ length: pages }).map((_, i) => {
-            const active = i === activePage;
-            return (
-              <button
-                key={i}
-                onClick={() => goToPage(i)}
-                className={[
-                  "h-2.5 rounded-full transition-all duration-200",
-                  active
-                    ? "w-6 bg-gray-900"
-                    : "w-2.5 bg-gray-300 hover:bg-gray-400",
-                ].join(" ")}
-                aria-label={`Go to page ${i + 1}`}
-              />
-            );
-          })}
+        <div
+          ref={trackRef}
+          className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-2 lg:pb-0"
+          style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
+        >
+          {itemsToRender.map((item, index) => (
+            <div
+              key={noticesLoading ? `skeleton-${index}` : item._id}
+              className="flex-shrink-0 w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/4 xl:w-1/4 snap-start p-2"
+            >
+              {noticesLoading ? (
+                <SpecialNoticeSkeleton />
+              ) : (
+                <SpecialNoticeCard notice={item} linkTo="/special-notices" />
+              )}
+            </div>
+          ))}
         </div>
-      )}
-    </motion.div>
-  );
-};
 
-const ErrorDisplay = ({ message }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    className="text-center p-10 bg-white rounded-2xl shadow-md"
-  >
-    <FaExclamationCircle
-      className="mx-auto text-6xl mb-4"
-      style={{ color: PALETTE.yellow }}
-    />
-    <h3
-      className="text-2xl font-bold mb-2"
-      style={{ color: PALETTE.textDark }}
-    >
-      Oops! Something went wrong.
-    </h3>
-    <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>
-      {message || "We encountered an error. Please try again later."}
-    </p>
-    <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      onClick={() => fetchData()}
-      className="px-6 py-2.5 font-semibold rounded-lg text-white"
-      style={{ backgroundColor: PALETTE.accentBlue }}
-    >
-      Try Again
-    </motion.button>
-  </motion.div>
-);
+        {pages > 1 && (
+          <div className="mt-3 flex items-center justify-center gap-2">
+            {Array.from({ length: pages }).map((_, i) => {
+              const active = i === activePage;
+              return (
+                <button
+                  key={i}
+                  onClick={() => goToPage(i)}
+                  className={[
+                    "h-2.5 rounded-full transition-all duration-200",
+                    active
+                      ? "w-6 bg-gray-900"
+                      : "w-2.5 bg-gray-300 hover:bg-gray-400",
+                  ].join(" ")}
+                  aria-label={`Go to page ${i + 1}`}
+                />
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
+    );
+  };
 
-const NoResultsMessage = () => {
-  const hasActiveFilters = activeFilterCount > 0;
-  let title = hasActiveFilters
-    ? "No Buses Match Your Filters"
-    : "No Buses Available";
-  let message = hasActiveFilters
-    ? "Try adjusting or resetting your filters."
-    : "Unfortunately, no buses were found for this route on the selected date.";
-  return (
+  const ErrorDisplay = ({ message }) => (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -1195,318 +1160,319 @@ const NoResultsMessage = () => {
     >
       <FaExclamationCircle
         className="mx-auto text-6xl mb-4"
-        style={{ color: `${PALETTE.primaryRed}50` }}
+        style={{ color: PALETTE.yellow }}
       />
       <h3
         className="text-2xl font-bold mb-2"
         style={{ color: PALETTE.textDark }}
       >
-        {title}
+        Oops! Something went wrong.
       </h3>
       <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>
-        {message}
+        {message || "We encountered an error. Please try again later."}
       </p>
       <motion.button
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
-        onClick={resetFilters}
+        onClick={() => fetchData()}
         className="px-6 py-2.5 font-semibold rounded-lg text-white"
         style={{ backgroundColor: PALETTE.accentBlue }}
       >
-        Reset All Filters
+        Try Again
       </motion.button>
     </motion.div>
   );
-};
 
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
-};
-const itemVariants = {
-  hidden: { y: 20, opacity: 0 },
-  visible: { y: 0, opacity: 1 },
-};
-const drawerVariants = {
-  hidden: { x: "-100%" },
-  visible: {
-    x: 0,
-    transition: { type: "spring", stiffness: 300, damping: 30 },
-  },
-};
-
-const FilterPanel = ({ isMobile, sortBy, setSortBy }) => {
-  const handleTimeSlotFilter = (slot) =>
-    setFilters((prev) => ({
-      ...prev,
-      timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
-    }));
-  const headerText = isMobile ? "Filter & Sort" : "Filters";
-  const resetText =
-    activeFilterCount > 0 ? `Reset (${activeFilterCount})` : "Reset";
-
-  return (
-    <div className="p-6 space-y-8 lg:p-0">
-      <div
-        className="flex justify-between items-center border-b pb-4 lg:border-none lg:pb-0"
-        style={{ borderColor: PALETTE.borderLight }}
+  const NoResultsMessage = () => {
+    const hasActiveFilters = activeFilterCount > 0;
+    let title = hasActiveFilters
+      ? "No Buses Match Your Filters"
+      : "No Buses Available";
+    let message = hasActiveFilters
+      ? "Try adjusting or resetting your filters."
+      : "Unfortunately, no buses were found for this route on the selected date.";
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center p-10 bg-white rounded-2xl shadow-md"
       >
+        <FaExclamationCircle
+          className="mx-auto text-6xl mb-4"
+          style={{ color: `${PALETTE.primaryRed}50` }}
+        />
         <h3
-          className="text-xl font-bold flex items-center gap-3"
+          className="text-2xl font-bold mb-2"
           style={{ color: PALETTE.textDark }}
         >
-          <FaSlidersH className="lg:hidden" style={{ color: PALETTE.accentBlue }} />{" "}
-          {headerText}
+          {title}
         </h3>
-        {isMobile ? (
-          <button
-            onClick={() => setIsFilterOpen(false)}
-            className="p-2 rounded-full hover:bg-gray-100"
-          >
-            <FaTimes />
-          </button>
-        ) : (
-          <button
-            onClick={resetFilters}
-            className={`text-sm font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors hover:bg-red-50 ${
-              activeFilterCount > 0 ? "text-red-600 font-semibold" : ""
-            }`}
-            style={{
-              color:
-                activeFilterCount > 0 ? PALETTE.primaryRed : PALETTE.textLight,
-            }}
-          >
-            <FaSyncAlt /> {resetText}
-          </button>
-        )}
-      </div>
-      <section>
-        <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
-          Sort by
-        </h4>
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          className="w-full border-2 rounded-lg px-3 py-2 text-sm transition-all focus:border-blue-500 focus:ring-0"
-          style={{
-            borderColor: PALETTE.borderLight,
-            color: PALETTE.textDark,
-          }}
+        <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>
+          {message}
+        </p>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={resetFilters}
+          className="px-6 py-2.5 font-semibold rounded-lg text-white"
+          style={{ backgroundColor: PALETTE.accentBlue }}
         >
-          <option value="time-asc">Departure: Earliest</option>
-          <option value="time-desc">Departure: Latest</option>
-          <option value="price-asc">Price: Low to High</option>
-          <option value="price-desc">Price: High to Low</option>
-        </select>
-      </section>
-      <section>
-        <h4 className="font-bold mb-4" style={{ color: PALETTE.textDark }}>
-          Departure Time
-        </h4>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.keys(TIME_SLOTS).map((slot) => (
+          Reset All Filters
+        </motion.button>
+      </motion.div>
+    );
+  };
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: { opacity: 1, transition: { staggerChildren: 0.1 } },
+  };
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: { y: 0, opacity: 1 },
+  };
+  const drawerVariants = {
+    hidden: { x: "-100%" },
+    visible: {
+      x: 0,
+      transition: { type: "spring", stiffness: 300, damping: 30 },
+    },
+  };
+
+  const FilterPanel = ({ isMobile, sortBy, setSortBy }) => {
+    const handleTimeSlotFilter = (slot) =>
+      setFilters((prev) => ({
+        ...prev,
+        timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
+      }));
+    const headerText = isMobile ? "Filter & Sort" : "Filters";
+    const resetText =
+      activeFilterCount > 0 ? `Reset (${activeFilterCount})` : "Reset";
+
+    return (
+      <div className="p-6 space-y-8 lg:p-0">
+        <div
+          className="flex justify-between items-center border-b pb-4 lg:border-none lg:pb-0"
+          style={{ borderColor: PALETTE.borderLight }}
+        >
+          <h3
+            className="text-xl font-bold flex items-center gap-3"
+            style={{ color: PALETTE.textDark }}
+          >
+            <FaSlidersH className="lg:hidden" style={{ color: PALETTE.accentBlue }} />{" "}
+            {headerText}
+          </h3>
+          {isMobile ? (
             <button
-              key={slot}
-              onClick={() => handleTimeSlotFilter(slot)}
-              className={`px-2 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
-                filters.timeSlots[slot]
-                  ? "text-white border-blue-500"
-                  : "border-gray-200"
+              onClick={() => setIsFilterOpen(false)}
+              className="p-2 rounded-full hover:bg-gray-100"
+            >
+              <FaTimes />
+            </button>
+          ) : (
+            <button
+              onClick={resetFilters}
+              className={`text-sm font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors hover:bg-red-50 ${
+                activeFilterCount > 0 ? "text-red-600 font-semibold" : ""
               }`}
               style={{
-                backgroundColor: filters.timeSlots[slot]
-                  ? PALETTE.accentBlue
-                  : PALETTE.white,
-                color: filters.timeSlots[slot]
-                  ? PALETTE.white
-                  : PALETTE.textDark,
+                color:
+                  activeFilterCount > 0 ? PALETTE.primaryRed : PALETTE.textLight,
               }}
             >
-              {slot}
+              <FaSyncAlt /> {resetText}
             </button>
-          ))}
+          )}
         </div>
-      </section>
-      <section>
-        <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
-          Bus Type
-        </h4>
-        <select
-          value={filters.type}
-          onChange={(e) =>
-            setFilters((prev) => ({ ...prev, type: e.target.value }))
-          }
-          className="w-full border-2 rounded-lg px-3 py-2 text-sm transition-all focus:border-blue-500 focus:ring-0"
-          style={{
-            borderColor: PALETTE.borderLight,
-            color: PALETTE.textDark,
-          }}
-        >
-          <option value="">All Types</option>
-          <option value="AC">AC</option>
-          <option value="Non-AC">Non-AC</option>
-        </select>
-      </section>
-      <section>
-        <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
-          Max Price
-        </h4>
-        <input
-          type="range"
-          className="w-full h-2 rounded-lg appearance-none cursor-pointer"
-          style={{
-            backgroundColor: PALETTE.borderLight,
-            accentColor: PALETTE.primaryRed,
-          }}
-          min={500}
-          max={5000}
-          step={100}
-          value={filters.maxPrice}
-          onChange={(e) =>
-            setFilters((prev) => ({
-              ...prev,
-              maxPrice: Number(e.target.value),
-            }))
-          }
-        />
-        <div
-          className="text-sm mt-2 text-center font-medium"
-          style={{ color: PALETTE.textLight }}
-        >
-          Up to{" "}
-          <span className="font-bold" style={{ color: PALETTE.primaryRed }}>
-            Rs. {filters.maxPrice}
-          </span>
-        </div>
-      </section>
-      {isMobile && (
-        <div className="pt-4 border-t" style={{ borderColor: PALETTE.borderLight }}>
-          <button
-            onClick={() => setIsFilterOpen(false)}
-            className="w-full py-3 font-bold text-white rounded-lg"
-            style={{ backgroundColor: PALETTE.primaryRed }}
-          >
-            Show {sortedBuses.length} Buses
-          </button>
-          <button
-            onClick={() => {
-              resetFilters();
-              setIsFilterOpen(false);
+        <section>
+          <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
+            Sort by
+          </h4>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm transition-all focus:border-blue-500 focus:ring-0"
+            style={{
+              borderColor: PALETTE.borderLight,
+              color: PALETTE.textDark,
             }}
-            className="w-full mt-2 py-2 font-bold rounded-lg"
+          >
+            <option value="time-asc">Departure: Earliest</option>
+            <option value="time-desc">Departure: Latest</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+          </select>
+        </section>
+        <section>
+          <h4 className="font-bold mb-4" style={{ color: PALETTE.textDark }}>
+            Departure Time
+          </h4>
+          <div className="grid grid-cols-2 gap-2">
+            {Object.keys(TIME_SLOTS).map((slot) => (
+              <button
+                key={slot}
+                onClick={() => handleTimeSlotFilter(slot)}
+                className={`px-2 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
+                  filters.timeSlots[slot]
+                    ? "text-white border-blue-500"
+                    : "border-gray-200"
+                }`}
+                style={{
+                  backgroundColor: filters.timeSlots[slot]
+                    ? PALETTE.accentBlue
+                    : PALETTE.white,
+                  color: filters.timeSlots[slot]
+                    ? PALETTE.white
+                    : PALETTE.textDark,
+                }}
+              >
+                {slot}
+              </button>
+            ))}
+          </div>
+        </section>
+        <section>
+          <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
+            Bus Type
+          </h4>
+          <select
+            value={filters.type}
+            onChange={(e) =>
+              setFilters((prev) => ({ ...prev, type: e.target.value }))
+            }
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm transition-all focus:border-blue-500 focus:ring-0"
+            style={{
+              borderColor: PALETTE.borderLight,
+              color: PALETTE.textDark,
+            }}
+          >
+            <option value="">All Types</option>
+            <option value="AC">AC</option>
+            <option value="Non-AC">Non-AC</option>
+          </select>
+        </section>
+        <section>
+          <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
+            Max Price
+          </h4>
+          <input
+            type="range"
+            className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+            style={{
+              backgroundColor: PALETTE.borderLight,
+              accentColor: PALETTE.primaryRed,
+            }}
+            min={500}
+            max={5000}
+            step={100}
+            value={filters.maxPrice}
+            onChange={(e) =>
+              setFilters((prev) => ({
+                ...prev,
+                maxPrice: Number(e.target.value),
+              }))
+            }
+          />
+          <div
+            className="text-sm mt-2 text-center font-medium"
             style={{ color: PALETTE.textLight }}
           >
-            {resetText}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-};
+            Up to{" "}
+            <span className="font-bold" style={{ color: PALETTE.primaryRed }}>
+              Rs. {filters.maxPrice}
+            </span>
+          </div>
+        </section>
+        {isMobile && (
+          <div className="pt-4 border-t" style={{ borderColor: PALETTE.borderLight }}>
+            <button
+              onClick={() => setIsFilterOpen(false)}
+              className="w-full py-3 font-bold text-white rounded-lg"
+              style={{ backgroundColor: PALETTE.primaryRed }}
+            >
+              Show {sortedBuses.length} Buses
+            </button>
+            <button
+              onClick={() => {
+                resetFilters();
+                setIsFilterOpen(false);
+              }}
+              className="w-full mt-2 py-2 font-bold rounded-lg"
+              style={{ color: PALETTE.textLight }}
+            >
+              {resetText}
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  };
 
-const initializeBusBookingData = (bus) => {
-  const busKey = `${bus._id}-${bus.departureTime}`;
-  setBusSpecificBookingData((prev) => {
-    if (prev[busKey]) return prev;
-    return {
-      ...prev,
-      [busKey]: {
-        selectedSeats: [],
-        seatGenders: {},
-        selectedBoardingPoint: bus.boardingPoints?.[0] || null,
-        selectedDroppingPoint: bus.droppingPoints?.[0] || null,
-        basePrice: 0,
-        convenienceFee: 0,
-        totalPrice: 0,
-      },
-    };
-  });
-};
+  const initializeBusBookingData = (bus) => {
+    const busKey = `${bus._id}-${bus.departureTime}`;
+    setBusSpecificBookingData((prev) => {
+      if (prev[busKey]) return prev;
+      return {
+        ...prev,
+        [busKey]: {
+          selectedSeats: [],
+          seatGenders: {},
+          selectedBoardingPoint: bus.boardingPoints?.[0] || null,
+          selectedDroppingPoint: bus.droppingPoints?.[0] || null,
+          basePrice: 0,
+          convenienceFee: 0,
+          totalPrice: 0,
+        },
+      };
+    });
+  };
 
-const handleToggleSeatLayout = async (bus) => {
-  const busKey = `${bus._id}-${bus.departureTime}`;
-  if (expandedBusId === busKey) {
-    const seatsToRelease = busSpecificBookingData[busKey]?.selectedSeats || [];
-    if (seatsToRelease.length) {
-      try {
-        await releaseSeats(bus, seatsToRelease);
-      } catch (e) {
-        console.warn("Release on close failed:", e);
+  const handleToggleSeatLayout = async (bus) => {
+    const busKey = `${bus._id}-${bus.departureTime}`;
+    if (expandedBusId === busKey) {
+      const seatsToRelease = busSpecificBookingData[busKey]?.selectedSeats || [];
+      if (seatsToRelease.length) {
+        try {
+          await releaseSeats(bus, seatsToRelease);
+        } catch (e) {
+          console.warn("Release on close failed:", e);
+        }
       }
+      setExpandedBusId(null);
+    } else {
+      // switching cards – release any seats selected on other cards
+      await releaseAllSelectedSeats(true);
+      setExpandedBusId(busKey);
+      initializeBusBookingData(bus);
+      setMobileSheetStepByBus((prev) => ({
+        ...prev,
+        [busKey]: prev[busKey] || 1,
+      }));
     }
-    setExpandedBusId(null);
-  } else {
-    // switching cards – release any seats selected on other cards
-    await releaseAllSelectedSeats(true);
-    setExpandedBusId(busKey);
-    initializeBusBookingData(bus);
-    setMobileSheetStepByBus((prev) => ({
-      ...prev,
-      [busKey]: prev[busKey] || 1,
-    }));
-  }
-};
+  };
 
-const handleSeatToggle = async (bus, seat) => {
-  const busKey = `${bus._id}-${bus.departureTime}`;
-  const availabilityKey = `${bus._id}-${bus.departureTime}`;
+  const handleSeatToggle = async (bus, seat) => {
+    const busKey = `${bus._id}-${bus.departureTime}`;
+    const availabilityKey = `${bus._id}-${bus.departureTime}`;
 
-  const currentBusData = busSpecificBookingData[busKey];
-  if (!currentBusData) return;
+    const currentBusData = busSpecificBookingData[busKey];
+    if (!currentBusData) return;
 
-  const { bookedSeats: unavailable = [] } =
-    availability[availabilityKey] || {
-      bookedSeats: [],
-    };
-  const seatStr = String(seat);
-  const alreadySelected = currentBusData.selectedSeats.includes(seatStr);
+    const { bookedSeats: unavailable = [] } =
+      availability[availabilityKey] || {
+        bookedSeats: [],
+      };
+    const seatStr = String(seat);
+    const alreadySelected = currentBusData.selectedSeats.includes(seatStr);
 
-  // prevent toggling while this seat is in-flight
-  const lkKey = `${busKey}-${seatStr}`;
-  if (locking[lkKey]) return;
+    // prevent toggling while this seat is in-flight
+    const lkKey = `${busKey}-${seatStr}`;
+    if (locking[lkKey]) return;
 
-  if (!alreadySelected && unavailable.includes(seatStr)) return;
+    if (!alreadySelected && unavailable.includes(seatStr)) return;
 
-  // UNSELECT (optimistic)
-  if (alreadySelected) {
-    setBusSpecificBookingData((prev) => ({
-      ...prev,
-      [busKey]: {
-        ...prev[busKey],
-        selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
-        seatGenders: Object.fromEntries(
-          Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
-        ),
-      },
-    }));
-    // Fire-and-forget release
-    releaseSeats(bus, [seatStr]).catch(() => {});
-    return;
-  }
-
-  // SELECT (optimistic)
-  if (currentBusData.selectedSeats.length >= 4) {
-    toast.error("🚫 You can select a maximum of 4 seats.");
-    return;
-  }
-
-  setBusSpecificBookingData((prev) => ({
-    ...prev,
-    [busKey]: {
-      ...prev[busKey],
-      selectedSeats: [...prev[busKey].selectedSeats, seatStr],
-      seatGenders: {
-        ...prev[busKey].seatGenders,
-        [seatStr]: prev[busKey].seatGenders[seatStr] || "M",
-      },
-    },
-  }));
-
-  setLocking((v) => ({ ...v, [lkKey]: true }));
-  try {
-    const resp = await lockSeat(bus, seatStr);
-    if (!resp?.ok) {
-      // revert on failure
+    // UNSELECT (optimistic)
+    if (alreadySelected) {
       setBusSpecificBookingData((prev) => ({
         ...prev,
         [busKey]: {
@@ -1517,166 +1483,205 @@ const handleSeatToggle = async (bus, seat) => {
           ),
         },
       }));
-      toast.error("Sorry, that seat was just locked by another user.");
+      // Fire-and-forget release
+      releaseSeats(bus, [seatStr]).catch(() => {});
+      return;
     }
-  } catch (e) {
-    // revert on error
+
+    // SELECT (optimistic)
+    if (currentBusData.selectedSeats.length >= 4) {
+      toast.error("🚫 You can select a maximum of 4 seats.");
+      return;
+    }
+
     setBusSpecificBookingData((prev) => ({
       ...prev,
       [busKey]: {
         ...prev[busKey],
-        selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
-        seatGenders: Object.fromEntries(
-          Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
-        ),
+        selectedSeats: [...prev[busKey].selectedSeats, seatStr],
+        seatGenders: {
+          ...prev[busKey].seatGenders,
+          [seatStr]: prev[busKey].seatGenders[seatStr] || "M",
+        },
       },
     }));
-    toast.error("Seat lock failed. Please try again.");
-  } finally {
-    setLocking((v) => {
-      const c = { ...v };
-      delete c[lkKey];
-      return c;
-    });
-  }
-};
 
-const handleBoardingPointSelect = (bus, point) => {
-  const busKey = `${bus._id}-${bus.departureTime}`;
-  setBusSpecificBookingData((prev) => ({
-    ...prev,
-    [busKey]: { ...prev[busKey], selectedBoardingPoint: point },
-  }));
-};
-
-const handleDroppingPointSelect = (bus, point) => {
-  const busKey = `${bus._id}-${bus.departureTime}`;
-  setBusSpecificBookingData((prev) => ({
-    ...prev,
-    [busKey]: { ...prev[busKey], selectedDroppingPoint: point },
-  }));
-};
-
-/* -------- Price calculation -------- */
-useEffect(() => {
-  if (!expandedBusId || !buses.length) return;
-
-  const lastDash = expandedBusId.lastIndexOf("-");
-  const currentBusId =
-    lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
-  const currentBusTime =
-    lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
-
-  const currentBus = buses.find(
-    (b) => b._id === currentBusId && b.departureTime === currentBusTime
-  );
-  const busData = busSpecificBookingData[expandedBusId];
-
-  if (!currentBus || !busData) return;
-
-  const { selectedSeats, selectedBoardingPoint, selectedDroppingPoint } =
-    busData;
-
-  let pricePerSeat = currentBus.price;
-  if (
-    selectedBoardingPoint &&
-    selectedDroppingPoint &&
-    currentBus.fares &&
-    Array.isArray(currentBus.fares)
-  ) {
-    const specificFare = currentBus.fares.find(
-      (f) =>
-        f.boardingPoint === selectedBoardingPoint.point &&
-        f.droppingPoint === selectedDroppingPoint.point
-    );
-    if (specificFare) {
-      pricePerSeat = specificFare.price;
+    setLocking((v) => ({ ...v, [lkKey]: true }));
+    try {
+      const resp = await lockSeat(bus, seatStr);
+      if (!resp?.ok) {
+        // revert on failure
+        setBusSpecificBookingData((prev) => ({
+          ...prev,
+          [busKey]: {
+            ...prev[busKey],
+            selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+            seatGenders: Object.fromEntries(
+              Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+            ),
+          },
+        }));
+        toast.error("Sorry, that seat was just locked by another user.");
+      }
+    } catch (e) {
+      // revert on error
+      setBusSpecificBookingData((prev) => ({
+        ...prev,
+        [busKey]: {
+          ...prev[busKey],
+          selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+          seatGenders: Object.fromEntries(
+            Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+          ),
+        },
+      }));
+      toast.error("Seat lock failed. Please try again.");
+    } finally {
+      setLocking((v) => {
+        const c = { ...v };
+        delete c[lkKey];
+        return c;
+      });
     }
-  }
+  };
 
-  const basePrice = pricePerSeat * selectedSeats.length;
-  let convenienceFeeValue = 0;
-
-  if (currentBus.convenienceFee) {
-    if (currentBus.convenienceFee.amountType === "percentage") {
-      convenienceFeeValue = (basePrice * currentBus.convenienceFee.value) / 100;
-    } else {
-      convenienceFeeValue =
-        currentBus.convenienceFee.value * selectedSeats.length;
-    }
-  }
-
-  const newTotalPrice = basePrice + convenienceFeeValue;
-
-  if (newTotalPrice !== busData.totalPrice || basePrice !== busData.basePrice) {
+  const handleBoardingPointSelect = (bus, point) => {
+    const busKey = `${bus._id}-${bus.departureTime}`;
     setBusSpecificBookingData((prev) => ({
       ...prev,
-      [expandedBusId]: {
-        ...prev[expandedBusId],
-        basePrice,
-        convenienceFee: convenienceFeeValue,
-        totalPrice: newTotalPrice,
-      },
+      [busKey]: { ...prev[busKey], selectedBoardingPoint: point },
     }));
-  }
-}, [expandedBusId, busSpecificBookingData, buses, from, to]);
+  };
 
-const handleProceedToPayment = (bus) => {
-  const busKey = `${bus._id}-${bus.departureTime}`;
-  const busData = busSpecificBookingData[busKey];
+  const handleDroppingPointSelect = (bus, point) => {
+    const busKey = `${bus._id}-${bus.departureTime}`;
+    setBusSpecificBookingData((prev) => ({
+      ...prev,
+      [busKey]: { ...prev[busKey], selectedDroppingPoint: point },
+    }));
+  };
 
-  if (!busData || !bus) {
-    toast.error("Booking data not found.");
-    return;
-  }
+  /* -------- Price calculation -------- */
+  useEffect(() => {
+    if (!expandedBusId || !buses.length) return;
 
-  const {
-    selectedSeats,
-    basePrice,
-    convenienceFee,
-    totalPrice,
-    selectedBoardingPoint,
-    selectedDroppingPoint,
-    seatGenders,
-  } = busData;
+    const lastDash = expandedBusId.lastIndexOf("-");
+    const currentBusId =
+      lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+    const currentBusTime =
+      lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
 
-  if (selectedSeats.length === 0) {
-    toast.error("Please select at least one seat!");
-    return;
-  }
-  if (!selectedBoardingPoint || !selectedDroppingPoint) {
-    toast.error("Please select a boarding and dropping point!");
-    return;
-  }
-  if (totalPrice <= 0 && selectedSeats.length > 0) {
-    toast.error("Price could not be determined. Please re-select points.");
-    return;
-  }
+    const currentBus = buses.find(
+      (b) => b._id === currentBusId && b.departureTime === currentBusTime
+    );
+    const busData = busSpecificBookingData[expandedBusId];
 
-  // 👉 tell unmount cleanup not to release seats during handoff
-  sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+    if (!currentBus || !busData) return;
 
-  navigate("/confirm-booking", {
-    state: {
-      bus,
-      busId: bus._id,
-      date: searchDateParam,
-      departureTime: bus.departureTime,
+    const { selectedSeats, selectedBoardingPoint, selectedDroppingPoint } =
+      busData;
+
+    let pricePerSeat = currentBus.price;
+    if (
+      selectedBoardingPoint &&
+      selectedDroppingPoint &&
+      currentBus.fares &&
+      Array.isArray(currentBus.fares)
+    ) {
+      const specificFare = currentBus.fares.find(
+        (f) =>
+          f.boardingPoint === selectedBoardingPoint.point &&
+          f.droppingPoint === selectedDroppingPoint.point
+      );
+      if (specificFare) {
+        pricePerSeat = specificFare.price;
+      }
+    }
+
+    const basePrice = pricePerSeat * selectedSeats.length;
+    let convenienceFeeValue = 0;
+
+    if (currentBus.convenienceFee) {
+      if (currentBus.convenienceFee.amountType === "percentage") {
+        convenienceFeeValue = (basePrice * currentBus.convenienceFee.value) / 100;
+      } else {
+        convenienceFeeValue =
+          currentBus.convenienceFee.value * selectedSeats.length;
+      }
+    }
+
+    const newTotalPrice = basePrice + convenienceFeeValue;
+
+    if (newTotalPrice !== busData.totalPrice || basePrice !== busData.basePrice) {
+      setBusSpecificBookingData((prev) => ({
+        ...prev,
+        [expandedBusId]: {
+          ...prev[expandedBusId],
+          basePrice,
+          convenienceFee: convenienceFeeValue,
+          totalPrice: newTotalPrice,
+        },
+      }));
+    }
+  }, [expandedBusId, busSpecificBookingData, buses, from, to]);
+
+  const handleProceedToPayment = (bus) => {
+    const busKey = `${bus._id}-${bus.departureTime}`;
+    const busData = busSpecificBookingData[busKey];
+
+    if (!busData || !bus) {
+      toast.error("Booking data not found.");
+      return;
+    }
+
+    const {
       selectedSeats,
-      seatGenders: seatGenders || {},
-      priceDetails: {
-        basePrice,
-        convenienceFee,
-        totalPrice,
-      },
+      basePrice,
+      convenienceFee,
+      totalPrice,
       selectedBoardingPoint,
       selectedDroppingPoint,
-      clientId: getClientId(), // ✅ pass same id to confirm page
-    },
-  });
-};
+      seatGenders,
+    } = busData;
 
-/* ---------------- Mobile bottom sheet (portaled) ---------------- */
+    if (selectedSeats.length === 0) {
+      toast.error("Please select at least one seat!");
+      return;
+    }
+    if (!selectedBoardingPoint || !selectedDroppingPoint) {
+      toast.error("Please select a boarding and dropping point!");
+      return;
+    }
+    if (totalPrice <= 0 && selectedSeats.length > 0) {
+      toast.error("Price could not be determined. Please re-select points.");
+      return;
+    }
+
+    // 👉 tell unmount cleanup not to release seats during handoff
+    sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+
+    navigate("/confirm-booking", {
+      state: {
+        bus,
+        busId: bus._id,
+        date: searchDateParam,
+        departureTime: bus.departureTime,
+        selectedSeats,
+        seatGenders: seatGenders || {},
+        priceDetails: {
+          basePrice,
+          convenienceFee,
+          totalPrice,
+        },
+        selectedBoardingPoint,
+        selectedDroppingPoint,
+        clientId: getClientId(), // ✅ pass same id to confirm page
+      },
+    });
+  };
+
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
 /* ---------------- Mobile bottom sheet (portaled) ---------------- */
 /* ---------------- Mobile bottom sheet (portaled) ---------------- */
  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
@@ -1733,7 +1738,7 @@ const MobileBottomSheet = () => {
         key={`mobile-sheet-${expandedBusId}`}
         className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white overscroll-contain"
         style={{
-          touchAction: "none",
+          touchAction: "auto",
           willChange: "opacity, transform",
           transform: "translateZ(0)",
           backfaceVisibility: "hidden",
@@ -2423,358 +2428,336 @@ const renderMainContent = () => {
       );
     }
     return <NoResultsMessage />;
-  };
+  }
+};
 
-  const filterPanelTopOffset = useMemo(() => {
-    const buffer = 16;
-    return searchCardStickyTopOffset + stickySearchCardOwnHeight + buffer;
-  }, [searchCardStickyTopOffset, stickySearchCardOwnHeight]);
+const filterPanelTopOffset = useMemo(() => {
+  const buffer = 16;
+  return searchCardStickyTopOffset + stickySearchCardOwnHeight + buffer;
+}, [searchCardStickyTopOffset, stickySearchCardOwnHeight]);
 
-  return (
-    <div className="flex flex-col min-h-screen font-sans">
-      <Toaster position="top-right" />
+return (
+  <div className="flex flex-col min-h-screen font-sans">
+    <Toaster position="top-right" />
 
-      {/* HEADER */}
-      <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          {/* Mobile header */}
-          <div className="block lg:hidden">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => navigate(-1)}
-                className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-                aria-label="Go back"
-              >
-                <FaChevronLeft className="text-xl" />
-              </button>
+    {/* HEADER */}
+    <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        {/* Mobile header */}
+        <div className="block lg:hidden">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => navigate(-1)}
+              className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+              aria-label="Go back"
+            >
+              <FaChevronLeft className="text-xl" />
+            </button>
 
-              <button
-                onClick={handleMobileDateChipClick}
-                className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
-                aria-label="Change date"
-                style={{
-                  background: PALETTE.datePillBg,
-                  borderColor: "#FCEFC7",
-                }}
-              >
-                <span className="text-sm font-semibold leading-none">
-                  {getMobileDateParts(searchDate).top}
-                </span>
-                <span className="text-[10px] text-gray-600 leading-none mt-0.5">
-                  {getMobileDateParts(searchDate).bottom}
-                </span>
-              </button>
-            </div>
-
-            <div className="mt-2">
-              <h1
-                className="text-2xl font-bold tracking-tight"
-                style={{ color: PALETTE.textDark }}
-              >
-                {from} <span className="mx-1.5">→</span> {to}
-              </h1>
-              {!loading && !fetchError && (
-                <p className="text-xs text-gray-500 mt-0.5">
-                  {sortedBuses.length} buses
-                </p>
-              )}
-            </div>
-
-            <div className="mt-2 text-[11px] text-gray-500">
-              Bus Ticket <span className="mx-1 text-gray-400">›</span>
-              {from} to {to} Bus
-            </div>
-
-            <input
-              ref={mobileDateInputRef}
-              type="date"
-              value={searchDate}
-              min={todayStr}
-              onChange={handleMobileDateChange}
-              className="absolute opacity-0 pointer-events-none"
-              aria-hidden="true"
-              tabIndex={-1}
-            />
+            <button
+              onClick={handleMobileDateChipClick}
+              className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
+              aria-label="Change date"
+              style={{
+                background: PALETTE.datePillBg,
+                borderColor: "#FCEFC7",
+              }}
+            >
+              <span className="text-sm font-semibold leading-none">
+                {getMobileDateParts(searchDate).top}
+              </span>
+              <span className="text-[10px] text-gray-600 leading-none mt-0.5">
+                {getMobileDateParts(searchDate).bottom}
+              </span>
+            </button>
           </div>
 
-          {/* Desktop header */}
-          <div className="hidden lg:block">
-            <div className="flex items-center mb-2">
-              <FaChevronLeft
-                className="text-xl mr-2 cursor-pointer"
-                onClick={() => navigate("/")}
-              />
-              <span
-                className="text-sm font-medium"
-                style={{ color: PALETTE.textLight }}
-              >
-                Bus Ticket
-              </span>
-              <span className="mx-1 text-gray-400 text-sm">&gt;</span>
-              <span
-                className="text-sm font-medium"
-                style={{ color: PALETTE.textLight }}
-              >
-                {from} to {to} Bus
-              </span>
-            </div>
+          <div className="mt-2">
             <h1
-              className="text-2xl font-bold"
+              className="text-2xl font-bold tracking-tight"
               style={{ color: PALETTE.textDark }}
             >
-              {from}{" "}
-              <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
+              {from} <span className="mx-1.5">→</span> {to}
             </h1>
             {!loading && !fetchError && (
-              <p className="text-sm text-gray-500 mb-4">
+              <p className="text-xs text-gray-500 mt-0.5">
                 {sortedBuses.length} buses
               </p>
             )}
           </div>
+
+          <div className="mt-2 text-[11px] text-gray-500">
+            Bus Ticket <span className="mx-1 text-gray-400">›</span>
+            {from} to {to} Bus
+          </div>
+
+          <input
+            ref={mobileDateInputRef}
+            type="date"
+            value={searchDate}
+            min={todayStr}
+            onChange={handleMobileDateChange}
+            className="absolute opacity-0 pointer-events-none"
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+        </div>
+
+        {/* Desktop header */}
+        <div className="hidden lg:block">
+          <div className="flex items-center mb-2">
+            <FaChevronLeft
+              className="text-xl mr-2 cursor-pointer"
+              onClick={() => navigate("/")}
+            />
+            <span
+              className="text-sm font-medium"
+              style={{ color: PALETTE.textLight }}
+            >
+              Bus Ticket
+            </span>
+            <span className="mx-1 text-gray-400 text-sm">&gt;</span>
+            <span
+              className="text-sm font-medium"
+              style={{ color: PALETTE.textLight }}
+            >
+              {from} to {to} Bus
+            </span>
+          </div>
+          <h1
+            className="text-2xl font-bold"
+            style={{ color: PALETTE.textDark }}
+          >
+            {from}{" "}
+            <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
+          </h1>
+          {!loading && !fetchError && (
+            <p className="text-sm text-gray-500 mb-4">
+              {sortedBuses.length} buses
+            </p>
+          )}
         </div>
       </div>
+    </div>
 
-      {/* Sticky search controls (desktop) */}
-      <div
-        ref={stickySearchCardRef}
-        className={`${
-          !isNavbarAnimating ? "sticky" : ""
-        } z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
-        style={{
-          top: `${searchCardStickyTopOffset}px`,
-          backgroundColor: `${PALETTE.white}F2`,
-          transition: "top 0.3s ease-in-out",
-        }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-          <div className="bg-white border border-gray-300 rounded-3xl">
-            <div className="hidden lg:flex rounded-2xl">
-              <div
-                className="relative flex-1 p-4 flex items-center border-r"
-                style={{ borderColor: PALETTE.borderLight }}
-              >
-                <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
-                <div className="w-full">
-                  <label
-                    className="block text-xs font-medium uppercase tracking-wider"
-                    style={{ color: PALETTE.textLight }}
-                  >
-                    From
-                  </label>
-                  <Select
-                    options={fromOptions}
-                    value={
-                      searchFrom
-                        ? { value: searchFrom, label: searchFrom }
-                        : null
-                    }
-                    onChange={(s) => setSearchFrom(s?.value || "")}
-                    placeholder="Select departure"
-                    isClearable
-                    styles={selectStyles}
-                    menuPortalTarget={document.body}
-                    components={{
-                      DropdownIndicator: () => null,
-                      IndicatorSeparator: () => null,
-                    }}
-                  />
-                </div>
-                <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 z-20">
-                  <motion.button
-                    whileHover={{ scale: 1.1, rotate: 180 }}
-                    whileTap={{ scale: 0.9 }}
-                    className="bg-white p-2 rounded-full shadow-lg"
-                    style={{ border: `2px solid ${PALETTE.borderLight}` }}
-                    title="Swap locations"
-                    onClick={swapLocations}
-                  >
-                    <FaExchangeAlt style={{ color: PALETTE.textLight }} />
-                  </motion.button>
-                </div>
-              </div>
-              <div
-                className="flex-1 p-4 flex items-center border-r"
-                style={{ borderColor: PALETTE.borderLight }}
-              >
-                <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
-                <div className="w-full">
-                  <label
-                    className="block text-xs font-medium uppercase tracking-wider"
-                    style={{ color: PALETTE.textLight }}
-                  >
-                    To
-                  </label>
-                  <Select
-                    options={toOptions}
-                    value={
-                      searchTo ? { value: searchTo, label: searchTo } : null
-                    }
-                    onChange={(s) => setSearchTo(s?.value || "")}
-                    placeholder="Select destination"
-                    isClearable
-                    styles={selectStyles}
-                    menuPortalTarget={document.body}
-                    components={{
-                      DropdownIndicator: () => null,
-                      IndicatorSeparator: () => null,
-                    }}
-                  />
-                </div>
-              </div>
-              <div className="flex-1 p-4 flex items-center">
-                <FaCalendarAlt className="text-gray-400 mr-4 text-xl shrink-0" />
-                <div className="w-full">
-                  <label
-                    className="block text-xs font-medium uppercase tracking-wider"
-                    style={{ color: PALETTE.textLight }}
-                  >
-                    Date of Journey
-                  </label>
-                  <div
-                    onClick={handleDateContainerClick}
-                    className="cursor-pointer"
-                  >
-                    <span
-                      className="text-lg font-medium"
-                      style={{ color: PALETTE.textDark }}
-                    >
-                      {getReadableDate(searchDate)}
-                    </span>
-                  </div>
-                  <div className="mt-1">
-                    <button
-                      onClick={() => setSearchDate(todayStr)}
-                      className="text-xs font-medium mr-3 hover:underline"
-                      style={{
-                        color:
-                          searchDate === todayStr
-                            ? PALETTE.primaryRed
-                            : PALETTE.accentBlue,
-                      }}
-                    >
-                      Today
-                    </button>
-                    <button
-                      onClick={() => setSearchDate(tomorrowStr)}
-                      className="text-xs font-medium hover:underline"
-                      style={{
-                        color:
-                          searchDate === tomorrowStr
-                            ? PALETTE.primaryRed
-                            : PALETTE.accentBlue,
-                      }}
-                    >
-                      Tomorrow
-                    </button>
-                  </div>
-                </div>
-                <input
-                  ref={dateInputRef}
-                  type="date"
-                  value={searchDate}
-                  onChange={(e) => setSearchDate(e.target.value)}
-                  min={todayStr}
-                  className="absolute opacity-0 pointer-events-none"
+    {/* Sticky search controls (desktop) */}
+    <div
+      ref={stickySearchCardRef}
+      className={`${!isNavbarAnimating ? "sticky" : ""} z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
+      style={{
+        top: `${searchCardStickyTopOffset}px`,
+        backgroundColor: `${PALETTE.white}F2`,
+        transition: "top 0.3s ease-in-out",
+      }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div className="bg-white border border-gray-300 rounded-3xl">
+          <div className="hidden lg:flex rounded-2xl">
+            <div
+              className="relative flex-1 p-4 flex items-center border-r"
+              style={{ borderColor: PALETTE.borderLight }}
+            >
+              <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
+              <div className="w-full">
+                <label
+                  className="block text-xs font-medium uppercase tracking-wider"
+                  style={{ color: PALETTE.textLight }}
+                >
+                  From
+                </label>
+                <Select
+                  options={fromOptions}
+                  value={searchFrom ? { value: searchFrom, label: searchFrom } : null}
+                  onChange={(s) => setSearchFrom(s?.value || "")}
+                  placeholder="Select departure"
+                  isClearable
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                  components={{
+                    DropdownIndicator: () => null,
+                    IndicatorSeparator: () => null,
+                  }}
                 />
               </div>
-              <div className="p-3 flex items-center">
+              <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 z-20">
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={handleModifySearch}
-                  className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-bold tracking-wider px-8 py-3 rounded-xl shadow-lg"
-                  style={{ backgroundColor: PALETTE.primaryRed }}
+                  whileHover={{ scale: 1.1, rotate: 180 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="bg-white p-2 rounded-full shadow-lg"
+                  style={{ border: `2px solid ${PALETTE.borderLight}` }}
+                  title="Swap locations"
+                  onClick={swapLocations}
                 >
-                  <FaSearch /> SEARCH
+                  <FaExchangeAlt style={{ color: PALETTE.textLight }} />
                 </motion.button>
               </div>
+            </div>
+            <div
+              className="flex-1 p-4 flex items-center border-r"
+              style={{ borderColor: PALETTE.borderLight }}
+            >
+              <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
+              <div className="w-full">
+                <label
+                  className="block text-xs font-medium uppercase tracking-wider"
+                  style={{ color: PALETTE.textLight }}
+                >
+                  To
+                </label>
+                <Select
+                  options={toOptions}
+                  value={searchTo ? { value: searchTo, label: searchTo } : null}
+                  onChange={(s) => setSearchTo(s?.value || "")}
+                  placeholder="Select destination"
+                  isClearable
+                  styles={selectStyles}
+                  menuPortalTarget={document.body}
+                  components={{
+                    DropdownIndicator: () => null,
+                    IndicatorSeparator: () => null,
+                  }}
+                />
+              </div>
+            </div>
+            <div className="flex-1 p-4 flex items-center">
+              <FaCalendarAlt className="text-gray-400 mr-4 text-xl shrink-0" />
+              <div className="w-full">
+                <label
+                  className="block text-xs font-medium uppercase tracking-wider"
+                  style={{ color: PALETTE.textLight }}
+                >
+                  Date of Journey
+                </label>
+                <div onClick={handleDateContainerClick} className="cursor-pointer">
+                  <span
+                    className="text-lg font-medium"
+                    style={{ color: PALETTE.textDark }}
+                  >
+                    {getReadableDate(searchDate)}
+                  </span>
+                </div>
+                <div className="mt-1">
+                  <button
+                    onClick={() => setSearchDate(todayStr)}
+                    className="text-xs font-medium mr-3 hover:underline"
+                    style={{
+                      color: searchDate === todayStr ? PALETTE.primaryRed : PALETTE.accentBlue,
+                    }}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => setSearchDate(tomorrowStr)}
+                    className="text-xs font-medium hover:underline"
+                    style={{
+                      color:
+                        searchDate === tomorrowStr
+                          ? PALETTE.primaryRed
+                          : PALETTE.accentBlue,
+                    }}
+                  >
+                    Tomorrow
+                  </button>
+                </div>
+              </div>
+              <input
+                ref={dateInputRef}
+                type="date"
+                value={searchDate}
+                onChange={(e) => setSearchDate(e.target.value)}
+                min={todayStr}
+                className="absolute opacity-0 pointer-events-none"
+              />
+            </div>
+            <div className="p-3 flex items-center">
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={handleModifySearch}
+                className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-bold tracking-wider px-8 py-3 rounded-xl shadow-lg"
+                style={{ backgroundColor: PALETTE.primaryRed }}
+              >
+                <FaSearch /> SEARCH
+              </motion.button>
             </div>
           </div>
         </div>
       </div>
+    </div>
 
-      {/* Content */}
-      <div
-        className="flex-1 w-full pb-8"
-        style={{ backgroundColor: PALETTE.bgLight }}
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
-            <aside
-              className={`hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 ${
-                !isNavbarAnimating ? "sticky" : ""
-              }`}
-              style={{
-                top: `${filterPanelTopOffset}px`,
-                zIndex: 20,
-                transition: "top 0.3s ease-in-out",
-              }}
+    {/* Content */}
+    <div
+      className="flex-1 w-full pb-8"
+      style={{ backgroundColor: PALETTE.bgLight }}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+        <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
+          <aside
+            className={`hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 ${
+              !isNavbarAnimating ? "sticky" : ""
+            }`}
+            style={{
+              top: `${filterPanelTopOffset}px`,
+              zIndex: 20,
+              transition: "top 0.3s ease-in-out",
+            }}
+          >
+            <FilterPanel isMobile={false} sortBy={sortBy} setSortBy={setSortBy} />
+          </aside>
+          <main className="lg:col-span-3 space-y-5">
+            <SpecialNoticesSection />
+
+            {/* Mobile drawer button */}
+            <button
+              onClick={() => setIsFilterOpen(true)}
+              className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg lg:hidden text-white"
+              style={{ backgroundColor: PALETTE.accentBlue }}
             >
-              <FilterPanel
-                isMobile={false}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-              />
-            </aside>
-            <main className="lg:col-span-3 space-y-5">
-              <SpecialNoticesSection />
+              <FaSlidersH /> Show Filters &amp; Sort
+              {activeFilterCount > 0 && (
+                <span className="flex items-center justify-center w-5 h-5 text-xs text-white bg-red-500 rounded-full">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
 
-              {/* Mobile drawer button */}
-              <button
-                onClick={() => setIsFilterOpen(true)}
-                className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg lg:hidden text-white"
-                style={{ backgroundColor: PALETTE.accentBlue }}
-              >
-                <FaSlidersH /> Show Filters &amp; Sort
-                {activeFilterCount > 0 && (
-                  <span className="flex items-center justify-center w-5 h-5 text-xs text-white bg-red-500 rounded-full">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-
-              <AnimatePresence>{renderMainContent()}</AnimatePresence>
-            </main>
-          </div>
+            <AnimatePresence>{renderMainContent()}</AnimatePresence>
+          </main>
         </div>
       </div>
-
-      {/* Mobile filter drawer */}
-      <AnimatePresence>
-        {isFilterOpen && (
-          <>
-            <motion.button
-              type="button"
-              aria-label="Close filters"
-              onClick={() => setIsFilterOpen(false)}
-              className="fixed inset-0 bg-black/40 z-50 lg:hidden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            />
-            <motion.div
-              className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 lg:hidden overflow-y-auto rounded-r-2xl shadow-xl"
-              variants={drawerVariants}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-            >
-              <FilterPanel
-                isMobile={true}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-              />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Global mobile full-page flow */}
-      <MobileBottomSheet />
     </div>
-  );
+
+    {/* Mobile filter drawer */}
+    <AnimatePresence>
+      {isFilterOpen && (
+        <>
+          <motion.button
+            type="button"
+            aria-label="Close filters"
+            onClick={() => setIsFilterOpen(false)}
+            className="fixed inset-0 bg-black/40 z-50 lg:hidden"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          />
+          <motion.div
+            className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 lg:hidden overflow-y-auto rounded-r-2xl shadow-xl"
+            variants={drawerVariants}
+            initial="hidden"
+            animate="visible"
+            exit="hidden"
+          >
+            <FilterPanel isMobile={true} sortBy={sortBy} setSortBy={setSortBy} />
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+
+    {/* Global mobile full-page flow */}
+    <MobileBottomSheet />
+  </div>
+);
+
 };
 
 export default SearchResults;
-
-                    
