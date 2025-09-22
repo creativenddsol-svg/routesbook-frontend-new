@@ -18,15 +18,7 @@ const PALETTE = {
 };
 
 /* ---------- Single Seat (thumb-friendly) ---------- */
-const Seat = ({
-  seat,
-  isBooked,
-  isLocked,
-  isSelected,
-  gender,
-  onClick,
-  title,
-}) => {
+const Seat = ({ seat, isBooked, isLocked, isSelected, gender, onClick, title }) => {
   const innerSeatClasses = isBooked
     ? gender === "F"
       ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed"
@@ -101,13 +93,11 @@ const SeatLayout = ({
       if (idx !== -1) {
         if (idx > 0 && row[idx - 1] !== null) {
           const neighborSeat = String(row[idx - 1]);
-          if (bookedSeatGenders[neighborSeat])
-            return bookedSeatGenders[neighborSeat];
+          if (bookedSeatGenders[neighborSeat]) return bookedSeatGenders[neighborSeat];
         }
         if (idx < row.length - 1 && row[idx + 1] !== null) {
           const neighborSeat = String(row[idx + 1]);
-          if (bookedSeatGenders[neighborSeat])
-            return bookedSeatGenders[neighborSeat];
+          if (bookedSeatGenders[neighborSeat]) return bookedSeatGenders[neighborSeat];
         }
         return null;
       }
@@ -133,38 +123,21 @@ const SeatLayout = ({
 
   const renderLayout = (layoutGrid) =>
     layoutGrid.map((row, rowIndex) => (
-      <div
-        key={`row-${rowIndex}`}
-        className="flex justify-center items-center gap-x-2 sm:gap-x-2"
-      >
+      <div key={`row-${rowIndex}`} className="flex justify-center items-center gap-x-2 sm:gap-x-2">
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
-            return (
-              <div
-                key={`aisle-${rowIndex}-${i}`}
-                className="w-4 h-12 sm:w-6 sm:h-10"
-              />
-            );
+            return <div key={`aisle-${rowIndex}-${i}`} className="w-4 h-12 sm:w-6 sm:h-10" />;
           }
           const seat = String(seatNumber);
           if (!seatLayout.includes(seat)) {
-            return (
-              <div key={`placeholder-${seat}`} className="w-12 h-12 sm:w-10 sm:h-10" />
-            );
+            return <div key={`placeholder-${seat}`} className="w-12 h-12 sm:w-10 sm:h-10" />;
           }
 
           const seatStatus = getSeatStatus(seat);
           let tooltipTitle = "";
-          if (
-            !seatStatus.isBooked &&
-            !seatStatus.isLocked &&
-            !seatStatus.isSelected
-          ) {
+          if (!seatStatus.isBooked && !seatStatus.isLocked && !seatStatus.isSelected) {
             const adj = getAdjacentSeatInfo(seatNumber, layoutGrid);
-            if (adj)
-              tooltipTitle = `Adjacent seat booked by a ${
-                adj === "F" ? "Female" : "Male"
-              }`;
+            if (adj) tooltipTitle = `Adjacent seat booked by a ${adj === "F" ? "Female" : "Male"}`;
           }
 
           return (
@@ -180,46 +153,38 @@ const SeatLayout = ({
       </div>
     ));
 
-  /* ---------- ONLY MOBILE tweak for 37-seater last row alignment ---------- */
-  const isMobile =
-    typeof window !== "undefined" && window.innerWidth < 640; // Tailwind sm breakpoint
-
   const getLayoutGrid = () => {
     if (is49Seater) {
       const grid = [];
       for (let i = 0; i < 11; i++) {
         grid.push([i * 4 + 1, i * 4 + 2, null, i * 4 + 3, i * 4 + 4]);
       }
+      // rear five
       grid.push([45, 46, 47, 48, 49]);
       return grid;
     }
+
     if (is37Seater) {
-      // Standard rows (2 | aisle | 2)
+      // 2 | aisle | 2 rows (keeps columns aligned throughout)
       const base = [
-        [1, 2, null, 3, 4],
-        [5, 6, null, 7, 8],
-        [9, 10, null, 11, 12],
+        [1, 2,   null, 3,  4],
+        [5, 6,   null, 7,  8],
+        [9, 10,  null, 11, 12],
         [13, 14, null, 15, 16],
         [17, 18, null, 19, 20],
         [21, 22, null, 23, 24],
         [25, 26, null, 27, 28],
         [29, 30, null, 31, 32],
       ];
-
-      if (isMobile) {
-        // MOBILE ONLY:
-        // Align columns with the rows above:
-        // [33,34 | aisle | 36,37] and put 35 centered under the aisle.
-        return [
-          ...base,
-          [33, 34, null, 36, 37],
-          [null, null, 35, null, null],
-        ];
-      }
-
-      // Desktop/original: 5 across
-      return [...base, [33, 34, 35, 36, 37]];
+      // Requested rear alignment:
+      // [33,34 | aisle | 36,37] with 35 centered beneath (same column index as aisle)
+      return [
+        ...base,
+        [33, 34, null, 36, 37],
+        [null, null, 35,  null, null],
+      ];
     }
+
     return [];
   };
 
