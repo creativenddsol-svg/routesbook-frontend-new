@@ -2,25 +2,10 @@
 import React from "react";
 import { FaMale, FaFemale } from "react-icons/fa";
 
-/* Minimal pill */
-const Pill = ({ children }) => (
+/* Small square "seat" */
+const SeatSquare = ({ className, children }) => (
   <div
-    className="
-      inline-flex items-center justify-center gap-1
-      px-2 py-0.5 rounded-full
-      text-[10px] sm:text-xs leading-none
-      border border-transparent bg-transparent
-      min-w-0
-    "
-  >
-    {children}
-  </div>
-);
-
-/* Seat square */
-const SquareSeat = ({ className, children }) => (
-  <div
-    className={`w-4 h-4 sm:w-5 sm:h-5 rounded-[6px] flex items-center justify-center shrink-0 ${className}`}
+    className={`w-4 h-4 sm:w-[18px] sm:h-[18px] rounded-[6px] flex items-center justify-center ${className}`}
   >
     {children}
   </div>
@@ -28,51 +13,44 @@ const SquareSeat = ({ className, children }) => (
 
 const SeatLegend = () => {
   return (
-    <div
-      className="
-        w-full max-w-full
-        bg-white/60 border border-gray-200
-        rounded-lg p-2 sm:p-2.5
-        overflow-hidden
-      "
-    >
-      {/* Single compact row, 4 equal slots (no scrollbar, no wrap/overlay) */}
-      <div className="grid grid-cols-4 items-center gap-1 sm:gap-2">
+    <div className="w-full rounded-lg border border-gray-200/70 bg-white/60 px-2 py-1.5 sm:px-3 sm:py-2">
+      {/* Single row, equal columns, icon above text (like AbhiBus spacing) */}
+      <div className="grid grid-cols-4 items-center text-center gap-1 sm:gap-2">
         {/* Available */}
-        <Pill>
-          <SquareSeat className="bg-white border border-gray-400" />
-          <span className="text-gray-700 font-medium truncate max-w-[68px] sm:max-w-[90px]">
+        <div className="flex flex-col items-center gap-1 min-w-0">
+          <SeatSquare className="bg-white border border-gray-400" />
+          <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Available
           </span>
-        </Pill>
+        </div>
 
         {/* Female booked */}
-        <Pill>
-          <SquareSeat className="bg-[#E05B88] border border-[#D04B78] text-white">
+        <div className="flex flex-col items-center gap-1 min-w-0">
+          <SeatSquare className="bg-[#E05B88] border border-[#D04B78] text-white">
             <FaFemale className="text-[8px] sm:text-[10px]" />
-          </SquareSeat>
-          <span className="text-gray-700 font-medium truncate max-w-[68px] sm:max-w-[90px]">
+          </SeatSquare>
+          <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Female booked
           </span>
-        </Pill>
+        </div>
 
         {/* Male booked */}
-        <Pill>
-          <SquareSeat className="bg-[#6D5BD0] border border-[#5B4FCF] text-white">
+        <div className="flex flex-col items-center gap-1 min-w-0">
+          <SeatSquare className="bg-[#6D5BD0] border border-[#5B4FCF] text-white">
             <FaMale className="text-[8px] sm:text-[10px]" />
-          </SquareSeat>
-          <span className="text-gray-700 font-medium truncate max-w-[68px] sm:max-w-[90px]">
+          </SeatSquare>
+          <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Male booked
           </span>
-        </Pill>
+        </div>
 
-        {/* Booked (generic) — matches seat layout reds */}
-        <Pill>
-          <SquareSeat className="bg-[#EF4444] border border-[#DC2626]" />
-          <span className="text-gray-700 font-medium truncate max-w-[68px] sm:max-w-[90px]">
+        {/* Booked (generic) – matches seat layout reds */}
+        <div className="flex flex-col items-center gap-1 min-w-0">
+          <SeatSquare className="bg-[#EF4444] border border-[#DC2626]" />
+          <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Booked
           </span>
-        </Pill>
+        </div>
       </div>
     </div>
   );
