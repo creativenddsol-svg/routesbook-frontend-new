@@ -1684,6 +1684,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
 
+   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
@@ -2130,7 +2132,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                           <img
                             src={bus.operatorLogo}
                             alt={`${bus.name} logo`}
-                            className="max-w/full max-h-full object-contain"
+                            className="max-w-full max-h-full object-contain"
                             style={{ border: "none", boxShadow: "none" }}
                           />
                         ) : (
