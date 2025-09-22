@@ -1681,9 +1681,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-
    /* ---------------- Mobile bottom sheet (portaled) ---------------- */
 
   const selectedBus = useMemo(() => {
