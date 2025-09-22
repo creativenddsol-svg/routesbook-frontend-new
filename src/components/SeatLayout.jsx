@@ -84,8 +84,13 @@ const SeatLayout = ({
   onSeatClick,
   bookedSeatGenders,
 }) => {
-  const is49Seater = seatLayout.length === 49;
-  const is37Seater = seatLayout.length === 37;
+  // Normalize to strings once to avoid type mismatches
+  const layoutAsStrings = Array.isArray(seatLayout)
+    ? seatLayout.map(String)
+    : [];
+
+  const is49Seater = layoutAsStrings.length === 49;
+  const is37Seater = layoutAsStrings.length === 37;
 
   const getAdjacentSeatInfo = (seatNumber, layoutGrid) => {
     for (const row of layoutGrid) {
@@ -106,18 +111,19 @@ const SeatLayout = ({
   };
 
   const getSeatStatus = (seat) => {
-    const isBooked = !!bookedSeatGenders[seat];
+    const seatStr = String(seat);
+    const isBooked = !!bookedSeatGenders[seatStr];
     const isLocked =
       Array.isArray(bookedSeats) &&
-      bookedSeats.includes(seat) &&
-      !bookedSeatGenders[seat] &&
-      !selectedSeats.includes(seat);
+      bookedSeats.map(String).includes(seatStr) &&
+      !bookedSeatGenders[seatStr] &&
+      !selectedSeats.map(String).includes(seatStr);
 
     return {
       isBooked,
       isLocked,
-      isSelected: selectedSeats.includes(seat),
-      gender: isBooked ? bookedSeatGenders[seat] : null,
+      isSelected: selectedSeats.map(String).includes(seatStr),
+      gender: isBooked ? bookedSeatGenders[seatStr] : null,
     };
   };
 
@@ -136,8 +142,13 @@ const SeatLayout = ({
             );
           }
           const seat = String(seatNumber);
-          if (!seatLayout.includes(seat)) {
-            return <div key={`placeholder-${seat}`} className="w-12 h-12 sm:w-10 sm:h-10" />;
+          if (!layoutAsStrings.includes(seat)) {
+            return (
+              <div
+                key={`placeholder-${rowIndex}-${i}`}
+                className="w-12 h-12 sm:w-10 sm:h-10"
+              />
+            );
           }
 
           const seatStatus = getSeatStatus(seat);
@@ -182,7 +193,7 @@ const SeatLayout = ({
         [25, 26, null, 27, 28],
         [29, 30, null, 31, 32],
       ];
-      // Last row: five seats, with 35 in the middle column (now same width as above)
+      // Last row: five seats, center column filled (keeps column widths consistent)
       return [...base, [33, 34, 35, 36, 37]];
     }
 
@@ -248,9 +259,9 @@ const SeatLayout = ({
 };
 
 SeatLayout.propTypes = {
-  seatLayout: PropTypes.arrayOf(PropTypes.string).isRequired,
+  seatLayout: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.number])).isRequired,
   bookedSeats: PropTypes.array.isRequired,
-  selectedSeats: PropTypes.arrayOf(PropTypes.string).isRequired,
+  selectedSeats: PropTypes.arrayOf(PropTypes.oneOfType([PropTypes.string, PropTypes.number])).isRequired,
   onSeatClick: PropTypes.func.isRequired,
   bookedSeatGenders: PropTypes.object.isRequired,
 };
