@@ -17,7 +17,7 @@ const PALETTE = {
   femaleBorder: "#D04B78",
 };
 
-/* ---------- Single Seat (thumb-friendly) ---------- */
+/* ---------- Single Seat ---------- */
 const Seat = ({ seat, isBooked, isLocked, isSelected, gender, onClick, title }) => {
   const innerSeatClasses = isBooked
     ? gender === "F"
@@ -126,7 +126,14 @@ const SeatLayout = ({
       <div key={`row-${rowIndex}`} className="flex justify-center items-center gap-x-2 sm:gap-x-2">
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
-            return <div key={`aisle-${rowIndex}-${i}`} className="w-4 h-12 sm:w-6 sm:h-10" />;
+            // 🔧 Seat-sized invisible placeholder so columns stay aligned
+            return (
+              <div
+                key={`aisle-${rowIndex}-${i}`}
+                className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl"
+                style={{ opacity: 0 }}
+              />
+            );
           }
           const seat = String(seatNumber);
           if (!seatLayout.includes(seat)) {
@@ -157,6 +164,7 @@ const SeatLayout = ({
     if (is49Seater) {
       const grid = [];
       for (let i = 0; i < 11; i++) {
+        // Use seat-sized placeholder (null) in the middle position
         grid.push([i * 4 + 1, i * 4 + 2, null, i * 4 + 3, i * 4 + 4]);
       }
       grid.push([45, 46, 47, 48, 49]);
@@ -164,7 +172,6 @@ const SeatLayout = ({
     }
 
     if (is37Seater) {
-      // Keep columns aligned (2 | aisle | 2), put 35 in the center column of the same row
       const base = [
         [1, 2,   null, 3,  4],
         [5, 6,   null, 7,  8],
@@ -175,6 +182,7 @@ const SeatLayout = ({
         [25, 26, null, 27, 28],
         [29, 30, null, 31, 32],
       ];
+      // Last row: five seats, with 35 in the middle column (now same width as above)
       return [...base, [33, 34, 35, 36, 37]];
     }
 
@@ -188,7 +196,7 @@ const SeatLayout = ({
       className="p-3 sm:p-4 rounded-xl overflow-x-auto"
       style={{ background: "#FFFFFF", border: `1px solid ${PALETTE.border}` }}
     >
-      {/* Header (Front / wheel) */}
+      {/* Header */}
       <div className="relative flex justify-between items-center mb-3 sm:mb-4 px-2 sm:px-4">
         <span
           className="font-bold text-[11px] sm:text-sm uppercase tracking-wider"
@@ -228,7 +236,7 @@ const SeatLayout = ({
         )}
       </div>
 
-      {/* Footer label */}
+      {/* Footer */}
       <div
         className="font-bold text-[11px] sm:text-sm uppercase tracking-wider text-center mt-3 sm:mt-4"
         style={{ color: PALETTE.textSubtle }}
