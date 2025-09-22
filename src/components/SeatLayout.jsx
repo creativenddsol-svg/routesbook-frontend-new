@@ -22,7 +22,7 @@ const PALETTE = {
   femaleBorder: "#D04B78",
 };
 
-/* ---------- Single Seat ---------- */
+/* ---------- Single Seat (thumb-friendly) ---------- */
 const Seat = ({
   seat,
   isBooked,
@@ -32,25 +32,52 @@ const Seat = ({
   onClick,
   title,
 }) => {
-  const stateClasses = isBooked
+  const innerSeatClasses = isBooked
     ? gender === "F"
       ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed" // female booked
       : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed" // male booked
     : isLocked
     ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5] cursor-not-allowed" // LOCKED (low red)
     : isSelected
-    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] scale-105 shadow-sm cursor-pointer" // SELECTED = matte blue
-    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5] cursor-pointer"; // available + blue hover
+    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] shadow-sm" // SELECTED = matte blue
+    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5]"; // available + blue hover
+
+  const disabled = isBooked || isLocked;
 
   return (
-    <div
-      onClick={!isBooked && !isLocked ? onClick : undefined}
+    <button
+      type="button"
+      onClick={disabled ? undefined : onClick}
       title={title}
-      className={`flex items-center justify-center font-semibold border-2 rounded-lg transition-all duration-200 select-none
-        w-8 h-8 text-xs sm:w-10 sm:h-10 sm:text-sm ${stateClasses}`}
+      aria-label={`Seat ${seat}`}
+      aria-pressed={isSelected}
+      disabled={disabled}
+      /* Outer hitbox = larger tap target on mobile (48px). Desktop keeps your old density. */
+      className={`
+        relative group select-none
+        w-12 h-12 sm:w-10 sm:h-10
+        rounded-xl flex items-center justify-center
+        transition-transform duration-100
+        active:scale-95 focus-visible:outline-none
+        focus-visible:ring-2 focus-visible:ring-[#4C6EF5]/60
+        disabled:opacity-90
+      `}
+      style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {isBooked ? gender === "F" ? <FaFemale /> : <FaMale /> : seat}
-    </div>
+      {/* Visual seat slightly inset so the hitbox is bigger than the seat */}
+      <span
+        className={`
+          absolute inset-1 sm:inset-[3px]
+          border-2 rounded-lg
+          flex items-center justify-center
+          font-semibold
+          text-[11px] sm:text-xs
+          ${innerSeatClasses}
+        `}
+      >
+        {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
+      </span>
+    </button>
   );
 };
 
@@ -97,8 +124,7 @@ const SeatLayout = ({
 
   const getSeatStatus = (seat) => {
     const isBooked = !!bookedSeatGenders[seat];
-    // A seat is considered "locked (by others)" if it's in bookedSeats but has no gender mapping
-    // AND it's not one of my currently selected seats.
+    // "Locked by others" if it's in bookedSeats (no gender mapping) and not selected by me
     const isLocked =
       Array.isArray(bookedSeats) &&
       bookedSeats.includes(seat) &&
@@ -117,25 +143,21 @@ const SeatLayout = ({
     layoutGrid.map((row, rowIndex) => (
       <div
         key={`row-${rowIndex}`}
-        className="flex justify-center items-center gap-x-1 sm:gap-x-2"
+        /* Slightly wider gaps on mobile to prevent mis-taps */
+        className="flex justify-center items-center gap-x-2 sm:gap-x-2"
       >
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
             return (
               <div
                 key={`aisle-${rowIndex}-${i}`}
-                className="w-6 h-8 sm:w-10 sm:h-10"
+                className="w-4 h-12 sm:w-6 sm:h-10"
               />
             );
           }
           const seat = String(seatNumber);
           if (!seatLayout.includes(seat)) {
-            return (
-              <div
-                key={`placeholder-${seat}`}
-                className="w-8 h-8 sm:w-10 sm:h-10"
-              />
-            );
+            return <div key={`placeholder-${seat}`} className="w-12 h-12 sm:w-10 sm:h-10" />;
           }
 
           const seatStatus = getSeatStatus(seat);
@@ -194,19 +216,19 @@ const SeatLayout = ({
 
   return (
     <div
-      className="p-4 rounded-xl overflow-x-auto"
+      className="p-3 sm:p-4 rounded-xl overflow-x-auto"
       style={{ background: "#FFFFFF", border: `1px solid ${PALETTE.border}` }}
     >
       {/* Header (Front / wheel) */}
-      <div className="relative flex justify-between items-center mb-4 px-2 sm:px-4">
+      <div className="relative flex justify-between items-center mb-3 sm:mb-4 px-2 sm:px-4">
         <span
-          className="font-bold text-sm uppercase tracking-wider"
+          className="font-bold text-[11px] sm:text-sm uppercase tracking-wider"
           style={{ color: PALETTE.textSubtle }}
         >
           Front
         </span>
         <svg
-          className="w-8 h-8 sm:w-10 sm:h-10"
+          className="w-7 h-7 sm:w-10 sm:h-10"
           style={{ color: "#9CA3AF" }}
           fill="none"
           stroke="currentColor"
@@ -227,7 +249,7 @@ const SeatLayout = ({
       </div>
 
       {/* Seat grid */}
-      <div className="space-y-1 sm:space-y-2 inline-block min-w-full">
+      <div className="space-y-2 sm:space-y-2 inline-block min-w-full">
         {layoutGrid.length > 0 ? (
           renderLayout(layoutGrid)
         ) : (
@@ -239,7 +261,7 @@ const SeatLayout = ({
 
       {/* Footer label */}
       <div
-        className="font-bold text-sm uppercase tracking-wider text-center mt-4"
+        className="font-bold text-[11px] sm:text-sm uppercase tracking-wider text-center mt-3 sm:mt-4"
         style={{ color: PALETTE.textSubtle }}
       >
         Rear
