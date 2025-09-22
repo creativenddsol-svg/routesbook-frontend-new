@@ -1,4 +1,4 @@
-// src/components/SeatLayout.jsx
+// src/components/SeatLayout.jsx 
 import React from "react";
 import PropTypes from "prop-types";
 import { FaMale, FaFemale } from "react-icons/fa";
@@ -70,10 +70,10 @@ const Seat = ({
       `}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {/* Visual seat slightly inset so the hitbox is bigger than the seat */}
+      {/* Visual seat now fills the whole box (no shrink) */}
       <span
         className={`
-          absolute inset-1 sm:inset-[3px]
+          absolute inset-0
           border-2 rounded-lg
           flex items-center justify-center
           font-semibold
@@ -85,12 +85,12 @@ const Seat = ({
         {/* Seat label/icon */}
         {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
 
-        {/* --- NEW: tiny bottom bar (seat edge) --- */}
+        {/* Tiny bottom bar (seat edge) — purely visual, doesn't change size */}
         <span
           aria-hidden="true"
           className="pointer-events-none absolute left-1/2 -translate-x-1/2 rounded-md"
           style={{
-            bottom: 3, // px
+            bottom: 3,           // px
             height: 4,
             width: "62%",
             backgroundColor: barColor,
@@ -207,22 +207,19 @@ const SeatLayout = ({
       </div>
     ));
 
-  /* ---------- ONLY MOBILE tweak for 37-seater last row alignment ---------- */
-  const isMobile =
-    typeof window !== "undefined" && window.innerWidth < 640; // Tailwind sm breakpoint
-
+  /* ---------- Layout grid ---------- */
   const getLayoutGrid = () => {
     if (is49Seater) {
       const grid = [];
       for (let i = 0; i < 11; i++) {
         grid.push([i * 4 + 1, i * 4 + 2, null, i * 4 + 3, i * 4 + 4]);
       }
+      // last row with center seat (47) in the middle
       grid.push([45, 46, 47, 48, 49]);
       return grid;
     }
     if (is37Seater) {
-      // Standard rows (2 | aisle | 2)
-      const base = [
+      return [
         [1, 2, null, 3, 4],
         [5, 6, null, 7, 8],
         [9, 10, null, 11, 12],
@@ -231,21 +228,9 @@ const SeatLayout = ({
         [21, 22, null, 23, 24],
         [25, 26, null, 27, 28],
         [29, 30, null, 31, 32],
+        // last row with center seat (35) in the middle
+        [33, 34, 35, 36, 37],
       ];
-
-      if (isMobile) {
-        // MOBILE ONLY:
-        // Align columns with the rows above:
-        // [33,34 | aisle | 36,37] and put 35 centered under the aisle.
-        return [
-          ...base,
-          [33, 34, null, 36, 37],
-          [null, null, 35, null, null],
-        ];
-      }
-
-      // Desktop/original: 5 across
-      return [...base, [33, 34, 35, 36, 37]];
     }
     return [];
   };
