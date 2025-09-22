@@ -3,45 +3,45 @@ import React from "react";
 import PropTypes from "prop-types";
 import { FaMale, FaFemale } from "react-icons/fa";
 
-/* ---------- Palette ---------- */
+/* ---------- Matte palette (selected = blue) ---------- */
 const PALETTE = {
-  blue: "#4C6EF5",
+  // Selected seat
+  blue: "#4C6EF5",          // matte blue
   blueBorder: "#3F5ED8",
   blueHoverTint: "#EEF2FF",
+
+  // General UI
   border: "#E5E7EB",
   text: "#1A1A1A",
   textSubtle: "#6B7280",
-  male: "#6D5BD0",
+
+  // Booked seats
+  male: "#6D5BD0",          // violet
   maleBorder: "#5B4FCF",
-  female: "#E05B88",
+  female: "#E05B88",        // pink
   femaleBorder: "#D04B78",
-  booked: "#D1D5DB",
-  bookedBorder: "#C7CBD1",
 };
 
 /* ---------- Single Seat ---------- */
 const Seat = ({ seat, isBooked, isLocked, isSelected, gender, onClick, title }) => {
   const stateClasses = isBooked
     ? gender === "F"
-      ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed"
-      : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed"
+      ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed" // female booked
+      : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed" // male booked
     : isLocked
-    ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5] cursor-not-allowed"
+    ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5] cursor-not-allowed" // LOCKED (low red)
     : isSelected
-    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] shadow-sm cursor-pointer"
-    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5] cursor-pointer";
+    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] scale-105 shadow-sm cursor-pointer" // SELECTED = matte blue
+    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5] cursor-pointer"; // available + blue hover
 
   return (
     <div
       onClick={!isBooked && !isLocked ? onClick : undefined}
       title={title}
-      className={`flex items-center justify-center font-semibold border-2 rounded-lg transition-colors duration-150 select-none
-        w-9 h-9 text-[11px] sm:w-10 sm:h-10 sm:text-[12px]`}
-      style={{ willChange: "transform" }}
+      className={`flex items-center justify-center font-semibold border-2 rounded-lg transition-all duration-200 select-none
+        w-8 h-8 text-xs sm:w-10 sm:h-10 sm:text-sm ${stateClasses}`}
     >
-      <div className={`flex items-center justify-center w-full h-full rounded-md ${stateClasses}`}>
-        {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
-      </div>
+      {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
     </div>
   );
 };
@@ -56,60 +56,13 @@ Seat.propTypes = {
   title: PropTypes.string,
 };
 
-/* ---------- Legend chips (AbhiBus-style) ---------- */
-const LegendChips = () => {
-  const Chip = ({ children, bg, bd, fg, icon }) => (
-    <div
-      className="px-3 py-1.5 rounded-full border text-xs font-semibold inline-flex items-center gap-1.5 whitespace-nowrap"
-      style={{ background: bg, borderColor: bd, color: fg }}
-    >
-      {icon}
-      {children}
-    </div>
-  );
-
-  return (
-    <div className="flex items-center gap-2 overflow-x-auto pb-1 hide-scrollbar">
-      <Chip bg="#FFF" bd={PALETTE.border} fg={PALETTE.textSubtle}>
-        All
-      </Chip>
-      <Chip bg="#F8FAFF" bd={PALETTE.blueBorder} fg={PALETTE.blue}>
-        Available
-      </Chip>
-      <Chip
-        bg="#FFF0F4"
-        bd={PALETTE.femaleBorder}
-        fg="#C13563"
-        icon={<FaFemale className="text-[12px]" />}
-      >
-        For Female
-      </Chip>
-      <Chip
-        bg="#F2EFFE"
-        bd={PALETTE.maleBorder}
-        fg="#4E43C9"
-        icon={<FaMale className="text-[12px]" />}
-      >
-        For Male
-      </Chip>
-      <Chip bg="#FCE7EF" bd={PALETTE.femaleBorder} fg="#C13563">
-        Female booked
-      </Chip>
-      <Chip bg="#F3F4F6" bd={PALETTE.bookedBorder} fg="#6B7280">
-        Booked
-      </Chip>
-    </div>
-  );
-};
-
 /* ---------- Layout ---------- */
 const SeatLayout = ({
   seatLayout,
-  bookedSeats,
+  bookedSeats,            // kept for API compatibility (unused directly)
   selectedSeats,
   onSeatClick,
   bookedSeatGenders,
-  showLegendBar = true, // optional, defaults to true
 }) => {
   const is49Seater = seatLayout.length === 49;
   const is37Seater = seatLayout.length === 37;
@@ -134,6 +87,8 @@ const SeatLayout = ({
 
   const getSeatStatus = (seat) => {
     const isBooked = !!bookedSeatGenders[seat];
+    // A seat is considered "locked (by others)" if it's in bookedSeats but has no gender mapping
+    // AND it's not one of my currently selected seats.
     const isLocked =
       Array.isArray(bookedSeats) &&
       bookedSeats.includes(seat) &&
@@ -152,16 +107,17 @@ const SeatLayout = ({
     layoutGrid.map((row, rowIndex) => (
       <div
         key={`row-${rowIndex}`}
-        className="flex justify-center items-center gap-x-1.5 sm:gap-x-2"
-        style={{ minHeight: 40 }}
+        className="flex justify-center items-center gap-x-1 sm:gap-x-2"
       >
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
-            return <div key={`aisle-${rowIndex}-${i}`} className="w-5 sm:w-6 h-9 sm:h-10" />;
+            return (
+              <div key={`aisle-${rowIndex}-${i}`} className="w-6 h-8 sm:w-10 sm:h-10" />
+            );
           }
           const seat = String(seatNumber);
           if (!seatLayout.includes(seat)) {
-            return <div key={`placeholder-${seat}`} className="w-9 h-9 sm:w-10 sm:h-10" />;
+            return <div key={`placeholder-${seat}`} className="w-8 h-8 sm:w-10 sm:h-10" />;
           }
 
           const seatStatus = getSeatStatus(seat);
@@ -216,10 +172,10 @@ const SeatLayout = ({
       className="p-4 rounded-xl overflow-x-auto"
       style={{ background: "#FFFFFF", border: `1px solid ${PALETTE.border}` }}
     >
-      {/* Top Title/Steering (kept minimal to avoid jumps) */}
-      <div className="relative flex justify-between items-center mb-3 px-2 sm:px-4">
+      {/* Header (Front / wheel) */}
+      <div className="relative flex justify-between items-center mb-4 px-2 sm:px-4">
         <span
-          className="font-bold text-xs sm:text-sm uppercase tracking-wider"
+          className="font-bold text-sm uppercase tracking-wider"
           style={{ color: PALETTE.textSubtle }}
         >
           Front
@@ -245,19 +201,12 @@ const SeatLayout = ({
         </svg>
       </div>
 
-      {/* AbhiBus-style legend chips */}
-      {showLegendBar && (
-        <div className="mb-3 px-1">
-          <LegendChips />
-        </div>
-      )}
-
       {/* Seat grid */}
-      <div className="space-y-1.5 sm:space-y-2 inline-block min-w-full">
+      <div className="space-y-1 sm:space-y-2 inline-block min-w-full">
         {layoutGrid.length > 0 ? (
           renderLayout(layoutGrid)
         ) : (
-          <p className="text-center font-medium" style={{ color: PALETTE.blue }}>
+          <p className="text-center" style={{ color: PALETTE.blue }}>
             Unsupported seat layout.
           </p>
         )}
@@ -265,7 +214,7 @@ const SeatLayout = ({
 
       {/* Footer label */}
       <div
-        className="font-bold text-xs sm:text-sm uppercase tracking-wider text-center mt-4"
+        className="font-bold text-sm uppercase tracking-wider text-center mt-4"
         style={{ color: PALETTE.textSubtle }}
       >
         Rear
@@ -280,7 +229,6 @@ SeatLayout.propTypes = {
   selectedSeats: PropTypes.arrayOf(PropTypes.string).isRequired,
   onSeatClick: PropTypes.func.isRequired,
   bookedSeatGenders: PropTypes.object.isRequired,
-  showLegendBar: PropTypes.bool,
 };
 
 export default SeatLayout;
