@@ -1682,470 +1682,466 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-/* ---------------- Mobile bottom sheet (portaled) ---------------- */
-/* ---------------- Mobile bottom sheet (portaled) ---------------- */
- /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-/* ---------------- Mobile bottom sheet (portaled) ---------------- */
- /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-const selectedBus = useMemo(() => {
-  if (!expandedBusId) return null;
-  const lastDash = expandedBusId.lastIndexOf("-");
-  const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
-  const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
-  return buses.find((b) => b._id === id && b.departureTime === time) || null;
-}, [expandedBusId, buses]);
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
 
-const selectedAvailability = expandedBusId
-  ? availability[expandedBusId] || {}
-  : {};
+  const selectedBus = useMemo(() => {
+    if (!expandedBusId) return null;
+    const lastDash = expandedBusId.lastIndexOf("-");
+    const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+    const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
+    return buses.find((b) => b._id === id && b.departureTime === time) || null;
+  }, [expandedBusId, buses]);
 
-const selectedBookingData =
-  (expandedBusId && busSpecificBookingData[expandedBusId]) || {
-    selectedSeats: [],
-    seatGenders: {},
-    selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
-    selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
-    basePrice: 0,
-    convenienceFee: 0,
-    totalPrice: 0,
-  };
+  const selectedAvailability = expandedBusId
+    ? availability[expandedBusId] || {}
+    : {};
 
-const currentMobileStep =
-  (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
+  const selectedBookingData =
+    (expandedBusId && busSpecificBookingData[expandedBusId]) || {
+      selectedSeats: [],
+      seatGenders: {},
+      selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
+      selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+      basePrice: 0,
+      convenienceFee: 0,
+      totalPrice: 0,
+    };
 
-const setCurrentMobileStep = (n) =>
-  setMobileSheetStepByBus((prev) => ({ ...prev, [expandedBusId]: n }));
+  const currentMobileStep =
+    (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
 
-const MobileBottomSheet = () => {
-  if (!selectedBus) return null;
+  const setCurrentMobileStep = (n) =>
+    setMobileSheetStepByBus((prev) => ({ ...prev, [expandedBusId]: n }));
 
-  const inactive = "#6B7280";
-  const active = PALETTE.primaryRed;
+  const MobileBottomSheet = () => {
+    if (!selectedBus) return null;
 
-  // 🔁 ensure seat locks are released when the sheet is closed from mobile
-  const handleCloseSheet = () => {
-    const seats = busSpecificBookingData[expandedBusId]?.selectedSeats || [];
-    if (seats.length) {
-      releaseSeats(selectedBus, seats).finally(() => setExpandedBusId(null));
-    } else {
-      setExpandedBusId(null);
-    }
-  };
+    const inactive = "#6B7280";
+    const active = PALETTE.primaryRed;
 
-  return createPortal(
-    expandedBusId ? (
-      <motion.div
-        key={`mobile-sheet-${expandedBusId}`}
-        className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white overscroll-contain"
-        style={{
-          touchAction: "auto",
-          willChange: "opacity, transform",
-          transform: "translateZ(0)",
-          backfaceVisibility: "hidden",
-        }}
-        initial={false}
-        animate={{ opacity: 1 }}
-      >
-        {/* Header */}
-        <div className="pt-3 pb-2 px-4 border-b bg-white">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => {
-                if (currentMobileStep > 1) {
-                  setCurrentMobileStep(currentMobileStep - 1);
-                } else {
-                  handleCloseSheet();
-                }
-              }}
-              className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-              aria-label="Back"
-            >
-              <FaChevronLeft />
-            </button>
+    // 🔁 ensure seat locks are released when the sheet is closed from mobile
+    const handleCloseSheet = () => {
+      const seats = busSpecificBookingData[expandedBusId]?.selectedSeats || [];
+      if (seats.length) {
+        releaseSeats(selectedBus, seats).finally(() => setExpandedBusId(null));
+      } else {
+        setExpandedBusId(null);
+      }
+    };
 
-            <div className="min-w-0 px-2 text-center">
-              <h3
-                className="text-base font-semibold truncate"
-                style={{ color: PALETTE.textDark }}
+    return createPortal(
+      expandedBusId ? (
+        <motion.div
+          key={`mobile-sheet-${expandedBusId}`}
+          className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white overscroll-contain"
+          style={{
+            touchAction: "none",
+            willChange: "opacity, transform",
+            transform: "translateZ(0)",
+            backfaceVisibility: "hidden",
+          }}
+          initial={false}
+          animate={{ opacity: 1 }}
+        >
+          {/* Header */}
+          <div className="pt-3 pb-2 px-4 border-b bg-white">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => {
+                  if (currentMobileStep > 1) {
+                    setCurrentMobileStep(currentMobileStep - 1);
+                  } else {
+                    handleCloseSheet();
+                  }
+                }}
+                className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                aria-label="Back"
               >
-                {selectedBus.name}
-              </h3>
-              <p className="text-xs text-gray-500 truncate">
-                {from} → {to} • {selectedBus.departureTime}
-              </p>
+                <FaChevronLeft />
+              </button>
+
+              <div className="min-w-0 px-2 text-center">
+                <h3
+                  className="text-base font-semibold truncate"
+                  style={{ color: PALETTE.textDark }}
+                >
+                  {selectedBus.name}
+                </h3>
+                <p className="text-xs text-gray-500 truncate">
+                  {from} → {to} • {selectedBus.departureTime}
+                </p>
+              </div>
+
+              <button
+                onClick={handleCloseSheet}
+                className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                aria-label="Close"
+              >
+                <FaTimes />
+              </button>
             </div>
 
-            <button
-              onClick={handleCloseSheet}
-              className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-              aria-label="Close"
-            >
-              <FaTimes />
-            </button>
-          </div>
-
-          {/* Stepper */}
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {[1, 2, 3].map((n) => (
-              <button
-                key={n}
-                onClick={() => setCurrentMobileStep(n)}
-                className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
-                style={{
-                  borderColor: currentMobileStep === n ? active : "#E5E7EB",
-                  background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
-                  color: currentMobileStep === n ? active : inactive,
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                <span
-                  className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
+            {/* Stepper */}
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {[1, 2, 3].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setCurrentMobileStep(n)}
+                  className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
                   style={{
-                    borderColor: currentMobileStep === n ? active : "#D1D5DB",
-                    background: currentMobileStep === n ? active : "#FFF",
-                    color: currentMobileStep === n ? "#FFF" : inactive,
-                    fontWeight: 800,
+                    borderColor: currentMobileStep === n ? active : "#E5E7EB",
+                    background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
+                    color: currentMobileStep === n ? active : inactive,
+                    fontWeight: 700,
                     fontSize: 12,
                   }}
                 >
-                  {n}
-                </span>
-                <span className="truncate">
-                  {n === 1
-                    ? "Select Seats"
-                    : n === 2
-                    ? "Select Points"
-                    : "Summary"}
-                </span>
-              </button>
-            ))}
+                  <span
+                    className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
+                    style={{
+                      borderColor: currentMobileStep === n ? active : "#D1D5DB",
+                      background: currentMobileStep === n ? active : "#FFF",
+                      color: currentMobileStep === n ? "#FFF" : inactive,
+                      fontWeight: 800,
+                      fontSize: 12,
+                    }}
+                  >
+                    {n}
+                  </span>
+                  <span className="truncate">
+                    {n === 1
+                      ? "Select Seats"
+                      : n === 2
+                      ? "Select Points"
+                      : "Summary"}
+                  </span>
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
 
-        {/* Content */}
-        <div
-          className="flex-1 overflow-y-auto px-4 pb-6 pt-3 bg-white"
-          style={{ WebkitOverflowScrolling: "touch" }}
-        >
-          {/* STEP 1: Seats */}
-          {currentMobileStep === 1 && (
-            <div className="space-y-3">
-              <SeatLegend />
-              <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                <SeatLayout
-                  seatLayout={selectedBus.seatLayout}
-                  bookedSeats={[...(selectedAvailability?.bookedSeats || [])]}
-                  selectedSeats={selectedBookingData.selectedSeats}
-                  onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
-                  bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
-                  selectedSeatGenders={{}}
+          {/* Content */}
+          <div
+            className="flex-1 overflow-y-auto px-4 pb-6 pt-3 bg-white"
+            style={{ WebkitOverflowScrolling: "touch" }}
+          >
+            {/* STEP 1: Seats */}
+            {currentMobileStep === 1 && (
+              <div className="space-y-3">
+                <SeatLegend />
+                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                  <SeatLayout
+                    seatLayout={selectedBus.seatLayout}
+                    bookedSeats={[...(selectedAvailability?.bookedSeats || [])]}
+                    selectedSeats={selectedBookingData.selectedSeats}
+                    onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
+                    bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
+                    selectedSeatGenders={{}}
+                  />
+                </div>
+                <div className="flex items-center justify-between text-sm text-gray-600">
+                  <span>
+                    Selected: <b>{selectedBookingData.selectedSeats.length}</b>
+                  </span>
+                  <button
+                    onClick={() => setCurrentMobileStep(2)}
+                    className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
+                    style={{ background: PALETTE.primaryRed }}
+                    disabled={selectedBookingData.selectedSeats.length === 0}
+                  >
+                    Continue
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: Points */}
+            {currentMobileStep === 2 && (
+              <div className="space-y-4">
+                <PointSelection
+                  boardingPoints={selectedBus.boardingPoints}
+                  droppingPoints={selectedBus.droppingPoints}
+                  selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
+                  setSelectedBoardingPoint={(p) =>
+                    handleBoardingPointSelect(selectedBus, p)
+                  }
+                  selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
+                  setSelectedDroppingPoint={(p) =>
+                    handleDroppingPointSelect(selectedBus, p)
+                  }
                 />
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentMobileStep(1)}
+                    className="px-4 py-2 rounded-lg font-bold"
+                    style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => setCurrentMobileStep(3)}
+                    className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
+                    style={{ background: PALETTE.primaryRed }}
+                    disabled={
+                      !selectedBookingData.selectedBoardingPoint ||
+                      !selectedBookingData.selectedDroppingPoint ||
+                      selectedBookingData.selectedSeats.length === 0
+                    }
+                  >
+                    Continue
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>
-                  Selected: <b>{selectedBookingData.selectedSeats.length}</b>
-                </span>
-                <button
-                  onClick={() => setCurrentMobileStep(2)}
-                  className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                  style={{ background: PALETTE.primaryRed }}
-                  disabled={selectedBookingData.selectedSeats.length === 0}
-                >
-                  Continue
-                </button>
+            )}
+
+            {/* STEP 3: Summary */}
+            {currentMobileStep === 3 && (
+              <div className="space-y-4">
+                <BookingSummary
+                  bus={selectedBus}
+                  selectedSeats={selectedBookingData.selectedSeats}
+                  date={searchDateParam}
+                  basePrice={selectedBookingData.basePrice}
+                  convenienceFee={selectedBookingData.convenienceFee}
+                  totalPrice={selectedBookingData.totalPrice}
+                  onProceed={() => handleProceedToPayment(selectedBus)}
+                  boardingPoint={selectedBookingData.selectedBoardingPoint}
+                  droppingPoint={selectedBookingData.selectedDroppingPoint}
+                />
+                <div className="flex items-center justify-between">
+                  <button
+                    onClick={() => setCurrentMobileStep(2)}
+                    className="px-4 py-2 rounded-lg font-bold"
+                    style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
+                  >
+                    Back
+                  </button>
+                  <button
+                    onClick={() => handleProceedToPayment(selectedBus)}
+                    className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
+                    style={{ background: PALETTE.primaryRed }}
+                    disabled={
+                      selectedBookingData.selectedSeats.length === 0 ||
+                      !selectedBookingData.selectedBoardingPoint ||
+                      !selectedBookingData.selectedDroppingPoint ||
+                      selectedBookingData.totalPrice <= 0
+                    }
+                  >
+                    Proceed
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+        </motion.div>
+      ) : null,
+      document.body
+    );
+  };
 
-          {/* STEP 2: Points */}
-          {currentMobileStep === 2 && (
-            <div className="space-y-4">
-              <PointSelection
-                boardingPoints={selectedBus.boardingPoints}
-                droppingPoints={selectedBus.droppingPoints}
-                selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
-                setSelectedBoardingPoint={(p) =>
-                  handleBoardingPointSelect(selectedBus, p)
-                }
-                selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
-                setSelectedDroppingPoint={(p) =>
-                  handleDroppingPointSelect(selectedBus, p)
-                }
-              />
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentMobileStep(1)}
-                  className="px-4 py-2 rounded-lg font-bold"
-                  style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => setCurrentMobileStep(3)}
-                  className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                  style={{ background: PALETTE.primaryRed }}
-                  disabled={
-                    !selectedBookingData.selectedBoardingPoint ||
-                    !selectedBookingData.selectedDroppingPoint ||
-                    selectedBookingData.selectedSeats.length === 0
-                  }
-                >
-                  Continue
-                </button>
-              </div>
-            </div>
-          )}
+  /* ---------------- Card list ---------------- */
+  const renderMainContent = () => {
+    if (loading) {
+      return Array.from({ length: RESULTS_PER_PAGE }).map((_, i) => (
+        <BusCardSkeleton key={i} />
+      ));
+    }
+    if (fetchError) {
+      return <ErrorDisplay message={fetchError} />;
+    }
+    if (visibleBuses.length > 0) {
+      return (
+        <motion.div variants={containerVariants} initial="hidden" animate="visible">
+          {visibleBuses.map((bus) => {
+            const busKey = `${bus._id}-${bus.departureTime}`;
+            const displayPrice = getDisplayPrice(bus, from, to);
 
-          {/* STEP 3: Summary */}
-          {currentMobileStep === 3 && (
-            <div className="space-y-4">
-              <BookingSummary
-                bus={selectedBus}
-                selectedSeats={selectedBookingData.selectedSeats}
-                date={searchDateParam}
-                basePrice={selectedBookingData.basePrice}
-                convenienceFee={selectedBookingData.convenienceFee}
-                totalPrice={selectedBookingData.totalPrice}
-                onProceed={() => handleProceedToPayment(selectedBus)}
-                boardingPoint={selectedBookingData.selectedBoardingPoint}
-                droppingPoint={selectedBookingData.selectedDroppingPoint}
-              />
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentMobileStep(2)}
-                  className="px-4 py-2 rounded-lg font-bold"
-                  style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => handleProceedToPayment(selectedBus)}
-                  className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                  style={{ background: PALETTE.primaryRed }}
-                  disabled={
-                    selectedBookingData.selectedSeats.length === 0 ||
-                    !selectedBookingData.selectedBoardingPoint ||
-                    !selectedBookingData.selectedDroppingPoint ||
-                    selectedBookingData.totalPrice <= 0
-                  }
-                >
-                  Proceed
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-      </motion.div>
-    ) : null,
-    document.body
-  );
-};
+            let timerProps = null;
+            if (searchDateParam && bus.departureTime) {
+              const now = new Date();
+              const [depHour, depMinute] = bus.departureTime.split(":").map(Number);
+              const [year, month, day] = searchDateParam.split("-").map(Number);
+              const departureDateTime = new Date(
+                year,
+                month - 1,
+                day,
+                depHour,
+                depMinute
+              );
+              const busDepartureTimestamp = departureDateTime.getTime();
+              const diffMilliseconds = busDepartureTimestamp - now.getTime();
+              const diffHours = diffMilliseconds / (1000 * 60 * 60);
 
-/* ---------------- Card list ---------------- */
-const renderMainContent = () => {
-  if (loading) {
-    return Array.from({ length: RESULTS_PER_PAGE }).map((_, i) => (
-      <BusCardSkeleton key={i} />
-    ));
-  }
-  if (fetchError) {
-    return <ErrorDisplay message={fetchError} />;
-  }
-  if (visibleBuses.length > 0) {
-    return (
-      <motion.div variants={containerVariants} initial="hidden" animate="visible">
-        {visibleBuses.map((bus) => {
-          const busKey = `${bus._id}-${bus.departureTime}`;
-          const displayPrice = getDisplayPrice(bus, from, to);
-
-          let timerProps = null;
-          if (searchDateParam && bus.departureTime) {
-            const now = new Date();
-            const [depHour, depMinute] = bus.departureTime.split(":").map(Number);
-            const [year, month, day] = searchDateParam.split("-").map(Number);
-            const departureDateTime = new Date(
-              year,
-              month - 1,
-              day,
-              depHour,
-              depMinute
-            );
-            const busDepartureTimestamp = departureDateTime.getTime();
-            const diffMilliseconds = busDepartureTimestamp - now.getTime();
-            const diffHours = diffMilliseconds / (1000 * 60 * 60);
-
-            if (diffHours > 0 && diffHours <= 12) {
-              const bookingDeadlineTimestamp =
-                busDepartureTimestamp - 1 * 60 * 60 * 1000;
-              timerProps = {
-                deadlineTimestamp: bookingDeadlineTimestamp,
-                departureTimestamp: busDepartureTimestamp,
-                onDeadline: () => {
-                  fetchData();
-                },
-              };
+              if (diffHours > 0 && diffHours <= 12) {
+                const bookingDeadlineTimestamp =
+                  busDepartureTimestamp - 1 * 60 * 60 * 1000;
+                timerProps = {
+                  deadlineTimestamp: bookingDeadlineTimestamp,
+                  departureTimestamp: busDepartureTimestamp,
+                  onDeadline: () => {
+                    fetchData();
+                  },
+                };
+              }
             }
-          }
 
-          const availabilityKey = `${bus._id}-${bus.departureTime}`;
-          const busAvailability = availability?.[availabilityKey];
-          const availableSeats = busAvailability?.available;
-          const availableWindowSeats = busAvailability?.window;
+            const availabilityKey = `${bus._id}-${bus.departureTime}`;
+            const busAvailability = availability?.[availabilityKey];
+            const availableSeats = busAvailability?.available;
+            const availableWindowSeats = busAvailability?.window;
 
-          const isSoldOut = availableSeats === 0;
+            const isSoldOut = availableSeats === 0;
 
-          const currentBusBookingData = busSpecificBookingData[busKey] || {
-            selectedSeats: [],
-            seatGenders: {},
-            selectedBoardingPoint: bus.boardingPoints?.[0] || null,
-            selectedDroppingPoint: bus.droppingPoints?.[0] || null,
-            basePrice: 0,
-            convenienceFee: 0,
-            totalPrice: 0,
-          };
+            const currentBusBookingData = busSpecificBookingData[busKey] || {
+              selectedSeats: [],
+              seatGenders: {},
+              selectedBoardingPoint: bus.boardingPoints?.[0] || null,
+              selectedDroppingPoint: bus.droppingPoints?.[0] || null,
+              basePrice: 0,
+              convenienceFee: 0,
+              totalPrice: 0,
+            };
 
-          const hasStrike =
-            typeof bus.originalPrice === "number" &&
-            bus.originalPrice > displayPrice;
+            const hasStrike =
+              typeof bus.originalPrice === "number" &&
+              bus.originalPrice > displayPrice;
 
-          return (
-            <motion.div
-              variants={itemVariants}
-              key={busKey}
-              className="bg-white rounded-xl transition-shadow duration-300 mb-3 md:mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
-            >
-              {/* MOBILE CARD */}
-              <div
-                className={`md:hidden block ${
-                  isSoldOut ? "opacity-60 bg-gray-50" : "cursor-pointer"
-                }`}
-                onClick={() => {
-                  if (!isSoldOut) handleToggleSeatLayout(bus);
-                }}
+            return (
+              <motion.div
+                variants={itemVariants}
+                key={busKey}
+                className="bg-white rounded-xl transition-shadow duration-300 mb-3 md:mb-4 overflow-hidden border border-gray-200 hover:shadow-md"
               >
-                <div className="p-3 md:p-4">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="text-[16px] md:text-[18px] font-normal tabular-nums inline-flex items-center px-2 py-0.5 rounded-lg border"
-                          style={{
-                            backgroundColor: "#ECFDF5",
-                            color: "#065F46",
-                            borderColor: "#A7F3D0",
-                          }}
-                        >
-                          {bus.departureTime}
-                        </span>
-                      </div>
-
-                      <div className="mt-1.5 text-xs text-gray-500 flex items-center">
-                        <span className="inline-flex items-center gap-1">
-                          <FaClock className="text-[10px]" />
-                          {calculateDuration(bus.departureTime, bus.arrivalTime)}
-                        </span>
-                        {typeof availableSeats === "number" && (
-                          <>
-                            <span className="mx-2">&middot;</span>
-                            <span
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                              style={{
-                                background: PALETTE.seatPillBg,
-                                color: PALETTE.primaryRed,
-                              }}
-                            >
-                              {availableSeats} seats left
-                            </span>
-                          </>
-                        )}
-                      </div>
-
-                      {timerProps && (
-                        <div className="mt-2 inline-flex">
-                          <div
-                            className="px-2 py-0.5 rounded-lg text-[11px]"
-                            style={{ backgroundColor: "#FFF7ED" }}
+                {/* MOBILE CARD */}
+                <div
+                  className={`md:hidden block ${
+                    isSoldOut ? "opacity-60 bg-gray-50" : "cursor-pointer"
+                  }`}
+                  onClick={() => {
+                    if (!isSoldOut) handleToggleSeatLayout(bus);
+                  }}
+                >
+                  <div className="p-3 md:p-4">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="text-[16px] md:text-[18px] font-normal tabular-nums inline-flex items-center px-2 py-0.5 rounded-lg border"
+                            style={{
+                              backgroundColor: "#ECFDF5",
+                              color: "#065F46",
+                              borderColor: "#A7F3D0",
+                            }}
                           >
-                            <BookingDeadlineTimer
-                              deadlineTimestamp={timerProps.deadlineTimestamp}
-                              departureTimestamp={timerProps.departureTimestamp}
-                              onDeadline={timerProps.onDeadline}
-                            />
-                          </div>
+                            {bus.departureTime}
+                          </span>
                         </div>
-                      )}
-                    </div>
 
-                    <div className="text-right pl-4">
-                      {hasStrike && (
-                        <div className="text-[12px] text-gray-400 line-through">
-                          Rs. {bus.originalPrice}
+                        <div className="mt-1.5 text-xs text-gray-500 flex items-center">
+                          <span className="inline-flex items-center gap-1">
+                            <FaClock className="text-[10px]" />
+                            {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                          </span>
+                          {typeof availableSeats === "number" && (
+                            <>
+                              <span className="mx-2">&middot;</span>
+                              <span
+                                className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                                style={{
+                                  background: PALETTE.seatPillBg,
+                                  color: PALETTE.primaryRed,
+                                }}
+                              >
+                                {availableSeats} seats left
+                              </span>
+                            </>
+                          )}
                         </div>
-                      )}
-                      <div className="leading-tight">
-                        <span className="text-[12px] text-gray-500 mr-1 align-top">
-                          Rs.
-                        </span>
-                        <span className="text-[20px] font-semibold tabular-nums text-gray-900">
-                          {displayPrice}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-gray-500">Onwards</div>
-                    </div>
-                  </div>
 
-                  <hr className="my-2 md:my-3 border-t border-gray-100" />
-
-                  <div className="flex items-center justify-between">
-                    <div className="min-w-0 pr-3">
-                      <h4 className="text-[15px] font-medium text-gray-800 truncate">
-                        {bus.name}
-                      </h4>
-                      <div className="flex items-center gap-2">
-                        {isACType(bus.busType) ? (
-                          <>
-                            {stripACWord(bus.busType) && (
-                              <p className="text-[12px] text-gray-500 truncate">
-                                {stripACWord(bus.busType)}
-                              </p>
-                            )}
-                            <span
-                              className="px-2 py-0.5 rounded-lg text-[11px] font-semibold"
-                              style={{
-                                backgroundColor: PALETTE.acPillBg,
-                                color: "#1D4ED8",
-                              }}
+                        {timerProps && (
+                          <div className="mt-2 inline-flex">
+                            <div
+                              className="px-2 py-0.5 rounded-lg text-[11px]"
+                              style={{ backgroundColor: "#FFF7ED" }}
                             >
-                              AC
-                            </span>
-                          </>
-                        ) : (
-                          <p className="text-[12px] text-gray-500 truncate">
-                            {bus.busType}
-                          </p>
+                              <BookingDeadlineTimer
+                                deadlineTimestamp={timerProps.deadlineTimestamp}
+                                departureTimestamp={timerProps.departureTimestamp}
+                                onDeadline={timerProps.onDeadline}
+                              />
+                            </div>
+                          </div>
                         )}
                       </div>
+
+                      <div className="text-right pl-4">
+                        {hasStrike && (
+                          <div className="text-[12px] text-gray-400 line-through">
+                            Rs. {bus.originalPrice}
+                          </div>
+                        )}
+                        <div className="leading-tight">
+                          <span className="text-[12px] text-gray-500 mr-1 align-top">
+                            Rs.
+                          </span>
+                          <span className="text-[20px] font-semibold tabular-nums text-gray-900">
+                            {displayPrice}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-gray-500">Onwards</div>
+                      </div>
                     </div>
 
-                    <div className="w-16 h-10 flex-shrink-0 flex items-center justify-center">
-                      {bus.operatorLogo ? (
-                        <img
-                          src={bus.operatorLogo}
-                          alt={`${bus.name} logo`}
-                          className="max-w-full max-h-full object-contain"
-                          style={{ border: "none", boxShadow: "none" }}
-                        />
-                      ) : (
-                        <FaBus className="text-2xl text-gray-300" />
-                      )}
+                    <hr className="my-2 md:my-3 border-t border-gray-100" />
+
+                    <div className="flex items-center justify-between">
+                      <div className="min-w-0 pr-3">
+                        <h4 className="text-[15px] font-medium text-gray-800 truncate">
+                          {bus.name}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          {isACType(bus.busType) ? (
+                            <>
+                              {stripACWord(bus.busType) && (
+                                <p className="text-[12px] text-gray-500 truncate">
+                                  {stripACWord(bus.busType)}
+                                </p>
+                              )}
+                              <span
+                                className="px-2 py-0.5 rounded-lg text-[11px] font-semibold"
+                                style={{
+                                  backgroundColor: PALETTE.acPillBg,
+                                  color: "#1D4ED8",
+                                }}
+                              >
+                                AC
+                              </span>
+                            </>
+                          ) : (
+                            <p className="text-[12px] text-gray-500 truncate">
+                              {bus.busType}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="w-16 h-10 flex-shrink-0 flex items-center justify-center">
+                        {bus.operatorLogo ? (
+                          <img
+                            src={bus.operatorLogo}
+                            alt={`${bus.name} logo`}
+                            className="max-w/full max-h-full object-contain"
+                            style={{ border: "none", boxShadow: "none" }}
+                          />
+                        ) : (
+                          <FaBus className="text-2xl text-gray-300" />
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              {/* DESKTOP CARD */}
-                             {/* DESKTOP CARD */}
+                {/* DESKTOP CARD */}
                 <div className="hidden md:block p-6">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
                     <div className="md:col-span-2">
@@ -2428,336 +2424,356 @@ const renderMainContent = () => {
       );
     }
     return <NoResultsMessage />;
-  }
-};
+  };
 
-const filterPanelTopOffset = useMemo(() => {
-  const buffer = 16;
-  return searchCardStickyTopOffset + stickySearchCardOwnHeight + buffer;
-}, [searchCardStickyTopOffset, stickySearchCardOwnHeight]);
+  const filterPanelTopOffset = useMemo(() => {
+    const buffer = 16;
+    return searchCardStickyTopOffset + stickySearchCardOwnHeight + buffer;
+  }, [searchCardStickyTopOffset, stickySearchCardOwnHeight]);
 
-return (
-  <div className="flex flex-col min-h-screen font-sans">
-    <Toaster position="top-right" />
+  return (
+    <div className="flex flex-col min-h-screen font-sans">
+      <Toaster position="top-right" />
 
-    {/* HEADER */}
-    <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-        {/* Mobile header */}
-        <div className="block lg:hidden">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-              aria-label="Go back"
-            >
-              <FaChevronLeft className="text-xl" />
-            </button>
+      {/* HEADER */}
+      <div className="w-full" style={{ backgroundColor: PALETTE.white }}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          {/* Mobile header */}
+          <div className="block lg:hidden">
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => navigate(-1)}
+                className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+                aria-label="Go back"
+              >
+                <FaChevronLeft className="text-xl" />
+              </button>
 
-            <button
-              onClick={handleMobileDateChipClick}
-              className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
-              aria-label="Change date"
-              style={{
-                background: PALETTE.datePillBg,
-                borderColor: "#FCEFC7",
-              }}
-            >
-              <span className="text-sm font-semibold leading-none">
-                {getMobileDateParts(searchDate).top}
-              </span>
-              <span className="text-[10px] text-gray-600 leading-none mt-0.5">
-                {getMobileDateParts(searchDate).bottom}
-              </span>
-            </button>
+              <button
+                onClick={handleMobileDateChipClick}
+                className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
+                aria-label="Change date"
+                style={{
+                  background: PALETTE.datePillBg,
+                  borderColor: "#FCEFC7",
+                }}
+              >
+                <span className="text-sm font-semibold leading-none">
+                  {getMobileDateParts(searchDate).top}
+                </span>
+                <span className="text-[10px] text-gray-600 leading-none mt-0.5">
+                  {getMobileDateParts(searchDate).bottom}
+                </span>
+              </button>
+            </div>
+
+            <div className="mt-2">
+              <h1
+                className="text-2xl font-bold tracking-tight"
+                style={{ color: PALETTE.textDark }}
+              >
+                {from} <span className="mx-1.5">→</span> {to}
+              </h1>
+              {!loading && !fetchError && (
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {sortedBuses.length} buses
+                </p>
+              )}
+            </div>
+
+            <div className="mt-2 text-[11px] text-gray-500">
+              Bus Ticket <span className="mx-1 text-gray-400">›</span>
+              {from} to {to} Bus
+            </div>
+
+            <input
+              ref={mobileDateInputRef}
+              type="date"
+              value={searchDate}
+              min={todayStr}
+              onChange={handleMobileDateChange}
+              className="absolute opacity-0 pointer-events-none"
+              aria-hidden="true"
+              tabIndex={-1}
+            />
           </div>
 
-          <div className="mt-2">
+          {/* Desktop header */}
+          <div className="hidden lg:block">
+            <div className="flex items-center mb-2">
+              <FaChevronLeft
+                className="text-xl mr-2 cursor-pointer"
+                onClick={() => navigate("/")}
+              />
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
+                Bus Ticket
+              </span>
+              <span className="mx-1 text-gray-400 text-sm">&gt;</span>
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
+                {from} to {to} Bus
+              </span>
+            </div>
             <h1
-              className="text-2xl font-bold tracking-tight"
+              className="text-2xl font-bold"
               style={{ color: PALETTE.textDark }}
             >
-              {from} <span className="mx-1.5">→</span> {to}
+              {from}{" "}
+              <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
             </h1>
             {!loading && !fetchError && (
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-sm text-gray-500 mb-4">
                 {sortedBuses.length} buses
               </p>
             )}
           </div>
-
-          <div className="mt-2 text-[11px] text-gray-500">
-            Bus Ticket <span className="mx-1 text-gray-400">›</span>
-            {from} to {to} Bus
-          </div>
-
-          <input
-            ref={mobileDateInputRef}
-            type="date"
-            value={searchDate}
-            min={todayStr}
-            onChange={handleMobileDateChange}
-            className="absolute opacity-0 pointer-events-none"
-            aria-hidden="true"
-            tabIndex={-1}
-          />
-        </div>
-
-        {/* Desktop header */}
-        <div className="hidden lg:block">
-          <div className="flex items-center mb-2">
-            <FaChevronLeft
-              className="text-xl mr-2 cursor-pointer"
-              onClick={() => navigate("/")}
-            />
-            <span
-              className="text-sm font-medium"
-              style={{ color: PALETTE.textLight }}
-            >
-              Bus Ticket
-            </span>
-            <span className="mx-1 text-gray-400 text-sm">&gt;</span>
-            <span
-              className="text-sm font-medium"
-              style={{ color: PALETTE.textLight }}
-            >
-              {from} to {to} Bus
-            </span>
-          </div>
-          <h1
-            className="text-2xl font-bold"
-            style={{ color: PALETTE.textDark }}
-          >
-            {from}{" "}
-            <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
-          </h1>
-          {!loading && !fetchError && (
-            <p className="text-sm text-gray-500 mb-4">
-              {sortedBuses.length} buses
-            </p>
-          )}
         </div>
       </div>
-    </div>
 
-    {/* Sticky search controls (desktop) */}
-    <div
-      ref={stickySearchCardRef}
-      className={`${!isNavbarAnimating ? "sticky" : ""} z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
-      style={{
-        top: `${searchCardStickyTopOffset}px`,
-        backgroundColor: `${PALETTE.white}F2`,
-        transition: "top 0.3s ease-in-out",
-      }}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
-        <div className="bg-white border border-gray-300 rounded-3xl">
-          <div className="hidden lg:flex rounded-2xl">
-            <div
-              className="relative flex-1 p-4 flex items-center border-r"
-              style={{ borderColor: PALETTE.borderLight }}
-            >
-              <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
-              <div className="w-full">
-                <label
-                  className="block text-xs font-medium uppercase tracking-wider"
-                  style={{ color: PALETTE.textLight }}
-                >
-                  From
-                </label>
-                <Select
-                  options={fromOptions}
-                  value={searchFrom ? { value: searchFrom, label: searchFrom } : null}
-                  onChange={(s) => setSearchFrom(s?.value || "")}
-                  placeholder="Select departure"
-                  isClearable
-                  styles={selectStyles}
-                  menuPortalTarget={document.body}
-                  components={{
-                    DropdownIndicator: () => null,
-                    IndicatorSeparator: () => null,
-                  }}
+      {/* Sticky search controls (desktop) */}
+      <div
+        ref={stickySearchCardRef}
+        className={`${
+          !isNavbarAnimating ? "sticky" : ""
+        } z-40 w-full bg-opacity-95 backdrop-blur-sm shadow-sm`}
+        style={{
+          top: `${searchCardStickyTopOffset}px`,
+          backgroundColor: `${PALETTE.white}F2`,
+          transition: "top 0.3s ease-in-out",
+        }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+          <div className="bg-white border border-gray-300 rounded-3xl">
+            <div className="hidden lg:flex rounded-2xl">
+              <div
+                className="relative flex-1 p-4 flex items-center border-r"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
+                <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
+                <div className="w-full">
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
+                    From
+                  </label>
+                  <Select
+                    options={fromOptions}
+                    value={
+                      searchFrom
+                        ? { value: searchFrom, label: searchFrom }
+                        : null
+                    }
+                    onChange={(s) => setSearchFrom(s?.value || "")}
+                    placeholder="Select departure"
+                    isClearable
+                    styles={selectStyles}
+                    menuPortalTarget={document.body}
+                    components={{
+                      DropdownIndicator: () => null,
+                      IndicatorSeparator: () => null,
+                    }}
+                  />
+                </div>
+                <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 z-20">
+                  <motion.button
+                    whileHover={{ scale: 1.1, rotate: 180 }}
+                    whileTap={{ scale: 0.9 }}
+                    className="bg-white p-2 rounded-full shadow-lg"
+                    style={{ border: `2px solid ${PALETTE.borderLight}` }}
+                    title="Swap locations"
+                    onClick={swapLocations}
+                  >
+                    <FaExchangeAlt style={{ color: PALETTE.textLight }} />
+                  </motion.button>
+                </div>
+              </div>
+              <div
+                className="flex-1 p-4 flex items-center border-r"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
+                <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
+                <div className="w-full">
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
+                    To
+                  </label>
+                  <Select
+                    options={toOptions}
+                    value={
+                      searchTo ? { value: searchTo, label: searchTo } : null
+                    }
+                    onChange={(s) => setSearchTo(s?.value || "")}
+                    placeholder="Select destination"
+                    isClearable
+                    styles={selectStyles}
+                    menuPortalTarget={document.body}
+                    components={{
+                      DropdownIndicator: () => null,
+                      IndicatorSeparator: () => null,
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex-1 p-4 flex items-center">
+                <FaCalendarAlt className="text-gray-400 mr-4 text-xl shrink-0" />
+                <div className="w-full">
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
+                    Date of Journey
+                  </label>
+                  <div
+                    onClick={handleDateContainerClick}
+                    className="cursor-pointer"
+                  >
+                    <span
+                      className="text-lg font-medium"
+                      style={{ color: PALETTE.textDark }}
+                    >
+                      {getReadableDate(searchDate)}
+                    </span>
+                  </div>
+                  <div className="mt-1">
+                    <button
+                      onClick={() => setSearchDate(todayStr)}
+                      className="text-xs font-medium mr-3 hover:underline"
+                      style={{
+                        color:
+                          searchDate === todayStr
+                            ? PALETTE.primaryRed
+                            : PALETTE.accentBlue,
+                      }}
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => setSearchDate(tomorrowStr)}
+                      className="text-xs font-medium hover:underline"
+                      style={{
+                        color:
+                          searchDate === tomorrowStr
+                            ? PALETTE.primaryRed
+                            : PALETTE.accentBlue,
+                      }}
+                    >
+                      Tomorrow
+                    </button>
+                  </div>
+                </div>
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={searchDate}
+                  onChange={(e) => setSearchDate(e.target.value)}
+                  min={todayStr}
+                  className="absolute opacity-0 pointer-events-none"
                 />
               </div>
-              <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 z-20">
+              <div className="p-3 flex items-center">
                 <motion.button
-                  whileHover={{ scale: 1.1, rotate: 180 }}
-                  whileTap={{ scale: 0.9 }}
-                  className="bg-white p-2 rounded-full shadow-lg"
-                  style={{ border: `2px solid ${PALETTE.borderLight}` }}
-                  title="Swap locations"
-                  onClick={swapLocations}
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleModifySearch}
+                  className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-bold tracking-wider px-8 py-3 rounded-xl shadow-lg"
+                  style={{ backgroundColor: PALETTE.primaryRed }}
                 >
-                  <FaExchangeAlt style={{ color: PALETTE.textLight }} />
+                  <FaSearch /> SEARCH
                 </motion.button>
               </div>
             </div>
-            <div
-              className="flex-1 p-4 flex items-center border-r"
-              style={{ borderColor: PALETTE.borderLight }}
-            >
-              <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
-              <div className="w-full">
-                <label
-                  className="block text-xs font-medium uppercase tracking-wider"
-                  style={{ color: PALETTE.textLight }}
-                >
-                  To
-                </label>
-                <Select
-                  options={toOptions}
-                  value={searchTo ? { value: searchTo, label: searchTo } : null}
-                  onChange={(s) => setSearchTo(s?.value || "")}
-                  placeholder="Select destination"
-                  isClearable
-                  styles={selectStyles}
-                  menuPortalTarget={document.body}
-                  components={{
-                    DropdownIndicator: () => null,
-                    IndicatorSeparator: () => null,
-                  }}
-                />
-              </div>
-            </div>
-            <div className="flex-1 p-4 flex items-center">
-              <FaCalendarAlt className="text-gray-400 mr-4 text-xl shrink-0" />
-              <div className="w-full">
-                <label
-                  className="block text-xs font-medium uppercase tracking-wider"
-                  style={{ color: PALETTE.textLight }}
-                >
-                  Date of Journey
-                </label>
-                <div onClick={handleDateContainerClick} className="cursor-pointer">
-                  <span
-                    className="text-lg font-medium"
-                    style={{ color: PALETTE.textDark }}
-                  >
-                    {getReadableDate(searchDate)}
-                  </span>
-                </div>
-                <div className="mt-1">
-                  <button
-                    onClick={() => setSearchDate(todayStr)}
-                    className="text-xs font-medium mr-3 hover:underline"
-                    style={{
-                      color: searchDate === todayStr ? PALETTE.primaryRed : PALETTE.accentBlue,
-                    }}
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={() => setSearchDate(tomorrowStr)}
-                    className="text-xs font-medium hover:underline"
-                    style={{
-                      color:
-                        searchDate === tomorrowStr
-                          ? PALETTE.primaryRed
-                          : PALETTE.accentBlue,
-                    }}
-                  >
-                    Tomorrow
-                  </button>
-                </div>
-              </div>
-              <input
-                ref={dateInputRef}
-                type="date"
-                value={searchDate}
-                onChange={(e) => setSearchDate(e.target.value)}
-                min={todayStr}
-                className="absolute opacity-0 pointer-events-none"
-              />
-            </div>
-            <div className="p-3 flex items-center">
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleModifySearch}
-                className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-bold tracking-wider px-8 py-3 rounded-xl shadow-lg"
-                style={{ backgroundColor: PALETTE.primaryRed }}
-              >
-                <FaSearch /> SEARCH
-              </motion.button>
-            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    {/* Content */}
-    <div
-      className="flex-1 w-full pb-8"
-      style={{ backgroundColor: PALETTE.bgLight }}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
-          <aside
-            className={`hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 ${
-              !isNavbarAnimating ? "sticky" : ""
-            }`}
-            style={{
-              top: `${filterPanelTopOffset}px`,
-              zIndex: 20,
-              transition: "top 0.3s ease-in-out",
-            }}
-          >
-            <FilterPanel isMobile={false} sortBy={sortBy} setSortBy={setSortBy} />
-          </aside>
-          <main className="lg:col-span-3 space-y-5">
-            <SpecialNoticesSection />
-
-            {/* Mobile drawer button */}
-            <button
-              onClick={() => setIsFilterOpen(true)}
-              className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg lg:hidden text-white"
-              style={{ backgroundColor: PALETTE.accentBlue }}
+      {/* Content */}
+      <div
+        className="flex-1 w-full pb-8"
+        style={{ backgroundColor: PALETTE.bgLight }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
+            <aside
+              className={`hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 ${
+                !isNavbarAnimating ? "sticky" : ""
+              }`}
+              style={{
+                top: `${filterPanelTopOffset}px`,
+                zIndex: 20,
+                transition: "top 0.3s ease-in-out",
+              }}
             >
-              <FaSlidersH /> Show Filters &amp; Sort
-              {activeFilterCount > 0 && (
-                <span className="flex items-center justify-center w-5 h-5 text-xs text-white bg-red-500 rounded-full">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
+              <FilterPanel
+                isMobile={false}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+              />
+            </aside>
+            <main className="lg:col-span-3 space-y-5">
+              <SpecialNoticesSection />
 
-            <AnimatePresence>{renderMainContent()}</AnimatePresence>
-          </main>
+              {/* Mobile drawer button */}
+              <button
+                onClick={() => setIsFilterOpen(true)}
+                className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg lg:hidden text-white"
+                style={{ backgroundColor: PALETTE.accentBlue }}
+              >
+                <FaSlidersH /> Show Filters &amp; Sort
+                {activeFilterCount > 0 && (
+                  <span className="flex items-center justify-center w-5 h-5 text-xs text-white bg-red-500 rounded-full">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>{renderMainContent()}</AnimatePresence>
+            </main>
+          </div>
         </div>
       </div>
+
+      {/* Mobile filter drawer */}
+      <AnimatePresence>
+        {isFilterOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Close filters"
+              onClick={() => setIsFilterOpen(false)}
+              className="fixed inset-0 bg-black/40 z-50 lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            />
+            <motion.div
+              className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 lg:hidden overflow-y-auto rounded-r-2xl shadow-xl"
+              variants={drawerVariants}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
+            >
+              <FilterPanel
+                isMobile={true}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Global mobile full-page flow */}
+      <MobileBottomSheet />
     </div>
-
-    {/* Mobile filter drawer */}
-    <AnimatePresence>
-      {isFilterOpen && (
-        <>
-          <motion.button
-            type="button"
-            aria-label="Close filters"
-            onClick={() => setIsFilterOpen(false)}
-            className="fixed inset-0 bg-black/40 z-50 lg:hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          />
-          <motion.div
-            className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 lg:hidden overflow-y-auto rounded-r-2xl shadow-xl"
-            variants={drawerVariants}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
-          >
-            <FilterPanel isMobile={true} sortBy={sortBy} setSortBy={setSortBy} />
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-
-    {/* Global mobile full-page flow */}
-    <MobileBottomSheet />
-  </div>
-);
-
+  );
 };
 
 export default SearchResults;
