@@ -5,7 +5,7 @@ import {
   useLocation,
 } from "react-router-dom";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import apiClient, { getClientId } from "../../api";
+import apiClient, { getClientId, getAuthToken, buildAuthConfig } from "../lib/api";
 import { motion, AnimatePresence } from "framer-motion";
 import toast, { Toaster } from "react-hot-toast";
 import {
@@ -117,14 +117,6 @@ const getDisplayPrice = (bus, from, to) => {
   }
   return bus.price;
 };
-const getAuthToken = () =>
-  localStorage.getItem("token") ||
-  localStorage.getItem("authToken") ||
-  localStorage.getItem("jwt") ||
-  sessionStorage.getItem("token") ||
-  null;
-const buildAuthConfig = (token) =>
-  token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
 /* -------------- lock registry (same as your current file) -------------- */
 const LOCK_REGISTRY_KEY = "rb_lock_registry_v1";
@@ -1185,172 +1177,4 @@ export default function SearchResults({ showNavbar, headerHeight, isNavbarAnimat
                 aria-label="Change date"
                 style={{ background: PALETTE.datePillBg, borderColor: "#FCEFC7" }}
               >
-                <span className="text-sm font-semibold leading-none">
-                  {getMobileDateParts(searchDate).top}
-                </span>
-                <span className="text-[10px] text-gray-600 leading-none mt-0.5">
-                  {getMobileDateParts(searchDate).bottom}
-                </span>
-              </button>
-            </div>
-
-            <div className="mt-2">
-              <h1 className="text-2xl font-bold tracking-tight" style={{ color: PALETTE.textDark }}>
-                {from} <span className="mx-1.5">→</span> {to}
-              </h1>
-              {!loading && !fetchError && (
-                <p className="text-xs text-gray-500 mt-0.5">{sortedBuses.length} buses</p>
-              )}
-            </div>
-
-            <div className="mt-2 text-[11px] text-gray-500">
-              Bus Ticket <span className="mx-1 text-gray-400">›</span>
-              {from} to {to} Bus
-            </div>
-
-            <input
-              ref={mobileDateInputRef}
-              type="date"
-              value={searchDate}
-              min={todayStr}
-              onChange={handleMobileDateChange}
-              className="absolute opacity-0 pointer-events-none"
-              aria-hidden
-            />
-          </div>
-
-          {/* Desktop sticky search card */}
-          <div
-            ref={stickySearchCardRef}
-            className={`hidden lg:block ${!isNavbarAnimating ? "sticky" : ""}`}
-            style={{ top: `${searchCardStickyTopOffset}px`, zIndex: 20, transition: "top 0.3s" }}
-          >
-            <SearchHeader
-              from={searchFrom}
-              to={searchTo}
-              date={searchDate}
-              fromOptions={fromOptions}
-              toOptions={toOptions}
-              onChangeFrom={setSearchFrom}
-              onChangeTo={setSearchTo}
-              onChangeDate={(d) => setSearchDate(d)}
-              onSwap={() => {
-                setSearchFrom(searchTo);
-                setSearchTo(searchFrom);
-              }}
-              onSubmit={handleModifySearch}
-              getReadableDate={getReadableDate}
-              PALETTE={PALETTE}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Content */}
-      <div className="flex-1 w-full pb-8" style={{ backgroundColor: PALETTE.bgLight }}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
-            <aside
-              className={`hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 ${
-                !isNavbarAnimating ? "sticky" : ""
-              }`}
-              style={{ top: `${filterPanelTopOffset}px`, zIndex: 20, transition: "top 0.3s" }}
-            >
-              <FilterPanel
-                isMobile={false}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-                filters={filters}
-                setFilters={setFilters}
-                activeFilterCount={activeFilterCount}
-                TIME_SLOTS={TIME_SLOTS}
-                resetFilters={resetFilters}
-                PALETTE={PALETTE}
-                sortedCount={sortedBuses.length}
-              />
-            </aside>
-
-            <main className="lg:col-span-3 space-y-5">
-              <SpecialNoticesSection
-                noticesLoading={noticesLoading}
-                specialNotices={specialNotices}
-              />
-
-              {/* Mobile drawer button */}
-              <button
-                onClick={() => setIsFilterOpen(true)}
-                className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg lg:hidden text-white"
-                style={{ backgroundColor: PALETTE.accentBlue }}
-              >
-                <FaSlidersH /> Show Filters &amp; Sort
-                {activeFilterCount > 0 && (
-                  <span className="flex items-center justify-center w-5 h-5 text-xs text-white bg-red-500 rounded-full">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-
-              <AnimatePresence>{renderMainContent()}</AnimatePresence>
-            </main>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile filter drawer */}
-      <AnimatePresence>
-        {isFilterOpen && (
-          <>
-            <motion.button
-              type="button"
-              aria-label="Close filters"
-              onClick={() => setIsFilterOpen(false)}
-              className="fixed inset-0 bg-black/40 z-50 lg:hidden"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-            />
-            <motion.div
-              className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 lg:hidden overflow-y-auto rounded-r-2xl shadow-xl"
-              variants={drawerVariants}
-              initial="hidden"
-              animate="visible"
-              exit="hidden"
-            >
-              <FilterPanel
-                isMobile={true}
-                sortBy={sortBy}
-                setSortBy={setSortBy}
-                filters={filters}
-                setFilters={setFilters}
-                activeFilterCount={activeFilterCount}
-                TIME_SLOTS={TIME_SLOTS}
-                resetFilters={resetFilters}
-                PALETTE={PALETTE}
-                sortedCount={sortedBuses.length}
-                onClose={() => setIsFilterOpen(false)}
-              />
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* Mobile bottom sheet (extracted) */}
-      <MobileBottomSheet
-        open={!!expandedBusId}
-        bus={selectedBus}
-        availability={selectedAvailability}
-        bookingData={selectedBookingData}
-        currentStep={currentMobileStep}
-        setStep={setCurrentMobileStep}
-        onSeatToggle={(seat) => selectedBus && handleSeatToggle(selectedBus, seat)}
-        onBoarding={(p) => selectedBus && handleBoardingPointSelect(selectedBus, p)}
-        onDropping={(p) => selectedBus && handleDroppingPointSelect(selectedBus, p)}
-        onProceed={() => selectedBus && handleProceedToPayment(selectedBus)}
-        onClose={() => setExpandedBusId(null)}
-        from={from}
-        to={to}
-        date={searchDateParam}
-      />
-    </div>
-  );
-}
+                <span
