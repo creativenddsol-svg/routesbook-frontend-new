@@ -1,12 +1,12 @@
 // src/pages/lib/availability.js
 import { useEffect, useRef } from "react";
-import apiClient from "../../api";
+import apiClient from "./api";
 import {
   LIVE_POLL_MS,
   MAX_REFRESH_BUSES,
   AVAIL_TTL_MS,
   AVAIL_FORCE_TTL_MS,
-} from "../lib/constants";
+} from "./constants";
 
 /**
  * Creates an availability controller that mirrors the logic you had in index.jsx.
