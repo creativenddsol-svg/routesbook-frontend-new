@@ -31,10 +31,14 @@ import SearchHeader from "./SearchHeader";                 // TODO: create
 import FilterPanel from "./FilterPanel";                   // TODO: create
 import ResultsList from "./ResultsList";                   // TODO: create
 // Mobile flows (kept inline for now, you can split later if you prefer)
- // import MobileBottomSheet from "./MobileBottomSheet";
- // import MobileSearchSheet from "./MobileSearchSheet";
- // import MobileCityPicker from "./MobileCityPicker";
- // import MobileCalendarSheet from "./MobileCalendarSheet";
+import MobileBottomSheet from "./MobileBottomSheet";
+// import MobileSearchSheet from "./MobileSearchSheet";
+// import MobileCityPicker from "./MobileCityPicker";
+// import MobileCalendarSheet from "./MobileCalendarSheet";
+
+/* ---- Newly extracted sections ---- */
+import SpecialNoticesSection from "./SpecialNoticesSection";
+import { ErrorDisplay, NoResultsMessage } from "./Messages";
 
 /* ---------------- Palette & constants (we’ll extract later) ---------------- */
 const PALETTE = {
@@ -1061,141 +1065,6 @@ export default function SearchResults({ showNavbar, headerHeight, isNavbarAnimat
   const setCurrentMobileStep = (n) =>
     setMobileSheetStepByBus((prev) => ({ ...prev, [expandedBusId]: n }));
 
-  /* ---------------- Small inline views we’ll split next ---------------- */
-  const SpecialNoticesSection = () => {
-    const itemsToRender = noticesLoading ? Array.from({ length: 4 }) : specialNotices;
-    const trackRef = useRef(null);
-    const [pages, setPages] = useState(1);
-    const [activePage, setActivePage] = useState(0);
-
-    const computePages = () => {
-      const el = trackRef.current;
-      if (!el) return;
-      const total = Math.max(1, Math.ceil(el.scrollWidth / el.clientWidth));
-      setPages(total);
-      const idx = Math.round(el.scrollLeft / el.clientWidth);
-      setActivePage(Math.min(total - 1, Math.max(0, idx)));
-    };
-
-    useEffect(() => {
-      computePages();
-      const onResize = () => computePages();
-      window.addEventListener("resize", onResize);
-      return () => window.removeEventListener("resize", onResize);
-    }, [noticesLoading, specialNotices.length]);
-
-    useEffect(() => {
-      const el = trackRef.current;
-      if (!el) return;
-      const onScroll = () => {
-        const idx = Math.round(el.scrollLeft / el.clientWidth);
-        setActivePage(idx);
-      };
-      el.addEventListener("scroll", onScroll, { passive: true });
-      return () => el.removeEventListener("scroll", onScroll);
-    }, []);
-
-    const goToPage = (idx) => {
-      const el = trackRef.current;
-      if (!el) return;
-      const clamped = Math.min(pages - 1, Math.max(0, idx));
-      el.scrollTo({ left: clamped * el.clientWidth, behavior: "smooth" });
-      setActivePage(clamped);
-    };
-
-    if (!noticesLoading && specialNotices.length === 0) return null;
-
-    return (
-      <motion.div
-        className="mb-8 relative"
-        initial="hidden"
-        animate="visible"
-        variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
-      >
-        <div
-          ref={trackRef}
-          className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-2 lg:pb-0"
-          style={{ scrollBehavior: "smooth" }}
-        >
-          {itemsToRender.map((item, index) => (
-            <div
-              key={noticesLoading ? `skeleton-${index}` : item._id}
-              className="flex-shrink-0 w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/4 xl:w-1/4 snap-start p-2"
-            >
-              {noticesLoading ? (
-                <SpecialNoticeSkeleton />
-              ) : (
-                <SpecialNoticeCard notice={item} linkTo="/special-notices" />
-              )}
-            </div>
-          ))}
-        </div>
-
-        {pages > 1 && (
-          <div className="mt-3 flex items-center justify-center gap-2">
-            {Array.from({ length: pages }).map((_, i) => {
-              const active = i === activePage;
-              return (
-                <button
-                  key={i}
-                  onClick={() => goToPage(i)}
-                  className={[
-                    "h-2.5 rounded-full transition-all duration-200",
-                    active ? "w-6 bg-gray-900" : "w-2.5 bg-gray-300 hover:bg-gray-400",
-                  ].join(" ")}
-                  aria-label={`Go to page ${i + 1}`}
-                />
-              );
-            })}
-          </div>
-        )}
-      </motion.div>
-    );
-  };
-
-  const ErrorDisplay = ({ message }) => (
-    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-      className="text-center p-10 bg-white rounded-2xl shadow-md">
-      <FaExclamationCircle className="mx-auto text-6xl mb-4" style={{ color: PALETTE.yellow }} />
-      <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
-        Oops! Something went wrong.
-      </h3>
-      <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>
-        {message || "We encountered an error. Please try again later."}
-      </p>
-      <motion.button
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
-        onClick={() => fetchData()}
-        className="px-6 py-2.5 font-semibold rounded-lg text-white"
-        style={{ backgroundColor: PALETTE.accentBlue }}
-      >
-        Try Again
-      </motion.button>
-    </motion.div>
-  );
-
-  const NoResultsMessage = () => {
-    const hasActiveFilters = activeFilterCount > 0;
-    let title = hasActiveFilters ? "No Buses Match Your Filters" : "No Buses Available";
-    let message = hasActiveFilters
-      ? "Try adjusting or resetting your filters."
-      : "Unfortunately, no buses were found for this route on the selected date.";
-    return (
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-        className="text-center p-10 bg-white rounded-2xl shadow-md">
-        <FaExclamationCircle className="mx-auto text-6xl mb-4" style={{ color: `${PALETTE.primaryRed}50` }} />
-        <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>{title}</h3>
-        <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>{message}</p>
-        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-          onClick={resetFilters} className="px-6 py-2.5 font-semibold rounded-lg text-white"
-          style={{ backgroundColor: PALETTE.accentBlue }}>
-          Reset All Filters
-        </motion.button>
-      </motion.div>
-    );
-  };
-
   /* ---------------- Layout ---------------- */
   const filterPanelTopOffset = useMemo(() => {
     const buffer = 16;
@@ -1208,7 +1077,7 @@ export default function SearchResults({ showNavbar, headerHeight, isNavbarAnimat
   };
 
   const renderMainContent = () => {
-    if (fetchError) return <ErrorDisplay message={fetchError} />;
+    if (fetchError) return <ErrorDisplay message={fetchError} onRetry={fetchData} />;
     if (loading) {
       return (
         <ResultsList
@@ -1222,7 +1091,14 @@ export default function SearchResults({ showNavbar, headerHeight, isNavbarAnimat
         />
       );
     }
-    if (visibleBuses.length === 0) return <NoResultsMessage />;
+    if (visibleBuses.length === 0) {
+      return (
+        <NoResultsMessage
+          hasActiveFilters={activeFilterCount > 0}
+          onReset={resetFilters}
+        />
+      );
+    }
     return (
       <ResultsList
         buses={visibleBuses}
@@ -1395,7 +1271,10 @@ export default function SearchResults({ showNavbar, headerHeight, isNavbarAnimat
             </aside>
 
             <main className="lg:col-span-3 space-y-5">
-              <SpecialNoticesSection />
+              <SpecialNoticesSection
+                noticesLoading={noticesLoading}
+                specialNotices={specialNotices}
+              />
 
               {/* Mobile drawer button */}
               <button
@@ -1455,192 +1334,23 @@ export default function SearchResults({ showNavbar, headerHeight, isNavbarAnimat
         )}
       </AnimatePresence>
 
-      {/* Minimal mobile bottom sheet (inline for now; can be split later) */}
-      {selectedBus && window.innerWidth < 1024 && (
-        <motion.div
-          key={`mobile-sheet-${expandedBusId}`}
-          className="fixed inset-0 z-[10001] md:hidden flex flex-col bg-white overscroll-contain"
-          initial={false}
-          animate={{ opacity: 1 }}
-        >
-          {/* Header */}
-          <div className="pt-3 pb-2 px-4 border-b bg-white">
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => {
-                  if (currentMobileStep > 1) setCurrentMobileStep(currentMobileStep - 1);
-                  else setExpandedBusId(null);
-                }}
-                className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-                aria-label="Back"
-              >
-                <FaChevronLeft />
-              </button>
-              <div className="min-w-0 px-2 text-center">
-                <h3 className="text-base font-semibold truncate" style={{ color: PALETTE.textDark }}>
-                  {selectedBus.name}
-                </h3>
-                <p className="text-xs text-gray-500 truncate">
-                  {from} → {to} • {selectedBus.departureTime}
-                </p>
-              </div>
-              <button
-                onClick={() => setExpandedBusId(null)}
-                className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-                aria-label="Close"
-              >
-                <FaTimes />
-              </button>
-            </div>
-
-            {/* Stepper */}
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {[1, 2, 3].map((n) => {
-                const inactive = "#6B7280";
-                const active = PALETTE.primaryRed;
-                const isActive = currentMobileStep === n;
-                return (
-                  <button
-                    key={n}
-                    onClick={() => setCurrentMobileStep(n)}
-                    className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
-                    style={{
-                      borderColor: isActive ? active : "#E5E7EB",
-                      background: isActive ? "#FFF5F5" : "#FFFFFF",
-                      color: isActive ? active : inactive,
-                      fontWeight: 700,
-                      fontSize: 12,
-                    }}
-                  >
-                    <span
-                      className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
-                      style={{
-                        borderColor: isActive ? active : "#D1D5DB",
-                        background: isActive ? active : "#FFF",
-                        color: isActive ? "#FFF" : inactive,
-                        fontWeight: 800,
-                        fontSize: 12,
-                      }}
-                    >
-                      {n}
-                    </span>
-                    <span className="truncate">
-                      {n === 1 ? "Select Seats" : n === 2 ? "Select Points" : "Summary"}
-                    </span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto px-4 pb-6 pt-3 bg-white" style={{ WebkitOverflowScrolling: "touch" }}>
-            {/* STEP 1: Seats */}
-            {currentMobileStep === 1 && (
-              <div className="space-y-3">
-                <SeatLegend />
-                <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                  <SeatLayout
-                    seatLayout={selectedBus.seatLayout}
-                    bookedSeats={[...(selectedAvailability?.bookedSeats || [])]}
-                    selectedSeats={selectedBookingData.selectedSeats}
-                    onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
-                    bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
-                    selectedSeatGenders={{}}
-                  />
-                </div>
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>
-                    Selected: <b>{selectedBookingData.selectedSeats.length}</b>
-                  </span>
-                  <button
-                    onClick={() => setCurrentMobileStep(2)}
-                    className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                    style={{ background: PALETTE.primaryRed }}
-                    disabled={selectedBookingData.selectedSeats.length === 0}
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 2: Points */}
-            {currentMobileStep === 2 && (
-              <div className="space-y-4">
-                <PointSelection
-                  boardingPoints={selectedBus.boardingPoints}
-                  droppingPoints={selectedBus.droppingPoints}
-                  selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
-                  setSelectedBoardingPoint={(p) => handleBoardingPointSelect(selectedBus, p)}
-                  selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
-                  setSelectedDroppingPoint={(p) => handleDroppingPointSelect(selectedBus, p)}
-                />
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setCurrentMobileStep(1)}
-                    className="px-4 py-2 rounded-lg font-bold"
-                    style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => setCurrentMobileStep(3)}
-                    className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                    style={{ background: PALETTE.primaryRed }}
-                    disabled={
-                      !selectedBookingData.selectedBoardingPoint ||
-                      !selectedBookingData.selectedDroppingPoint ||
-                      selectedBookingData.selectedSeats.length === 0
-                    }
-                  >
-                    Continue
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* STEP 3: Summary */}
-            {currentMobileStep === 3 && (
-              <div className="space-y-4">
-                <BookingSummary
-                  bus={selectedBus}
-                  selectedSeats={selectedBookingData.selectedSeats}
-                  date={searchDateParam}
-                  basePrice={selectedBookingData.basePrice}
-                  convenienceFee={selectedBookingData.convenienceFee}
-                  totalPrice={selectedBookingData.totalPrice}
-                  onProceed={() => handleProceedToPayment(selectedBus)}
-                  boardingPoint={selectedBookingData.selectedBoardingPoint}
-                  droppingPoint={selectedBookingData.selectedDroppingPoint}
-                />
-                <div className="flex items-center justify-between">
-                  <button
-                    onClick={() => setCurrentMobileStep(2)}
-                    className="px-4 py-2 rounded-lg font-bold"
-                    style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-                  >
-                    Back
-                  </button>
-                  <button
-                    onClick={() => handleProceedToPayment(selectedBus)}
-                    className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                    style={{ background: PALETTE.primaryRed }}
-                    disabled={
-                      selectedBookingData.selectedSeats.length === 0 ||
-                      !selectedBookingData.selectedBoardingPoint ||
-                      !selectedBookingData.selectedDroppingPoint ||
-                      selectedBookingData.totalPrice <= 0
-                    }
-                  >
-                    Proceed
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        </motion.div>
-      )}
+      {/* Mobile bottom sheet (extracted) */}
+      <MobileBottomSheet
+        open={!!expandedBusId}
+        bus={selectedBus}
+        availability={selectedAvailability}
+        bookingData={selectedBookingData}
+        currentStep={currentMobileStep}
+        setStep={setCurrentMobileStep}
+        onSeatToggle={(seat) => selectedBus && handleSeatToggle(selectedBus, seat)}
+        onBoarding={(p) => selectedBus && handleBoardingPointSelect(selectedBus, p)}
+        onDropping={(p) => selectedBus && handleDroppingPointSelect(selectedBus, p)}
+        onProceed={() => selectedBus && handleProceedToPayment(selectedBus)}
+        onClose={() => setExpandedBusId(null)}
+        from={from}
+        to={to}
+        date={searchDateParam}
+      />
     </div>
   );
 }
