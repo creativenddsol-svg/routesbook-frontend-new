@@ -1,4 +1,3 @@
-
 import {
   useSearchParams,
   useNavigate,
@@ -2110,6 +2109,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     );
   };
 
+  /* ------ 🆕 Mobile bottom-sheet calendar ------ */
   /* ------ 🆕 Mobile bottom-sheet calendar ------ */
   const MobileCalendarSheet = ({
     open,
