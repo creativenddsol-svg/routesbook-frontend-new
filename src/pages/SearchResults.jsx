@@ -66,10 +66,6 @@ const AVAIL_TTL_MS = 8000; // throttle per bus normal refreshes
 const AVAIL_FORCE_TTL_MS = 2000; // tighter window right after lock/release
 const MAX_INIT_AVAIL_CONCURRENCY = 6; // limit initial fan-out
 
-// 🧊 Stable empty refs so we don't create new arrays/objects every render
-const EMPTY_ARR = Object.freeze([]);
-const EMPTY_OBJ = Object.freeze({});
-
 /* ---------------- Helpers ---------------- */
 const toLocalYYYYMMDD = (dateObj) => {
   const year = dateObj.getFullYear();
@@ -340,8 +336,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const mobileDateInputRef = useRef(null);
 
   const stickySearchCardRef = useRef(null);
-  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] =
-    useState(0);
+  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
   const tomorrow = new Date();
@@ -478,7 +473,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const refreshAvailability = useCallback(
     async (targetBuses, opts = {}) => {
       const { force = false } = opts;
-      const list = (targetBuses && targetBuses.length ? targetBuses : buses) || [];
+      const list =
+        (targetBuses && targetBuses.length ? targetBuses : buses) || [];
       if (!list.length) return;
 
       const now = Date.now();
@@ -508,12 +504,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
           const p = (async () => {
             try {
-              const res = await apiClient.get(`/bookings/availability/${bus._id}`, {
-                params: {
-                  date: searchDateParam,
-                  departureTime: bus.departureTime,
-                },
-              });
+              const res = await apiClient.get(
+                `/bookings/availability/${bus._id}`,
+                {
+                  params: {
+                    date: searchDateParam,
+                    departureTime: bus.departureTime,
+                  },
+                }
+              );
 
               const payload = {
                 available: res.data.availableSeats,
@@ -532,12 +531,14 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               }
               // keep whatever we had before
               const prev = availabilityRef.current?.[key];
-              return prev || {
-                available: null,
-                window: null,
-                bookedSeats: [],
-                seatGenderMap: {},
-              };
+              return (
+                prev || {
+                  available: null,
+                  window: null,
+                  bookedSeats: [],
+                  seatGenderMap: {},
+                }
+              );
             } finally {
               inFlightAvailRef.current.delete(key);
             }
@@ -587,7 +588,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         const list = [];
         if (expandedBusId) {
           const lastDash = expandedBusId.lastIndexOf("-");
-          const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+          const id =
+            lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
           const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
           const b = buses.find((x) => x._id === id && x.departureTime === time);
           if (b) list.push(b);
@@ -954,7 +956,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const now = new Date();
     const today = new Date();
     const currentDateString = toLocalYYYYMMDD(today);
-    the const searchingToday = searchDateParam === currentDateString;
+    const searchingToday = searchDateParam === currentDateString;
 
     return {
       filteredBuses: buses.filter((bus) => {
@@ -1046,7 +1048,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ---------------- Special notices ---------------- */
-  /* ---------------- Special notices ---------------- */
   const SpecialNoticesSection = () => {
     const itemsToRender = noticesLoading
       ? Array.from({ length: 4 })
@@ -1068,28 +1069,20 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     useEffect(() => {
       computePages();
       const onResize = () => computePages();
-      window.addEventListener("resize", onResize, { passive: true });
+      window.addEventListener("resize", onResize);
       return () => window.removeEventListener("resize", onResize);
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [noticesLoading, specialNotices.length]);
 
-    // keep the pager in sync while user swipes the carousel
     useEffect(() => {
       const el = trackRef.current;
       if (!el) return;
-      let raf = 0;
       const onScroll = () => {
-        cancelAnimationFrame(raf);
-        raf = requestAnimationFrame(() => {
-          const idx = Math.round(el.scrollLeft / el.clientWidth);
-          setActivePage(idx);
-        });
+        const idx = Math.round(el.scrollLeft / el.clientWidth);
+        setActivePage(idx);
       };
       el.addEventListener("scroll", onScroll, { passive: true });
-      return () => {
-        cancelAnimationFrame(raf);
-        el.removeEventListener("scroll", onScroll);
-      };
+      return () => el.removeEventListener("scroll", onScroll);
     }, []);
 
     const goToPage = (idx) => {
@@ -1112,7 +1105,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         <div
           ref={trackRef}
           className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-2 lg:pb-0"
-          style={{ scrollBehavior: "smooth", WebkitOverflowScrolling: "touch" }}
+          style={{ scrollBehavior: "smooth" }}
         >
           {itemsToRender.map((item, index) => (
             <div
@@ -1207,7 +1200,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         >
           {title}
         </h3>
-        <p className="max-w-md mx-auto mb-6" style={{ color: PALETTE.textLight }}>
+        <p
+          className="max-w-md mx-auto mb-6"
+          style={{ color: PALETTE.textLight }}
+        >
           {message}
         </p>
         <motion.button
@@ -1259,7 +1255,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             className="text-xl font-bold flex items-center gap-3"
             style={{ color: PALETTE.textDark }}
           >
-            <FaSlidersH className="lg:hidden" style={{ color: PALETTE.accentBlue }} />{" "}
+            <FaSlidersH
+              className="lg:hidden"
+              style={{ color: PALETTE.accentBlue }}
+            />{" "}
             {headerText}
           </h3>
           {isMobile ? (
@@ -1277,7 +1276,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               }`}
               style={{
                 color:
-                  activeFilterCount > 0 ? PALETTE.primaryRed : PALETTE.textLight,
+                  activeFilterCount > 0
+                    ? PALETTE.primaryRed
+                    : PALETTE.textLight,
               }}
             >
               <FaSyncAlt /> {resetText}
@@ -1384,7 +1385,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           </div>
         </section>
         {isMobile && (
-          <div className="pt-4 border-t" style={{ borderColor: PALETTE.borderLight }}>
+          <div
+            className="pt-4 border-t"
+            style={{ borderColor: PALETTE.borderLight }}
+          >
             <button
               onClick={() => setIsFilterOpen(false)}
               className="w-full py-3 font-bold text-white rounded-lg"
@@ -1430,7 +1434,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const handleToggleSeatLayout = async (bus) => {
     const busKey = `${bus._id}-${bus.departureTime}`;
     if (expandedBusId === busKey) {
-      const seatsToRelease = busSpecificBookingData[busKey]?.selectedSeats || [];
+      const seatsToRelease =
+        busSpecificBookingData[busKey]?.selectedSeats || [];
       if (seatsToRelease.length) {
         try {
           await releaseSeats(bus, seatsToRelease);
@@ -1458,10 +1463,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     const currentBusData = busSpecificBookingData[busKey];
     if (!currentBusData) return;
 
-    const { bookedSeats: unavailable = [] } =
-      availability[availabilityKey] || {
-        bookedSeats: [],
-      };
+    const { bookedSeats: unavailable = [] } = availability[availabilityKey] || {
+      bookedSeats: [],
+    };
     const seatStr = String(seat);
     const alreadySelected = currentBusData.selectedSeats.includes(seatStr);
 
@@ -1477,9 +1481,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...prev,
         [busKey]: {
           ...prev[busKey],
-          selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+          selectedSeats: prev[busKey].selectedSeats.filter(
+            (s) => s !== seatStr
+          ),
           seatGenders: Object.fromEntries(
-            Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+            Object.entries(prev[busKey].seatGenders).filter(
+              ([k]) => k !== seatStr
+            )
           ),
         },
       }));
@@ -1515,9 +1523,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           ...prev,
           [busKey]: {
             ...prev[busKey],
-            selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+            selectedSeats: prev[busKey].selectedSeats.filter(
+              (s) => s !== seatStr
+            ),
             seatGenders: Object.fromEntries(
-              Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+              Object.entries(prev[busKey].seatGenders).filter(
+                ([k]) => k !== seatStr
+              )
             ),
           },
         }));
@@ -1529,9 +1541,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         ...prev,
         [busKey]: {
           ...prev[busKey],
-          selectedSeats: prev[busKey].selectedSeats.filter((s) => s !== seatStr),
+          selectedSeats: prev[busKey].selectedSeats.filter(
+            (s) => s !== seatStr
+          ),
           seatGenders: Object.fromEntries(
-            Object.entries(prev[busKey].seatGenders).filter(([k]) => k !== seatStr)
+            Object.entries(prev[busKey].seatGenders).filter(
+              ([k]) => k !== seatStr
+            )
           ),
         },
       }));
@@ -1603,7 +1619,8 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
     if (currentBus.convenienceFee) {
       if (currentBus.convenienceFee.amountType === "percentage") {
-        convenienceFeeValue = (basePrice * currentBus.convenienceFee.value) / 100;
+        convenienceFeeValue =
+          (basePrice * currentBus.convenienceFee.value) / 100;
       } else {
         convenienceFeeValue =
           currentBus.convenienceFee.value * selectedSeats.length;
@@ -1612,7 +1629,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
 
     const newTotalPrice = basePrice + convenienceFeeValue;
 
-    if (newTotalPrice !== busData.totalPrice || basePrice !== busData.basePrice) {
+    if (
+      newTotalPrice !== busData.totalPrice ||
+      basePrice !== busData.basePrice
+    ) {
       setBusSpecificBookingData((prev) => ({
         ...prev,
         [expandedBusId]: {
@@ -1681,8 +1701,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
@@ -1695,16 +1718,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     ? availability[expandedBusId] || {}
     : {};
 
-  const selectedBookingData =
-    (expandedBusId && busSpecificBookingData[expandedBusId]) || {
-      selectedSeats: [],
-      seatGenders: {},
-      selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
-      selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
-      basePrice: 0,
-      convenienceFee: 0,
-      totalPrice: 0,
-    };
+  const selectedBookingData = (expandedBusId &&
+    busSpecificBookingData[expandedBusId]) || {
+    selectedSeats: [],
+    seatGenders: {},
+    selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
+    selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+    basePrice: 0,
+    convenienceFee: 0,
+    totalPrice: 0,
+  };
 
   const currentMobileStep =
     (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
@@ -1834,7 +1857,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                     bookedSeats={[...(selectedAvailability?.bookedSeats || [])]}
                     selectedSeats={selectedBookingData.selectedSeats}
                     onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
-                    bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
+                    bookedSeatGenders={
+                      selectedAvailability?.seatGenderMap || {}
+                    }
                     selectedSeatGenders={{}}
                   />
                 </div>
@@ -1860,11 +1885,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 <PointSelection
                   boardingPoints={selectedBus.boardingPoints}
                   droppingPoints={selectedBus.droppingPoints}
-                  selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
+                  selectedBoardingPoint={
+                    selectedBookingData.selectedBoardingPoint
+                  }
                   setSelectedBoardingPoint={(p) =>
                     handleBoardingPointSelect(selectedBus, p)
                   }
-                  selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
+                  selectedDroppingPoint={
+                    selectedBookingData.selectedDroppingPoint
+                  }
                   setSelectedDroppingPoint={(p) =>
                     handleDroppingPointSelect(selectedBus, p)
                   }
@@ -1950,7 +1979,11 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
     }
     if (visibleBuses.length > 0) {
       return (
-        <motion.div variants={containerVariants} initial="hidden" animate="visible">
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
           {visibleBuses.map((bus) => {
             const busKey = `${bus._id}-${bus.departureTime}`;
             const displayPrice = getDisplayPrice(bus, from, to);
@@ -1958,7 +1991,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             let timerProps = null;
             if (searchDateParam && bus.departureTime) {
               const now = new Date();
-              const [depHour, depMinute] = bus.departureTime.split(":").map(Number);
+              const [depHour, depMinute] = bus.departureTime
+                .split(":")
+                .map(Number);
               const [year, month, day] = searchDateParam.split("-").map(Number);
               const departureDateTime = new Date(
                 year,
@@ -2039,7 +2074,10 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                         <div className="mt-1.5 text-xs text-gray-500 flex items-center">
                           <span className="inline-flex items-center gap-1">
                             <FaClock className="text-[10px]" />
-                            {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                            {calculateDuration(
+                              bus.departureTime,
+                              bus.arrivalTime
+                            )}
                           </span>
                           {typeof availableSeats === "number" && (
                             <>
@@ -2065,7 +2103,9 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                             >
                               <BookingDeadlineTimer
                                 deadlineTimestamp={timerProps.deadlineTimestamp}
-                                departureTimestamp={timerProps.departureTimestamp}
+                                departureTimestamp={
+                                  timerProps.departureTimestamp
+                                }
                                 onDeadline={timerProps.onDeadline}
                               />
                             </div>
