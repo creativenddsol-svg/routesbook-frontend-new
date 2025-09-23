@@ -490,7 +490,7 @@ export function SearchCoreProvider({ children }) {
             (async () => {
               try {
                 await apiClient.delete("/bookings/release", {
-                  ...buildAuthConfig(getAuthToken())),
+                  ...buildAuthConfig(getAuthToken()),
                   data: {
                     busId: busObj._id,
                     date: searchDateParam,
@@ -1397,6 +1397,9 @@ export function SearchCoreProvider({ children }) {
     from,
     to,
     searchDateParam,
+
+    // fetch
+    fetchData,
 
     // core data
     buses,
