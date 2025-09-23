@@ -1,5 +1,5 @@
 // src/pages/lib/locks.js
-import apiClient, { getClientId } from "../../api";
+import apiClient, { getClientId } from "./api";
 
 /**
  * Cross-tab/session lightweight seat-lock registry.
