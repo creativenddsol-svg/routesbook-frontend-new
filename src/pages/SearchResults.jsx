@@ -22,6 +22,7 @@ import {
   FaCalendarAlt,
   FaExchangeAlt,
   FaSearch,
+  FaChevronDown,
 } from "react-icons/fa";
 import { createPortal } from "react-dom";
 
@@ -84,6 +85,18 @@ const getReadableDate = (dateString) => {
     year: "numeric",
     timeZone: "UTC",
   });
+};
+
+/* 🆕 AbhiBus-style compact date: "Tue 23 09 2025" */
+const getAbhiDate = (dateString) => {
+  if (!dateString) return "Select Date";
+  const [y, m, d] = dateString.split("-").map(Number);
+  const dt = new Date(y, m - 1, d);
+  const weekday = dt.toLocaleDateString("en-GB", { weekday: "short" }); // Tue
+  const dd = String(dt.getDate()).padStart(2, "0"); // 23
+  const mm = String(dt.getMonth() + 1).padStart(2, "0"); // 09
+  const yyyy = String(dt.getFullYear()); // 2025
+  return `${weekday} ${dd} ${mm} ${yyyy}`;
 };
 
 const getMobileDateParts = (dateString) => {
@@ -959,7 +972,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   const scrollLockRef = useRef({ y: 0 });
   useEffect(() => {
     const mobileFlowOpen = !!expandedBusId && window.innerWidth < 1024;
-    const shouldLock = isFilterOpen || mobileFlowOpen;
+    const shouldLock = isFilterOpen || mobileFlowOpen || mobileSearchOpen;
 
     if (shouldLock) {
       scrollLockRef.current.y = window.scrollY || window.pageYOffset || 0;
@@ -993,7 +1006,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       body.style.overflow = "";
       body.style.touchAction = "";
     };
-  }, [isFilterOpen, expandedBusId]);
+  }, [isFilterOpen, expandedBusId, mobileSearchOpen]);
 
   /* ---------------- Filtering/sorting ---------------- */
   const { filteredBuses } = useMemo(() => {
@@ -1745,11 +1758,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
-  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
@@ -2012,6 +2020,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ------ 🆕 Mobile City Picker (full-page), same as Home feel ------ */
+   /* ------ 🆕 Mobile City Picker (full-page), same as Home feel ------ */
   const MobileCityPicker = ({ open, mode, options, recent, onPick, onClose }) => {
     const [q, setQ] = useState("");
     const all = options.map((o) => o.label);
@@ -2114,12 +2123,15 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       a.getFullYear() === b.getFullYear() &&
       a.getMonth() === b.getMonth() &&
       a.getDate() === b.getDate();
+
     const today = new Date();
     const minDate = minDateString ? parseYMD(minDateString) : today;
     const selected = value ? parseYMD(value) : null;
+
     const [viewMonth, setViewMonth] = useState(
       selected ? startOfMonth(selected) : startOfMonth(today)
     );
+
     useEffect(() => {
       if (!open) return;
       const onEsc = (e) => e.key === "Escape" && onClose?.();
@@ -2131,10 +2143,13 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         document.body.style.overflow = prev;
       };
     }, [open, onClose]);
+
     useEffect(() => {
       if (selected) setViewMonth(startOfMonth(selected));
     }, [value]);
+
     if (!open) return null;
+
     const start = startOfMonth(viewMonth),
       end = endOfMonth(viewMonth);
     const firstDow = (start.getDay() + 6) % 7;
@@ -2145,13 +2160,16 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
       if (dayNum < 1 || dayNum > end.getDate()) return null;
       return new Date(viewMonth.getFullYear(), viewMonth.getMonth(), dayNum);
     });
+
     const isDisabled = (d) =>
       d < new Date(new Date().toDateString()) || d < minDate;
+
     const pick = (d) => {
       if (isDisabled(d)) return;
       onChange?.(toLocalYYYYMMDD(d));
       onClose?.();
     };
+
     return (
       <>
         <div
@@ -2194,18 +2212,21 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               </button>
             </div>
           </div>
+
           <div className="px-4 pt-2 text-sm font-medium">
             {viewMonth.toLocaleString("en-GB", {
               month: "long",
               year: "numeric",
             })}
           </div>
+
           <div className="px-2 pb-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
             <div className="grid grid-cols-7 text-center text-xs py-2 text-gray-500">
               {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
                 <div key={d}>{d}</div>
               ))}
             </div>
+
             <div className="grid grid-cols-7 gap-y-1 pb-2">
               {cells.map((d, idx) => {
                 if (!d) return <div key={idx} />;
@@ -2232,6 +2253,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
               })}
             </div>
           </div>
+
           <div className="px-4 py-3 border-t flex items-center justify-between">
             <div className="space-x-4">
               <button
@@ -2270,7 +2292,6 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
   };
 
   /* ------ 🆕 Mobile Search Sheet (slides down from pill) ------ */
-   /* ------ 🆕 Mobile Search Sheet (slides down from pill) ------ */
   const MobileSearchSheet = () => {
     if (!mobileSearchOpen) return null;
 
@@ -2385,7 +2406,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
           </div>
 
           {/* DATE */}
-          <div className="flex items-center gap-3 p-3 border-t">
+          <div className="flex items-center gap-3 p-3 border-top border-t">
             <FaCalendarAlt className="shrink-0 text-base text-gray-500" />
             <div className="flex-grow">
               <div className="text-[11px] font-medium text-gray-500">
@@ -2978,7 +2999,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 <FaChevronLeft className="text-xl" />
               </button>
 
-              {/* 🔻 New: dropdown search pill to open MobileSearchSheet */}
+              {/* 🔻 Pill that opens MobileSearchSheet */}
               <button
                 onClick={() => setMobileSearchOpen(true)}
                 className="flex items-center gap-2 px-3 py-1.5 rounded-full border"
@@ -2996,7 +3017,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
                 </span>
               </button>
 
-              {/* date chip kept as-is for quick change */}
+              {/* date chip (quick change) */}
               <button
                 onClick={handleMobileDateChipClick}
                 className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
@@ -3046,7 +3067,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             />
           </div>
 
-          {/* Desktop header */}
+          {/* Desktop header (unchanged) */}
           <div className="hidden lg:block">
             <div className="flex items-center mb-2">
               <FaChevronLeft
@@ -3083,7 +3104,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
         </div>
       </div>
 
-      {/* Sticky search controls (desktop) */}
+      {/* Sticky search controls (desktop only) */}
       <div
         ref={stickySearchCardRef}
         className={`${
@@ -3253,6 +3274,7 @@ const SearchResults = ({ showNavbar, headerHeight, isNavbarAnimating }) => {
             >
               <FilterPanel isMobile={false} sortBy={sortBy} setSortBy={setSortBy} />
             </aside>
+
             <main className="lg:col-span-3 space-y-5">
               <SpecialNoticesSection />
 
