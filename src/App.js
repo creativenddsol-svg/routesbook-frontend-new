@@ -10,6 +10,7 @@ import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
+// IMPORTANT: points to the folder; resolves to ./pages/SearchResults/index.jsx
 import SearchResults from "./pages/SearchResults";
 import DownloadTicket from "./pages/DownloadTicket";
 import Payment from "./pages/Payment";
@@ -18,7 +19,7 @@ import ConfirmBooking from "./pages/ConfirmBooking";
 import MyBookings from "./pages/MyBookings";
 import Profile from "./pages/Profiles";
 import AllOperators from "./pages/AllOperators";
-import WhatsNew from "./pages/WhatsNew"; // ✅ ADDED
+import WhatsNew from "./pages/WhatsNew";
 
 /* ───── Admin Pages ──── */
 import AdminDashboard from "./pages/AdminDashboard";
@@ -31,9 +32,9 @@ import AdminAuditLogs from "./pages/AdminAuditLogs";
 import AdminSpecialNotices from "./pages/AdminSpecialNotices";
 import AdminRegisterOperator from "./pages/AdminRegisterOperator";
 import AdminOperatorList from "./pages/AdminOperatorList";
-import AdminOperatorPayments from "./pages/AdminOperatorPayments"; // ✅ NEW IMPORT
-import AdminNotices from "./pages/AdminNotices"; // ✅ ADDED
-import AdminWhatsNew from "./pages/AdminWhatsNew"; // ✅ ADDED
+import AdminOperatorPayments from "./pages/AdminOperatorPayments";
+import AdminNotices from "./pages/AdminNotices";
+import AdminWhatsNew from "./pages/AdminWhatsNew";
 
 /* ───── Operator Pages ──── */
 import OperatorDashboard from "./pages/OperatorDashboard";
@@ -65,7 +66,7 @@ const App = () => (
           <Route path="/payment" element={<Payment />} />
           <Route path="/operators" element={<AllOperators />} />
           <Route path="/operators/:id" element={<OperatorProfile />} />
-          <Route path="/whats-new" element={<WhatsNew />} /> {/* ✅ ADDED */}
+          <Route path="/whats-new" element={<WhatsNew />} />
 
           {/* ───── USER PROTECTED ROUTES ───── */}
           <Route
@@ -205,7 +206,7 @@ const App = () => (
                 <AdminWhatsNew />
               </AdminRoute>
             }
-          /> {/* ✅ ADDED */}
+          />
 
           {/* ───── OPERATOR ROUTES ──── */}
           <Route
