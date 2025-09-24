@@ -1,27 +1,14 @@
-import React, { useEffect, useState } from "react";
+// src/pages/SearchResults/components/BookingDeadlineTimer.jsx
+import { useEffect, useState } from "react";
 import { FaHourglassHalf } from "react-icons/fa";
+import { PALETTE } from "../_core";
 
-const PALETTE = {
-  primaryRed: "#D84E55",
-  accentBlue: "#3A86FF",
-  textDark: "#1A1A1A",
-  textLight: "#4B5563",
-  bgLight: "#F0F2F5",
-  borderLight: "#E9ECEF",
-  white: "#FFFFFF",
-  green: "#28a745",
-  orange: "#fd7e14",
-  yellow: "#FFC107",
-  datePillBg: "#FFF9DB",
-  acPillBg: "#EAF5FF",
-  seatPillBg: "#FFE9EC",
-};
-
-export default function BookingDeadlineTimer({
+/* ---------------- BookingDeadlineTimer ---------------- */
+const BookingDeadlineTimer = ({
   deadlineTimestamp,
   departureTimestamp,
   onDeadline,
-}) {
+}) => {
   const [timeLeft, setTimeLeft] = useState(deadlineTimestamp - Date.now());
 
   useEffect(() => {
@@ -82,4 +69,6 @@ export default function BookingDeadlineTimer({
       {String(minutes).padStart(2, "0")}:{String(seconds).padStart(2, "0")}
     </div>
   );
-}
+};
+
+export default BookingDeadlineTimer;
