@@ -1,0 +1,445 @@
+// src/pages/SearchResults/Mobile.jsx
+import { useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  FaBus,
+  FaClock,
+  FaChevronLeft,
+  FaSearch,
+  FaSlidersH,
+} from "react-icons/fa";
+
+import {
+  // shared context + helpers from _core (contract listed below)
+  useSearchCore,
+  PALETTE,
+  calculateDuration,
+  getDisplayPrice,
+  getReadableDate,
+  getMobileDateParts,
+} from "./_core";
+
+// mobile-only leaf components (they can read from the same core via context)
+import BookingDeadlineTimer from "./components/BookingDeadlineTimer";
+import FilterPanel from "./components/FilterPanel";
+import SpecialNoticesSection from "./components/SpecialNoticesSection";
+import MobileBottomSheet from "./components/MobileBottomSheet";
+import MobileSearchSheet from "./components/MobileSearchSheet";
+import MobileCityPicker from "./components/MobileCityPicker";
+import MobileCalendarSheet from "./components/MobileCalendarSheet";
+
+/**
+ * 🔗 Expected _core contract used by this file
+ * const {
+ *   // route/search
+ *   from, to, searchDate, setSearchDate, searchDateParam, todayStr, tomorrowStr,
+ *   searchFrom, setSearchFrom, searchTo, setSearchTo,
+ *   updateSearchWithDate,      // (newDate: "YYYY-MM-DD") => void (navigates + refresh)
+ *   swapLocations,             // () => void
+ *
+ *   // results + availability
+ *   loading, fetchError, sortedBuses, visibleBuses, availability, fetchData,
+ *
+ *   // selection/locking (these are consumed by MobileBottomSheet; we only need toggler here)
+ *   expandedBusId, handleToggleSeatLayout,
+ *
+ *   // filters
+ *   isFilterOpen, setIsFilterOpen, activeFilterCount, sortBy, setSortBy,
+ *
+ *   // options for pickers
+ *   fromOptions, toOptions, recent,
+ *
+ *   // mobile sheets state
+ *   mobileSearchOpen, setMobileSearchOpen,
+ *   mobilePickerOpen, setMobilePickerOpen, mobilePickerMode, setMobilePickerMode,
+ *   calOpen, setCalOpen,
+ * } = useSearchCore();
+ */
+
+// ————————————————————————————————
+// Local tiny skeleton used during loading
+const BusCardSkeleton = () => (
+  <div className="bg-white rounded-2xl p-4 animate-pulse border border-gray-200">
+    <div className="flex justify-between">
+      <div className="w-2/3">
+        <div className="h-5 w-24 bg-gray-200 rounded mb-2" />
+        <div className="h-4 w-40 bg-gray-200 rounded" />
+      </div>
+      <div className="h-8 w-20 bg-gray-200 rounded" />
+    </div>
+    <div className="h-10 w-full bg-gray-100 rounded mt-3" />
+  </div>
+);
+
+// simple fade/slide
+const listVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
+const itemVariants = { hidden: { y: 16, opacity: 0 }, visible: { y: 0, opacity: 1 } };
+
+export default function Mobile() {
+  const nav = useNavigate();
+  const {
+    from,
+    to,
+    searchDate,
+    setSearchDate,
+    searchDateParam,
+    todayStr,
+    loading,
+    fetchError,
+    sortedBuses,
+    visibleBuses,
+    availability,
+
+    // card open/close
+    expandedBusId,
+    handleToggleSeatLayout,
+
+    // filters + sort
+    isFilterOpen,
+    setIsFilterOpen,
+    activeFilterCount,
+    sortBy,
+    setSortBy,
+
+    // pickers/sheets
+    mobileSearchOpen,
+    setMobileSearchOpen,
+    mobilePickerOpen,
+    setMobilePickerOpen,
+    mobilePickerMode,
+    setMobilePickerMode,
+    calOpen,
+    setCalOpen,
+
+    fromOptions,
+    toOptions,
+    recent,
+
+    // navigation search update
+    updateSearchWithDate,
+    fetchData,
+  } = useSearchCore();
+
+  // hidden native <input type="date"> for the header chip quick change
+  const mobileDateInputRef = useRef(null);
+  const openDateNative = () => mobileDateInputRef.current?.showPicker();
+  const onNativeDateChange = (e) => {
+    const d = e.target.value;
+    setSearchDate(d);
+    updateSearchWithDate(d);
+  };
+
+  const activeIsSoldOut = (busKey) => {
+    const a = availability?.[busKey];
+    return typeof a?.available === "number" && a.available === 0;
+  };
+
+  const renderCards = () => {
+    if (loading) {
+      return Array.from({ length: 5 }).map((_, i) => <BusCardSkeleton key={i} />);
+    }
+    if (fetchError) {
+      return (
+        <div className="text-center p-8 bg-white rounded-2xl border border-gray-200">
+          <div className="text-lg font-semibold mb-1" style={{ color: PALETTE.textDark }}>
+            Oops! Something went wrong.
+          </div>
+          <div className="text-sm mb-4" style={{ color: PALETTE.textLight }}>
+            {fetchError}
+          </div>
+          <button
+            onClick={fetchData}
+            className="px-4 py-2 rounded-lg text-white font-semibold"
+            style={{ backgroundColor: PALETTE.accentBlue }}
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    if (!visibleBuses.length) {
+      return (
+        <div className="text-center p-8 bg-white rounded-2xl border border-gray-200">
+          <div className="text-lg font-semibold mb-1" style={{ color: PALETTE.textDark }}>
+            {activeFilterCount ? "No Buses Match Your Filters" : "No Buses Available"}
+          </div>
+          <div className="text-sm" style={{ color: PALETTE.textLight }}>
+            {activeFilterCount
+              ? "Try adjusting or resetting your filters."
+              : "No buses were found for this route on the selected date."}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <motion.div variants={listVariants} initial="hidden" animate="visible">
+        {visibleBuses.map((bus) => {
+          const busKey = `${bus._id}-${bus.departureTime}`;
+          const displayPrice = getDisplayPrice(bus, from, to);
+
+          // show closing timer only if within 12h window
+          let timerProps = null;
+          if (searchDateParam && bus.departureTime) {
+            const now = new Date();
+            const [depH, depM] = bus.departureTime.split(":").map(Number);
+            const [yy, mm, dd] = searchDateParam.split("-").map(Number);
+            const dep = new Date(yy, mm - 1, dd, depH, depM).getTime();
+            const diffHrs = (dep - now.getTime()) / (1000 * 60 * 60);
+            if (diffHrs > 0 && diffHrs <= 12) {
+              timerProps = {
+                deadlineTimestamp: dep - 60 * 60 * 1000,
+                departureTimestamp: dep,
+                onDeadline: fetchData,
+              };
+            }
+          }
+
+          const a = availability?.[busKey];
+          const availableSeats = a?.available;
+          const isSoldOut = activeIsSoldOut(busKey);
+          const hasStrike =
+            typeof bus.originalPrice === "number" && bus.originalPrice > displayPrice;
+
+          return (
+            <motion.div
+              key={busKey}
+              variants={itemVariants}
+              className={`bg-white rounded-xl border border-gray-200 overflow-hidden ${
+                isSoldOut ? "opacity-60" : "hover:shadow-md"
+              } mb-3`}
+            >
+              {/* tap target (mobile card) */}
+              <button
+                type="button"
+                className={`w-full text-left ${isSoldOut ? "cursor-not-allowed" : ""}`}
+                onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
+              >
+                <div className="p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <span
+                        className="inline-flex items-center px-2 py-0.5 rounded-lg border text-[15px] font-medium tabular-nums"
+                        style={{
+                          backgroundColor: "#ECFDF5",
+                          color: "#065F46",
+                          borderColor: "#A7F3D0",
+                        }}
+                      >
+                        {bus.departureTime}
+                      </span>
+
+                      <div className="mt-1.5 text-xs text-gray-500 flex items-center">
+                        <span className="inline-flex items-center gap-1">
+                          <FaClock className="text-[10px]" />
+                          {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                        </span>
+                        {typeof availableSeats === "number" && (
+                          <>
+                            <span className="mx-2">&middot;</span>
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                              style={{
+                                background: "#FFE9EC",
+                                color: PALETTE.primaryRed,
+                              }}
+                            >
+                              {availableSeats} seats left
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {timerProps && (
+                        <div className="mt-2 inline-flex">
+                          <div className="px-2 py-0.5 rounded-lg text-[11px]" style={{ backgroundColor: "#FFF7ED" }}>
+                            <BookingDeadlineTimer {...timerProps} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="text-right pl-3">
+                      {hasStrike && (
+                        <div className="text-[12px] text-gray-400 line-through">Rs. {bus.originalPrice}</div>
+                      )}
+                      <div className="leading-tight">
+                        <span className="text-[12px] text-gray-500 mr-1 align-top">Rs.</span>
+                        <span className="text-[20px] font-semibold tabular-nums text-gray-900">
+                          {displayPrice}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-gray-500">Onwards</div>
+                    </div>
+                  </div>
+
+                  <hr className="my-2 border-t border-gray-100" />
+
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 pr-3">
+                      <h4 className="text-[15px] font-medium text-gray-800 truncate">{bus.name}</h4>
+                      <p className="text-[12px] text-gray-500 truncate">{bus.busType}</p>
+                    </div>
+                    <div className="w-16 h-10 flex-shrink-0 flex items-center justify-center">
+                      {bus.operatorLogo ? (
+                        <img
+                          src={bus.operatorLogo}
+                          alt={`${bus.name} logo`}
+                          className="max-w-full max-h-full object-contain"
+                        />
+                      ) : (
+                        <FaBus className="text-2xl text-gray-300" />
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </button>
+            </motion.div>
+          );
+        })}
+      </motion.div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen bg-[#F0F2F5]">
+      {/* Header */}
+      <div className="bg-white">
+        <div className="max-w-7xl mx-auto px-4 py-2">
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => nav(-1)}
+              className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+              aria-label="Go back"
+            >
+              <FaChevronLeft className="text-xl" />
+            </button>
+
+            {/* Query pill (opens MobileSearchSheet) */}
+            <button
+              onClick={() => setMobileSearchOpen(true)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-full border"
+              aria-label="Modify search"
+              style={{ background: "#FFF9DB", borderColor: "#FCEFC7" }}
+            >
+              <FaSearch className="text-gray-600" />
+              <span className="text-sm font-semibold leading-none">
+                {from && to ? `${from} → ${to}` : "Search route"}
+              </span>
+            </button>
+
+            {/* Date chip */}
+            <button
+              onClick={openDateNative}
+              className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
+              aria-label="Change date"
+              style={{ background: "#FFF9DB", borderColor: "#FCEFC7" }}
+            >
+              <span className="text-sm font-semibold leading-none">
+                {getMobileDateParts(searchDate).top}
+              </span>
+              <span className="text-[10px] text-gray-600 leading-none mt-0.5">
+                {getMobileDateParts(searchDate).bottom}
+              </span>
+            </button>
+          </div>
+
+          <div className="mt-2">
+            <h1 className="text-2xl font-bold tracking-tight" style={{ color: PALETTE.textDark }}>
+              {from} <span className="mx-1.5">→</span> {to}
+            </h1>
+            {!loading && !fetchError && (
+              <p className="text-xs text-gray-500 mt-0.5">{sortedBuses.length} buses</p>
+            )}
+          </div>
+
+          <div className="mt-2 text-[11px] text-gray-500">
+            Bus Ticket <span className="mx-1 text-gray-400">›</span>
+            {from} to {to} Bus
+          </div>
+
+          {/* hidden native date input used by the chip */}
+          <input
+            ref={mobileDateInputRef}
+            type="date"
+            value={searchDate}
+            min={todayStr}
+            onChange={onNativeDateChange}
+            className="absolute opacity-0 pointer-events-none"
+            aria-hidden="true"
+            tabIndex={-1}
+          />
+        </div>
+      </div>
+
+      {/* content */}
+      <div className="flex-1 w-full pb-8">
+        <div className="max-w-7xl mx-auto px-4 pt-4">
+          {/* notices carousel */}
+          <SpecialNoticesSection />
+
+          {/* filter toggle button */}
+          <button
+            onClick={() => setIsFilterOpen(true)}
+            className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg text-white mb-4"
+            style={{ backgroundColor: "#3A86FF" }}
+          >
+            <FaSlidersH /> Show Filters &amp; Sort
+            {activeFilterCount > 0 && (
+              <span className="flex items-center justify-center w-5 h-5 text-xs text-white bg-red-500 rounded-full">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {/* card list */}
+          <AnimatePresence>{renderCards()}</AnimatePresence>
+        </div>
+      </div>
+
+      {/* mobile filter drawer */}
+      <AnimatePresence>
+        {isFilterOpen && (
+          <>
+            <motion.button
+              type="button"
+              aria-label="Close filters"
+              onClick={() => setIsFilterOpen(false)}
+              className="fixed inset-0 bg-black/40 z-50"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+            />
+            <motion.div
+              className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 overflow-y-auto rounded-r-2xl shadow-xl"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            >
+              <FilterPanel isMobile sortBy={sortBy} setSortBy={setSortBy} />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* global mobile sheets (these components read/write via the same core context) */}
+      <MobileBottomSheet />
+      <MobileSearchSheet />
+      <MobileCityPicker
+        open={mobilePickerOpen}
+        mode={mobilePickerMode}
+        options={mobilePickerMode === "from" ? fromOptions : toOptions}
+        recent={recent}
+        onClose={() => setMobilePickerOpen(false)}
+      />
+      <MobileCalendarSheet
+        open={calOpen}
+        value={searchDate}
+        minDateString={todayStr}
+        onClose={() => setCalOpen(false)}
+      />
+    </div>
+  );
+}
