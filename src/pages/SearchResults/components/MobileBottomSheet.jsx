@@ -183,7 +183,7 @@ export default function MobileBottomSheet() {
                   selectedSeats={selectedBookingData.selectedSeats}
                   onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
                   bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
-                  selectedSeatGenders={{}}
+                  selectedSeatGenders={selectedBookingData.seatGenders || {}}
                 />
               </div>
               <div className="flex items-center justify-between text-sm text-gray-600">
