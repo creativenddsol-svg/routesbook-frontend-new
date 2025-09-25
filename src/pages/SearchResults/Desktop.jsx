@@ -23,11 +23,13 @@ import {
 import BookingDeadlineTimer from "./components/BookingDeadlineTimer";
 import FilterPanel from "./components/FilterPanel";
 import SpecialNoticesSection from "./components/SpecialNoticesSection";
-import SeatLayout from "../../components/SeatLayout";
 
-import PointSelection from "../components/PointSelection";
-import BookingSummary from "../components/BookingSummary";
-import SeatLegend from "../components/SeatLegend";
+
+import SeatLayout from "../../components/SeatLayout";
+import SeatLegend from "../../components/SeatLegend";
+import BookingSummary from "../../components/BookingSummary";
+import PointSelection from "../../components/PointSelection";
+
 
 /* ————————————————————————————————
    Small skeleton while loading
