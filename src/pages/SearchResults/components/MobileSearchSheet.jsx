@@ -77,8 +77,8 @@ export default function MobileSearchSheet() {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: -20, opacity: 0 }}
-        className="fixed top-0 left-0 right-0 z-[10031] bg-white rounded-b-2xl shadow-xl border border-gray-300"
-        style={{ borderColor: PALETTE.borderLight }}
+        className="fixed top-0 left-0 right-0 z-[10031] bg-white rounded-b-2xl shadow-xl 
+                   border border-gray-200 overflow-hidden" // ✅ added consistent border
       >
         {/* Header */}
         <div className="px-4 py-3 border-b flex items-center justify-between">
@@ -120,12 +120,12 @@ export default function MobileSearchSheet() {
             </div>
           </div>
 
-          {/* SWAP BUTTON (horizontal + centered between From & To) */}
-          <div className="absolute left-1/2 top-[50%] -translate-x-1/2 -translate-y-1/2 z-20">
+          {/* SWAP BUTTON (70% right along the line) */}
+          <div className="absolute left-[70%] top-[72px] -translate-x-1/2 -translate-y-1/2 z-20">
             <motion.button
               whileTap={{ scale: 0.9, rotate: 180 }}
               onClick={swapLocations}
-              className="bg-white p-3 rounded-full shadow-md border border-gray-200"
+              className="bg-white p-3 rounded-full shadow-md border border-gray-300"
               aria-label="Swap"
               title="Swap locations"
             >
