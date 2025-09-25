@@ -95,40 +95,8 @@ export default function MobileSearchSheet() {
           </button>
         </div>
 
-        {/* 🔴 Search Pill */}
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between w-full rounded-full border px-4 py-2 shadow-sm bg-gray-50">
-            <div
-              className="flex flex-col text-left flex-grow"
-              onClick={() => openMobilePicker("from")}
-            >
-              <span className="text-sm font-semibold text-gray-900 truncate">
-                {searchFrom || "Select departure"}
-              </span>
-              <span className="text-xs text-gray-500">
-                {searchDate ? getReadableDate(searchDate) : "Choose date"}
-              </span>
-            </div>
-            <span className="mx-2 text-gray-400">→</span>
-            <div
-              className="flex flex-col text-right flex-grow"
-              onClick={() => openMobilePicker("to")}
-            >
-              <span className="text-sm font-semibold text-gray-900 truncate">
-                {searchTo || "Select destination"}
-              </span>
-              <span
-                onClick={() => setCalOpen(true)}
-                className="text-xs text-blue-600 underline cursor-pointer"
-              >
-                Change Date
-              </span>
-            </div>
-          </div>
-        </div>
-
         {/* FROM */}
-        <div className="p-3">
+        <div className="relative p-3">
           <div className="flex items-center gap-3 pb-3 border-b">
             <FaBus className="shrink-0 text-base text-gray-500" />
             <div className="w-full">
@@ -173,19 +141,19 @@ export default function MobileSearchSheet() {
               </button>
             </div>
           </div>
-        </div>
 
-        {/* SWAP */}
-        <div className="absolute top-[92px] right-3 transform -translate-y-1/2 z-10">
-          <motion.button
-            whileTap={{ scale: 0.9, rotate: 180 }}
-            onClick={swapLocations}
-            className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200 border border-gray-200"
-            aria-label="Swap"
-            title="Swap locations"
-          >
-            <FaExchangeAlt className="text-base rotate-90 text-gray-600" />
-          </motion.button>
+          {/* SWAP */}
+          <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-10">
+            <motion.button
+              whileTap={{ scale: 0.9, rotate: 180 }}
+              onClick={swapLocations}
+              className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200 border border-gray-200"
+              aria-label="Swap"
+              title="Swap locations"
+            >
+              <FaExchangeAlt className="text-base rotate-90 text-gray-600" />
+            </motion.button>
+          </div>
         </div>
 
         {/* DATE */}
@@ -205,36 +173,24 @@ export default function MobileSearchSheet() {
                   {getReadableDate(searchDate)}
                 </span>
               </button>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <button
                   onClick={() => setSearchDate(todayStrLocal)}
-                  className={`text-xs font-semibold px-2 py-1 rounded-lg border ${
+                  className={`text-xs font-semibold ${
                     searchDate === todayStrLocal
-                      ? "text-white"
-                      : "text-[#3A86FF]"
+                      ? "text-red-500"
+                      : "text-gray-600"
                   }`}
-                  style={{
-                    background:
-                      searchDate === todayStrLocal ? "#3A86FF" : "white",
-                    borderColor:
-                      searchDate === todayStrLocal ? "#3A86FF" : "#E5E7EB",
-                  }}
                 >
                   Today
                 </button>
                 <button
                   onClick={() => setSearchDate(tomorrowStrLocal)}
-                  className={`text-xs font-semibold px-2 py-1 rounded-lg border ${
+                  className={`text-xs font-semibold ${
                     searchDate === tomorrowStrLocal
-                      ? "text-white"
-                      : "text-[#3A86FF]"
+                      ? "text-red-500"
+                      : "text-gray-600"
                   }`}
-                  style={{
-                    background:
-                      searchDate === tomorrowStrLocal ? "#3A86FF" : "white",
-                    borderColor:
-                      searchDate === tomorrowStrLocal ? "#3A86FF" : "#E5E7EB",
-                  }}
                 >
                   Tomorrow
                 </button>
