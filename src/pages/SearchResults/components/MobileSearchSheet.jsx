@@ -83,6 +83,38 @@ export default function MobileSearchSheet() {
           </button>
         </div>
 
+        {/* 🔴 Search Pill */}
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between w-full rounded-full border px-4 py-2 shadow-sm bg-gray-50">
+            <div
+              className="flex flex-col text-left flex-grow"
+              onClick={() => openMobilePicker("from")}
+            >
+              <span className="text-sm font-semibold text-gray-900 truncate">
+                {searchFrom || "Select departure"}
+              </span>
+              <span className="text-xs text-gray-500">
+                {searchDate ? getReadableDate(searchDate) : "Choose date"}
+              </span>
+            </div>
+            <span className="mx-2 text-gray-400">→</span>
+            <div
+              className="flex flex-col text-right flex-grow"
+              onClick={() => openMobilePicker("to")}
+            >
+              <span className="text-sm font-semibold text-gray-900 truncate">
+                {searchTo || "Select destination"}
+              </span>
+              <span
+                onClick={() => setCalOpen(true)}
+                className="text-xs text-blue-600 underline cursor-pointer"
+              >
+                Change Date
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* FROM */}
         <div className="p-3">
           <div className="flex items-center gap-3 pb-3 border-b">
