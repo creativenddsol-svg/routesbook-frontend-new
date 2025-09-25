@@ -4,18 +4,22 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { createSearchParams } from "react-router-dom";
-import { FaBus, FaCalendarAlt, FaExchangeAlt, FaSearch } from "react-icons/fa";
+import {
+  FaBus,
+  FaCalendarAlt,
+  FaExchangeAlt,
+  FaSearch,
+} from "react-icons/fa";
 
 import {
   useSearchCore,
   toLocalYYYYMMDD,
   getReadableDate,
-  PALETTE, // ✅ import PALETTE here
+  PALETTE,
 } from "../_core";
 
 export default function MobileSearchSheet() {
   const {
-    // search state
     searchFrom,
     setSearchFrom,
     searchTo,
@@ -23,13 +27,11 @@ export default function MobileSearchSheet() {
     searchDate,
     setSearchDate,
 
-    // mobile sheet + pickers
     mobileSearchOpen,
     setMobileSearchOpen,
     openMobilePicker,
     setCalOpen,
 
-    // nav + helpers
     navigate,
     location,
     setExpandedBusId,
@@ -37,7 +39,6 @@ export default function MobileSearchSheet() {
     swapLocations,
   } = useSearchCore();
 
-  // ✅ Date helpers
   const todayStrLocal = toLocalYYYYMMDD(new Date());
   const tmr = new Date();
   tmr.setDate(tmr.getDate() + 1);
@@ -63,7 +64,6 @@ export default function MobileSearchSheet() {
     close();
   };
 
-  // 🔒 lock scroll when sheet is open
   useEffect(() => {
     if (!mobileSearchOpen) return;
     const prev = document.body.style.overflow;
@@ -73,7 +73,7 @@ export default function MobileSearchSheet() {
     };
   }, [mobileSearchOpen]);
 
-  if (!mobileSearchOpen) return null; // ✅ early return AFTER hook
+  if (!mobileSearchOpen) return null;
 
   return createPortal(
     <>
@@ -96,10 +96,10 @@ export default function MobileSearchSheet() {
           </button>
         </div>
 
-        {/* Search Card Container */}
-        <div className="m-3 p-3 bg-gray-50 border rounded-2xl shadow-sm">
+        {/* Search card (same as Home.jsx mobile) */}
+        <div className="m-3 bg-white border border-gray-300 rounded-xl overflow-hidden relative">
           {/* FROM */}
-          <div className="flex items-center gap-3 pb-3 border-b">
+          <div className="p-3 border-b flex items-center gap-3">
             <FaBus className="shrink-0 text-base text-gray-500" />
             <div className="w-full">
               <label className="block text-[11px] font-medium text-gray-500">
@@ -112,7 +112,9 @@ export default function MobileSearchSheet() {
               >
                 <span
                   className={`text-base ${
-                    searchFrom ? "font-semibold text-gray-900" : "text-gray-400"
+                    searchFrom
+                      ? "font-semibold text-gray-900"
+                      : "text-gray-400"
                   }`}
                 >
                   {searchFrom || "Select departure"}
@@ -121,21 +123,8 @@ export default function MobileSearchSheet() {
             </div>
           </div>
 
-          {/* SWAP BUTTON (centered between From & To) */}
-          <div className="flex justify-center -mt-4 -mb-4 relative z-10">
-            <motion.button
-              whileTap={{ scale: 0.9, rotate: 180 }}
-              onClick={swapLocations}
-              className="bg-white p-3 rounded-full shadow-md border border-gray-200"
-              aria-label="Swap"
-              title="Swap locations"
-            >
-              <FaExchangeAlt className="text-base rotate-90 text-gray-600" />
-            </motion.button>
-          </div>
-
           {/* TO */}
-          <div className="flex items-center gap-3 pt-5 border-t">
+          <div className="p-3 border-b flex items-center gap-3">
             <FaBus className="shrink-0 text-base text-gray-500" />
             <div className="w-full">
               <label className="block text-[11px] font-medium text-gray-500">
@@ -148,7 +137,9 @@ export default function MobileSearchSheet() {
               >
                 <span
                   className={`text-base ${
-                    searchTo ? "font-semibold text-gray-900" : "text-gray-400"
+                    searchTo
+                      ? "font-semibold text-gray-900"
+                      : "text-gray-400"
                   }`}
                 >
                   {searchTo || "Select destination"}
@@ -157,8 +148,21 @@ export default function MobileSearchSheet() {
             </div>
           </div>
 
+          {/* SWAP BUTTON (between from & to, same as Home.jsx) */}
+          <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-10">
+            <motion.button
+              whileTap={{ scale: 0.9, rotate: 180 }}
+              onClick={swapLocations}
+              className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200 border border-gray-200"
+              aria-label="Swap"
+              title="Swap locations"
+            >
+              <FaExchangeAlt className="text-base rotate-90 text-gray-600" />
+            </motion.button>
+          </div>
+
           {/* DATE */}
-          <div className="flex items-center gap-3 pt-5 border-t">
+          <div className="p-3 flex items-center gap-3">
             <FaCalendarAlt className="shrink-0 text-base text-gray-500" />
             <div className="flex-grow">
               <div className="text-[11px] font-medium text-gray-500">
@@ -201,16 +205,16 @@ export default function MobileSearchSheet() {
           </div>
         </div>
 
-        {/* ACTIONS */}
-        <div className="p-3 border-t">
+        {/* SEARCH BUTTON */}
+        <div className="px-3 pb-4">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={doSearch}
-            className="w-full flex items-center justify-center gap-2 font-bold text-white rounded-xl px-4 py-3"
+            className="w-full flex items-center justify-center gap-2 font-bold text-white rounded-xl px-4 py-3 shadow-lg"
             style={{ backgroundColor: PALETTE.primaryRed }}
           >
-            <FaSearch /> Search Buses
+            <FaSearch /> SEARCH BUSES
           </motion.button>
         </div>
 
