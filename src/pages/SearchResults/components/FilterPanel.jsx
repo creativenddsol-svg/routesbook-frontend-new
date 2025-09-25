@@ -31,7 +31,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           {/* Filter & Sort button */}
           <button
             onClick={() => setIsFilterOpen(true)}
-            className="flex items-center gap-1 px-3 py-1.5 border rounded-full text-sm font-medium bg-gray-50"
+            className="flex items-center gap-1 px-3 py-1.5 border rounded-full text-sm font-medium bg-gray-50 shrink-0"
           >
             <FaSlidersH /> Filter & Sort
           </button>
@@ -41,7 +41,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
             <button
               key={slot}
               onClick={() => handleTimeSlotFilter(slot)}
-              className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap shrink-0 ${
                 filters.timeSlots[slot]
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-gray-50 text-gray-700 border-gray-200"
@@ -59,7 +59,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
                 type: prev.type === "AC" ? "" : "AC",
               }))
             }
-            className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap shrink-0 ${
               filters.type === "AC"
                 ? "bg-blue-600 text-white border-blue-600"
                 : "bg-gray-50 text-gray-700 border-gray-200"
@@ -74,7 +74,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
                 type: prev.type === "Non-AC" ? "" : "Non-AC",
               }))
             }
-            className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap ${
+            className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap shrink-0 ${
               filters.type === "Non-AC"
                 ? "bg-blue-600 text-white border-blue-600"
                 : "bg-gray-50 text-gray-700 border-gray-200"
