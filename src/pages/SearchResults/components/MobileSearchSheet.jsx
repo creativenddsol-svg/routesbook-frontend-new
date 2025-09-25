@@ -96,9 +96,10 @@ export default function MobileSearchSheet() {
           </button>
         </div>
 
-        {/* FROM */}
-        <div className="p-3 border-b relative">
-          <div className="flex items-center gap-3">
+        {/* Search Card Container */}
+        <div className="m-3 p-3 bg-gray-50 border rounded-2xl shadow-sm">
+          {/* FROM */}
+          <div className="flex items-center gap-3 pb-3 border-b">
             <FaBus className="shrink-0 text-base text-gray-500" />
             <div className="w-full">
               <label className="block text-[11px] font-medium text-gray-500">
@@ -119,23 +120,22 @@ export default function MobileSearchSheet() {
               </button>
             </div>
           </div>
-          {/* Swap Button */}
-          <div className="absolute top-1/2 right-3 -translate-y-1/2 z-10">
+
+          {/* SWAP BUTTON (centered between From & To) */}
+          <div className="flex justify-center -mt-4 -mb-4 relative z-10">
             <motion.button
               whileTap={{ scale: 0.9, rotate: 180 }}
               onClick={swapLocations}
-              className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200 border border-gray-200"
+              className="bg-white p-3 rounded-full shadow-md border border-gray-200"
               aria-label="Swap"
               title="Swap locations"
             >
               <FaExchangeAlt className="text-base rotate-90 text-gray-600" />
             </motion.button>
           </div>
-        </div>
 
-        {/* TO */}
-        <div className="p-3 border-b">
-          <div className="flex items-center gap-3">
+          {/* TO */}
+          <div className="flex items-center gap-3 pt-5 border-t">
             <FaBus className="shrink-0 text-base text-gray-500" />
             <div className="w-full">
               <label className="block text-[11px] font-medium text-gray-500">
@@ -156,46 +156,46 @@ export default function MobileSearchSheet() {
               </button>
             </div>
           </div>
-        </div>
 
-        {/* DATE */}
-        <div className="flex items-center gap-3 p-3 border-b">
-          <FaCalendarAlt className="shrink-0 text-base text-gray-500" />
-          <div className="flex-grow">
-            <div className="text-[11px] font-medium text-gray-500">
-              Date of Journey
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <button
-                type="button"
-                onClick={() => setCalOpen(true)}
-                className="text-left"
-              >
-                <span className="text-base font-semibold text-gray-900">
-                  {getReadableDate(searchDate)}
-                </span>
-              </button>
-              <div className="flex items-center gap-4">
+          {/* DATE */}
+          <div className="flex items-center gap-3 pt-5 border-t">
+            <FaCalendarAlt className="shrink-0 text-base text-gray-500" />
+            <div className="flex-grow">
+              <div className="text-[11px] font-medium text-gray-500">
+                Date of Journey
+              </div>
+              <div className="flex items-center justify-between mt-1">
                 <button
-                  onClick={() => setSearchDate(todayStrLocal)}
-                  className={`text-sm font-semibold ${
-                    searchDate === todayStrLocal
-                      ? "text-red-500 underline"
-                      : "text-gray-600"
-                  }`}
+                  type="button"
+                  onClick={() => setCalOpen(true)}
+                  className="text-left"
                 >
-                  Today
+                  <span className="text-base font-semibold text-gray-900">
+                    {getReadableDate(searchDate)}
+                  </span>
                 </button>
-                <button
-                  onClick={() => setSearchDate(tomorrowStrLocal)}
-                  className={`text-sm font-semibold ${
-                    searchDate === tomorrowStrLocal
-                      ? "text-red-500 underline"
-                      : "text-gray-600"
-                  }`}
-                >
-                  Tomorrow
-                </button>
+                <div className="flex items-center gap-4">
+                  <button
+                    onClick={() => setSearchDate(todayStrLocal)}
+                    className={`text-sm font-semibold ${
+                      searchDate === todayStrLocal
+                        ? "text-red-500 underline"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => setSearchDate(tomorrowStrLocal)}
+                    className={`text-sm font-semibold ${
+                      searchDate === tomorrowStrLocal
+                        ? "text-red-500 underline"
+                        : "text-gray-600"
+                    }`}
+                  >
+                    Tomorrow
+                  </button>
+                </div>
               </div>
             </div>
           </div>
