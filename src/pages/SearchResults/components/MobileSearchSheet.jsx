@@ -4,12 +4,7 @@ import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import { createSearchParams } from "react-router-dom";
-import {
-  FaBus,
-  FaCalendarAlt,
-  FaExchangeAlt,
-  FaSearch,
-} from "react-icons/fa";
+import { FaBus, FaCalendarAlt, FaExchangeAlt, FaSearch } from "react-icons/fa";
 
 import {
   useSearchCore,
@@ -96,125 +91,128 @@ export default function MobileSearchSheet() {
           </button>
         </div>
 
-        {/* Search card (same as Home.jsx mobile) */}
-        <div className="m-3 bg-white border border-gray-300 rounded-xl overflow-hidden relative">
+        <div className="relative">
           {/* FROM */}
-          <div className="p-3 border-b flex items-center gap-3">
-            <FaBus className="shrink-0 text-base text-gray-500" />
-            <div className="w-full">
-              <label className="block text-[11px] font-medium text-gray-500">
-                From
-              </label>
-              <button
-                type="button"
-                onClick={() => openMobilePicker("from")}
-                className="w-full text-left py-1.5"
-              >
-                <span
-                  className={`text-base ${
-                    searchFrom
-                      ? "font-semibold text-gray-900"
-                      : "text-gray-400"
-                  }`}
+          <div className="p-3 border-b">
+            <div className="flex items-center gap-3">
+              <FaBus className="shrink-0 text-base text-gray-500" />
+              <div className="w-full">
+                <label className="block text-[11px] font-medium text-gray-500">
+                  From
+                </label>
+                <button
+                  type="button"
+                  onClick={() => openMobilePicker("from")}
+                  className="w-full text-left py-1.5"
                 >
-                  {searchFrom || "Select departure"}
-                </span>
-              </button>
+                  <span
+                    className={`text-base ${
+                      searchFrom
+                        ? "font-semibold text-gray-900"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {searchFrom || "Select departure"}
+                  </span>
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* TO */}
-          <div className="p-3 border-b flex items-center gap-3">
-            <FaBus className="shrink-0 text-base text-gray-500" />
-            <div className="w-full">
-              <label className="block text-[11px] font-medium text-gray-500">
-                To
-              </label>
-              <button
-                type="button"
-                onClick={() => openMobilePicker("to")}
-                className="w-full text-left py-1.5"
-              >
-                <span
-                  className={`text-base ${
-                    searchTo
-                      ? "font-semibold text-gray-900"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {searchTo || "Select destination"}
-                </span>
-              </button>
-            </div>
-          </div>
-
-          {/* SWAP BUTTON (between from & to, same as Home.jsx) */}
-          <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-10">
+          {/* SWAP BUTTON (centered between From & To) */}
+          <div className="absolute left-1/2 top-[72px] -translate-x-1/2 -translate-y-1/2 z-20">
             <motion.button
               whileTap={{ scale: 0.9, rotate: 180 }}
               onClick={swapLocations}
-              className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200 border border-gray-200"
+              className="bg-white p-3 rounded-full shadow-md border border-gray-200"
               aria-label="Swap"
               title="Swap locations"
             >
-              <FaExchangeAlt className="text-base rotate-90 text-gray-600" />
+              <FaExchangeAlt className="text-base text-gray-600" />
             </motion.button>
           </div>
 
-          {/* DATE */}
-          <div className="p-3 flex items-center gap-3">
-            <FaCalendarAlt className="shrink-0 text-base text-gray-500" />
-            <div className="flex-grow">
-              <div className="text-[11px] font-medium text-gray-500">
-                Date of Journey
-              </div>
-              <div className="flex items-center justify-between mt-1">
+          {/* TO */}
+          <div className="p-3 border-b">
+            <div className="flex items-center gap-3">
+              <FaBus className="shrink-0 text-base text-gray-500" />
+              <div className="w-full">
+                <label className="block text-[11px] font-medium text-gray-500">
+                  To
+                </label>
                 <button
                   type="button"
-                  onClick={() => setCalOpen(true)}
-                  className="text-left"
+                  onClick={() => openMobilePicker("to")}
+                  className="w-full text-left py-1.5"
                 >
-                  <span className="text-base font-semibold text-gray-900">
-                    {getReadableDate(searchDate)}
+                  <span
+                    className={`text-base ${
+                      searchTo
+                        ? "font-semibold text-gray-900"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {searchTo || "Select destination"}
                   </span>
                 </button>
-                <div className="flex items-center gap-4">
-                  <button
-                    onClick={() => setSearchDate(todayStrLocal)}
-                    className={`text-sm font-semibold ${
-                      searchDate === todayStrLocal
-                        ? "text-red-500 underline"
-                        : "text-gray-600"
-                    }`}
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={() => setSearchDate(tomorrowStrLocal)}
-                    className={`text-sm font-semibold ${
-                      searchDate === tomorrowStrLocal
-                        ? "text-red-500 underline"
-                        : "text-gray-600"
-                    }`}
-                  >
-                    Tomorrow
-                  </button>
-                </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* SEARCH BUTTON */}
-        <div className="px-3 pb-4">
+        {/* DATE */}
+        <div className="flex items-center gap-3 p-3 border-b">
+          <FaCalendarAlt className="shrink-0 text-base text-gray-500" />
+          <div className="flex-grow">
+            <div className="text-[11px] font-medium text-gray-500">
+              Date of Journey
+            </div>
+            <div className="flex items-center justify-between mt-1">
+              <button
+                type="button"
+                onClick={() => setCalOpen(true)}
+                className="text-left"
+              >
+                <span className="text-base font-semibold text-gray-900">
+                  {getReadableDate(searchDate)}
+                </span>
+              </button>
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => setSearchDate(todayStrLocal)}
+                  className={`text-sm font-semibold ${
+                    searchDate === todayStrLocal
+                      ? "text-red-500 underline"
+                      : "text-gray-600"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => setSearchDate(tomorrowStrLocal)}
+                  className={`text-sm font-semibold ${
+                    searchDate === tomorrowStrLocal
+                      ? "text-red-500 underline"
+                      : "text-gray-600"
+                  }`}
+                >
+                  Tomorrow
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ACTIONS */}
+        <div className="p-3 border-t">
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={doSearch}
-            className="w-full flex items-center justify-center gap-2 font-bold text-white rounded-xl px-4 py-3 shadow-lg"
+            className="w-full flex items-center justify-center gap-2 font-bold text-white rounded-xl px-4 py-3"
             style={{ backgroundColor: PALETTE.primaryRed }}
           >
-            <FaSearch /> SEARCH BUSES
+            <FaSearch /> Search Buses
           </motion.button>
         </div>
 
