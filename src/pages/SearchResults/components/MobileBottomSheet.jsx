@@ -9,12 +9,10 @@ import SeatLegend from "../../../components/SeatLegend";
 import BookingSummary from "../../../components/BookingSummary";
 import PointSelection from "../../../components/PointSelection";
 
-
-import { useSearchCore } from "../_core";
+import { useSearchCore, PALETTE } from "../_core"; // ✅ import PALETTE directly
 
 export default function MobileBottomSheet() {
   const {
-    PALETTE,
     from,
     to,
     searchDateParam,
