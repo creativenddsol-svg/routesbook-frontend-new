@@ -84,8 +84,9 @@ export default function MobileSearchSheet() {
         exit={{ y: -20, opacity: 0 }}
         className="fixed top-0 left-0 right-0 z-[10031] bg-white rounded-b-2xl shadow-xl"
       >
+        {/* Header */}
         <div className="px-4 py-3 border-b flex items-center justify-between">
-          <div className="text-base font-semibold">Modify Search</div>
+          <div className="text-base font-semibold">Search your Buses</div>
           <button
             onClick={close}
             className="w-9 h-9 rounded-full border flex items-center justify-center"
@@ -96,8 +97,8 @@ export default function MobileSearchSheet() {
         </div>
 
         {/* FROM */}
-        <div className="relative p-3">
-          <div className="flex items-center gap-3 pb-3 border-b">
+        <div className="p-3 border-b relative">
+          <div className="flex items-center gap-3">
             <FaBus className="shrink-0 text-base text-gray-500" />
             <div className="w-full">
               <label className="block text-[11px] font-medium text-gray-500">
@@ -118,9 +119,23 @@ export default function MobileSearchSheet() {
               </button>
             </div>
           </div>
+          {/* Swap Button */}
+          <div className="absolute top-1/2 right-3 -translate-y-1/2 z-10">
+            <motion.button
+              whileTap={{ scale: 0.9, rotate: 180 }}
+              onClick={swapLocations}
+              className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200 border border-gray-200"
+              aria-label="Swap"
+              title="Swap locations"
+            >
+              <FaExchangeAlt className="text-base rotate-90 text-gray-600" />
+            </motion.button>
+          </div>
+        </div>
 
-          {/* TO */}
-          <div className="flex items-center gap-3 pt-3">
+        {/* TO */}
+        <div className="p-3 border-b">
+          <div className="flex items-center gap-3">
             <FaBus className="shrink-0 text-base text-gray-500" />
             <div className="w-full">
               <label className="block text-[11px] font-medium text-gray-500">
@@ -141,23 +156,10 @@ export default function MobileSearchSheet() {
               </button>
             </div>
           </div>
-
-          {/* SWAP */}
-          <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-10">
-            <motion.button
-              whileTap={{ scale: 0.9, rotate: 180 }}
-              onClick={swapLocations}
-              className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200 border border-gray-200"
-              aria-label="Swap"
-              title="Swap locations"
-            >
-              <FaExchangeAlt className="text-base rotate-90 text-gray-600" />
-            </motion.button>
-          </div>
         </div>
 
         {/* DATE */}
-        <div className="flex items-center gap-3 p-3 border-t">
+        <div className="flex items-center gap-3 p-3 border-b">
           <FaCalendarAlt className="shrink-0 text-base text-gray-500" />
           <div className="flex-grow">
             <div className="text-[11px] font-medium text-gray-500">
@@ -173,12 +175,12 @@ export default function MobileSearchSheet() {
                   {getReadableDate(searchDate)}
                 </span>
               </button>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
                 <button
                   onClick={() => setSearchDate(todayStrLocal)}
-                  className={`text-xs font-semibold ${
+                  className={`text-sm font-semibold ${
                     searchDate === todayStrLocal
-                      ? "text-red-500"
+                      ? "text-red-500 underline"
                       : "text-gray-600"
                   }`}
                 >
@@ -186,9 +188,9 @@ export default function MobileSearchSheet() {
                 </button>
                 <button
                   onClick={() => setSearchDate(tomorrowStrLocal)}
-                  className={`text-xs font-semibold ${
+                  className={`text-sm font-semibold ${
                     searchDate === tomorrowStrLocal
-                      ? "text-red-500"
+                      ? "text-red-500 underline"
                       : "text-gray-600"
                   }`}
                 >
@@ -208,7 +210,7 @@ export default function MobileSearchSheet() {
             className="w-full flex items-center justify-center gap-2 font-bold text-white rounded-xl px-4 py-3"
             style={{ backgroundColor: PALETTE.primaryRed }}
           >
-            <FaSearch /> SEARCH
+            <FaSearch /> Search Buses
           </motion.button>
         </div>
 
