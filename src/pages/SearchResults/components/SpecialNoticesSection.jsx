@@ -1,25 +1,41 @@
 // src/pages/SearchResults/components/SpecialNoticesSection.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { useSearchCore } from "../_core";
+import apiClient from "../../../api"; // ✅ use shared API client
 import SpecialNoticeCard, {
   SpecialNoticeSkeleton,
 } from "../../../components/SpecialNoticeCard";
 
 export default function SpecialNoticesSection() {
-  const { specialNotices, noticesLoading } = useSearchCore();
+  const [specialNotices, setSpecialNotices] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Render skeletons while loading, otherwise the fetched notices
+  // ✅ Load notices via API
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await apiClient.get("/special-notices");
+        if (mounted) setSpecialNotices(res.data || []);
+      } catch (err) {
+        console.error("Failed to fetch special notices", err);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
+
   const itemsToRender = useMemo(
-    () => (noticesLoading ? Array.from({ length: 4 }) : specialNotices),
-    [noticesLoading, specialNotices]
+    () => (loading ? Array.from({ length: 4 }) : specialNotices),
+    [loading, specialNotices]
   );
 
   const trackRef = useRef(null);
   const [pages, setPages] = useState(1);
   const [activePage, setActivePage] = useState(0);
 
-  // Compute number of pages from scroll width vs container width
+  // Compute pages
   const computePages = () => {
     const el = trackRef.current;
     if (!el) return;
@@ -29,16 +45,13 @@ export default function SpecialNoticesSection() {
     setActivePage(Math.min(total - 1, Math.max(0, idx)));
   };
 
-  // Recompute on load/resize or when the items change
   useEffect(() => {
     computePages();
     const onResize = () => computePages();
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [noticesLoading, specialNotices?.length]);
+  }, [loading, specialNotices?.length]);
 
-  // Track active page while the user scrolls the row
   useEffect(() => {
     const el = trackRef.current;
     if (!el) return;
@@ -58,51 +71,53 @@ export default function SpecialNoticesSection() {
     setActivePage(clamped);
   };
 
-  // Nothing to show once loaded and there are no notices
-  if (!noticesLoading && (!specialNotices || specialNotices.length === 0)) {
+  if (!loading && (!specialNotices || specialNotices.length === 0)) {
     return null;
   }
 
   return (
     <motion.div
-      className="mb-8 relative"
+      className="mb-6 relative"
       initial="hidden"
       animate="visible"
       variants={{ visible: { transition: { staggerChildren: 0.07 } } }}
     >
-      {/* Horizontal, snapping track */}
+      {/* Scrollable Row */}
       <div
         ref={trackRef}
-        className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-2 lg:pb-0"
+        className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-2"
         style={{ scrollBehavior: "smooth" }}
       >
         {itemsToRender.map((item, index) => (
           <div
-            key={noticesLoading ? `skeleton-${index}` : item._id}
-            className="flex-shrink-0 w-1/2 sm:w-1/3 md:w-1/4 lg:w-1/4 xl:w-1/4 snap-start p-2"
+            key={loading ? `skeleton-${index}` : item._id}
+            className="flex-shrink-0 w-2/5 sm:w-1/5 snap-start px-2"
           >
-            {noticesLoading ? (
+            {loading ? (
               <SpecialNoticeSkeleton />
             ) : (
-              <SpecialNoticeCard notice={item} linkTo="/special-notices" />
+              <SpecialNoticeCard
+                notice={item}
+                linkTo="/special-notices"
+                className="rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition"
+              />
             )}
           </div>
         ))}
       </div>
 
-      {/* Pagination dots */}
+      {/* Dots */}
       {pages > 1 && (
-        <div className="mt-3 flex items-center justify-center gap-2">
+        <div className="mt-2 flex items-center justify-center gap-2">
           {Array.from({ length: pages }).map((_, i) => {
             const active = i === activePage;
             return (
               <button
                 key={i}
                 onClick={() => goToPage(i)}
-                className={[
-                  "h-2.5 rounded-full transition-all duration-200",
-                  active ? "w-6 bg-gray-900" : "w-2.5 bg-gray-300 hover:bg-gray-400",
-                ].join(" ")}
+                className={`h-2.5 rounded-full transition-all duration-200 ${
+                  active ? "w-6 bg-gray-900" : "w-2.5 bg-gray-300 hover:bg-gray-400"
+                }`}
                 aria-label={`Go to page ${i + 1}`}
               />
             );
