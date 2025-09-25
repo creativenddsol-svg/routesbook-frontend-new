@@ -91,6 +91,7 @@ export default function Mobile() {
     // navigation search update
     updateSearchWithDate,
     fetchData,
+    handleMobilePick, // ✅ make sure this comes from core
   } = useSearchCore();
 
   // hidden native <input type="date"> for the header chip quick change
@@ -381,12 +382,14 @@ export default function Mobile() {
         mode={mobilePickerMode}
         options={mobilePickerMode === "from" ? fromOptions : toOptions}
         recent={recent}
+        onPick={handleMobilePick}   // ✅ FIX
         onClose={() => setMobilePickerOpen(false)}
       />
       <MobileCalendarSheet
         open={calOpen}
         value={searchDate}
         minDateString={todayStr}
+        onPick={(d) => setSearchDate(d)}   // ✅ FIX
         onClose={() => setCalOpen(false)}
       />
     </div>
