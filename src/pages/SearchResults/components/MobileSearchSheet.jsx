@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 import { createSearchParams } from "react-router-dom";
 import { FaBus, FaCalendarAlt, FaExchangeAlt, FaSearch } from "react-icons/fa";
 
-import { useSearchCore } from "../_core";
+import { useSearchCore, toLocalYYYYMMDD, getReadableDate } from "../_core";
 
 export default function MobileSearchSheet() {
   const {
@@ -32,10 +32,9 @@ export default function MobileSearchSheet() {
     setExpandedBusId,
     releaseAllSelectedSeats,
     swapLocations,
-    getReadableDate,
-    toLocalYYYYMMDD,
   } = useSearchCore();
 
+  // ✅ Now these functions are imported, not from context
   const todayStrLocal = toLocalYYYYMMDD(new Date());
   const tmr = new Date();
   tmr.setDate(tmr.getDate() + 1);
