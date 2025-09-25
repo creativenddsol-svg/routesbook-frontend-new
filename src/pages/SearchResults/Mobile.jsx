@@ -6,8 +6,8 @@ import {
   FaBus,
   FaClock,
   FaChevronLeft,
-  FaSearch,
   FaSlidersH,
+  FaPen,
 } from "react-icons/fa";
 
 import {
@@ -28,34 +28,6 @@ import MobileBottomSheet from "./components/MobileBottomSheet";
 import MobileSearchSheet from "./components/MobileSearchSheet";
 import MobileCityPicker from "./components/MobileCityPicker";
 import MobileCalendarSheet from "./components/MobileCalendarSheet";
-
-/**
- * 🔗 Expected _core contract used by this file
- * const {
- *   // route/search
- *   from, to, searchDate, setSearchDate, searchDateParam, todayStr, tomorrowStr,
- *   searchFrom, setSearchFrom, searchTo, setSearchTo,
- *   updateSearchWithDate,      // (newDate: "YYYY-MM-DD") => void (navigates + refresh)
- *   swapLocations,             // () => void
- *
- *   // results + availability
- *   loading, fetchError, sortedBuses, visibleBuses, availability, fetchData,
- *
- *   // selection/locking (these are consumed by MobileBottomSheet; we only need toggler here)
- *   expandedBusId, handleToggleSeatLayout,
- *
- *   // filters
- *   isFilterOpen, setIsFilterOpen, activeFilterCount, sortBy, setSortBy,
- *
- *   // options for pickers
- *   fromOptions, toOptions, recent,
- *
- *   // mobile sheets state
- *   mobileSearchOpen, setMobileSearchOpen,
- *   mobilePickerOpen, setMobilePickerOpen, mobilePickerMode, setMobilePickerMode,
- *   calOpen, setCalOpen,
- * } = useSearchCore();
- */
 
 // ————————————————————————————————
 // Local tiny skeleton used during loading
@@ -179,7 +151,6 @@ export default function Mobile() {
           const busKey = `${bus._id}-${bus.departureTime}`;
           const displayPrice = getDisplayPrice(bus, from, to);
 
-          // show closing timer only if within 12h window
           let timerProps = null;
           if (searchDateParam && bus.departureTime) {
             const now = new Date();
@@ -210,7 +181,6 @@ export default function Mobile() {
                 isSoldOut ? "opacity-60" : "hover:shadow-md"
               } mb-3`}
             >
-              {/* tap target (mobile card) */}
               <button
                 type="button"
                 className={`w-full text-left ${isSoldOut ? "cursor-not-allowed" : ""}`}
@@ -253,7 +223,10 @@ export default function Mobile() {
 
                       {timerProps && (
                         <div className="mt-2 inline-flex">
-                          <div className="px-2 py-0.5 rounded-lg text-[11px]" style={{ backgroundColor: "#FFF7ED" }}>
+                          <div
+                            className="px-2 py-0.5 rounded-lg text-[11px]"
+                            style={{ backgroundColor: "#FFF7ED" }}
+                          >
                             <BookingDeadlineTimer {...timerProps} />
                           </div>
                         </div>
@@ -262,10 +235,14 @@ export default function Mobile() {
 
                     <div className="text-right pl-3">
                       {hasStrike && (
-                        <div className="text-[12px] text-gray-400 line-through">Rs. {bus.originalPrice}</div>
+                        <div className="text-[12px] text-gray-400 line-through">
+                          Rs. {bus.originalPrice}
+                        </div>
                       )}
                       <div className="leading-tight">
-                        <span className="text-[12px] text-gray-500 mr-1 align-top">Rs.</span>
+                        <span className="text-[12px] text-gray-500 mr-1 align-top">
+                          Rs.
+                        </span>
                         <span className="text-[20px] font-semibold tabular-nums text-gray-900">
                           {displayPrice}
                         </span>
@@ -278,7 +255,9 @@ export default function Mobile() {
 
                   <div className="flex items-center justify-between">
                     <div className="min-w-0 pr-3">
-                      <h4 className="text-[15px] font-medium text-gray-800 truncate">{bus.name}</h4>
+                      <h4 className="text-[15px] font-medium text-gray-800 truncate">
+                        {bus.name}
+                      </h4>
                       <p className="text-[12px] text-gray-500 truncate">{bus.busType}</p>
                     </div>
                     <div className="w-16 h-10 flex-shrink-0 flex items-center justify-center">
@@ -304,62 +283,32 @@ export default function Mobile() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F2F5]">
-      {/* Header */}
-      <div className="bg-white">
-        <div className="max-w-7xl mx-auto px-4 py-2">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => nav(-1)}
-              className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-              aria-label="Go back"
-            >
-              <FaChevronLeft className="text-xl" />
-            </button>
+      {/* Header pill */}
+      <div className="bg-white px-4 pt-3 pb-2">
+        <div className="flex items-center">
+          <button
+            onClick={() => nav(-1)}
+            className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 mr-2"
+            aria-label="Go back"
+          >
+            <FaChevronLeft className="text-lg" />
+          </button>
 
-            {/* Query pill (opens MobileSearchSheet) */}
-            <button
-              onClick={() => setMobileSearchOpen(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full border"
-              aria-label="Modify search"
-              style={{ background: "#FFF9DB", borderColor: "#FCEFC7" }}
-            >
-              <FaSearch className="text-gray-600" />
-              <span className="text-sm font-semibold leading-none">
+          <button
+            onClick={() => setMobileSearchOpen(true)}
+            className="flex-1 flex items-center justify-between px-4 py-2 rounded-2xl bg-gray-100"
+          >
+            <div className="flex flex-col text-left">
+              <span className="text-sm font-semibold text-gray-900">
                 {from && to ? `${from} → ${to}` : "Search route"}
               </span>
-            </button>
-
-            {/* Date chip */}
-            <button
-              onClick={openDateNative}
-              className="flex flex-col items-center justify-center px-3 py-1.5 rounded-full border"
-              aria-label="Change date"
-              style={{ background: "#FFF9DB", borderColor: "#FCEFC7" }}
-            >
-              <span className="text-sm font-semibold leading-none">
-                {getMobileDateParts(searchDate).top}
+              <span className="text-xs text-gray-600">
+                {searchDate ? getReadableDate(searchDate) : "Select Date"}
               </span>
-              <span className="text-[10px] text-gray-600 leading-none mt-0.5">
-                {getMobileDateParts(searchDate).bottom}
-              </span>
-            </button>
-          </div>
+            </div>
+            <FaPen className="text-gray-700 text-sm" />
+          </button>
 
-          <div className="mt-2">
-            <h1 className="text-2xl font-bold tracking-tight" style={{ color: PALETTE.textDark }}>
-              {from} <span className="mx-1.5">→</span> {to}
-            </h1>
-            {!loading && !fetchError && (
-              <p className="text-xs text-gray-500 mt-0.5">{sortedBuses.length} buses</p>
-            )}
-          </div>
-
-          <div className="mt-2 text-[11px] text-gray-500">
-            Bus Ticket <span className="mx-1 text-gray-400">›</span>
-            {from} to {to} Bus
-          </div>
-
-          {/* hidden native date input used by the chip */}
           <input
             ref={mobileDateInputRef}
             type="date"
@@ -424,7 +373,7 @@ export default function Mobile() {
         )}
       </AnimatePresence>
 
-      {/* global mobile sheets (these components read/write via the same core context) */}
+      {/* global mobile sheets */}
       <MobileBottomSheet />
       <MobileSearchSheet />
       <MobileCityPicker
