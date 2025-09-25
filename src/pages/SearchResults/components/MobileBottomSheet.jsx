@@ -4,10 +4,10 @@ import { motion } from "framer-motion";
 import { createPortal } from "react-dom";
 import { FaChevronLeft, FaTimes } from "react-icons/fa";
 
-import SeatLayout from "../../../components/SeatLayout";
-import SeatLegend from "../../../components/SeatLegend";
-import PointSelection from "../../../components/PointSelection";
-import BookingSummary from "../../../components/BookingSummary";
+import SeatLayout from "../../components/SeatLayout";
+import SeatLegend from "../../components/SeatLegend";
+import PointSelection from "../../components/PointSelection";
+import BookingSummary from "../../components/BookingSummary";
 
 import { useSearchCore } from "../_core";
 
