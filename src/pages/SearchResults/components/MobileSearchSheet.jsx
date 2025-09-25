@@ -6,12 +6,15 @@ import toast from "react-hot-toast";
 import { createSearchParams } from "react-router-dom";
 import { FaBus, FaCalendarAlt, FaExchangeAlt, FaSearch } from "react-icons/fa";
 
-import { useSearchCore, toLocalYYYYMMDD, getReadableDate } from "../_core";
+import {
+  useSearchCore,
+  toLocalYYYYMMDD,
+  getReadableDate,
+  PALETTE, // ✅ import PALETTE here
+} from "../_core";
 
 export default function MobileSearchSheet() {
   const {
-    PALETTE,
-
     // search state
     searchFrom,
     setSearchFrom,
@@ -34,7 +37,7 @@ export default function MobileSearchSheet() {
     swapLocations,
   } = useSearchCore();
 
-  // ✅ Now these functions are imported, not from context
+  // ✅ Date helpers
   const todayStrLocal = toLocalYYYYMMDD(new Date());
   const tmr = new Date();
   tmr.setDate(tmr.getDate() + 1);
@@ -60,7 +63,7 @@ export default function MobileSearchSheet() {
     close();
   };
 
-  // 🔒 always run hook (don’t skip!)
+  // 🔒 lock scroll when sheet is open
   useEffect(() => {
     if (!mobileSearchOpen) return;
     const prev = document.body.style.overflow;
