@@ -332,17 +332,22 @@ export default function Mobile() {
           {/* notices carousel */}
           <SpecialNoticesSection />
 
-          {/* ✅ Redbus-style horizontal filter bar */}
+          {/* ✅ Redbus-style horizontal filter bar (rectangular chips) */}
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-1 pb-3">
             {/* Filter & Sort button */}
             <button
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 border rounded-full text-sm font-medium bg-gray-50"
+              className="flex items-center gap-1 px-3 py-1.5 border rounded-md text-sm font-medium bg-white shadow-sm"
             >
               <FaSlidersH /> Filter & Sort
+              {activeFilterCount > 0 && (
+                <span className="ml-1 text-xs font-semibold text-red-600">
+                  ({activeFilterCount})
+                </span>
+              )}
             </button>
 
-            {/* Time slots as chips */}
+            {/* Time slots as rectangular chips */}
             {Object.keys(TIME_SLOTS).map((slot) => (
               <button
                 key={slot}
@@ -352,25 +357,25 @@ export default function Mobile() {
                     timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
                   }))
                 }
-                className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap ${
+                className={`px-3 py-1.5 rounded-md text-sm font-medium border whitespace-nowrap ${
                   filters.timeSlots[slot]
                     ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-gray-50 text-gray-700 border-gray-200"
+                    : "bg-white text-gray-700 border-gray-300"
                 }`}
               >
                 {slot}
               </button>
             ))}
 
-            {/* Bus Type chips */}
+            {/* Bus Type rectangular chips */}
             <button
               onClick={() =>
                 setFilters((prev) => ({ ...prev, type: prev.type === "AC" ? "" : "AC" }))
               }
-              className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium border whitespace-nowrap ${
                 filters.type === "AC"
                   ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-gray-50 text-gray-700 border-gray-200"
+                  : "bg-white text-gray-700 border-gray-300"
               }`}
             >
               AC
@@ -382,10 +387,10 @@ export default function Mobile() {
                   type: prev.type === "Non-AC" ? "" : "Non-AC",
                 }))
               }
-              className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap ${
+              className={`px-3 py-1.5 rounded-md text-sm font-medium border whitespace-nowrap ${
                 filters.type === "Non-AC"
                   ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-gray-50 text-gray-700 border-gray-200"
+                  : "bg-white text-gray-700 border-gray-300"
               }`}
             >
               Non-AC
