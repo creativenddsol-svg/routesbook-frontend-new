@@ -13,7 +13,7 @@ const toLocalYYYYMMDD = (dateObj) => {
 const getReadableDate = (dateString) => {
   if (!dateString) return "Select Date";
   const [year, month, day] = dateString.split("-").map(Number);
-  const dateObj = new Date(year, month - 1, day); // use local time, not UTC
+  const dateObj = new Date(year, month - 1, day); // use local time
   return dateObj.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
@@ -26,7 +26,7 @@ const MobileCalendarSheet = ({
   open,
   value,
   minDateString,
-  onChange,
+  onPick,   // ✅ renamed (was onChange)
   onClose,
 }) => {
   // Helpers
@@ -88,7 +88,7 @@ const MobileCalendarSheet = ({
 
   const pick = (d) => {
     if (isDisabled(d)) return;
-    onChange?.(toLocalYYYYMMDD(d));
+    onPick?.(toLocalYYYYMMDD(d));  // ✅ now calls onPick
     onClose?.();
   };
 
@@ -189,7 +189,7 @@ const MobileCalendarSheet = ({
             <button
               onClick={() => {
                 const t = new Date();
-                onChange?.(toLocalYYYYMMDD(t));
+                onPick?.(toLocalYYYYMMDD(t));   // ✅ fixed
                 onClose?.();
               }}
               className="text-sm font-semibold text-[#3A86FF]"
@@ -200,7 +200,7 @@ const MobileCalendarSheet = ({
               onClick={() => {
                 const tm = new Date();
                 tm.setDate(tm.getDate() + 1);
-                onChange?.(toLocalYYYYMMDD(tm));
+                onPick?.(toLocalYYYYMMDD(tm));   // ✅ fixed
                 onClose?.();
               }}
               className="text-sm font-semibold text-[#3A86FF]"
