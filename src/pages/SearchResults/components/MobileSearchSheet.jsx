@@ -36,8 +36,6 @@ export default function MobileSearchSheet() {
     toLocalYYYYMMDD,
   } = useSearchCore();
 
-  if (!mobileSearchOpen) return null;
-
   const todayStrLocal = toLocalYYYYMMDD(new Date());
   const tmr = new Date();
   tmr.setDate(tmr.getDate() + 1);
@@ -63,7 +61,7 @@ export default function MobileSearchSheet() {
     close();
   };
 
-  // 🔒 lock background scroll when open
+  // 🔒 always run hook (don’t skip!)
   useEffect(() => {
     if (!mobileSearchOpen) return;
     const prev = document.body.style.overflow;
@@ -72,6 +70,8 @@ export default function MobileSearchSheet() {
       document.body.style.overflow = prev;
     };
   }, [mobileSearchOpen]);
+
+  if (!mobileSearchOpen) return null; // ✅ early return AFTER hook
 
   return createPortal(
     <>
