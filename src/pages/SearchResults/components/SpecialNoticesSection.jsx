@@ -23,7 +23,9 @@ export default function SpecialNoticesSection() {
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const itemsToRender = useMemo(
@@ -85,13 +87,13 @@ export default function SpecialNoticesSection() {
       {/* Scrollable Row */}
       <div
         ref={trackRef}
-        className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-2"
+        className="flex overflow-x-auto snap-x snap-mandatory hide-scrollbar pb-1"
         style={{ scrollBehavior: "smooth" }}
       >
         {itemsToRender.map((item, index) => (
           <div
             key={loading ? `skeleton-${index}` : item._id}
-            className="flex-shrink-0 w-2/5 sm:w-1/5 snap-start px-2"
+            className="flex-shrink-0 w-2/5 sm:w-1/5 snap-start px-1.5"
           >
             {loading ? (
               <SpecialNoticeSkeleton />
@@ -106,17 +108,19 @@ export default function SpecialNoticesSection() {
         ))}
       </div>
 
-      {/* Dots */}
+      {/* Tiny Dots */}
       {pages > 1 && (
-        <div className="mt-2 flex items-center justify-center gap-2">
+        <div className="mt-2 flex items-center justify-center gap-1.5">
           {Array.from({ length: pages }).map((_, i) => {
             const active = i === activePage;
             return (
               <button
                 key={i}
                 onClick={() => goToPage(i)}
-                className={`h-2.5 rounded-full transition-all duration-200 ${
-                  active ? "w-6 bg-gray-900" : "w-2.5 bg-gray-300 hover:bg-gray-400"
+                className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${
+                  active
+                    ? "bg-gray-900 scale-110"
+                    : "bg-gray-300 hover:bg-gray-400"
                 }`}
                 aria-label={`Go to page ${i + 1}`}
               />
