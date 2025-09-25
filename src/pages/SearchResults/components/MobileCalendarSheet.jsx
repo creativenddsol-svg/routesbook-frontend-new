@@ -97,6 +97,7 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
         style={{ maxHeight: "80vh" }}
         onClick={(e) => e.stopPropagation()}
       >
+        {/* Pill style header */}
         <div className="pt-2 flex justify-center">
           <div className="w-12 h-1.5 rounded-full bg-gray-300" />
         </div>
@@ -125,6 +126,7 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
           </div>
         </div>
 
+        {/* Month title */}
         <div className="px-4 pt-2 text-sm font-medium">
           {viewMonth.toLocaleString("en-GB", {
             month: "long",
@@ -132,6 +134,7 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
           })}
         </div>
 
+        {/* Calendar grid */}
         <div className="px-2 pb-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
           <div className="grid grid-cols-7 text-center text-xs py-2 text-gray-500">
             {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
@@ -168,6 +171,7 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
           </div>
         </div>
 
+        {/* Actions with pill style consistency */}
         <div className="px-4 py-3 border-t flex items-center justify-between">
           <div className="space-x-4">
             <button
@@ -194,7 +198,7 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
           </div>
           <button
             onClick={onClose}
-            className="text-xs px-3 py-1.5 rounded-lg border text-gray-600"
+            className="text-xs px-3 py-1.5 rounded-full border text-gray-600"
           >
             Close
           </button>
