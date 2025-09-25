@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 
-/* ---------------- Helpers (copied exactly from SearchResults) ---------------- */
+/* ---------------- Helpers ---------------- */
 const toLocalYYYYMMDD = (dateObj) => {
   const year = dateObj.getFullYear();
   const month = String(dateObj.getMonth() + 1).padStart(2, "0");
@@ -13,17 +13,23 @@ const toLocalYYYYMMDD = (dateObj) => {
 const getReadableDate = (dateString) => {
   if (!dateString) return "Select Date";
   const [year, month, day] = dateString.split("-").map(Number);
-  const dateObj = new Date(Date.UTC(year, month - 1, day));
+  const dateObj = new Date(year, month - 1, day); // use local time, not UTC
   return dateObj.toLocaleDateString("en-GB", {
     day: "numeric",
     month: "short",
     year: "numeric",
-    timeZone: "UTC",
   });
 };
 
-/* ------ Mobile bottom-sheet calendar (split as-is) ------ */
-const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) => {
+/* ------ Mobile bottom-sheet calendar ------ */
+const MobileCalendarSheet = ({
+  open,
+  value,
+  minDateString,
+  onChange,
+  onClose,
+}) => {
+  // Helpers
   const parseYMD = (s) => {
     const [y, m, d] = s.split("-").map(Number);
     return new Date(y, m - 1, d);
@@ -36,6 +42,7 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
 
+  // Base values
   const today = new Date();
   const minDate = minDateString ? parseYMD(minDateString) : today;
   const selected = value ? parseYMD(value) : null;
@@ -44,6 +51,7 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
     selected ? startOfMonth(selected) : startOfMonth(today)
   );
 
+  // Manage ESC + body scroll lock
   useEffect(() => {
     if (!open) return;
     const onEsc = (e) => e.key === "Escape" && onClose?.();
@@ -56,15 +64,17 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
     };
   }, [open, onClose]);
 
+  // Reset month if external value changes
   useEffect(() => {
     if (selected) setViewMonth(startOfMonth(selected));
   }, [value]);
 
   if (!open) return null;
 
-  const start = startOfMonth(viewMonth),
-    end = endOfMonth(viewMonth);
-  const firstDow = (start.getDay() + 6) % 7;
+  // Calendar grid setup
+  const start = startOfMonth(viewMonth);
+  const end = endOfMonth(viewMonth);
+  const firstDow = (start.getDay() + 6) % 7; // Monday = 0
   const totalCells = firstDow + end.getDate();
   const rows = Math.ceil(totalCells / 7);
   const cells = Array.from({ length: rows * 7 }, (_, i) => {
@@ -97,10 +107,12 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
         style={{ maxHeight: "80vh" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Pill style header */}
+        {/* Pill header */}
         <div className="pt-2 flex justify-center">
           <div className="w-12 h-1.5 rounded-full bg-gray-300" />
         </div>
+
+        {/* Title + navigation */}
         <div className="px-4 py-3 border-b flex items-center justify-between">
           <div>
             <div className="text-xs uppercase tracking-wider text-gray-500">
@@ -171,7 +183,7 @@ const MobileCalendarSheet = ({ open, value, minDateString, onChange, onClose }) 
           </div>
         </div>
 
-        {/* Actions with pill style consistency */}
+        {/* Footer actions */}
         <div className="px-4 py-3 border-t flex items-center justify-between">
           <div className="space-x-4">
             <button
