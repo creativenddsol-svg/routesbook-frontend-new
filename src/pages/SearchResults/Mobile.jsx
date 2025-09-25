@@ -18,9 +18,10 @@ import {
   getDisplayPrice,
   getReadableDate,
   getMobileDateParts,
+  TIME_SLOTS, // ✅ import TIME_SLOTS for chips
 } from "./_core";
 
-// mobile-only leaf components (they can read from the same core via context)
+// mobile-only leaf components
 import BookingDeadlineTimer from "./components/BookingDeadlineTimer";
 import FilterPanel from "./components/FilterPanel";
 import SpecialNoticesSection from "./components/SpecialNoticesSection";
@@ -73,6 +74,8 @@ export default function Mobile() {
     activeFilterCount,
     sortBy,
     setSortBy,
+    filters,
+    setFilters,
 
     // pickers/sheets
     mobileSearchOpen,
@@ -91,7 +94,7 @@ export default function Mobile() {
     // navigation search update
     updateSearchWithDate,
     fetchData,
-    handleMobilePick, // ✅ make sure this comes from core
+    handleMobilePick,
   } = useSearchCore();
 
   // hidden native <input type="date"> for the header chip quick change
@@ -329,19 +332,65 @@ export default function Mobile() {
           {/* notices carousel */}
           <SpecialNoticesSection />
 
-          {/* filter toggle button */}
-          <button
-            onClick={() => setIsFilterOpen(true)}
-            className="w-full flex items-center justify-center gap-2 font-bold px-4 py-3 rounded-lg text-white mb-4"
-            style={{ backgroundColor: "#3A86FF" }}
-          >
-            <FaSlidersH /> Show Filters &amp; Sort
-            {activeFilterCount > 0 && (
-              <span className="flex items-center justify-center w-5 h-5 text-xs text-white bg-red-500 rounded-full">
-                {activeFilterCount}
-              </span>
-            )}
-          </button>
+          {/* ✅ Redbus-style horizontal filter bar */}
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar px-1 pb-3">
+            {/* Filter & Sort button */}
+            <button
+              onClick={() => setIsFilterOpen(true)}
+              className="flex items-center gap-1 px-3 py-1.5 border rounded-full text-sm font-medium bg-gray-50"
+            >
+              <FaSlidersH /> Filter & Sort
+            </button>
+
+            {/* Time slots as chips */}
+            {Object.keys(TIME_SLOTS).map((slot) => (
+              <button
+                key={slot}
+                onClick={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
+                  }))
+                }
+                className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap ${
+                  filters.timeSlots[slot]
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-gray-50 text-gray-700 border-gray-200"
+                }`}
+              >
+                {slot}
+              </button>
+            ))}
+
+            {/* Bus Type chips */}
+            <button
+              onClick={() =>
+                setFilters((prev) => ({ ...prev, type: prev.type === "AC" ? "" : "AC" }))
+              }
+              className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap ${
+                filters.type === "AC"
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-gray-50 text-gray-700 border-gray-200"
+              }`}
+            >
+              AC
+            </button>
+            <button
+              onClick={() =>
+                setFilters((prev) => ({
+                  ...prev,
+                  type: prev.type === "Non-AC" ? "" : "Non-AC",
+                }))
+              }
+              className={`px-3 py-1.5 rounded-full text-sm font-medium border whitespace-nowrap ${
+                filters.type === "Non-AC"
+                  ? "bg-blue-600 text-white border-blue-600"
+                  : "bg-gray-50 text-gray-700 border-gray-200"
+              }`}
+            >
+              Non-AC
+            </button>
+          </div>
 
           {/* card list */}
           <AnimatePresence>{renderCards()}</AnimatePresence>
@@ -382,14 +431,14 @@ export default function Mobile() {
         mode={mobilePickerMode}
         options={mobilePickerMode === "from" ? fromOptions : toOptions}
         recent={recent}
-        onPick={handleMobilePick}   // ✅ FIX
+        onPick={handleMobilePick}
         onClose={() => setMobilePickerOpen(false)}
       />
       <MobileCalendarSheet
         open={calOpen}
         value={searchDate}
         minDateString={todayStr}
-        onPick={(d) => setSearchDate(d)}   // ✅ FIX
+        onPick={(d) => setSearchDate(d)}
         onClose={() => setCalOpen(false)}
       />
     </div>
