@@ -1,6 +1,6 @@
 // src/pages/SearchResults/components/MobileCityPicker.jsx
-import React, { useState } from "react";
-import { motion } from "framer-motion";
+import React, { useState, useEffect, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { FaChevronLeft, FaSearch } from "react-icons/fa";
 
 export default function MobileCityPicker({
@@ -12,11 +12,28 @@ export default function MobileCityPicker({
   onClose,
 }) {
   const [q, setQ] = useState("");
-  const all = options.map((o) => o.label);
+  const inputRef = useRef(null);
+
+  // Autofocus search input when sheet opens
+  useEffect(() => {
+    if (open) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 150);
+    } else {
+      setQ(""); // reset search when closing
+    }
+  }, [open]);
+
+  // Filtering logic: matches both label and value
   const filtered =
     q.trim() === ""
-      ? all
-      : all.filter((c) => c.toLowerCase().includes(q.trim().toLowerCase()));
+      ? options
+      : options.filter(
+          (o) =>
+            o.label.toLowerCase().includes(q.trim().toLowerCase()) ||
+            o.value?.toLowerCase().includes(q.trim().toLowerCase())
+        );
 
   if (!open) return null;
 
@@ -25,11 +42,11 @@ export default function MobileCityPicker({
       {/* Safe area top */}
       <div style={{ height: "env(safe-area-inset-top)" }} />
 
-      {/* Header with pill style */}
-      <div className="px-4 py-3 border-b flex items-center gap-3 bg-white">
+      {/* Header */}
+      <div className="px-4 py-3 border-b flex items-center gap-3 bg-white shadow-sm">
         <button
           onClick={onClose}
-          className="w-9 h-9 rounded-full border flex items-center justify-center"
+          className="w-9 h-9 rounded-full border flex items-center justify-center hover:bg-gray-100"
           aria-label="Back"
         >
           <FaChevronLeft className="text-gray-700" />
@@ -39,15 +56,18 @@ export default function MobileCityPicker({
             {mode === "from" ? "Select Departure City" : "Select Destination City"}
           </h2>
           <p className="text-xs text-gray-500">
-            {mode === "from" ? "Choose where you’ll start your journey" : "Choose where you’ll end your journey"}
+            {mode === "from"
+              ? "Choose where you’ll start your journey"
+              : "Choose where you’ll end your journey"}
           </p>
         </div>
       </div>
 
-      {/* Search input */}
+      {/* Search bar */}
       <div className="px-4 py-3 border-b flex items-center gap-2 bg-gray-50">
         <FaSearch className="text-gray-500" />
         <input
+          ref={inputRef}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search city"
@@ -64,43 +84,53 @@ export default function MobileCityPicker({
         {/* Recent */}
         <div className="px-4 pt-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            Recent searches
+            Recent Searches
           </div>
           {(recent?.[mode] || []).length === 0 ? (
             <div className="text-sm text-gray-400">No recent searches</div>
           ) : (
-            <div className="mb-3 divide-y rounded-xl border border-gray-100 overflow-hidden">
+            <div className="mb-4 bg-gray-50 rounded-xl border border-gray-100 divide-y">
               {recent[mode].map((city, idx) => (
-                <button
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
                   key={idx}
                   type="button"
-                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-50"
+                  className="w-full flex items-center px-4 py-3 text-left hover:bg-gray-100 active:bg-gray-200"
                   onClick={() => onPick(city)}
                 >
                   <span className="text-base font-medium text-gray-800">
                     {city}
                   </span>
-                </button>
+                </motion.button>
               ))}
             </div>
           )}
         </div>
 
         {/* All / Matching */}
-        <div className="px-4 pb-4">
+        <div className="px-4 pb-6">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
             {q ? "Matching Cities" : "All Cities"}
           </div>
-          <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
-            {filtered.map((c) => (
-              <button
-                key={c}
-                className="w-full text-left px-3 py-3 active:bg-gray-50"
-                onClick={() => onPick(c)}
-              >
-                {c}
-              </button>
-            ))}
+          <div className="rounded-xl border border-gray-100 divide-y">
+            <AnimatePresence>
+              {filtered.length > 0 ? (
+                filtered.map((o) => (
+                  <motion.button
+                    whileTap={{ scale: 0.97 }}
+                    key={o.value}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 active:bg-gray-100 text-gray-800"
+                    onClick={() => onPick(o.label)}
+                  >
+                    {o.label}
+                  </motion.button>
+                ))
+              ) : (
+                <div className="text-sm text-gray-400 px-4 py-6 text-center">
+                  No results found
+                </div>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>
