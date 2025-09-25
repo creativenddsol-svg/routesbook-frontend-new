@@ -1,5 +1,5 @@
 // src/pages/SearchResults/components/MobileSearchSheet.jsx
-import React from "react";
+import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -14,9 +14,9 @@ export default function MobileSearchSheet() {
 
     // search state
     searchFrom,
-    setSearchFrom, // (kept for parity with original)
+    setSearchFrom,
     searchTo,
-    setSearchTo, // (kept for parity with original)
+    setSearchTo,
     searchDate,
     setSearchDate,
 
@@ -62,6 +62,16 @@ export default function MobileSearchSheet() {
     setExpandedBusId(null);
     close();
   };
+
+  // 🔒 lock background scroll when open
+  useEffect(() => {
+    if (!mobileSearchOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [mobileSearchOpen]);
 
   return createPortal(
     <>
@@ -177,7 +187,7 @@ export default function MobileSearchSheet() {
         </div>
 
         {/* DATE */}
-        <div className="flex items-center gap-3 p-3 border-top border-t">
+        <div className="flex items-center gap-3 p-3 border-t">
           <FaCalendarAlt className="shrink-0 text-base text-gray-500" />
           <div className="flex-grow">
             <div className="text-[11px] font-medium text-gray-500">
@@ -197,7 +207,9 @@ export default function MobileSearchSheet() {
                 <button
                   onClick={() => setSearchDate(todayStrLocal)}
                   className={`text-xs font-semibold px-2 py-1 rounded-lg border ${
-                    searchDate === todayStrLocal ? "text-white" : "text-[#3A86FF]"
+                    searchDate === todayStrLocal
+                      ? "text-white"
+                      : "text-[#3A86FF]"
                   }`}
                   style={{
                     background:
