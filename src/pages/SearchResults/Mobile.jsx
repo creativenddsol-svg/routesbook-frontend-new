@@ -203,39 +203,45 @@ export default function Mobile() {
                 <div className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      {/* ✅ New AbhiBus-like time rail */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-[18px] font-semibold text-gray-900 tabular-nums">
+                      {/* ⬇️ Departure pill + compact arrival time */}
+                      <div className="flex items-center gap-1">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-md border text-[13px] font-medium tabular-nums"
+                          style={{
+                            backgroundColor: "#ECFDF5",
+                            color: "#065F46",
+                            borderColor: "#A7F3D0",
+                          }}
+                        >
                           {bus.departureTime}
                         </span>
-
-                        <div className="flex items-center mx-2 flex-shrink-0">
-                          <span className="h-[2px] w-5 bg-gray-300 rounded-full" />
-                          <span className="mx-1.5 px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-[12px] font-semibold text-gray-700 tabular-nums">
-                            {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                        {bus.arrivalTime && (
+                          <span className="text-[13px] text-gray-800 tabular-nums font-normal">
+                            — {bus.arrivalTime}
                           </span>
-                          <span className="h-[2px] w-5 bg-gray-300 rounded-full" />
-                        </div>
-
-                        <span className="text-[18px] font-semibold text-gray-900 tabular-nums">
-                          {bus.arrivalTime}
-                        </span>
+                        )}
                       </div>
 
-                      {/* Seats-left (kept as-is) */}
-                      {typeof availableSeats === "number" && (
-                        <div className="mt-1.5">
-                          <span
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                            style={{
-                              background: "#FFE9EC",
-                              color: PALETTE.primaryRed,
-                            }}
-                          >
-                            {availableSeats} seats left
-                          </span>
-                        </div>
-                      )}
+                      <div className="mt-1 text-xs text-gray-500 flex items-center">
+                        <span className="inline-flex items-center gap-1">
+                          <FaClock className="text-[10px]" />
+                          {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                        </span>
+                        {typeof availableSeats === "number" && (
+                          <>
+                            <span className="mx-2">&middot;</span>
+                            <span
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                              style={{
+                                background: "#FFE9EC",
+                                color: PALETTE.primaryRed,
+                              }}
+                            >
+                              {availableSeats} seats left
+                            </span>
+                          </>
+                        )}
+                      </div>
 
                       {timerProps && (
                         <div className="mt-2 inline-flex">
@@ -340,14 +346,14 @@ export default function Mobile() {
 
       {/* content */}
       <div className="flex-1 w-full pb-6">
-        <div className="max-w-7xl mx-auto px-4 pt-1">
+        <div className="max-w-7xl mx-auto px-4 pt-2">
           {/* notices carousel (tighter spacing) */}
-          <div className="mb-1">
+          <div className="mb-2">
             <SpecialNoticesSection />
           </div>
 
-          {/* ✅ Compact redbus-style horizontal filter bar right under the notice */}
-          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 -mt-1 mb-2">
+          {/* ✅ Compact redbus-style horizontal filter bar */}
+          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 mt-1 mb-2">
             {/* Filter & Sort */}
             <button
               onClick={() => setIsFilterOpen(true)}
