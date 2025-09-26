@@ -219,6 +219,17 @@ export default function Mobile() {
                           <FaClock className="text-[10px]" />
                           {calculateDuration(bus.departureTime, bus.arrivalTime)}
                         </span>
+
+                        {/* ✅ Arrival time added inline (compact) */}
+                        {bus.arrivalTime && (
+                          <>
+                            <span className="mx-2">&middot;</span>
+                            <span className="tabular-nums text-gray-700 font-semibold text-[12px]">
+                              Arr {bus.arrivalTime}
+                            </span>
+                          </>
+                        )}
+
                         {typeof availableSeats === "number" && (
                           <>
                             <span className="mx-2">&middot;</span>
