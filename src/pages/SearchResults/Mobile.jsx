@@ -338,14 +338,14 @@ export default function Mobile() {
 
       {/* content */}
       <div className="flex-1 w-full pb-6">
-        <div className="max-w-7xl mx-auto px-4 pt-2">
+        <div className="max-w-7xl mx-auto px-4 pt-1">
           {/* notices carousel (tighter spacing) */}
-          <div className="mb-2">
+          <div className="mb-1">
             <SpecialNoticesSection />
           </div>
 
-          {/* ✅ Compact redbus-style horizontal filter bar */}
-          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 mt-1 mb-2">
+          {/* ✅ Compact redbus-style horizontal filter bar right under the notice */}
+          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 -mt-1 mb-2">
             {/* Filter & Sort */}
             <button
               onClick={() => setIsFilterOpen(true)}
