@@ -8,13 +8,8 @@ import {
   FaChevronLeft,
   FaSlidersH,
   FaPen,
-  FaSun,
-  FaCloudSun,
-  FaCloudMoon,
-  FaMoon,
-  FaSnowflake,
-  FaFire,
 } from "react-icons/fa";
+import { TbSunrise, TbSun, TbSunset, TbMoon } from "react-icons/tb";
 
 import {
   // shared context + helpers from _core (contract listed below)
@@ -54,6 +49,15 @@ const BusCardSkeleton = () => (
 // simple fade/slide
 const listVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
 const itemVariants = { hidden: { y: 16, opacity: 0 }, visible: { y: 0, opacity: 1 } };
+
+// small helper to choose a minimal icon per time slot (redbus-like)
+const slotIcon = (slot) => {
+  if (/morning/i.test(slot)) return TbSunrise;
+  if (/afternoon/i.test(slot)) return TbSun;
+  if (/evening/i.test(slot)) return TbSunset;
+  if (/night/i.test(slot)) return TbMoon;
+  return TbSun;
+};
 
 export default function Mobile() {
   const nav = useNavigate();
@@ -338,29 +342,27 @@ export default function Mobile() {
           {/* notices carousel */}
           <SpecialNoticesSection />
 
-          {/* ✅ Redbus-style horizontal filter bar (rectangular chips with icons) */}
+          {/* ✅ Redbus-style horizontal filter bar (compact rectangular chips with icons) */}
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-1 pb-3">
-            {/* Filter & Sort button */}
+            {/* Filter & Sort */}
             <button
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-1 px-3 py-1.5 border rounded-md text-sm font-medium bg-white shadow-sm"
+              className="flex items-center gap-1.5 h-9 px-3 border border-gray-300 rounded-xl text-[13px] font-medium bg-white"
+              aria-label="Open Filter & Sort"
             >
-              <FaSlidersH /> Filter & Sort
+              <FaSlidersH className="text-[14px]" />
+              Filter & Sort
               {activeFilterCount > 0 && (
-                <span className="ml-1 text-xs font-semibold text-red-600">
+                <span className="ml-0.5 text-xs font-semibold text-red-600">
                   ({activeFilterCount})
                 </span>
               )}
             </button>
 
-            {/* Time slots with icons */}
+            {/* Time slots */}
             {Object.keys(TIME_SLOTS).map((slot) => {
-              const icons = {
-                Morning: <FaSun className="text-yellow-500 text-xs" />,
-                Afternoon: <FaCloudSun className="text-orange-400 text-xs" />,
-                Evening: <FaCloudMoon className="text-purple-500 text-xs" />,
-                Night: <FaMoon className="text-blue-500 text-xs" />,
-              };
+              const Icon = slotIcon(slot);
+              const active = !!filters.timeSlots[slot];
               return (
                 <button
                   key={slot}
@@ -370,44 +372,42 @@ export default function Mobile() {
                       timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
                     }))
                   }
-                  className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium border whitespace-nowrap ${
-                    filters.timeSlots[slot]
+                  className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-[13px] font-medium whitespace-nowrap border ${
+                    active
                       ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-gray-700 border-gray-300"
+                      : "bg-white text-gray-800 border-gray-300"
                   }`}
+                  aria-pressed={active}
                 >
-                  {icons[slot]} {slot}
+                  <Icon className="text-[16px]" />
+                  {slot}
                 </button>
               );
             })}
 
-            {/* Bus Type rectangular chips */}
-            <button
-              onClick={() =>
-                setFilters((prev) => ({ ...prev, type: prev.type === "AC" ? "" : "AC" }))
-              }
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium border ${
-                filters.type === "AC"
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-gray-700 border-gray-300"
-              }`}
-            >
-              <FaSnowflake className="text-cyan-500 text-xs" /> AC
-            </button>
-            <button
-              onClick={() =>
-                setFilters((prev) => ({
-                  ...prev,
-                  type: prev.type === "Non-AC" ? "" : "Non-AC",
-                }))}
-              className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium border ${
-                filters.type === "Non-AC"
-                  ? "bg-blue-600 text-white border-blue-600"
-                  : "bg-white text-gray-700 border-gray-300"
-              }`}
-            >
-              <FaFire className="text-red-500 text-xs" /> Non-AC
-            </button>
+            {/* Bus Type */}
+            {["AC", "Non-AC"].map((type) => {
+              const active = filters.type === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: prev.type === type ? "" : type,
+                    }))
+                  }
+                  className={`h-9 px-3 rounded-xl text-[13px] font-medium whitespace-nowrap border ${
+                    active
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-800 border-gray-300"
+                  }`}
+                  aria-pressed={active}
+                >
+                  {type}
+                </button>
+              );
+            })}
           </div>
 
           {/* card list */}
