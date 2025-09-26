@@ -50,7 +50,7 @@ const BusCardSkeleton = () => (
 const listVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
 const itemVariants = { hidden: { y: 16, opacity: 0 }, visible: { y: 0, opacity: 1 } };
 
-// small helper to choose a minimal icon per time slot (redbus-like)
+// minimal icon per time slot (redbus-like)
 const slotIcon = (slot) => {
   if (/morning/i.test(slot)) return TbSunrise;
   if (/afternoon/i.test(slot)) return TbSun;
@@ -342,16 +342,17 @@ export default function Mobile() {
           {/* notices carousel */}
           <SpecialNoticesSection />
 
-          {/* ✅ Redbus-style horizontal filter bar (compact rectangular chips with icons) */}
-          <div className="flex gap-2 overflow-x-auto hide-scrollbar px-1 pb-3">
+          {/* ✅ Compact redbus-style horizontal filter bar */}
+          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-1 pb-3">
             {/* Filter & Sort */}
             <button
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-1.5 h-9 px-3 border border-gray-300 rounded-xl text-[13px] font-medium bg-white"
+              className="flex items-center gap-1.5 h-9 px-3 border border-gray-200 rounded-xl text-[13px] leading-none font-medium bg-white whitespace-nowrap"
               aria-label="Open Filter & Sort"
             >
               <FaSlidersH className="text-[14px]" />
-              Filter & Sort
+              {/* keep words on one line */}
+              {"Filter \u00A0&\u00A0 Sort"}
               {activeFilterCount > 0 && (
                 <span className="ml-0.5 text-xs font-semibold text-red-600">
                   ({activeFilterCount})
@@ -372,10 +373,10 @@ export default function Mobile() {
                       timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
                     }))
                   }
-                  className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-[13px] font-medium whitespace-nowrap border ${
+                  className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-[13px] leading-none font-medium whitespace-nowrap border ${
                     active
                       ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-gray-800 border-gray-300"
+                      : "bg-white text-gray-800 border-gray-200"
                   }`}
                   aria-pressed={active}
                 >
@@ -397,10 +398,10 @@ export default function Mobile() {
                       type: prev.type === type ? "" : type,
                     }))
                   }
-                  className={`h-9 px-3 rounded-xl text-[13px] font-medium whitespace-nowrap border ${
+                  className={`h-9 px-3 rounded-xl text-[13px] leading-none font-medium whitespace-nowrap border ${
                     active
                       ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-gray-800 border-gray-300"
+                      : "bg-white text-gray-800 border-gray-200"
                   }`}
                   aria-pressed={active}
                 >
