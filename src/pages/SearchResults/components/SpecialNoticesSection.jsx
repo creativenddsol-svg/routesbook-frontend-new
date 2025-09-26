@@ -108,26 +108,7 @@ export default function SpecialNoticesSection() {
         ))}
       </div>
 
-      {/* Tiny Dots */}
-      {pages > 1 && (
-        <div className="mt-2 flex items-center justify-center gap-1.5">
-          {Array.from({ length: pages }).map((_, i) => {
-            const active = i === activePage;
-            return (
-              <button
-                key={i}
-                onClick={() => goToPage(i)}
-                className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${
-                  active
-                    ? "bg-gray-900 scale-110"
-                    : "bg-gray-300 hover:bg-gray-400"
-                }`}
-                aria-label={`Go to page ${i + 1}`}
-              />
-            );
-          })}
-        </div>
-      )}
+      {/* ⬇️ Pagination dots removed as requested */}
     </motion.div>
   );
 }
