@@ -203,30 +203,33 @@ export default function Mobile() {
                 <div className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      {/* ⬇️ Departure pill + compact arrival time */}
-                      <div className="flex items-center gap-1">
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-md border text-[13px] font-medium tabular-nums"
-                          style={{
-                            backgroundColor: "#ECFDF5",
-                            color: "#065F46",
-                            borderColor: "#A7F3D0",
-                          }}
-                        >
-                          {bus.departureTime}
-                        </span>
-                        {bus.arrivalTime && (
-                          <span className="text-[13px] text-gray-800 tabular-nums font-normal">
-                            — {bus.arrivalTime}
-                          </span>
-                        )}
-                      </div>
+                      <span
+                        className="inline-flex items-center px-2 py-0.5 rounded-lg border text-[15px] font-medium tabular-nums"
+                        style={{
+                          backgroundColor: "#ECFDF5",
+                          color: "#065F46",
+                          borderColor: "#A7F3D0",
+                        }}
+                      >
+                        {bus.departureTime}
+                      </span>
 
-                      <div className="mt-1 text-xs text-gray-500 flex items-center">
+                      <div className="mt-1.5 text-xs text-gray-500 flex items-center">
                         <span className="inline-flex items-center gap-1">
                           <FaClock className="text-[10px]" />
                           {calculateDuration(bus.departureTime, bus.arrivalTime)}
                         </span>
+
+                        {/* ✅ Arrival time added inline (compact) */}
+                        {bus.arrivalTime && (
+                          <>
+                            <span className="mx-2">&middot;</span>
+                            <span className="tabular-nums text-gray-700 font-semibold text-[12px]">
+                              Arr {bus.arrivalTime}
+                            </span>
+                          </>
+                        )}
+
                         {typeof availableSeats === "number" && (
                           <>
                             <span className="mx-2">&middot;</span>
@@ -346,14 +349,14 @@ export default function Mobile() {
 
       {/* content */}
       <div className="flex-1 w-full pb-6">
-        <div className="max-w-7xl mx-auto px-4 pt-2">
+        <div className="max-w-7xl mx-auto px-4 pt-1">
           {/* notices carousel (tighter spacing) */}
-          <div className="mb-2">
+          <div className="mb-1">
             <SpecialNoticesSection />
           </div>
 
-          {/* ✅ Compact redbus-style horizontal filter bar */}
-          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 mt-1 mb-2">
+          {/* ✅ Compact redbus-style horizontal filter bar right under the notice */}
+          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 -mt-1 mb-2">
             {/* Filter & Sort */}
             <button
               onClick={() => setIsFilterOpen(true)}
