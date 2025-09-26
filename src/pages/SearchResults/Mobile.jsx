@@ -8,6 +8,12 @@ import {
   FaChevronLeft,
   FaSlidersH,
   FaPen,
+  FaSun,
+  FaCloudSun,
+  FaCloudMoon,
+  FaMoon,
+  FaSnowflake,
+  FaFire,
 } from "react-icons/fa";
 
 import {
@@ -332,7 +338,7 @@ export default function Mobile() {
           {/* notices carousel */}
           <SpecialNoticesSection />
 
-          {/* ✅ Redbus-style horizontal filter bar (rectangular chips) */}
+          {/* ✅ Redbus-style horizontal filter bar (rectangular chips with icons) */}
           <div className="flex gap-2 overflow-x-auto hide-scrollbar px-1 pb-3">
             {/* Filter & Sort button */}
             <button
@@ -347,53 +353,60 @@ export default function Mobile() {
               )}
             </button>
 
-            {/* Time slots as rectangular chips */}
-            {Object.keys(TIME_SLOTS).map((slot) => (
-              <button
-                key={slot}
-                onClick={() =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
-                  }))
-                }
-                className={`px-3 py-1.5 rounded-md text-sm font-medium border whitespace-nowrap ${
-                  filters.timeSlots[slot]
-                    ? "bg-blue-600 text-white border-blue-600"
-                    : "bg-white text-gray-700 border-gray-300"
-                }`}
-              >
-                {slot}
-              </button>
-            ))}
+            {/* Time slots with icons */}
+            {Object.keys(TIME_SLOTS).map((slot) => {
+              const icons = {
+                Morning: <FaSun className="text-yellow-500 text-xs" />,
+                Afternoon: <FaCloudSun className="text-orange-400 text-xs" />,
+                Evening: <FaCloudMoon className="text-purple-500 text-xs" />,
+                Night: <FaMoon className="text-blue-500 text-xs" />,
+              };
+              return (
+                <button
+                  key={slot}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
+                    }))
+                  }
+                  className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium border whitespace-nowrap ${
+                    filters.timeSlots[slot]
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-700 border-gray-300"
+                  }`}
+                >
+                  {icons[slot]} {slot}
+                </button>
+              );
+            })}
 
             {/* Bus Type rectangular chips */}
             <button
               onClick={() =>
                 setFilters((prev) => ({ ...prev, type: prev.type === "AC" ? "" : "AC" }))
               }
-              className={`px-3 py-1.5 rounded-md text-sm font-medium border whitespace-nowrap ${
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium border ${
                 filters.type === "AC"
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-gray-700 border-gray-300"
               }`}
             >
-              AC
+              <FaSnowflake className="text-cyan-500 text-xs" /> AC
             </button>
             <button
               onClick={() =>
                 setFilters((prev) => ({
                   ...prev,
                   type: prev.type === "Non-AC" ? "" : "Non-AC",
-                }))
-              }
-              className={`px-3 py-1.5 rounded-md text-sm font-medium border whitespace-nowrap ${
+                }))}
+              className={`flex items-center gap-1 px-3 py-1.5 rounded-md text-sm font-medium border ${
                 filters.type === "Non-AC"
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-gray-700 border-gray-300"
               }`}
             >
-              Non-AC
+              <FaFire className="text-red-500 text-xs" /> Non-AC
             </button>
           </div>
 
