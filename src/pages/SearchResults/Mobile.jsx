@@ -297,8 +297,8 @@ export default function Mobile() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F2F5]">
-      {/* Header pill */}
-      <div className="bg-white px-4 pt-3 pb-2">
+      {/* Header pill (more compact) */}
+      <div className="bg-white px-4 pt-2 pb-1.5">
         <div className="flex items-center">
           <button
             onClick={() => nav(-1)}
@@ -310,13 +310,13 @@ export default function Mobile() {
 
           <button
             onClick={() => setMobileSearchOpen(true)}
-            className="flex-1 flex items-center justify-between px-4 py-2 rounded-2xl bg-gray-100"
+            className="flex-1 flex items-center justify-between px-3 py-1.5 rounded-2xl bg-gray-100"
           >
-            <div className="flex flex-col text-left">
-              <span className="text-sm font-semibold text-gray-900">
+            <div className="flex flex-col text-left leading-tight">
+              <span className="text-[13px] font-semibold text-gray-900">
                 {from && to ? `${from} → ${to}` : "Search route"}
               </span>
-              <span className="text-xs text-gray-600">
+              <span className="text-[11px] text-gray-600">
                 {searchDate ? getReadableDate(searchDate) : "Select Date"}
               </span>
             </div>
@@ -337,24 +337,25 @@ export default function Mobile() {
       </div>
 
       {/* content */}
-      <div className="flex-1 w-full pb-8">
-        <div className="max-w-7xl mx-auto px-4 pt-4">
-          {/* notices carousel */}
-          <SpecialNoticesSection />
+      <div className="flex-1 w-full pb-6">
+        <div className="max-w-7xl mx-auto px-4 pt-2">
+          {/* notices carousel (tighter spacing) */}
+          <div className="mb-2">
+            <SpecialNoticesSection />
+          </div>
 
           {/* ✅ Compact redbus-style horizontal filter bar */}
-          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-1 pb-3">
+          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 mt-1 mb-2">
             {/* Filter & Sort */}
             <button
               onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-1.5 h-9 px-3 border border-gray-200 rounded-xl text-[13px] leading-none font-medium bg-white whitespace-nowrap"
+              className="flex items-center gap-1.5 h-8 px-2.5 border border-gray-200 rounded-xl text-[12.5px] leading-none font-medium bg-white whitespace-nowrap"
               aria-label="Open Filter & Sort"
             >
               <FaSlidersH className="text-[14px]" />
-              {/* keep words on one line */}
               {"Filter \u00A0&\u00A0 Sort"}
               {activeFilterCount > 0 && (
-                <span className="ml-0.5 text-xs font-semibold text-red-600">
+                <span className="ml-0.5 text-[11px] font-semibold text-red-600">
                   ({activeFilterCount})
                 </span>
               )}
@@ -373,7 +374,7 @@ export default function Mobile() {
                       timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
                     }))
                   }
-                  className={`flex items-center gap-1.5 h-9 px-3 rounded-xl text-[13px] leading-none font-medium whitespace-nowrap border ${
+                  className={`flex items-center gap-1.5 h-8 px-2.5 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border ${
                     active
                       ? "bg-blue-600 text-white border-blue-600"
                       : "bg-white text-gray-800 border-gray-200"
@@ -398,7 +399,7 @@ export default function Mobile() {
                       type: prev.type === type ? "" : type,
                     }))
                   }
-                  className={`h-9 px-3 rounded-xl text-[13px] leading-none font-medium whitespace-nowrap border ${
+                  className={`h-8 px-2.5 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border ${
                     active
                       ? "bg-blue-600 text-white border-blue-600"
                       : "bg-white text-gray-800 border-gray-200"
