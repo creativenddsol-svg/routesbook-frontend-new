@@ -249,22 +249,21 @@ export default function Mobile() {
                       )}
                     </div>
 
-                    {/* ✅ Slightly smaller price area on mobile */}
                     <div className="text-right pl-3">
                       {hasStrike && (
-                        <div className="text-[11px] text-gray-400 line-through">
+                        <div className="text-[12px] text-gray-400 line-through">
                           Rs. {bus.originalPrice}
                         </div>
                       )}
                       <div className="leading-tight">
-                        <span className="text-[11px] text-gray-500 mr-1 align-top">
+                        <span className="text-[12px] text-gray-500 mr-1 align-top">
                           Rs.
                         </span>
-                        <span className="text-[18px] font-semibold tabular-nums text-gray-900">
+                        <span className="text-[20px] font-semibold tabular-nums text-gray-900">
                           {displayPrice}
                         </span>
                       </div>
-                      <div className="text-[10px] text-gray-500">Onwards</div>
+                      <div className="text-[11px] text-gray-500">Onwards</div>
                     </div>
                   </div>
 
