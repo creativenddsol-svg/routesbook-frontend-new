@@ -221,8 +221,8 @@ export default function Mobile() {
                         <span className="ml-2 mr-1.5 h-1.5 w-1.5 rounded-full bg-gray-400" />
                         <span className="h-[2px] w-8 bg-gray-300 rounded-full" />
 
-                        {/* duration */}
-                        <span className="mx-2 inline-flex items-center text-[12px] font-medium text-gray-700">
+                        {/* duration (nowrap to stay in one line) */}
+                        <span className="mx-2 inline-flex items-center text-[12px] font-medium text-gray-700 whitespace-nowrap">
                           <FaClock className="text-[12px] mr-1" />
                           {calculateDuration(bus.departureTime, bus.arrivalTime)}
                         </span>
@@ -231,8 +231,8 @@ export default function Mobile() {
                         <span className="h-[2px] w-8 bg-gray-300 rounded-full" />
                         <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-gray-400" />
 
-                        {/* arrival */}
-                        <span className="text-[15px] font-medium text-gray-900 tabular-nums">
+                        {/* arrival (not bold now) */}
+                        <span className="text-[15px] font-normal text-gray-900 tabular-nums">
                           {bus.arrivalTime}
                         </span>
                       </div>
