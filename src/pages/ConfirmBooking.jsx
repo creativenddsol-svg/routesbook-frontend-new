@@ -1,10 +1,13 @@
 // src/pages/ConfirmBooking.jsx
 import { useMemo, useState, useCallback, memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import BookingSteps from "../components/BookingSteps";
+// import BookingSteps from "../components/BookingSteps";
 import apiClient from "../api"; // baseURL configured inside ../api
 import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
+
+// ✅ no-op replacement so existing JSX does not change
+const BookingSteps = () => null;
 
 /* ---------------- Matte palette ---------------- */
 const PALETTE = {
@@ -753,7 +756,7 @@ const ConfirmBooking = () => {
               required
               error={errors.mobile}
               maxLength={11}
-              pattern="^0\d{9,10}$"
+              pattern="^0\\d{9,10}$"
             />
             <RowInput
               id="nic"
