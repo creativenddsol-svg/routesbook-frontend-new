@@ -43,16 +43,16 @@ export default function MobileBottomSheet({ hideSteps }) {
     ? availability[expandedBusId] || {}
     : {};
 
-  const selectedBookingData = (expandedBusId &&
-    busSpecificBookingData[expandedBusId]) || {
-    selectedSeats: [],
-    seatGenders: {},
-    selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
-    selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
-    basePrice: 0,
-    convenienceFee: 0,
-    totalPrice: 0,
-  };
+  const selectedBookingData =
+    (expandedBusId && busSpecificBookingData[expandedBusId]) || {
+      selectedSeats: [],
+      seatGenders: {},
+      selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
+      selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+      basePrice: 0,
+      convenienceFee: 0,
+      totalPrice: 0,
+    };
 
   const currentMobileStep =
     (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
@@ -61,9 +61,6 @@ export default function MobileBottomSheet({ hideSteps }) {
     setMobileSheetStepByBus((prev) => ({ ...prev, [expandedBusId]: n }));
 
   if (!selectedBus) return null;
-
-  const inactive = "#6B7280";
-  const active = PALETTE.primaryRed;
 
   // 🔁 ensure seat locks are released when the sheet is closed from mobile
   const handleCloseSheet = () => {
@@ -252,6 +249,7 @@ export default function MobileBottomSheet({ hideSteps }) {
           {currentMobileStep === 3 && (
             <div className="flex flex-col h-full">
               <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+                {/* 🚫 Removed onProceed to avoid duplicate button */}
                 <BookingSummary
                   bus={selectedBus}
                   selectedSeats={selectedBookingData.selectedSeats}
@@ -259,12 +257,11 @@ export default function MobileBottomSheet({ hideSteps }) {
                   basePrice={selectedBookingData.basePrice}
                   convenienceFee={selectedBookingData.convenienceFee}
                   totalPrice={selectedBookingData.totalPrice}
-                  onProceed={() => handleProceedToPayment(selectedBus)}
                   boardingPoint={selectedBookingData.selectedBoardingPoint}
                   droppingPoint={selectedBookingData.selectedDroppingPoint}
                 />
               </div>
-              {/* ✅ Only one button at bottom */}
+              {/* ✅ Single sticky button only */}
               <div className="border-t pt-3 bg-white">
                 <button
                   onClick={() => handleProceedToPayment(selectedBus)}
