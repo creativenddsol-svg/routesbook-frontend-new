@@ -203,21 +203,36 @@ export default function Mobile() {
                 <div className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      {/* ✅ New AbhiBus-like time rail */}
-                      <div className="flex items-center justify-between">
-                        <span className="text-[18px] font-semibold text-gray-900 tabular-nums">
+                      {/* ✅ Screenshot-style rail: departure chip · line · ⏱ duration · line · dot · arrival */}
+                      <div className="flex items-center">
+                        {/* departure chip */}
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-lg border text-[15px] font-medium tabular-nums"
+                          style={{
+                            backgroundColor: "#ECFDF5",
+                            color: "#065F46",
+                            borderColor: "#A7F3D0",
+                          }}
+                        >
                           {bus.departureTime}
                         </span>
 
-                        <div className="flex items-center mx-2 flex-shrink-0">
-                          <span className="h-[2px] w-5 bg-gray-300 rounded-full" />
-                          <span className="mx-1.5 px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-[12px] font-semibold text-gray-700 tabular-nums">
-                            {calculateDuration(bus.departureTime, bus.arrivalTime)}
-                          </span>
-                          <span className="h-[2px] w-5 bg-gray-300 rounded-full" />
-                        </div>
+                        {/* dot + line */}
+                        <span className="ml-2 mr-1.5 h-1.5 w-1.5 rounded-full bg-gray-300" />
+                        <span className="h-[2px] w-8 bg-gray-300 rounded-full" />
 
-                        <span className="text-[18px] font-semibold text-gray-900 tabular-nums">
+                        {/* duration with clock */}
+                        <span className="mx-2 inline-flex items-center text-[12px] font-medium text-gray-700">
+                          <FaClock className="text-[12px] mr-1" />
+                          {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                        </span>
+
+                        {/* line + dot */}
+                        <span className="h-[2px] w-8 bg-gray-300 rounded-full" />
+                        <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-gray-300" />
+
+                        {/* arrival time */}
+                        <span className="text-[15px] font-medium text-gray-900 tabular-nums">
                           {bus.arrivalTime}
                         </span>
                       </div>
