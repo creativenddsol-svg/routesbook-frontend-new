@@ -129,41 +129,45 @@ export default function MobileBottomSheet({ hideSteps }) {
 
           {/* Stepper — hidden when hideSteps is true */}
           {!hideSteps && (
-            <div className="mt-3 grid grid-cols-3 gap-2">
-              {[1, 2, 3].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => setCurrentMobileStep(n)}
-                  className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
-                  style={{
-                    borderColor: currentMobileStep === n ? active : "#E5E7EB",
-                    background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
-                    color: currentMobileStep === n ? active : inactive,
-                    fontWeight: 700,
-                    fontSize: 12,
-                  }}
-                >
-                  <span
-                    className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
-                    style={{
-                      borderColor: currentMobileStep === n ? active : "#D1D5DB",
-                      background: currentMobileStep === n ? active : "#FFF",
-                      color: currentMobileStep === n ? "#FFF" : inactive,
-                      fontWeight: 800,
-                      fontSize: 12,
-                    }}
+            <div className="mt-3 flex items-center justify-between">
+              {[1, 2, 3].map((n) => {
+                const activeStep = currentMobileStep === n;
+                return (
+                  <button
+                    key={n}
+                    onClick={() => setCurrentMobileStep(n)}
+                    className="flex-1 flex flex-col items-center px-1"
                   >
-                    {n}
-                  </span>
-                  <span className="truncate">
-                    {n === 1
-                      ? "Select Seats"
-                      : n === 2
-                      ? "Select Points"
-                      : "Summary"}
-                  </span>
-                </button>
-              ))}
+                    <span
+                      className={`inline-flex items-center justify-center w-6 h-6 rounded-full border text-[12px] font-bold mb-1 ${
+                        activeStep
+                          ? "bg-red-500 text-white border-red-500"
+                          : "bg-white text-gray-500 border-gray-300"
+                      }`}
+                    >
+                      {n}
+                    </span>
+                    <span
+                      className={`text-[11px] sm:text-[12px] truncate w-full text-center ${
+                        activeStep ? "text-red-500 font-semibold" : "text-gray-500"
+                      }`}
+                      title={
+                        n === 1
+                          ? "Select Seats"
+                          : n === 2
+                          ? "Select Points"
+                          : "Summary"
+                      }
+                    >
+                      {n === 1
+                        ? "Select Seats"
+                        : n === 2
+                        ? "Select Points"
+                        : "Summary"}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
