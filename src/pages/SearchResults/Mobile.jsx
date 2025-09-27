@@ -203,46 +203,48 @@ export default function Mobile() {
                 <div className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <span
-                        className="inline-flex items-center px-2 py-0.5 rounded-lg border text-[15px] font-medium tabular-nums"
-                        style={{
-                          backgroundColor: "#ECFDF5",
-                          color: "#065F46",
-                          borderColor: "#A7F3D0",
-                        }}
-                      >
-                        {bus.departureTime}
-                      </span>
-
-                      <div className="mt-1.5 text-xs text-gray-500 flex items-center">
-                        <span className="inline-flex items-center gap-1">
-                          <FaClock className="text-[10px]" />
-                          {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                      {/* ⬇️ Redbus-like time segment: Departure •── Duration ──• Arrival */}
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-flex items-center px-2 py-0.5 rounded-md border text-[13px] font-medium tabular-nums"
+                          style={{
+                            backgroundColor: "#ECFDF5",
+                            color: "#065F46",
+                            borderColor: "#A7F3D0",
+                          }}
+                        >
+                          {bus.departureTime}
                         </span>
 
-                        {/* ✅ Arrival time added inline (compact) */}
-                        {bus.arrivalTime && (
-                          <>
-                            <span className="mx-2">&middot;</span>
-                            <span className="tabular-nums text-gray-700 font-semibold text-[12px]">
-                              Arr {bus.arrivalTime}
-                            </span>
-                          </>
-                        )}
+                        <div className="flex items-center flex-1 min-w-0">
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                          <span className="mx-2 flex-1 h-[1px] bg-gray-200" />
+                          <span className="shrink-0 text-[11px] text-gray-600 inline-flex items-center gap-1">
+                            <FaClock className="text-[10px]" />
+                            {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                          </span>
+                          <span className="mx-2 flex-1 h-[1px] bg-gray-200" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                        </div>
 
+                        {bus.arrivalTime && (
+                          <span className="text-[13px] text-gray-800 tabular-nums font-normal">
+                            {bus.arrivalTime}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-1 text-xs text-gray-500 flex items-center">
                         {typeof availableSeats === "number" && (
-                          <>
-                            <span className="mx-2">&middot;</span>
-                            <span
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                              style={{
-                                background: "#FFE9EC",
-                                color: PALETTE.primaryRed,
-                              }}
-                            >
-                              {availableSeats} seats left
-                            </span>
-                          </>
+                          <span
+                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
+                            style={{
+                              background: "#FFE9EC",
+                              color: PALETTE.primaryRed,
+                            }}
+                          >
+                            {availableSeats} seats left
+                          </span>
                         )}
                       </div>
 
@@ -349,14 +351,14 @@ export default function Mobile() {
 
       {/* content */}
       <div className="flex-1 w-full pb-6">
-        <div className="max-w-7xl mx-auto px-4 pt-1">
+        <div className="max-w-7xl mx-auto px-4 pt-2">
           {/* notices carousel (tighter spacing) */}
-          <div className="mb-1">
+          <div className="mb-2">
             <SpecialNoticesSection />
           </div>
 
-          {/* ✅ Compact redbus-style horizontal filter bar right under the notice */}
-          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 -mt-1 mb-2">
+          {/* ✅ Compact redbus-style horizontal filter bar */}
+          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 mt-1 mb-2">
             {/* Filter & Sort */}
             <button
               onClick={() => setIsFilterOpen(true)}
