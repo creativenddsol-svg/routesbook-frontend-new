@@ -203,39 +203,28 @@ export default function Mobile() {
                 <div className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      {/* ⬇️ Redbus-like time segment: Departure •── Duration ──• Arrival */}
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-md border text-[13px] font-medium tabular-nums"
-                          style={{
-                            backgroundColor: "#ECFDF5",
-                            color: "#065F46",
-                            borderColor: "#A7F3D0",
-                          }}
-                        >
+                      {/* ✅ New AbhiBus-like time rail */}
+                      <div className="flex items-center justify-between">
+                        <span className="text-[18px] font-semibold text-gray-900 tabular-nums">
                           {bus.departureTime}
                         </span>
 
-                        <div className="flex items-center flex-1 min-w-0">
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
-                          <span className="mx-2 flex-1 h-[1px] bg-gray-200" />
-                          <span className="shrink-0 text-[11px] text-gray-600 inline-flex items-center gap-1">
-                            <FaClock className="text-[10px]" />
+                        <div className="flex items-center mx-2 flex-shrink-0">
+                          <span className="h-[2px] w-5 bg-gray-300 rounded-full" />
+                          <span className="mx-1.5 px-2 py-0.5 rounded-full border border-gray-200 bg-gray-50 text-[12px] font-semibold text-gray-700 tabular-nums">
                             {calculateDuration(bus.departureTime, bus.arrivalTime)}
                           </span>
-                          <span className="mx-2 flex-1 h-[1px] bg-gray-200" />
-                          <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                          <span className="h-[2px] w-5 bg-gray-300 rounded-full" />
                         </div>
 
-                        {bus.arrivalTime && (
-                          <span className="text-[13px] text-gray-800 tabular-nums font-normal">
-                            {bus.arrivalTime}
-                          </span>
-                        )}
+                        <span className="text-[18px] font-semibold text-gray-900 tabular-nums">
+                          {bus.arrivalTime}
+                        </span>
                       </div>
 
-                      <div className="mt-1 text-xs text-gray-500 flex items-center">
-                        {typeof availableSeats === "number" && (
+                      {/* Seats-left (kept as-is) */}
+                      {typeof availableSeats === "number" && (
+                        <div className="mt-1.5">
                           <span
                             className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
                             style={{
@@ -245,8 +234,8 @@ export default function Mobile() {
                           >
                             {availableSeats} seats left
                           </span>
-                        )}
-                      </div>
+                        </div>
+                      )}
 
                       {timerProps && (
                         <div className="mt-2 inline-flex">
@@ -260,21 +249,22 @@ export default function Mobile() {
                       )}
                     </div>
 
+                    {/* ✅ Slightly smaller price area on mobile */}
                     <div className="text-right pl-3">
                       {hasStrike && (
-                        <div className="text-[12px] text-gray-400 line-through">
+                        <div className="text-[11px] text-gray-400 line-through">
                           Rs. {bus.originalPrice}
                         </div>
                       )}
                       <div className="leading-tight">
-                        <span className="text-[12px] text-gray-500 mr-1 align-top">
+                        <span className="text-[11px] text-gray-500 mr-1 align-top">
                           Rs.
                         </span>
-                        <span className="text-[20px] font-semibold tabular-nums text-gray-900">
+                        <span className="text-[18px] font-semibold tabular-nums text-gray-900">
                           {displayPrice}
                         </span>
                       </div>
-                      <div className="text-[11px] text-gray-500">Onwards</div>
+                      <div className="text-[10px] text-gray-500">Onwards</div>
                     </div>
                   </div>
 
@@ -351,14 +341,14 @@ export default function Mobile() {
 
       {/* content */}
       <div className="flex-1 w-full pb-6">
-        <div className="max-w-7xl mx-auto px-4 pt-2">
+        <div className="max-w-7xl mx-auto px-4 pt-1">
           {/* notices carousel (tighter spacing) */}
-          <div className="mb-2">
+          <div className="mb-1">
             <SpecialNoticesSection />
           </div>
 
-          {/* ✅ Compact redbus-style horizontal filter bar */}
-          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 mt-1 mb-2">
+          {/* ✅ Compact redbus-style horizontal filter bar right under the notice */}
+          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 -mt-1 mb-2">
             {/* Filter & Sort */}
             <button
               onClick={() => setIsFilterOpen(true)}
