@@ -102,7 +102,7 @@ const BookingSummary = ({
   basePrice,
   convenienceFee,
   totalPrice,
-  onProceed,
+  onProceed, // ✅ optional now
   boardingPoint,
   droppingPoint,
 }) => {
@@ -243,15 +243,17 @@ const BookingSummary = ({
           </div>
         )}
 
-        {/* Button color now always matte red; disabled uses opacity like ConfirmBooking */}
-        <button
-          onClick={onProceed}
-          disabled={!hasSelection}
-          className="w-full px-6 py-3 text-white font-semibold rounded-xl transition disabled:opacity-60 disabled:cursor-not-allowed text-base"
-          style={{ background: PALETTE.primary }}
-        >
-          Proceed to Payment
-        </button>
+        {/* ✅ Only render button if onProceed is provided (desktop use) */}
+        {onProceed && (
+          <button
+            onClick={onProceed}
+            disabled={!hasSelection}
+            className="w-full px-6 py-3 text-white font-semibold rounded-xl transition disabled:opacity-60 disabled:cursor-not-allowed text-base"
+            style={{ background: PALETTE.primary }}
+          >
+            Proceed to Payment
+          </button>
+        )}
       </div>
     </div>
   );
@@ -271,7 +273,7 @@ BookingSummary.propTypes = {
   basePrice: PropTypes.number.isRequired,
   convenienceFee: PropTypes.number.isRequired,
   totalPrice: PropTypes.number.isRequired,
-  onProceed: PropTypes.func.isRequired,
+  onProceed: PropTypes.func, // ✅ made optional
   boardingPoint: PropTypes.object,
   droppingPoint: PropTypes.object,
 };
