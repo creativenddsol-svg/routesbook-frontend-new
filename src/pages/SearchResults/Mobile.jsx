@@ -203,25 +203,25 @@ export default function Mobile() {
                 <div className="p-3">
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      {/* ✅ Screenshot-style rail: departure chip · line · ⏱ duration · line · dot · arrival */}
+                      {/* ✅ Screenshot-style time rail */}
                       <div className="flex items-center">
-                        {/* departure chip */}
+                        {/* departure pill */}
                         <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-lg border text-[15px] font-medium tabular-nums"
+                          className="inline-flex items-center px-2 py-0.5 rounded-lg text-[15px] font-medium tabular-nums"
                           style={{
                             backgroundColor: "#ECFDF5",
                             color: "#065F46",
-                            borderColor: "#A7F3D0",
+                            border: "1px solid #A7F3D0",
                           }}
                         >
                           {bus.departureTime}
                         </span>
 
                         {/* dot + line */}
-                        <span className="ml-2 mr-1.5 h-1.5 w-1.5 rounded-full bg-gray-300" />
+                        <span className="ml-2 mr-1.5 h-1.5 w-1.5 rounded-full bg-gray-400" />
                         <span className="h-[2px] w-8 bg-gray-300 rounded-full" />
 
-                        {/* duration with clock */}
+                        {/* duration */}
                         <span className="mx-2 inline-flex items-center text-[12px] font-medium text-gray-700">
                           <FaClock className="text-[12px] mr-1" />
                           {calculateDuration(bus.departureTime, bus.arrivalTime)}
@@ -229,15 +229,15 @@ export default function Mobile() {
 
                         {/* line + dot */}
                         <span className="h-[2px] w-8 bg-gray-300 rounded-full" />
-                        <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-gray-300" />
+                        <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-gray-400" />
 
-                        {/* arrival time */}
+                        {/* arrival */}
                         <span className="text-[15px] font-medium text-gray-900 tabular-nums">
                           {bus.arrivalTime}
                         </span>
                       </div>
 
-                      {/* Seats-left (kept as-is) */}
+                      {/* Seats-left */}
                       {typeof availableSeats === "number" && (
                         <div className="mt-1.5">
                           <span
@@ -314,7 +314,7 @@ export default function Mobile() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F2F5]">
-      {/* Header pill (more compact) */}
+      {/* Header pill */}
       <div className="bg-white px-4 pt-2 pb-1.5">
         <div className="flex items-center">
           <button
@@ -356,14 +356,11 @@ export default function Mobile() {
       {/* content */}
       <div className="flex-1 w-full pb-6">
         <div className="max-w-7xl mx-auto px-4 pt-1">
-          {/* notices carousel (tighter spacing) */}
           <div className="mb-1">
             <SpecialNoticesSection />
           </div>
 
-          {/* ✅ Compact redbus-style horizontal filter bar right under the notice */}
           <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 -mt-1 mb-2">
-            {/* Filter & Sort */}
             <button
               onClick={() => setIsFilterOpen(true)}
               className="flex items-center gap-1.5 h-8 px-2.5 border border-gray-200 rounded-xl text-[12.5px] leading-none font-medium bg-white whitespace-nowrap"
@@ -378,7 +375,6 @@ export default function Mobile() {
               )}
             </button>
 
-            {/* Time slots */}
             {Object.keys(TIME_SLOTS).map((slot) => {
               const Icon = slotIcon(slot);
               const active = !!filters.timeSlots[slot];
@@ -404,7 +400,6 @@ export default function Mobile() {
               );
             })}
 
-            {/* Bus Type */}
             {["AC", "Non-AC"].map((type) => {
               const active = filters.type === type;
               return (
@@ -429,12 +424,10 @@ export default function Mobile() {
             })}
           </div>
 
-          {/* card list */}
           <AnimatePresence>{renderCards()}</AnimatePresence>
         </div>
       </div>
 
-      {/* mobile filter drawer */}
       <AnimatePresence>
         {isFilterOpen && (
           <>
@@ -460,7 +453,6 @@ export default function Mobile() {
         )}
       </AnimatePresence>
 
-      {/* global mobile sheets */}
       <MobileBottomSheet />
       <MobileSearchSheet />
       <MobileCityPicker
