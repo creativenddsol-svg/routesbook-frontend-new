@@ -11,7 +11,7 @@ import PointSelection from "../../../components/PointSelection";
 
 import { useSearchCore, PALETTE } from "../_core"; // ✅ import PALETTE directly
 
-export default function MobileBottomSheet() {
+export default function MobileBottomSheet({ hideSteps }) {
   const {
     from,
     to,
@@ -127,43 +127,45 @@ export default function MobileBottomSheet() {
             </button>
           </div>
 
-          {/* Stepper */}
-          <div className="mt-3 grid grid-cols-3 gap-2">
-            {[1, 2, 3].map((n) => (
-              <button
-                key={n}
-                onClick={() => setCurrentMobileStep(n)}
-                className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
-                style={{
-                  borderColor: currentMobileStep === n ? active : "#E5E7EB",
-                  background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
-                  color: currentMobileStep === n ? active : inactive,
-                  fontWeight: 700,
-                  fontSize: 12,
-                }}
-              >
-                <span
-                  className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
+          {/* Stepper — hidden when hideSteps is true */}
+          {!hideSteps && (
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {[1, 2, 3].map((n) => (
+                <button
+                  key={n}
+                  onClick={() => setCurrentMobileStep(n)}
+                  className="flex items-center justify-center gap-2 px-2 py-2 rounded-lg border"
                   style={{
-                    borderColor: currentMobileStep === n ? active : "#D1D5DB",
-                    background: currentMobileStep === n ? active : "#FFF",
-                    color: currentMobileStep === n ? "#FFF" : inactive,
-                    fontWeight: 800,
+                    borderColor: currentMobileStep === n ? active : "#E5E7EB",
+                    background: currentMobileStep === n ? "#FFF5F5" : "#FFFFFF",
+                    color: currentMobileStep === n ? active : inactive,
+                    fontWeight: 700,
                     fontSize: 12,
                   }}
                 >
-                  {n}
-                </span>
-                <span className="truncate">
-                  {n === 1
-                    ? "Select Seats"
-                    : n === 2
-                    ? "Select Points"
-                    : "Summary"}
-                </span>
-              </button>
-            ))}
-          </div>
+                  <span
+                    className="inline-flex items-center justify-center w-5 h-5 rounded-full border"
+                    style={{
+                      borderColor: currentMobileStep === n ? active : "#D1D5DB",
+                      background: currentMobileStep === n ? active : "#FFF",
+                      color: currentMobileStep === n ? "#FFF" : inactive,
+                      fontWeight: 800,
+                      fontSize: 12,
+                    }}
+                  >
+                    {n}
+                  </span>
+                  <span className="truncate">
+                    {n === 1
+                      ? "Select Seats"
+                      : n === 2
+                      ? "Select Points"
+                      : "Summary"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Content */}
