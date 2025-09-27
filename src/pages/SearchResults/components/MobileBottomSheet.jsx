@@ -201,7 +201,8 @@ export default function MobileBottomSheet({ hideSteps }) {
                   style={{ background: PALETTE.primaryRed }}
                   disabled={selectedBookingData.selectedSeats.length === 0}
                 >
-                  Continue
+                  {/* 🔹 Updated label here */}
+                  Proceed to Select Points
                 </button>
               </div>
             </div>
