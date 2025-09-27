@@ -758,12 +758,30 @@ const PaymentPage = () => {
             </div>
           </div>
         </div>
+
+        {/* ✅ Mobile-only inline Pay button (prevents being hidden by browser UI) */}
+        <div className="sm:hidden mt-6 mb-28">
+          <button
+            onClick={handleFakePayment}
+            disabled={locking || !lockOk || holdExpired}
+            className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+            style={{ background: PALETTE.primary }}
+          >
+            Pay Now
+          </button>
+          <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
+            Payable Amount:{" "}
+            <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>
+              Rs. {priceDetails.totalPrice?.toFixed(2)}
+            </span>
+          </p>
+        </div>
       </div>
 
-      {/* Sticky bottom CTA to match ConfirmBooking */}
+      {/* Desktop sticky bottom CTA (hidden on small screens) */}
       <div
-        className="fixed bottom-0 left-0 right-0 z-40"
-        style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}` }}
+        className="hidden sm:block fixed bottom-0 left-0 right-0 z-40"
+        style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}`, paddingBottom: "env(safe-area-inset-bottom)" }}
       >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
