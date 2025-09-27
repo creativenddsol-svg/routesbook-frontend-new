@@ -201,7 +201,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                   style={{ background: PALETTE.primaryRed }}
                   disabled={selectedBookingData.selectedSeats.length === 0}
                 >
-                  {/* 🔹 Updated label here */}
                   Proceed to Select Points
                 </button>
               </div>
@@ -210,20 +209,24 @@ export default function MobileBottomSheet({ hideSteps }) {
 
           {/* STEP 2: Points */}
           {currentMobileStep === 2 && (
-            <div className="space-y-4">
-              <PointSelection
-                boardingPoints={selectedBus.boardingPoints}
-                droppingPoints={selectedBus.droppingPoints}
-                selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
-                setSelectedBoardingPoint={(p) =>
-                  handleBoardingPointSelect(selectedBus, p)
-                }
-                selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
-                setSelectedDroppingPoint={(p) =>
-                  handleDroppingPointSelect(selectedBus, p)
-                }
-              />
-              <div className="flex items-center justify-between">
+            <div className="flex flex-col h-full">
+              {/* scrollable list */}
+              <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+                <PointSelection
+                  boardingPoints={selectedBus.boardingPoints}
+                  droppingPoints={selectedBus.droppingPoints}
+                  selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
+                  setSelectedBoardingPoint={(p) =>
+                    handleBoardingPointSelect(selectedBus, p)
+                  }
+                  selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
+                  setSelectedDroppingPoint={(p) =>
+                    handleDroppingPointSelect(selectedBus, p)
+                  }
+                />
+              </div>
+              {/* sticky footer buttons */}
+              <div className="flex items-center justify-between border-t pt-3 bg-white">
                 <button
                   onClick={() => setCurrentMobileStep(1)}
                   className="px-4 py-2 rounded-lg font-bold"
@@ -241,7 +244,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                     selectedBookingData.selectedSeats.length === 0
                   }
                 >
-                  Continue
+                  Proceed
                 </button>
               </div>
             </div>
