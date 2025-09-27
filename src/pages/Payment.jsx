@@ -1,7 +1,6 @@
 // src/pages/Payment.jsx
 import React, { useEffect, useState, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import BookingSteps from "../components/BookingSteps";
 import {
   FaBus,
   FaMapMarkerAlt,
@@ -516,7 +515,7 @@ const PaymentPage = () => {
 
       <div className="max-w-6xl mx-auto px-4 pb-40">
         <div className="pt-4">
-          <BookingSteps currentStep={4} />
+          {/* BookingSteps removed */}
         </div>
 
         {/* Journey Overview pills & hold status */}
