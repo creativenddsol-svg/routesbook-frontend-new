@@ -210,7 +210,6 @@ export default function MobileBottomSheet({ hideSteps }) {
           {/* STEP 2: Points */}
           {currentMobileStep === 2 && (
             <div className="flex flex-col h-full">
-              {/* scrollable list */}
               <div className="flex-1 overflow-y-auto space-y-4 pb-4">
                 <PointSelection
                   boardingPoints={selectedBus.boardingPoints}
@@ -225,7 +224,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                   }
                 />
               </div>
-              {/* sticky footer buttons */}
               <div className="flex items-center justify-between border-t pt-3 bg-white">
                 <button
                   onClick={() => setCurrentMobileStep(1)}
@@ -252,29 +250,25 @@ export default function MobileBottomSheet({ hideSteps }) {
 
           {/* STEP 3: Summary */}
           {currentMobileStep === 3 && (
-            <div className="space-y-4">
-              <BookingSummary
-                bus={selectedBus}
-                selectedSeats={selectedBookingData.selectedSeats}
-                date={searchDateParam}
-                basePrice={selectedBookingData.basePrice}
-                convenienceFee={selectedBookingData.convenienceFee}
-                totalPrice={selectedBookingData.totalPrice}
-                onProceed={() => handleProceedToPayment(selectedBus)}
-                boardingPoint={selectedBookingData.selectedBoardingPoint}
-                droppingPoint={selectedBookingData.selectedDroppingPoint}
-              />
-              <div className="flex items-center justify-between">
-                <button
-                  onClick={() => setCurrentMobileStep(2)}
-                  className="px-4 py-2 rounded-lg font-bold"
-                  style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-                >
-                  Back
-                </button>
+            <div className="flex flex-col h-full">
+              <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+                <BookingSummary
+                  bus={selectedBus}
+                  selectedSeats={selectedBookingData.selectedSeats}
+                  date={searchDateParam}
+                  basePrice={selectedBookingData.basePrice}
+                  convenienceFee={selectedBookingData.convenienceFee}
+                  totalPrice={selectedBookingData.totalPrice}
+                  onProceed={() => handleProceedToPayment(selectedBus)}
+                  boardingPoint={selectedBookingData.selectedBoardingPoint}
+                  droppingPoint={selectedBookingData.selectedDroppingPoint}
+                />
+              </div>
+              {/* ✅ Only one button at bottom */}
+              <div className="border-t pt-3 bg-white">
                 <button
                   onClick={() => handleProceedToPayment(selectedBus)}
-                  className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
+                  className="w-full px-4 py-3 rounded-lg font-bold text-white disabled:opacity-60"
                   style={{ background: PALETTE.primaryRed }}
                   disabled={
                     selectedBookingData.selectedSeats.length === 0 ||
@@ -283,7 +277,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                     selectedBookingData.totalPrice <= 0
                   }
                 >
-                  Proceed
+                  Proceed to Payment
                 </button>
               </div>
             </div>
