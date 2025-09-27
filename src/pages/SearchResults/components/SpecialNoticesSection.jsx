@@ -1,4 +1,4 @@
-src/pages/SearchResults/components/SpecialNoticesSection.jsx
+// src/pages/SearchResults/components/SpecialNoticesSection.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import apiClient from "../../../api"; // ✅ use shared API client
@@ -92,7 +92,7 @@ export default function SpecialNoticesSection() {
       >
         {itemsToRender.map((item, index) => (
           <div
-            key={loading ? skeleton-${index} : item._id}
+            key={loading ? `skeleton-${index}` : item._id}
             className="flex-shrink-0 w-2/5 sm:w-1/5 snap-start px-1.5"
           >
             {loading ? (
@@ -112,4 +112,3 @@ export default function SpecialNoticesSection() {
     </motion.div>
   );
 }
-ChatGPT
