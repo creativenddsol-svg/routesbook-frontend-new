@@ -1242,6 +1242,7 @@ const Home = () => {
       <WhatsNewSection />
 
       {/* ===== Popular Routes ===== */}
+       {/* ===== Popular Routes ===== */}
       <div className={`${SECTION_WRAP}`}>
         <section className={`${SECTION_INNER} py-16`}>
           <h2
@@ -1251,14 +1252,22 @@ const Home = () => {
             Popular Routes
           </h2>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-            {["Colombo → Kandy", "Galle → Colombo", "Matara → Colombo"].map((route, i) => {
+          {/* ✅ Responsive grid: smaller cards on mobile, larger on desktop */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+            {[
+              "Colombo → Kandy",
+              "Galle → Colombo",
+              "Matara → Colombo",
+              "Jaffna → Colombo",
+              "Colombo → Anuradhapura",
+              "Badulla → Colombo",
+            ].map((route, i) => {
               const [routeFrom, routeTo] = route.split(" → ");
               return (
                 <motion.div
-                  whileHover={{ y: -5, boxShadow: "0 10px 20px rgba(0,0,0,0.08)" }}
-                  whileTap={{ scale: 0.98 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 25 }}
+                  whileHover={{ y: -3, boxShadow: "0 8px 18px rgba(0,0,0,0.06)" }}
+                  whileTap={{ scale: 0.97 }}
+                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   key={i}
                   onClick={() => {
                     const currentDateForRoute = toLocalYYYYMMDD(new Date());
@@ -1266,27 +1275,24 @@ const Home = () => {
                       `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
                     );
                   }}
-                  className="group relative bg-white rounded-2xl shadow-md hover:shadow-lg transition-all duration-300 cursor-pointer overflow-hidden border border-gray-100 p-6 flex flex-col"
+                  className="group bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-100 p-4 sm:p-5 flex flex-col"
                 >
                   <div className="flex-grow">
-                    <p className="text-sm font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
-                      Route
-                    </p>
-                    <div className="flex items-center gap-3 mt-1">
-                      <span className="font-heading text-xl font-bold" style={{ color: PALETTE.textDark }}>
+                    <div className="flex items-center gap-2 sm:gap-3">
+                      <span className="font-heading text-base sm:text-lg font-bold" style={{ color: PALETTE.textDark }}>
                         {routeFrom.trim()}
                       </span>
-                      <FaLongArrowAltRight style={{ color: PALETTE.primaryRed }} />
-                      <span className="font-heading text-xl font-bold" style={{ color: PALETTE.textDark }}>
+                      <FaLongArrowAltRight className="text-sm sm:text-base" style={{ color: PALETTE.primaryRed }} />
+                      <span className="font-heading text-base sm:text-lg font-bold" style={{ color: PALETTE.textDark }}>
                         {routeTo.trim()}
                       </span>
                     </div>
                   </div>
-                  <div className="mt-8 flex items-center justify-between">
-                    <span className="font-sans font-semibold" style={{ color: PALETTE.accentBlue }}>
-                      View Available Buses
+                  <div className="mt-4 flex items-center justify-between">
+                    <span className="text-xs sm:text-sm font-medium" style={{ color: PALETTE.accentBlue }}>
+                      View Buses
                     </span>
-                    <FaArrowRight className="transition-transform duration-300 group-hover:translate-x-1" style={{ color: PALETTE.accentBlue }} />
+                    <FaArrowRight className="text-xs sm:text-sm transition-transform duration-300 group-hover:translate-x-1" style={{ color: PALETTE.accentBlue }} />
                   </div>
                 </motion.div>
               );
@@ -1294,6 +1300,7 @@ const Home = () => {
           </div>
         </section>
       </div>
+
 
       {/* ===== Guide / How to Book ===== */}
       <div className={`${SECTION_WRAP}`}>
