@@ -1,4 +1,3 @@
-// src/components/WhatsNewCard.jsx
 import React from "react";
 import { Link } from "react-router-dom";
 import apiClient from "../api"; // ✅ use shared API client (baseURL includes /api)
@@ -29,9 +28,9 @@ const WhatsNewCard = ({ item, linkTo }) => {
   const src = absolutize(imageUrl);
 
   const CardInner = (
-    <div className="w-[300px] sm:w-[340px] rounded-2xl overflow-hidden shrink-0 snap-start">
-      {/* Reduced height: aspect-[360/260] → aspect-[360/220] */}
-      <div className="aspect-[360/220] w-full">
+    <div className="group bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-200 overflow-hidden flex flex-col">
+      {/* ✅ Match aspect ratio & padding with Popular Routes */}
+      <div className="aspect-[4/3] w-full">
         <img
           src={src}
           alt={title}
@@ -40,11 +39,16 @@ const WhatsNewCard = ({ item, linkTo }) => {
           decoding="async"
         />
       </div>
+      <div className="p-3 sm:p-4 flex-grow flex items-center justify-center">
+        <h3 className="text-sm sm:text-base font-semibold text-gray-800 text-center truncate">
+          {title}
+        </h3>
+      </div>
     </div>
   );
 
   return linkTo ? (
-    <Link to={linkTo} aria-label="View all What's new">
+    <Link to={linkTo} aria-label="View What's new">
       {CardInner}
     </Link>
   ) : (
