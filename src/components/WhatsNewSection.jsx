@@ -14,8 +14,7 @@ const Skeleton = () => (
     className="
       w-[300px] sm:w-[340px]
       h-[260px]
-      rounded-2xl
-      border border-gray-300 bg-gray-100
+      bg-gray-100
       animate-pulse shrink-0 snap-start
     "
   />
@@ -58,7 +57,7 @@ const GlassArrow = ({ side = "left", onClick, show }) => {
 };
 
 const WhatsNewSection = () => {
-  const [items, setItems] = useState([]); // ✅ always an array
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
@@ -184,7 +183,7 @@ const WhatsNewSection = () => {
           {items.map((it) => (
             <div
               key={it._id || it.id}
-              className="w-[300px] sm:w-[340px] shrink-0 snap-start border border-gray-300 rounded-2xl overflow-hidden"
+              className="w-[300px] sm:w-[340px] shrink-0 snap-start"
             >
               <WhatsNewCard item={it} linkTo="/whats-new" />
             </div>
