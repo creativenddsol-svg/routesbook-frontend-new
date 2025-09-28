@@ -1242,7 +1242,7 @@ const Home = () => {
       <WhatsNewSection />
 
       {/* ===== Popular Routes ===== */}
-       {/* ===== Popular Routes ===== */}
+            {/* ===== Popular Routes ===== */}
       <div className={`${SECTION_WRAP}`}>
         <section className={`${SECTION_INNER} py-16`}>
           <h2
@@ -1252,7 +1252,7 @@ const Home = () => {
             Popular Routes
           </h2>
 
-          {/* ✅ Responsive grid: smaller cards on mobile, larger on desktop */}
+          {/* ✅ Responsive grid: balanced layout, text handling */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {[
               "Colombo → Kandy",
@@ -1265,7 +1265,7 @@ const Home = () => {
               const [routeFrom, routeTo] = route.split(" → ");
               return (
                 <motion.div
-                  whileHover={{ y: -3, boxShadow: "0 8px 18px rgba(0,0,0,0.06)" }}
+                  whileHover={{ y: -3, boxShadow: "0 8px 18px rgba(0,0,0,0.08)" }}
                   whileTap={{ scale: 0.97 }}
                   transition={{ type: "spring", stiffness: 300, damping: 20 }}
                   key={i}
@@ -1275,24 +1275,32 @@ const Home = () => {
                       `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
                     );
                   }}
-                  className="group bg-white rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-100 p-4 sm:p-5 flex flex-col"
+                  className="group rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-200 p-4 sm:p-5 flex flex-col bg-gradient-to-br from-[#D84E55] to-[#FFD54F]"
                 >
                   <div className="flex-grow">
                     <div className="flex items-center gap-2 sm:gap-3">
-                      <span className="font-heading text-base sm:text-lg font-bold" style={{ color: PALETTE.textDark }}>
+                      <span
+                        className="font-heading text-base sm:text-lg font-bold truncate max-w-[45%] sm:max-w-[48%]"
+                        style={{ color: "#ffffff" }}
+                        title={routeFrom.trim()}
+                      >
                         {routeFrom.trim()}
                       </span>
-                      <FaLongArrowAltRight className="text-sm sm:text-base" style={{ color: PALETTE.primaryRed }} />
-                      <span className="font-heading text-base sm:text-lg font-bold" style={{ color: PALETTE.textDark }}>
+                      <FaLongArrowAltRight className="text-sm sm:text-base flex-shrink-0" style={{ color: "#fff" }} />
+                      <span
+                        className="font-heading text-base sm:text-lg font-bold truncate max-w-[45%] sm:max-w-[48%]"
+                        style={{ color: "#ffffff" }}
+                        title={routeTo.trim()}
+                      >
                         {routeTo.trim()}
                       </span>
                     </div>
                   </div>
                   <div className="mt-4 flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-medium" style={{ color: PALETTE.accentBlue }}>
+                    <span className="text-xs sm:text-sm font-medium text-white">
                       View Buses
                     </span>
-                    <FaArrowRight className="text-xs sm:text-sm transition-transform duration-300 group-hover:translate-x-1" style={{ color: PALETTE.accentBlue }} />
+                    <FaArrowRight className="text-xs sm:text-sm transition-transform duration-300 group-hover:translate-x-1" style={{ color: "#fff" }} />
                   </div>
                 </motion.div>
               );
