@@ -16,7 +16,7 @@ import {
   FaArrowRight,
   FaSearch,
 } from "react-icons/fa";
-import { FaClock, FaMapMarkerAlt } from "react-icons/fa";
+import { FaClock, FaMapMarkerAlt, FaUserCircle } from "react-icons/fa";
 import Footer from "../components/Footer";
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom"; // portal for calendar
@@ -1310,86 +1310,85 @@ const Home = () => {
       </div>
 
 
-           {/* ===== Guide / How to Book ===== */}
+      {/* ===== Guide / How to Book ===== */}
       <div className={`${SECTION_WRAP}`}>
         <section className={`${SECTION_INNER} py-16`}>
-          <h2
-            className="font-heading text-3xl font-extrabold mb-12 text-center"
-            style={{ color: PALETTE.textDark }}
-          >
-            How to Book Bus Tickets on <span className="text-[#D84E55]">Routesbook</span>
-          </h2>
+          <div className="bg-white p-8 md:p-12 rounded-2xl shadow-lg border border-gray-100">
+            <h2 className="font-heading text-3xl font-bold mb-4" style={{ color: PALETTE.textDark }}>
+              Online Bus Ticket Booking on Routesbook
+            </h2>
 
-          {/* ✅ Steps as modern responsive cards */}
-          <div className="grid gap-6 sm:gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {[
-              {
-                title: "Enter Travel Details",
-                desc: "Select your departure, destination, and date to view available buses.",
-                icon: FaMapMarkerAlt,
-              },
-              {
-                title: "Search Buses",
-                desc: "Filter results by bus type, fare, timings, seat availability, and more.",
-                icon: FaSearch,
-              },
-              {
-                title: "Choose Your Seat",
-                desc: "Pick your preferred seat and boarding/dropping points easily.",
-                icon: FaChair,
-              },
-              {
-                title: "Enter Passenger Info",
-                desc: "Fill in passenger details like name, NIC, and contact number.",
-                icon: FaUserCircle,
-              },
-              {
-                title: "Make Secure Payment",
-                desc: "Pay online safely with our secure and verified payment partners.",
-                icon: FaShieldAlt,
-              },
-              {
-                title: "Get Instant Ticket",
-                desc: "Receive your ticket immediately by email and SMS with QR code.",
-                icon: FaMobileAlt,
-              },
-            ].map((step, idx) => (
-              <motion.div
-                key={idx}
-                whileHover={{ y: -4, boxShadow: "0 8px 16px rgba(0,0,0,0.08)" }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                className="bg-white rounded-2xl shadow-md p-6 flex flex-col items-center text-center border border-gray-100"
-              >
-                <div className="w-14 h-14 flex items-center justify-center rounded-full bg-gradient-to-br from-[#D84E55] to-[#FFD54F] text-white mb-4 shadow">
-                  <step.icon className="text-xl" />
-                </div>
-                <h3 className="font-heading text-lg font-semibold mb-2" style={{ color: PALETTE.textDark }}>
-                  {step.title}
-                </h3>
-                <p className="text-sm leading-relaxed" style={{ color: PALETTE.textLight }}>
-                  {step.desc}
-                </p>
-              </motion.div>
-            ))}
-          </div>
+            <p className="mb-4 text-base leading-relaxed" style={{ color: PALETTE.textLight }}>
+              Routesbook is your new and reliable companion for booking bus tickets online. Designed for simplicity and
+              convenience, Routesbook offers a smooth and secure booking experience across a growing network of trusted
+              bus operators. Whether you're traveling across cities or planning a local trip, Routesbook provides a wide
+              range of affordable travel options and modern features for every passenger.
+            </p>
 
-          {/* ✅ Closing note */}
-          <div className="mt-12 max-w-3xl mx-auto text-center">
-            <p className="text-base leading-relaxed" style={{ color: PALETTE.textLight }}>
-              With Routesbook, every ticket is backed by <span className="font-semibold text-[#D84E55]">secure payments</span>, 
-              <span className="font-semibold text-[#D84E55]"> verified operators</span>, and 
-              <span className="font-semibold text-[#D84E55]"> instant confirmation</span>. 
-              Travel smarter, safer, and faster.
+            <p className="mb-8 text-base leading-relaxed" style={{ color: PALETTE.textLight }}>
+              Partnering with emerging private bus operators and transport services, Routesbook ensures comfortable
+              journeys with a variety of bus types like AC, Non-AC, Sleeper, Seater, Semi-Sleeper, and Luxury coaches.
+              As a newly launched platform, we’re committed to providing transparent pricing, secure payment methods, and
+              exceptional customer service.
+            </p>
+
+            <h3 className="font-heading text-2xl font-bold mb-6" style={{ color: PALETTE.textDark }}>
+              How to Book Bus Tickets on Routesbook?
+            </h3>
+
+            <p className="mb-8 text-base" style={{ color: PALETTE.textLight }}>
+              Booking your journey on Routesbook is simple and user-friendly. Just follow these quick steps:
+            </p>
+
+            <ul className="space-y-5">
+              {[
+                {
+                  t: "Enter Travel Details:",
+                  d: "Select your departure city, destination, and travel date to view available bus services.",
+                },
+                {
+                  t: "Search Buses:",
+                  d: "Filter results by bus type, fare, timing, boarding & dropping points, seat availability, and onboard amenities.",
+                },
+                {
+                  t: "Choose Your Seat:",
+                  d: "Pick your preferred seat and boarding/dropping points. Review the fare and proceed to book.",
+                },
+                { t: "Enter Passenger Information:", d: "Fill in passenger name, contact number, and any other required details." },
+                { t: "Make Payment:", d: "Complete your booking securely using a range of payment options." },
+                { t: "Get Ticket Confirmation:", d: "Receive your digital ticket via email and SMS instantly after payment." },
+              ].map((step, idx) => (
+                <li key={idx} className="flex items-start">
+                  <FaArrowRight className="text-sm mr-4 mt-1.5 shrink-0" style={{ color: PALETTE.primaryRed }} />
+                  <span style={{ color: PALETTE.textLight }}>
+                    <strong className="font-semibold" style={{ color: PALETTE.textDark }}>
+                      {step.t}
+                    </strong>{" "}
+                    {step.d}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-8 mb-4 text-base leading-relaxed" style={{ color: PALETTE.textLight }}>
+              With Routesbook, every ticket booked comes with the assurance of a secure transaction, access to verified
+              operators, and a customer-first support team to assist you at every step.
+            </p>
+            <p className="text-base leading-relaxed font-medium" style={{ color: PALETTE.textLight }}>
+              Start your journey the smart way with Routesbook — where your route, your seat, and your journey are just a
+              few clicks away.
             </p>
           </div>
         </section>
       </div>
 
-
       <Footer />
 
       {/* Bottom safe-area so content never collides with iPhone home bar */}
       <div className="lg:hidden" style={{ height: "env(safe-area-inset-bottom)", backgroundColor: PALETTE.bgLight }} />
+
+    
+
 
       {/* === MOBILE FULL-PAGE PICKER MOUNT === */}
       <MobileCityPicker
