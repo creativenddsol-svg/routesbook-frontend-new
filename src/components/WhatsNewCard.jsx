@@ -1,17 +1,16 @@
 // src/components/WhatsNewCard.jsx
 import React from "react";
 import { Link } from "react-router-dom";
-import apiClient from "../api"; // ✅ shared API client
+import apiClient from "../api";
 
 /* Build absolute URL for images */
 const API_ORIGIN = (function () {
   try {
     const base = (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
     const u = new URL(base);
-    const pathname = u && u.pathname ? u.pathname : "";
-    const path = pathname.replace(/\/api\/?$/, "");
+    const path = (u.pathname || "").replace(/\/api\/?$/, "");
     return u.origin + path;
-  } catch (e) {
+  } catch {
     return "";
   }
 })();
@@ -20,27 +19,26 @@ function absolutize(u) {
   if (!u) return u;
   if (/^https?:\/\//i.test(u)) return u;
   if (!API_ORIGIN) return u;
-  if (u.charAt(0) === "/") return API_ORIGIN + u;
-  return API_ORIGIN + "/" + u;
+  return u.charAt(0) === "/" ? API_ORIGIN + u : API_ORIGIN + "/" + u;
 }
 
 const WhatsNewCard = ({ item, linkTo }) => {
-  const imageUrl = item?.imageUrl || "";
-  const title = item?.title || "What's new"; // only used for alt text
-  const src = absolutize(imageUrl);
+  const src = absolutize(item?.imageUrl || "");
+  const alt = item?.title || "What's new";
 
+  // Fixed heights match your rail: 225px (mobile), 255px (sm+)
   const ImageOnly = (
     <img
       src={src}
-      alt={title}
-      className="block w-full h-auto object-contain rounded-xl sm:rounded-2xl"
+      alt={alt}
+      className="block w-full h-[225px] sm:h-[255px] object-contain"
       loading="lazy"
       decoding="async"
     />
   );
 
   return linkTo ? (
-    <Link to={linkTo} aria-label="View What's new" className="no-underline block">
+    <Link to={linkTo} aria-label="View What's new" className="block no-underline">
       {ImageOnly}
     </Link>
   ) : (
