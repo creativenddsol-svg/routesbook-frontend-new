@@ -3,7 +3,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import apiClient from "../api"; // ✅ shared API client
 
-/* Build absolute URL for images (no optional chaining) */
+/* Build absolute URL for images */
 const API_ORIGIN = (function () {
   try {
     const base = (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
@@ -25,27 +25,22 @@ function absolutize(u) {
 }
 
 const WhatsNewCard = ({ item, linkTo }) => {
-  const imageUrl = item && item.imageUrl ? item.imageUrl : "";
-  const title = item && item.title ? item.title : "What's new"; // used for alt only
+  const imageUrl = item?.imageUrl || "";
+  const title = item?.title || "What's new"; // only used for alt text
   const src = absolutize(imageUrl);
 
   const ImageOnly = (
-    <div className="rounded-xl sm:rounded-2xl overflow-hidden border-0 bg-white">
-      {/* Keep the rail tidy with fixed ratio; image shown exactly as uploaded via object-contain */}
-      <div className="aspect-[4/3] w-full">
-        <img
-          src={src}
-          alt={title}                /* accessible; not visible */
-          className="block w-full h-full object-contain bg-white"
-          loading="lazy"
-          decoding="async"
-        />
-      </div>
-    </div>
+    <img
+      src={src}
+      alt={title}
+      className="block w-full h-auto object-contain rounded-xl sm:rounded-2xl"
+      loading="lazy"
+      decoding="async"
+    />
   );
 
   return linkTo ? (
-    <Link to={linkTo} aria-label="View What's new" className="no-underline">
+    <Link to={linkTo} aria-label="View What's new" className="no-underline block">
       {ImageOnly}
     </Link>
   ) : (
