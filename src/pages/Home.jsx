@@ -926,38 +926,57 @@ const Home = () => {
       <Toaster position="top-right" />
 
        {/* ===== Hero Section (desktop only) ===== */}
-      <div
-        className="hidden lg:block w-screen relative left-1/2 ml-[-50vw] overflow-hidden pb-20 lg:pb-40"
-        style={{
-          backgroundImage: "url('/images/first.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-black/10 to-transparent"></div>
-        <motion.div
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-20 left-10 w-32 h-32 bg-white/10 rounded-full blur-xl"
-        />
-        <motion.div
-          animate={{ y: [0, 15, 0] }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          className="absolute top-40 right-20 w-48 h-48 bg-white/5 rounded-full blur-2xl"
-        />
-        <div className="relative z-10 px-4 pt-16 sm:pt-24">
-          <div className="max-w-6xl mx-auto text-center">
-            <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8 }}>
-              <h1 className="font-heading text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight">
-                Sri Lanka No:1 Bus Ticket Booking Platform
-              </h1>
-              <p className="text-lg sm:text-xl text-white/90 max-w-3xl mx-auto">
-                Travel Smart with Routesbook.lk - Book Instantly
-              </p>
-            </motion.div>
-          </div>
-        </div>
+      {/* ===== Hero Section (desktop only) ===== */}
+<div className="hidden lg:block w-screen relative left-1/2 ml-[-50vw] overflow-hidden pb-20 lg:pb-40">
+  {/* Fixed visual height for a cinematic feel (tweak as you like) */}
+  <div className="relative w-full h-[60vh] xl:h-[70vh]">
+
+    {/* The image handles ANY aspect ratio without distortion */}
+    <img
+      src="/images/first.jpg"            // <-- put any image path or dynamic URL here
+      alt="Routesbook.lk hero"
+      loading="eager"
+      fetchpriority="high"
+      className="
+        absolute inset-0 w-full h-full
+        object-cover object-center       /* cover = fills, crops safely; center focal point */
+        [image-rendering:-webkit-optimize-contrast]
+      "
+    />
+
+    {/* Optional: if you prefer NO cropping (letterbox bars), swap object-cover -> object-contain */}
+    {/* className="absolute inset-0 w-full h-full object-contain bg-neutral-900" */}
+
+    {/* Gradient overlay */}
+    <div className="absolute inset-0 bg-gradient-to-br from-black/10 to-transparent"></div>
+
+    {/* Floating glow blobs (unchanged) */}
+    <motion.div
+      animate={{ y: [0, -10, 0] }}
+      transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+      className="pointer-events-none absolute top-20 left-10 w-32 h-32 bg-white/10 rounded-full blur-xl"
+    />
+    <motion.div
+      animate={{ y: [0, 15, 0] }}
+      transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+      className="pointer-events-none absolute top-40 right-20 w-48 h-48 bg-white/5 rounded-full blur-2xl"
+    />
+
+    {/* Headline content */}
+    <div className="relative z-10 px-4 pt-16 sm:pt-24 h-full">
+      <div className="max-w-6xl mx-auto h-full flex flex-col items-center justify-start sm:justify-center text-center">
+        <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8 }}>
+          <h1 className="font-heading text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight">
+            Sri Lanka No:1 Bus Ticket Booking Platform
+          </h1>
+          <p className="text-lg sm:text-xl text-white/90 max-w-3xl mx-auto">
+            Travel Smart with Routesbook.lk - Book Instantly
+          </p>
+        </motion.div>
       </div>
+    </div>
+  </div>
+</div>
 
       {/* ===== Search Widget ===== */}
       <div className={`${SECTION_WRAP}`}>
