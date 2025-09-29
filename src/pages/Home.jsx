@@ -925,10 +925,14 @@ const Home = () => {
 
       <Toaster position="top-right" />
 
-      {/* ===== Hero Section (desktop only) ===== */}
+       {/* ===== Hero Section (desktop only) ===== */}
       <div
         className="hidden lg:block w-screen relative left-1/2 ml-[-50vw] overflow-hidden pb-20 lg:pb-40"
-        style={{ backgroundColor: PALETTE.primaryRed }}
+        style={{
+          backgroundImage: "url('/images/bus.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
       >
         <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-black/10 to-transparent"></div>
         <motion.div
