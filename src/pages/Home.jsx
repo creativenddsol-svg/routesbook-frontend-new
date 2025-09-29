@@ -949,7 +949,7 @@ const Home = () => {
           <div className="max-w-6xl mx-auto text-center">
             <motion.div initial={{ y: -30, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.8 }}>
               <h1 className="font-heading text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight">
-                Online Bus Ticket Booking
+                Sri Lanka No:1 Bus Ticket Booking Platform
               </h1>
               <p className="text-lg sm:text-xl text-white/90 max-w-3xl mx-auto">
                 Travel Smart with Routesbook.lk - Book Instantly
