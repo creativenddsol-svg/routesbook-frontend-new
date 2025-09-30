@@ -3,6 +3,8 @@ import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import WhatsNewCard from "./WhatsNewCard";
 import apiClient from "../api"; // ✅ use the configured axios instance
+// ✅ NEW: normalize image URLs to absolute HTTPS
+import { toImgURL } from "../api";
 
 /** Layout constants */
 const CARD_W = 340; // sm:w-[340px]
@@ -75,7 +77,14 @@ const WhatsNewSection = () => {
       try {
         const { data } = await apiClient.get("/whats-new/active");
         if (!alive) return;
-        setItems(Array.isArray(data) ? data : []);
+        // ✅ Ensure images are absolute HTTPS even if API returns /uploads/... or http://...
+        const normalized = Array.isArray(data)
+          ? data.map((it) => ({
+              ...it,
+              imageUrl: toImgURL(it?.imageUrl || it?.image || it?.cover || ""),
+            }))
+          : [];
+        setItems(normalized);
       } catch (e) {
         if (!alive) return;
         setErr(
@@ -185,6 +194,7 @@ const WhatsNewSection = () => {
               key={it._id || it.id}
               className="w-[300px] sm:w-[340px] shrink-0 snap-start"
             >
+              {/* WhatsNewCard can simply use item.imageUrl (already normalized) */}
               <WhatsNewCard item={it} linkTo="/whats-new" />
             </div>
           ))}
