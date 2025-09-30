@@ -8,6 +8,31 @@ const API_BASE_URL =
     process.env.REACT_APP_API_URL) ||
   "https://routesbook-backend-api.onrender.com/api"; // fallback
 
+/* === ADD: derive absolute origin (no /api) + image URL normalizer === */
+export const API_ORIGIN = (() => {
+  try {
+    const u = new URL(API_BASE_URL);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return API_BASE_URL.replace(/\/api\/?$/i, "");
+  }
+})();
+
+export const toImgURL = (p) => {
+  if (!p) return "";
+  if (/^https?:\/\//i.test(p)) {
+    // if backend accidentally returns http while site is https, prefer https
+    try {
+      const u = new URL(p);
+      return u.protocol === "http:" ? `https://${u.host}${u.pathname}${u.search}${u.hash}` : p;
+    } catch {
+      return p;
+    }
+  }
+  return `${API_ORIGIN}${p.startsWith("/") ? p : "/" + p}`;
+};
+/* === END ADD === */
+
 /** Axios instance */
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
