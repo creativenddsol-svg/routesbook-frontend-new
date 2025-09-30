@@ -2,6 +2,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import apiClient from "../api";
+// ✅ added: use the shared normalizer
+import { toImgURL } from "../api";
 
 /* Build absolute URL for images */
 const API_ORIGIN = (function () {
@@ -16,10 +18,8 @@ const API_ORIGIN = (function () {
 })();
 
 function absolutize(u) {
-  if (!u) return u;
-  if (/^https?:\/\//i.test(u)) return u;
-  if (!API_ORIGIN) return u;
-  return u.charAt(0) === "/" ? API_ORIGIN + u : API_ORIGIN + "/" + u;
+  // ✅ updated: delegate to the shared helper (handles /uploads and http→https)
+  return toImgURL(u);
 }
 
 const WhatsNewCard = ({ item, linkTo }) => {
