@@ -1,35 +1,14 @@
 // src/components/NoticesSection.jsx
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import apiClient from "../api";
 import NoticeCard from "./NoticeCard";
 import { Link } from "react-router-dom";
-
-/** Layout constants */
-const CARD_W = 340; // desktop/large
-const GAP = 12;
-const STEP = CARD_W + GAP;
-
-const Skeleton = () => (
-  <div className="w-full h-40 rounded-xl bg-gray-100 animate-pulse" />
-);
-
-const GlassArrow = ({ side = "left", onClick, show }) => {
-  // no arrows needed in grid layout, but kept to not break code
-  if (!show) return null;
-  return null;
-};
 
 const NoticesSection = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-
   const railRef = useRef(null);
-  const [pages, setPages] = useState(1);
-  const [index, setIndex] = useState(0);
-
-  const atStart = index === 0;
-  const atEnd = index === pages - 1;
 
   useEffect(() => {
     let live = true;
@@ -39,8 +18,7 @@ const NoticesSection = () => {
         const data = Array.isArray(res.data) ? res.data : [];
         if (live) setItems(data);
       } catch (e) {
-        if (live)
-          setErr(e?.response?.data?.message || "Failed to load notices.");
+        if (live) setErr(e?.response?.data?.message || "Failed to load notices.");
       } finally {
         if (live) setLoading(false);
       }
@@ -48,17 +26,14 @@ const NoticesSection = () => {
     return () => (live = false);
   }, []);
 
-  const computePages = useCallback(() => {
-    return 1; // grid layout → single page
-  }, []);
-
-  const updatePagerFromScroll = useCallback(() => {}, []);
-  const scrollToIndex = useCallback(() => {}, []);
-  const scrollByStep = useCallback(() => {}, []);
-
-  useEffect(() => {
-    setPages(1);
-  }, [computePages]);
+  const scrollBy = (dir) => {
+    if (!railRef.current) return;
+    const cardWidth = railRef.current.firstChild?.offsetWidth || 320;
+    railRef.current.scrollBy({
+      left: dir * (cardWidth + 16), // scroll by one card
+      behavior: "smooth",
+    });
+  };
 
   if (loading) {
     return (
@@ -68,9 +43,12 @@ const NoticesSection = () => {
             Bus Booking Discount Offers
           </h2>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="flex gap-4 overflow-x-auto">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} />
+            <div
+              key={i}
+              className="w-[300px] h-40 bg-gray-200 rounded-xl animate-pulse"
+            />
           ))}
         </div>
       </section>
@@ -79,7 +57,8 @@ const NoticesSection = () => {
   if (err || !Array.isArray(items) || items.length === 0) return null;
 
   return (
-    <section className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12">
+    <section className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12 relative">
+      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-2xl font-bold text-gray-900">
           Bus Booking Discount Offers
@@ -92,20 +71,42 @@ const NoticesSection = () => {
         </Link>
       </div>
 
-      {/* Grid cards layout */}
+      {/* Scroll Buttons (desktop only) */}
+      <button
+        onClick={() => scrollBy(-1)}
+        className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 h-12 w-12 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/10 hover:bg-gray-50"
+      >
+        ‹
+      </button>
+      <button
+        onClick={() => scrollBy(1)}
+        className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 h-12 w-12 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/10 hover:bg-gray-50"
+      >
+        ›
+      </button>
+
+      {/* Horizontal scroll rail */}
       <div
         ref={railRef}
-        className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+        className="flex gap-4 overflow-x-auto scroll-smooth pb-2 hide-scrollbar"
       >
         {items.map((n) => (
-          <div
-            key={n._id}
-            className="bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-          >
+          <div key={n._id} className="w-[300px] flex-shrink-0">
             <NoticeCard notice={n} linkTo="/notices" />
           </div>
         ))}
       </div>
+
+      {/* Hide scrollbar for Webkit */}
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar {
+          display: none;
+        }
+        .hide-scrollbar {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+      `}</style>
     </section>
   );
 };
