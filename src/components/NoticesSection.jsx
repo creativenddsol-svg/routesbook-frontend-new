@@ -44,7 +44,7 @@ const NoticesSection = () => {
       left: dir * (cardWidth + 16),
       behavior: "smooth",
     });
-    setTimeout(updateArrowVisibility, 400); // check after scroll
+    setTimeout(updateArrowVisibility, 400);
   };
 
   if (loading) {
@@ -83,22 +83,28 @@ const NoticesSection = () => {
         </Link>
       </div>
 
-      {/* Arrows (inside section, Abhibus style) */}
+      {/* Left arrow with mist */}
       {!atStart && (
-        <button
-          onClick={() => scrollBy(-1)}
-          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 flex items-center justify-center rounded-full bg-white shadow ring-1 ring-black/10 hover:bg-gray-50"
-        >
-          ‹
-        </button>
+        <div className="absolute left-0 top-0 bottom-0 w-16 flex items-center justify-start bg-gradient-to-r from-white via-white/70 to-transparent z-20">
+          <button
+            onClick={() => scrollBy(-1)}
+            className="h-9 w-9 flex items-center justify-center rounded-full bg-white/90 shadow hover:bg-white transition"
+          >
+            ‹
+          </button>
+        </div>
       )}
+
+      {/* Right arrow with mist */}
       {!atEnd && (
-        <button
-          onClick={() => scrollBy(1)}
-          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 flex items-center justify-center rounded-full bg-white shadow ring-1 ring-black/10 hover:bg-gray-50"
-        >
-          ›
-        </button>
+        <div className="absolute right-0 top-0 bottom-0 w-16 flex items-center justify-end bg-gradient-to-l from-white via-white/70 to-transparent z-20">
+          <button
+            onClick={() => scrollBy(1)}
+            className="h-9 w-9 flex items-center justify-center rounded-full bg-white/90 shadow hover:bg-white transition"
+          >
+            ›
+          </button>
+        </div>
       )}
 
       {/* Horizontal scroll rail */}
@@ -114,15 +120,10 @@ const NoticesSection = () => {
         ))}
       </div>
 
-      {/* Hide scrollbar for Webkit */}
+      {/* Hide scrollbar */}
       <style>{`
-        .hide-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .hide-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
       `}</style>
     </section>
   );
