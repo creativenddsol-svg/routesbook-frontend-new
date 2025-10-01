@@ -8,6 +8,9 @@ const NoticesSection = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(false);
+
   const railRef = useRef(null);
 
   useEffect(() => {
@@ -26,13 +29,22 @@ const NoticesSection = () => {
     return () => (live = false);
   }, []);
 
+  const updateArrowVisibility = () => {
+    const el = railRef.current;
+    if (!el) return;
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    setAtStart(scrollLeft <= 0);
+    setAtEnd(scrollLeft + clientWidth >= scrollWidth - 5);
+  };
+
   const scrollBy = (dir) => {
     if (!railRef.current) return;
     const cardWidth = railRef.current.firstChild?.offsetWidth || 320;
     railRef.current.scrollBy({
-      left: dir * (cardWidth + 16), // scroll by one card
+      left: dir * (cardWidth + 16),
       behavior: "smooth",
     });
+    setTimeout(updateArrowVisibility, 400); // check after scroll
   };
 
   if (loading) {
@@ -71,23 +83,28 @@ const NoticesSection = () => {
         </Link>
       </div>
 
-      {/* Scroll Buttons (desktop only) */}
-      <button
-        onClick={() => scrollBy(-1)}
-        className="hidden lg:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 h-12 w-12 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/10 hover:bg-gray-50"
-      >
-        ‹
-      </button>
-      <button
-        onClick={() => scrollBy(1)}
-        className="hidden lg:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 h-12 w-12 items-center justify-center rounded-full bg-white shadow-md ring-1 ring-black/10 hover:bg-gray-50"
-      >
-        ›
-      </button>
+      {/* Arrows (inside section, Abhibus style) */}
+      {!atStart && (
+        <button
+          onClick={() => scrollBy(-1)}
+          className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 flex items-center justify-center rounded-full bg-white shadow ring-1 ring-black/10 hover:bg-gray-50"
+        >
+          ‹
+        </button>
+      )}
+      {!atEnd && (
+        <button
+          onClick={() => scrollBy(1)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-10 w-10 flex items-center justify-center rounded-full bg-white shadow ring-1 ring-black/10 hover:bg-gray-50"
+        >
+          ›
+        </button>
+      )}
 
       {/* Horizontal scroll rail */}
       <div
         ref={railRef}
+        onScroll={updateArrowVisibility}
         className="flex gap-4 overflow-x-auto scroll-smooth pb-2 hide-scrollbar"
       >
         {items.map((n) => (
