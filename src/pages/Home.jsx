@@ -968,21 +968,7 @@ const Home = () => {
 
 
       {/* ===== Search Widget ===== */}
- <div className={`${SECTION_WRAP}`}>
-  <div className={`${SECTION_INNER} relative z-20 mt-4 lg:-mt-40`}>
-    <div className="lg:hidden text-left pb-2 px-4 pt-4">
-      <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}>
-        {/* CHANGED (mobile only) */}
-        Get Your Bus Tickets
-      </h2>
-    </div>
-
-    <motion.div
-      initial={{ y: 40, opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      transition={{ delay: 0.3, duration: 0.8 }}
-      className="bg-white border border-gray-300 rounded-xl lg:rounded-2xl lg:shadow-2xl"
-    >
+<div className={${SECTION_WRAP}}> <div className={${SECTION_INNER} relative z-20 mt-4 lg:-mt-32}> <div className="lg:hidden text-left pb-2 px-4 pt-4"> <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}> {/* CHANGED (mobile only) */} Get Your Bus Tickets </h2> </div> <motion.div initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3, duration: 0.8 }} className="bg-white border border-gray-300 rounded-xl lg:rounded-2xl lg:shadow-2xl" >
 
             {/* ----- DESKTOP VIEW (unchanged) ----- */}
             <div className="hidden lg:flex rounded-2xl overflow-hidden">
