@@ -928,7 +928,7 @@ const Home = () => {
        {/* ===== Hero Section (desktop only) ===== */}
 {/* ===== Hero Section (desktop only) ===== */}
 <div
-  className="hidden lg:block w-screen relative left-1/2 ml-[-50vw] overflow-hidden pb-20 lg:pb-40"
+  className="hidden lg:block w-screen relative left-1/2 ml-[-50vw] overflow-hidden pb-[calc(5rem+2cm)] lg:pb-[calc(10rem+2cm)]"
   style={{
     backgroundImage: "url('/images/re.png')",
     backgroundSize: "cover",
