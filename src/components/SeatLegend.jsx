@@ -29,9 +29,6 @@ const SeatLegend = () => {
         // Available: no color (light default outline)
         available: "border-gray-300 text-gray-300",
         
-        // Selected: mat blue (#4A69BB)
-        selected: "border-[#4A69BB] text-[#4A69BB] shadow-sm", 
-        
         // Female Booked: mat pink (#D81B60)
         femaleBooked: "border-[#D81B60] text-[#D81B60] shadow-sm", 
         
@@ -52,8 +49,8 @@ const SeatLegend = () => {
   return (
     <div className="w-full rounded-xl shadow-lg border border-gray-100 bg-white/80 backdrop-blur-sm p-3">
       
-      {/* 5 columns for the 5 seat states */}
-      <div className="grid grid-cols-5 items-center text-center gap-1 sm:gap-2">
+      {/* Changed to 4 columns for the 4 seat states */}
+      <div className="grid grid-cols-4 items-center text-center gap-1 sm:gap-2">
         
         {/* 1. Available */}
         <div className="flex flex-col items-center gap-1 min-w-0">
@@ -63,15 +60,9 @@ const SeatLegend = () => {
           </span>
         </div>
 
-        {/* 2. Selected (Mat Blue Outline) */}
-        <div className="flex flex-col items-center gap-1 min-w-0">
-          <LegendWrapper colorClass={colors.selected} />
-          <span className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate font-medium">
-            Selected
-          </span>
-        </div>
+        {/* Removed 'Selected' icon block here */}
 
-        {/* 3. Female Booked (Mat Pink Outline) */}
+        {/* 2. Female Booked (Mat Pink Outline) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
           <LegendWrapper colorClass={colors.femaleBooked} />
           <span className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate font-medium">
@@ -79,7 +70,7 @@ const SeatLegend = () => {
           </span>
         </div>
 
-        {/* 4. Male Booked (Mat Purple Outline) */}
+        {/* 3. Male Booked (Mat Purple Outline) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
           <LegendWrapper colorClass={colors.maleBooked} />
           <span className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate font-medium">
@@ -87,7 +78,7 @@ const SeatLegend = () => {
           </span>
         </div>
 
-        {/* 5. Booked (Generic) (Very Light Red Outline) */}
+        {/* 4. Booked (Generic) (Very Light Red Outline) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
           <LegendWrapper colorClass={colors.genericBooked} />
           <span className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate font-medium">
