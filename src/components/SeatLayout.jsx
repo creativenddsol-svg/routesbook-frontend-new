@@ -69,7 +69,7 @@ const Seat = ({
       `}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {/* Seat box with inner bottom bar */}
+      {/* Seat box with inner elements */}
       <span
         className={`
           absolute inset-1 sm:inset-[3px]
@@ -77,15 +77,22 @@ const Seat = ({
           flex flex-col items-center justify-between
           font-semibold
           text-[11px] sm:text-xs
+          relative
           ${innerSeatClasses}
         `}
       >
+        {/* 🔵 Small circle tag in top-left */}
+        <span
+          aria-hidden="true"
+          className="absolute top-1 left-1 w-2 h-2 sm:w-1.5 sm:h-1.5 rounded-full bg-gray-300"
+        />
+
         {/* Seat label or gender icon */}
         <span className="flex-1 flex items-center justify-center">
           {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
         </span>
 
-        {/* Bottom bar touching the seat edge */}
+        {/* Bottom bar touching seat edge */}
         <span
           aria-hidden="true"
           className={`w-5 sm:w-4 h-1 rounded-t-sm self-center ${bottomBarColor}`}
