@@ -1,12 +1,8 @@
-// src/components/SeatLayout.jsx
 import React from "react";
 import PropTypes from "prop-types";
 import { FaMale, FaFemale } from "react-icons/fa";
 
-/* * NOTE: PALETTE and Seat component are largely unchanged 
- * as the request was to keep colors and core design.
- * The innerSeatClasses logic is already highly optimized.
- */
+/* ---------- Matte palette (selected = blue) ---------- */
 const PALETTE = {
   blue: "#4C6EF5",
   blueBorder: "#3F5ED8",
@@ -20,7 +16,7 @@ const PALETTE = {
   femaleBorder: "#D04B78",
 };
 
-/* ---------- Single Seat (Minimal visual changes, mostly refactoring classes) ---------- */
+/* ---------- Single Seat (UPDATED FOR SEAT ICON SHAPE) ---------- */
 const Seat = ({
   seat,
   isBooked,
@@ -64,16 +60,15 @@ const Seat = ({
       `}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {/* UX/Clarity improvement: Ensure text size is consistent and icon/text rendering is clean. 
-        Using `leading-none` to prevent font spacing from causing alignment issues.
-      */}
       <span
         className={`
           absolute inset-1 sm:inset-[3px]
-          border-2 rounded-lg
+          border-2 
+          // 💡 Custom border-radius for a seat-like icon shape: rounded-lg top, slightly rounded bottom
+          rounded-md rounded-t-lg 
           flex items-center justify-center
           font-semibold
-          text-[13px] sm:text-sm leading-none // Slightly increased font size for better mobile readability
+          text-[13px] sm:text-sm leading-none 
           ${innerSeatClasses}
         `}
       >
@@ -93,7 +88,7 @@ Seat.propTypes = {
   title: PropTypes.string,
 };
 
-/* ---------- Layout (Core structure improvements for mobile UX) ---------- */
+/* ---------- Layout (Professional, well-structured layout) ---------- */
 const SeatLayout = ({
   seatLayout,
   bookedSeats,
@@ -119,7 +114,6 @@ const SeatLayout = ({
 
   /**
    * Helper function to determine the gender of a booked adjacent seat.
-   * This logic is crucial for the "Female/Male only" locking feature.
    */
   const getAdjacentSeatInfo = (seatNumber, layoutGrid) => {
     for (const row of layoutGrid) {
@@ -148,15 +142,12 @@ const SeatLayout = ({
    */
   const getSeatStatus = (seat) => {
     const seatStr = String(seat);
-    // bookedSeatGenders[seatStr] can be 'M' or 'F' for booked, or undefined/null for not booked
     const isBooked = !!bookedSeatGenders[seatStr]; 
     
-    // Original logic for 'Locked': Booked but no gender (e.g., placeholder, or seat held by a 3rd party system)
-    // The image shows only 4x rows, which is what the layout grid does, so this 'isLocked' logic might be for a different use case. 
-    // I'll keep the original logic but ensure the Seat component handles it visually (red tint).
+    // Note: This 'isLocked' logic handles seats that are booked but don't have a gender defined in bookedSeatGenders.
     const isLocked =
       bookedSet.has(seatStr) &&
-      !isBooked && // isBooked is true only if a gender is present
+      !isBooked &&
       !selectedSet.has(seatStr);
 
     return {
@@ -168,23 +159,17 @@ const SeatLayout = ({
   };
 
   /**
-   * Renders the grid of seats.
+   * Renders the grid of seats using CSS Grid for perfect column alignment.
    */
   const renderLayout = (layoutGrid) =>
     layoutGrid.map((row, rowIndex) => (
-      /* UX Improvement: Use a consistent, slightly larger gap for mobile 
-        to enhance touch targets and visual separation.
-        Using `grid` for the row content ensures perfect column alignment 
-        even with the invisible aisle placeholder.
-      */
       <div
         key={`row-${rowIndex}`}
         className="grid grid-cols-5 gap-x-2 sm:gap-x-2 justify-items-center"
       >
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
-            // Invisible placeholder for the aisle. Width/Height needs to match Seat.
-            // Using a `div` that occupies a grid column.
+            // Invisible placeholder for the aisle.
             return (
               <div
                 key={`aisle-${rowIndex}-${i}`}
@@ -195,9 +180,8 @@ const SeatLayout = ({
           }
           const seat = String(seatNumber);
           
-          // Render only seats that are actually in the provided layout
           if (!layoutAsStrings.includes(seat)) {
-            // Render an empty column slot if the layout doesn't use this number
+            // Empty column slot if the layout doesn't use this number
             return (
               <div
                 key={`placeholder-${rowIndex}-${i}`}
@@ -210,7 +194,7 @@ const SeatLayout = ({
           const seatStatus = getSeatStatus(seat);
           let tooltipTitle = "";
 
-          // UX Improvement: Provide a clear title for seats next to a booked seat of a specific gender.
+          // Provide a clear title for seats next to a booked seat of a specific gender.
           if (
             !seatStatus.isBooked &&
             !seatStatus.isLocked &&
@@ -237,16 +221,13 @@ const SeatLayout = ({
     ));
 
   /**
-   * Generates the seat grid structure based on the total number of seats.
-   * This is a robust way to handle the 2+null+2 pattern.
+   * Generates the seat grid structure (2+null+2 pattern).
    */
   const getLayoutGrid = () => {
-    // The provided image shows a 2+null+2 layout, which matches both the 49 and 37 seater logic.
     if (is49Seater) {
       const grid = [];
       // 11 rows of 4 seats (1-44)
       for (let i = 0; i < 11; i++) {
-        // [1, 2, null, 3, 4], [5, 6, null, 7, 8], ...
         grid.push([i * 4 + 1, i * 4 + 2, null, i * 4 + 3, i * 4 + 4]);
       }
       // Last row: 5 seats (45-49)
@@ -262,8 +243,6 @@ const SeatLayout = ({
         [25, 26, null, 27, 28], [29, 30, null, 31, 32],
       ];
       // Last row: 5 seats (33-37)
-      // The original code uses [33, 34, 35, 36, 37] which means seat 35 is in the middle aisle column.
-      // This is necessary to keep the column alignment consistent (5 seats across).
       return [...base, [33, 34, 35, 36, 37]];
     }
 
@@ -272,18 +251,12 @@ const SeatLayout = ({
 
   const layoutGrid = getLayoutGrid();
 
-  /* UX/Structure Improvement: Ensure the entire component is padded correctly 
-    and the overflow-x is only on the wrapper to handle ultra-narrow screens gracefully, 
-    though with 5 columns, it's usually fine.
-  */
   return (
     <div
       className="p-3 sm:p-4 rounded-xl overflow-x-auto"
       style={{ background: "#FFFFFF", border: `1px solid ${PALETTE.border}` }}
     >
-      {/* Header: Use standard `justify-between` but give the title a more pronounced, 
-        yet subtle, look. The 'Front' label is a key visual marker.
-      */}
+      {/* Header: Front Indicator and Steering Icon */}
       <div className="flex justify-between items-center mb-4 px-1">
         <span
           className="font-extrabold text-xs sm:text-sm uppercase tracking-wider"
@@ -291,7 +264,6 @@ const SeatLayout = ({
         >
           Front
         </span>
-        {/* Bus steering icon remains unchanged */}
         <svg
           className="w-8 h-8 sm:w-10 sm:h-10"
           style={{ color: "#9CA3AF" }}
@@ -313,9 +285,7 @@ const SeatLayout = ({
         </svg>
       </div>
 
-      {/* Seat grid container. Inline-block with min-w-full ensures the grid is centered 
-          if it's narrower than the container (unlikely for 5 columns on mobile) 
-          but also handles scroll correctly. */}
+      {/* Seat grid container */}
       <div className="space-y-3 sm:space-y-2 inline-block min-w-full">
         {layoutGrid.length > 0 ? (
           renderLayout(layoutGrid)
@@ -326,7 +296,7 @@ const SeatLayout = ({
         )}
       </div>
 
-      {/* Footer: More structured/spaced for clarity */}
+      {/* Footer: Rear Indicator */}
       <div
         className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-center pt-4 mt-4 border-t border-gray-100"
         style={{ color: PALETTE.textSubtle }}
