@@ -18,7 +18,6 @@ import {
   calculateDuration,
   getDisplayPrice,
   getReadableDate,
-  getMobileDateParts,
   TIME_SLOTS, // ✅ import TIME_SLOTS for chips
 } from "./_core";
 
@@ -34,7 +33,7 @@ import MobileCalendarSheet from "./components/MobileCalendarSheet";
 // ————————————————————————————————
 // Local tiny skeleton used during loading
 const BusCardSkeleton = () => (
-  <div className="bg-white rounded-2xl p-4 animate-pulse border border-gray-200">
+  <div className="bg-white rounded-xl p-4 animate-pulse border border-gray-200 shadow-sm mb-3">
     <div className="flex justify-between">
       <div className="w-2/3">
         <div className="h-5 w-24 bg-gray-200 rounded mb-2" />
@@ -70,12 +69,12 @@ export default function Mobile() {
     todayStr,
     loading,
     fetchError,
-    sortedBuses,
+    // sortedBuses, // not used directly in renderCards
     visibleBuses,
     availability,
 
     // card open/close
-    expandedBusId,
+    // expandedBusId, // not used in Mobile card render
     handleToggleSeatLayout,
 
     // filters + sort
@@ -88,7 +87,7 @@ export default function Mobile() {
     setFilters,
 
     // pickers/sheets
-    mobileSearchOpen,
+    // mobileSearchOpen, // not used directly, only setter
     setMobileSearchOpen,
     mobilePickerOpen,
     setMobilePickerOpen,
@@ -109,7 +108,7 @@ export default function Mobile() {
 
   // hidden native <input type="date"> for the header chip quick change
   const mobileDateInputRef = useRef(null);
-  const openDateNative = () => mobileDateInputRef.current?.showPicker();
+  // const openDateNative = () => mobileDateInputRef.current?.showPicker(); // Removed as we use the calendar sheet
   const onNativeDateChange = (e) => {
     const d = e.target.value;
     setSearchDate(d);
@@ -160,7 +159,12 @@ export default function Mobile() {
     }
 
     return (
-      <motion.div variants={listVariants} initial="hidden" animate="visible">
+      <motion.div 
+        variants={listVariants} 
+        initial="hidden" 
+        animate="visible"
+        className="space-y-3" // Using space-y for gap instead of mb on the card
+      >
         {visibleBuses.map((bus) => {
           const busKey = `${bus._id}-${bus.departureTime}`;
           const displayPrice = getDisplayPrice(bus, from, to);
@@ -169,14 +173,18 @@ export default function Mobile() {
           if (searchDateParam && bus.departureTime) {
             const now = new Date();
             const [depH, depM] = bus.departureTime.split(":").map(Number);
+            // searchDateParam is YYYY-MM-DD
             const [yy, mm, dd] = searchDateParam.split("-").map(Number);
+            // Date constructor: year, monthIndex (0-11), day, hour, minute
             const dep = new Date(yy, mm - 1, dd, depH, depM).getTime();
             const diffHrs = (dep - now.getTime()) / (1000 * 60 * 60);
+            // Show timer if departure is within the next 12 hours
             if (diffHrs > 0 && diffHrs <= 12) {
+              // Set deadline 1 hour before departure
               timerProps = {
                 deadlineTimestamp: dep - 60 * 60 * 1000,
                 departureTimestamp: dep,
-                onDeadline: fetchData,
+                onDeadline: fetchData, // Refresh data on deadline
               };
             }
           }
@@ -191,17 +199,16 @@ export default function Mobile() {
             <motion.div
               key={busKey}
               variants={itemVariants}
-              className={`bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm ${ // Added shadow-sm for better separation
+              className={`bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm ${
                 isSoldOut ? "opacity-60" : "hover:shadow-md"
-              } mb-3`} // mb-3 for consistent spacing
+              }`}
             >
               <button
                 type="button"
                 className={`w-full text-left ${isSoldOut ? "cursor-not-allowed" : ""}`}
                 onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
               >
-                {/* START: Card Content (p-4 for better padding/spacing)
-                */}
+                {/* START: Card Content */}
                 <div className="p-4"> 
                   {/* 1. Bus Operator & Type Group (Top Section) */}
                   <div className="flex items-center justify-between mb-3">
@@ -286,8 +293,7 @@ export default function Mobile() {
                     )}
                   </div>
                 </div>
-                {/* END: Card Content
-                */}
+                {/* END: Card Content */}
 
                 {/* 3. Price & CTA Group (Footer Section) */}
                 <div
@@ -319,9 +325,9 @@ export default function Mobile() {
                   <div className="flex-shrink-0">
                     <button
                       type="button"
-                      // Use a strong, non-primary-blue color for the action button
+                      // Use the primary red for a high-contrast action button
                       style={{ backgroundColor: PALETTE.primaryRed, color: 'white' }} 
-                      className="px-6 py-2 rounded-lg font-bold text-sm shadow-md"
+                      className="px-6 py-2 rounded-lg font-bold text-sm shadow-md transition duration-150 ease-in-out hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                       onClick={(e) => {
                         e.stopPropagation();
                         !isSoldOut && handleToggleSeatLayout(bus);
@@ -342,12 +348,12 @@ export default function Mobile() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F2F5]">
-      {/* Header pill */}
-      <div className="bg-white px-4 pt-2 pb-1.5">
+      {/* Header pill - Fixed at top */}
+      <div className="sticky top-0 z-10 bg-white px-4 pt-2 pb-2 shadow-sm">
         <div className="flex items-center">
           <button
             onClick={() => nav(-1)}
-            className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 mr-2"
+            className="p-2 rounded-full hover:bg-gray-100 active:bg-gray-200 mr-2 flex-shrink-0"
             aria-label="Go back"
           >
             <FaChevronLeft className="text-lg" />
@@ -355,7 +361,7 @@ export default function Mobile() {
 
           <button
             onClick={() => setMobileSearchOpen(true)}
-            className="flex-1 flex items-center justify-between px-3 py-1.5 rounded-2xl bg-gray-100"
+            className="flex-1 flex items-center justify-between px-3 py-1.5 rounded-2xl bg-gray-100 mr-2"
           >
             <div className="flex flex-col text-left leading-tight">
               <span className="text-[13px] font-semibold text-gray-900">
@@ -365,8 +371,19 @@ export default function Mobile() {
                 {searchDate ? getReadableDate(searchDate) : "Select Date"}
               </span>
             </div>
-            <FaPen className="text-gray-700 text-sm" />
+            <FaPen className="text-gray-700 text-sm flex-shrink-0 ml-2" />
           </button>
+          
+          {/* Quick Date Change Button */}
+          <button
+            onClick={() => setCalOpen(true)}
+            className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 flex-shrink-0"
+            aria-label="Change date"
+          >
+            {/* The calendar icon or a small date representation could go here */}
+            <FaClock className="text-gray-700 text-base" /> 
+          </button>
+          
 
           <input
             ref={mobileDateInputRef}
@@ -380,85 +397,98 @@ export default function Mobile() {
           />
         </div>
       </div>
-
-      {/* content */}
-      <div className="flex-1 w-full pb-6">
-        <div className="max-w-7xl mx-auto px-4 pt-1">
-          <div className="mb-1">
+      
+      {/* Filter/Chip Section */}
+      <div className="bg-white sticky top-[60px] z-10 py-2 border-b border-gray-200 shadow-xs"> 
+        <div className="max-w-7xl mx-auto px-4">
             <SpecialNoticesSection />
-          </div>
 
-          <div className="flex gap-1 overflow-x-auto hide-scrollbar px-0.5 -mt-1 mb-2">
-            <button
-              onClick={() => setIsFilterOpen(true)}
-              className="flex items-center gap-1.5 h-8 px-2.5 border border-gray-200 rounded-xl text-[12.5px] leading-none font-medium bg-white whitespace-nowrap"
-              aria-label="Open Filter & Sort"
-            >
-              <FaSlidersH className="text-[14px]" />
-              {"Filter \u00A0&\u00A0 Sort"}
-              {activeFilterCount > 0 && (
-                <span className="ml-0.5 text-[11px] font-semibold text-red-600">
-                  ({activeFilterCount})
-                </span>
-              )}
-            </button>
+            <div className="flex gap-2 overflow-x-auto hide-scrollbar pt-1 pb-1">
+              
+              {/* 1. Filter/Sort Button */}
+              <button
+                onClick={() => setIsFilterOpen(true)}
+                className="flex items-center gap-1.5 h-8 px-2.5 border border-gray-200 rounded-xl text-[12.5px] leading-none font-medium bg-white whitespace-nowrap flex-shrink-0 shadow-sm"
+                aria-label="Open Filter & Sort"
+              >
+                <FaSlidersH className="text-[14px]" />
+                {"Filter \u00A0&\u00A0 Sort"}
+                {activeFilterCount > 0 && (
+                  <span className="ml-0.5 text-[11px] font-semibold text-white bg-red-500 rounded-full w-4 h-4 flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
 
-            {Object.keys(TIME_SLOTS).map((slot) => {
-              const Icon = slotIcon(slot);
-              const active = !!filters.timeSlots[slot];
-              return (
-                <button
-                  key={slot}
-                  onClick={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
-                    }))
-                  }
-                  className={`flex items-center gap-1.5 h-8 px-2.5 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border ${
-                    active
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-gray-800 border-gray-200"
-                  }`}
-                  aria-pressed={active}
-                >
-                  <Icon className="text-[16px]" />
-                  {slot}
-                </button>
-              );
-            })}
+              {/* 2. Time Slot Chips */}
+              {Object.keys(TIME_SLOTS).map((slot) => {
+                const Icon = slotIcon(slot);
+                const active = !!filters.timeSlots[slot];
+                return (
+                  <button
+                    key={slot}
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
+                      }))
+                    }
+                    className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
+                      active
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
+                    }`}
+                    aria-pressed={active}
+                  >
+                    <Icon className="text-[16px]" />
+                    {slot}
+                  </button>
+                );
+              })}
 
-            {["AC", "Non-AC"].map((type) => {
-              const active = filters.type === type;
-              return (
-                <button
-                  key={type}
-                  onClick={() =>
-                    setFilters((prev) => ({
-                      ...prev,
-                      type: prev.type === type ? "" : type,
-                    }))
-                  }
-                  className={`h-8 px-2.5 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border ${
-                    active
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-gray-800 border-gray-200"
-                  }`}
-                  aria-pressed={active}
-                >
-                  {type}
-                </button>
-              );
-            })}
-          </div>
+              {/* 3. AC/Non-AC Chips */}
+              {["AC", "Non-AC"].map((type) => {
+                const active = filters.type === type;
+                return (
+                  <button
+                    key={type}
+                    onClick={() =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        type: prev.type === type ? "" : type, // Toggle logic
+                      }))
+                    }
+                    className={`h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
+                      active
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
+                    }`}
+                    aria-pressed={active}
+                  >
+                    {type}
+                  </button>
+                );
+              })}
+            </div>
+        </div>
+      </div>
+      {/* --- End of Sticky Filter/Chip Section --- */}
 
+
+      {/* Main Bus List Content */}
+      <div className="flex-1 w-full pb-6 pt-3">
+        <div className="max-w-7xl mx-auto px-4">
           <AnimatePresence>{renderCards()}</AnimatePresence>
         </div>
       </div>
+      {/* --- End of Main Content --- */}
 
+
+      {/* Filter Panel (Left Side Sheet) */}
       <AnimatePresence>
         {isFilterOpen && (
           <>
+            {/* Backdrop */}
             <motion.button
               type="button"
               aria-label="Close filters"
@@ -468,6 +498,7 @@ export default function Mobile() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             />
+            {/* Panel */}
             <motion.div
               className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 overflow-y-auto rounded-r-2xl shadow-xl"
               initial={{ x: "-100%" }}
@@ -475,12 +506,21 @@ export default function Mobile() {
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
-              <FilterPanel isMobile sortBy={sortBy} setSortBy={setSortBy} />
+              {/* Pass necessary props to FilterPanel */}
+              <FilterPanel 
+                isMobile 
+                sortBy={sortBy} 
+                setSortBy={setSortBy} 
+                filters={filters}
+                setFilters={setFilters}
+                onClose={() => setIsFilterOpen(false)}
+              />
             </motion.div>
           </>
         )}
       </AnimatePresence>
 
+      {/* Other Sheets/Modals */}
       <MobileBottomSheet />
       <MobileSearchSheet />
       <MobileCityPicker
@@ -495,7 +535,11 @@ export default function Mobile() {
         open={calOpen}
         value={searchDate}
         minDateString={todayStr}
-        onPick={(d) => setSearchDate(d)}
+        onPick={(d) => {
+          setSearchDate(d);
+          updateSearchWithDate(d); // Update URL/trigger new search
+          setCalOpen(false);
+        }}
         onClose={() => setCalOpen(false)}
       />
     </div>
