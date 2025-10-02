@@ -2,30 +2,47 @@
 import React from "react";
 import { FaMale, FaFemale } from "react-icons/fa";
 
-/* Small square "seat" (Original size kept) */
-const SeatSquare = ({ className, children }) => (
+/* Component to mimic the outline chair icon from the image */
+const SeatIcon = ({ className }) => (
+  // The 'className' is primarily used to set the border/text color
   <div
-    className={`w-4 h-4 sm:w-[18px] sm:h-[18px] rounded-[6px] flex items-center justify-center ${className}`}
+    className={`w-full h-full flex items-center justify-center border-2 rounded-lg ${className}`}
   >
-    {children}
-  </div>
-);
-
-// New Component: Simple Outline Seat Icon (matching the appearance in the legend image)
-const SimpleSeatOutline = ({ className }) => (
-  <div
-    className={`w-full h-full border-2 rounded-sm ${className}`} // border-2 for outline effect
-  >
-    {/* Mimics the slight 'armrest' curve/outline visible in the legend image */}
+    {/* Inner 'seat' area to create the outline look */}
     <div
-      className={`absolute inset-0 rounded-sm ${className}`}
+      className={`w-2/3 h-2/3 rounded-sm border-2 ${className}`}
       style={{
-        border: '2px solid currentColor',
+        // Custom style to only show the inner bottom/sides of the 'chair'
         borderTop: 'none',
         borderBottomLeftRadius: '2px',
         borderBottomRightRadius: '2px',
+        borderTopLeftRadius: '0',
+        borderTopRightRadius: '0',
       }}
     />
+  </div>
+);
+
+/* Small square "seat" - Refactored to act as a container for the new icon */
+const SeatSquare = ({ className, children }) => (
+  // The 'rounded-[6px]' and sizing from the original component is kept as the container
+  // The actual icon (SeatIcon or Fa* icons) is placed inside.
+  <div
+    className={`w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center`} // Increased size for better visual
+  >
+    {/* If there are no children, display the new outline seat icon */}
+    {children ? (
+      <div className="w-full h-full flex items-center justify-center">
+        {/* For Male/Female booked, we just use the original SeatSquare structure but with new colors */}
+        <div
+            className={`w-4 h-4 sm:w-[18px] sm:h-[18px] rounded-[6px] flex items-center justify-center ${className}`}
+        >
+            {children}
+        </div>
+      </div>
+    ) : (
+      <SeatIcon className={className} />
+    )}
   </div>
 );
 
@@ -34,40 +51,37 @@ const SeatLegend = () => {
     <div className="w-full rounded-lg border border-gray-200/70 bg-white/60 px-2 py-1.5 sm:px-3 sm:py-2">
       {/* Single row, equal columns, icon above text (like AbhiBus spacing) */}
       <div className="grid grid-cols-4 items-center text-center gap-1 sm:gap-2">
-        {/* Available - Outline Seat Icon */}
+        {/* Available - Dark Gray Outline */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          <SeatSquare className="bg-white border-0 text-gray-700 relative overflow-hidden">
-            {/* Outline icon matching the image style and size */}
-            <SimpleSeatOutline className="text-gray-500" /> 
-          </SeatSquare>
+          {/* Using a gray outline to match the first icon in your image */}
+          <SeatSquare className="border-2 border-gray-600 text-gray-600" />
           <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Available
           </span>
         </div>
 
-        {/* Female booked - Filled Icon (matching the layout colors) */}
+        {/* Female booked - Pink Outline (Matches 2nd image icon) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          <SeatSquare className="bg-[#E05B88] border border-[#D04B78] text-white">
-            <FaFemale className="text-[8px] sm:text-[10px]" />
-          </SeatSquare>
+          {/* Using a bright pink outline to match the second icon in your image */}
+          <SeatSquare className="border-2 border-[#ff3366] text-[#ff3366]" />
           <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Female booked
           </span>
         </div>
 
-        {/* Male booked - Filled Icon (matching the layout colors) */}
+        {/* Male booked - Blue Outline (Matches 3rd image icon) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          <SeatSquare className="bg-[#6D5BD0] border border-[#5B4FCF] text-white">
-            <FaMale className="text-[8px] sm:text-[10px]" />
-          </SeatSquare>
+          {/* Using a bright blue outline to match the third icon in your image */}
+          <SeatSquare className="border-2 border-[#3399ff] text-[#3399ff]" />
           <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Male booked
           </span>
         </div>
 
-        {/* Booked (generic) – Filled Red (matching the layout colors) */}
+        {/* Booked (generic) – Filled Gray/Pink (Matches 4th and 5th image icon concept) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          <SeatSquare className="bg-[#EF4444] border border-[#DC2626]" />
+          {/* This is a common practice for 'Booked' in the new UI style (e.g., Pink/Gray filled) */}
+          <SeatSquare className="bg-gray-300 border border-gray-400" />
           <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Booked
           </span>
