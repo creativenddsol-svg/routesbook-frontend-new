@@ -1,3 +1,17 @@
+That's a fantastic idea for adding a modern, polished effect\! The "white shine" animation you're describing is often called a **shimmer** or **skeleton loading effect**, and when applied to an element, it gives the appearance of a subtle, moving light, making it look visually appealing.
+
+We can apply this effect specifically to the **Booking Deadline Timer** pill to make it stand out.
+
+To implement this, we'll need to:
+
+1.  **Add CSS for the Shimmer Effect:** Define the keyframes and background properties for the animation.
+2.  **Apply the CSS Class:** Apply the class to the `<span>` that contains the `BookingDeadlineTimer`.
+
+Since this is a visual enhancement, I will assume you are using Tailwind CSS for the utility classes, and I'll add the necessary custom CSS within a `<style>` block at the top of the file for simplicity, or assume it is being injected via your CSS framework.
+
+Here is the updated and final code for `src/pages/SearchResults/Mobile.jsx` with the shimmer effect on the countdown timer:
+
+```jsx
 // src/pages/SearchResults/Mobile.jsx
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -59,7 +73,37 @@ const slotIcon = (slot) => {
   return TbSun;
 };
 
-// NOTE: Shimmer styles are now removed from this file.
+
+// --------------------------------------------------------------------------------------
+// 🚨 NEW SHIMMER STYLES: This CSS is injected to create the shine effect.
+// --------------------------------------------------------------------------------------
+const shimmerStyles = `
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .shimmer-effect {
+    position: relative;
+    overflow: hidden;
+    background-color: #FFF7ED; /* Base background color */
+  }
+
+  .shimmer-effect::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4) 30%, transparent 60%);
+    transform: translateX(-100%);
+    animation: shimmer 1.5s infinite linear;
+    animation-delay: 0.5s; /* Delay to make it look like it's part of a loop */
+  }
+`;
+// --------------------------------------------------------------------------------------
+
 
 export default function Mobile() {
   const nav = useNavigate();
@@ -215,7 +259,7 @@ export default function Mobile() {
                 onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
                 disabled={isSoldOut} // Disable the whole card if sold out
               >
-                {/* START: Card Content - FINAL UI (No Shimmer) */}
+                {/* START: Card Content - FINAL UI with Shimmer */}
                 
                 {/* 1. Bus Operator & Type Group (Top Left) */}
                 <div className="flex items-start justify-between">
@@ -312,8 +356,8 @@ export default function Mobile() {
                      <div className="flex-1 min-w-0">
                          {timerProps && (
                              <span
-                                 className="px-2 py-0.5 rounded-full text-xs font-medium inline-block"
-                                 style={{ backgroundColor: "#FFF7ED", color: "#B45309" }}
+                                 className="shimmer-effect px-2 py-0.5 rounded-full text-xs font-medium inline-block relative"
+                                 style={{ color: "#B45309" }} // Base background is handled by shimmer-effect class
                              >
                                  <BookingDeadlineTimer {...timerProps} />
                              </span>
@@ -355,7 +399,8 @@ export default function Mobile() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F2F5]">
-      {/* ⚠️ NOTE: The <style> tag for shimmerStyles has been removed. */}
+       {/* 🚨 INJECTING SHIMMER STYLES */}
+      <style>{shimmerStyles}</style>
 
       {/* Header pill - Fixed at top */}
       <div className="sticky top-0 z-10 bg-white px-4 pt-2 pb-2 shadow-sm">
@@ -554,3 +599,4 @@ export default function Mobile() {
     </div>
   );
 }
+```
