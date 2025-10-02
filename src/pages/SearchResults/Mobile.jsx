@@ -122,7 +122,7 @@ export default function Mobile() {
   };
 
   // --------------------------------------------------------------------------------------
-  // RENDER CARDS (REFRESHED FOR REDBUS UI STYLE)
+  // RENDER CARDS (UPDATED UI)
   // --------------------------------------------------------------------------------------
   const renderCards = () => {
     if (loading) {
@@ -167,7 +167,7 @@ export default function Mobile() {
         variants={listVariants} 
         initial="hidden" 
         animate="visible"
-        className="space-y-3" // Using space-y for gap instead of mb on the card
+        className="space-y-3"
       >
         {visibleBuses.map((bus) => {
           const busKey = `${bus._id}-${bus.departureTime}`;
@@ -213,22 +213,43 @@ export default function Mobile() {
                 onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
                 disabled={isSoldOut} // Disable the whole card if sold out
               >
-                {/* START: Card Content - CLEANED UI */}
+                {/* START: Card Content - CLEANED UI with new pills */}
                 
                 {/* 1. Bus Operator & Type Group (Top Left) */}
                 <div className="flex items-start justify-between">
                     <div className="min-w-0 pr-3 flex-1">
-                        {/* Operator Name */}
-                        <p className="text-sm font-semibold text-gray-900 truncate">
-                            {bus.name}
-                        </p>
-                        {/* Bus Type */}
-                        <span className="text-xs text-gray-500 font-normal">
+                        {/* Operator Name and Seat Count */}
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-semibold text-gray-900 truncate">
+                              {bus.name}
+                          </p>
+                          {/* Seat Count Down Pill */}
+                          {typeof availableSeats === "number" && (
+                            <span
+                                className="inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-full"
+                                style={{ 
+                                  color: PALETTE.primaryRed, 
+                                  backgroundColor: '#FEE2E2', // Light red color pill (Red 100)
+                                }}
+                            >
+                                {availableSeats} Seats
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Bus Type in Light Blue Pill */}
+                        <span 
+                            className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full mt-1"
+                            style={{ 
+                              color: '#1D4ED8', // Darker Blue Text
+                              backgroundColor: '#DBEAFE', // Light Blue Color Pill (Blue 100)
+                            }}
+                        >
                             {bus.busType}
                         </span>
                     </div>
 
-                    {/* Operator Logo/Placeholder (Top Right) - Optional, kept small */}
+                    {/* Operator Logo/Placeholder (Top Right) */}
                     <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-100">
                       {bus.operatorLogo ? (
                         <img
@@ -248,54 +269,43 @@ export default function Mobile() {
                 {/* 2. Time & Duration & Price Group (Main Content Area) */}
                 <div className="grid grid-cols-3 gap-2 items-center">
                     
-                    {/* DEPARTURE TIME (UNBOLDED, LIGHT GRAY) */}
+                    {/* DEPARTURE TIME (BLACK COLOR, LABEL BELOW) */}
                     <div className="flex flex-col items-start min-w-0 pr-1 text-left">
-                        <span className="text-xl tabular-nums text-gray-500 font-normal">
+                        <span className="text-xl tabular-nums text-black font-semibold">
                             {bus.departureTime}
                         </span>
+                        {/* Replaced departure city with "Departure time" label */}
                         <p className="text-xs text-gray-500 mt-1 truncate">
-                            {from}
+                            Departure time
                         </p>
                     </div>
 
-                    {/* DURATION (CENTERED) */}
+                    {/* DURATION (CENTERED - REMOVED ARRIVAL CITY) */}
                     <div className="flex flex-col items-center flex-1">
                         <span className="text-[11px] font-medium text-gray-600 whitespace-nowrap">
                             {calculateDuration(bus.departureTime, bus.arrivalTime)}
                         </span>
                         <span className="h-[1px] w-4/5 bg-gray-300 rounded-full my-1" />
-                        <span className="text-[11px] text-gray-500">{to}</span>
+                        <span className="text-[11px] text-gray-500">Duration</span>
                     </div>
 
-                    {/* ARRIVAL TIME */}
+                    {/* ARRIVAL TIME (LIGHT GRAY COLOR) */}
                     <div className="flex flex-col items-end min-w-0 pl-1 text-right">
-                        <span className="text-xl font-medium tabular-nums text-gray-900">
+                        <span className="text-xl font-medium tabular-nums text-gray-500">
                             {bus.arrivalTime}
                         </span>
                         <span className="text-[10px] text-gray-400 mt-0.5">
                            Arrival
                         </span>
-                         <p className="text-xs text-gray-500 mt-1 truncate invisible">.</p> {/* Invisible dot to align heights */}
+                         <p className="text-xs text-gray-500 mt-1 truncate invisible">.</p>
                     </div>
                 </div>
 
-                {/* --- Seats / Price (Bottom Action Strip) --- */}
+                {/* --- Price (Bottom Action Strip - No Seats info here, just Price) --- */}
                 <hr className="my-3 border-gray-100" />
-                <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center justify-end mt-3">
                     
-                    {/* Available Seats (LEFT SIDE) */}
-                    <div className="flex items-center gap-3">
-                        {typeof availableSeats === "number" && (
-                            <span
-                                className="inline-flex items-center text-xs font-semibold"
-                                style={{ color: availableSeats <= 5 ? PALETTE.primaryRed : '#065F46' }}
-                            >
-                                {availableSeats} Seats left
-                            </span>
-                        )}
-                    </div>
-
-                    {/* Price Block (RIGHT SIDE - Replaces "View Seats" button) */}
+                    {/* Price Block (RIGHT SIDE - High Contrast) */}
                     <div className="flex-shrink-0 leading-tight flex flex-col items-end">
                          {hasStrike && (
                             <div className="text-[10px] text-gray-400 line-through">
@@ -330,7 +340,7 @@ export default function Mobile() {
                 )}
 
 
-                {/* END: Card Content - CLEANED UI */}
+                {/* END: Card Content */}
               </button>
             </motion.div>
           );
