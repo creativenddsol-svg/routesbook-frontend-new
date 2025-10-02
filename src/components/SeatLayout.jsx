@@ -39,7 +39,7 @@ const Seat = ({
 
   const disabled = isBooked || isLocked;
 
-  // bottom bar color to match state (subtle)
+  // bottom bar color inside seat
   const bottomBarColor =
     isBooked
       ? gender === "F"
@@ -70,30 +70,28 @@ const Seat = ({
       `}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {/* Main seat box */}
+      {/* Seat box with inner bottom bar */}
       <span
         className={`
           absolute inset-1 sm:inset-[3px]
           border-2 rounded-lg
-          flex items-center justify-center
+          flex flex-col items-center justify-between
           font-semibold
           text-[11px] sm:text-xs
           ${innerSeatClasses}
         `}
       >
-        {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
-      </span>
+        {/* Top content (seat number or gender icon) */}
+        <span className="flex-1 flex items-center justify-center">
+          {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
+        </span>
 
-      {/* Small bottom flatter bar (chair base) */}
-      <span
-        aria-hidden="true"
-        className={`
-          absolute left-1/2 -translate-x-1/2
-          bottom-0
-          w-6 sm:w-5 h-1.5 sm:h-1
-          rounded-t-sm ${bottomBarColor}
-        `}
-      />
+        {/* 🔥 Bottom bar INSIDE the seat */}
+        <span
+          aria-hidden="true"
+          className={`w-5 sm:w-4 h-1 rounded-t-sm mb-0.5 ${bottomBarColor}`}
+        />
+      </span>
     </button>
   );
 };
@@ -124,7 +122,6 @@ const SeatLayout = ({
   const is49Seater = layoutAsStrings.length === 49;
   const is37Seater = layoutAsStrings.length === 37;
 
-  // 🔧 Avoid repeated .map/.includes by using Sets (fixes perf hiccups on large layouts)
   const bookedSet = new Set(
     (Array.isArray(bookedSeats) ? bookedSeats : []).map(String)
   );
@@ -176,7 +173,6 @@ const SeatLayout = ({
       >
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
-            // 🔧 Seat-sized invisible placeholder so columns stay aligned
             return (
               <div
                 key={`aisle-${rowIndex}-${i}`}
@@ -226,7 +222,6 @@ const SeatLayout = ({
     if (is49Seater) {
       const grid = [];
       for (let i = 0; i < 11; i++) {
-        // Use seat-sized placeholder (null) in the middle position
         grid.push([i * 4 + 1, i * 4 + 2, null, i * 4 + 3, i * 4 + 4]);
       }
       grid.push([45, 46, 47, 48, 49]);
@@ -244,7 +239,6 @@ const SeatLayout = ({
         [25, 26, null, 27, 28],
         [29, 30, null, 31, 32],
       ];
-      // Last row: five seats, center column filled (keeps column widths consistent)
       return [...base, [33, 34, 35, 36, 37]];
     }
 
