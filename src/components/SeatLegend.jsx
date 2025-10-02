@@ -1,8 +1,8 @@
 import React from "react";
 
-/* Component to mimic the outline chair icon */
+/* Component to mimic the outline chair icon (Now with fixed alignment) */
 const SeatOutlineIcon = ({ className }) => (
-  // className sets the border and text color (the outline color)
+  // The outer container sets the frame and centers its content (the inner seat)
   <div
     className={`w-full h-full flex items-center justify-center border-2 rounded-lg ${className}`}
   >
@@ -10,6 +10,8 @@ const SeatOutlineIcon = ({ className }) => (
     <div
       className={`w-2/3 h-2/3 rounded-sm border-2 ${className}`}
       style={{
+        // FIX: Push the inner seat down slightly (by 3px) to achieve the correct visual alignment
+        marginTop: '3px',
         // Custom style to only show the inner bottom/sides of the 'chair'
         borderTop: 'none',
         borderBottomLeftRadius: '2px',
@@ -21,37 +23,31 @@ const SeatOutlineIcon = ({ className }) => (
   </div>
 );
 
-/* Unified component to display the legend icon - now only rendering the SeatOutlineIcon */
-const LegendIcon = ({ colorClass }) => {
-    // Base size for all legend icons
-    const baseClasses = "w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center";
-
-    return (
-        <div className={baseClasses}>
-            <SeatOutlineIcon className={colorClass} />
-        </div>
-    );
-};
-
-
 const SeatLegend = () => {
     // Define custom color classes for clarity and easy maintenance
     const colors = {
         // Available: no color (light default outline)
         available: "border-gray-300 text-gray-300",
         
-        // Selected: mat blue
+        // Selected: mat blue (#4A69BB)
         selected: "border-[#4A69BB] text-[#4A69BB] shadow-sm", 
         
-        // Female Booked: mat pink
+        // Female Booked: mat pink (#D81B60)
         femaleBooked: "border-[#D81B60] text-[#D81B60] shadow-sm", 
         
-        // Male Booked: mat purple
+        // Male Booked: mat purple (#673AB7)
         maleBooked: "border-[#673AB7] text-[#673AB7] shadow-sm", 
         
-        // Booked (generic): verry light red (A pale red border is used for visibility)
+        // Booked (generic): verry light red (#FFB7B7)
         genericBooked: "border-[#FFB7B7] text-[#FFB7B7]", 
     };
+
+    // Helper component to wrap the icon and size it correctly
+    const LegendWrapper = ({ colorClass }) => (
+        <div className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center">
+            <SeatOutlineIcon className={colorClass} />
+        </div>
+    );
 
   return (
     <div className="w-full rounded-xl shadow-lg border border-gray-100 bg-white/80 backdrop-blur-sm p-3">
@@ -61,7 +57,7 @@ const SeatLegend = () => {
         
         {/* 1. Available */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          <LegendIcon colorClass={colors.available} />
+          <LegendWrapper colorClass={colors.available} />
           <span className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate font-medium">
             Available
           </span>
@@ -69,7 +65,7 @@ const SeatLegend = () => {
 
         {/* 2. Selected (Mat Blue Outline) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          <LegendIcon colorClass={colors.selected} />
+          <LegendWrapper colorClass={colors.selected} />
           <span className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate font-medium">
             Selected
           </span>
@@ -77,7 +73,7 @@ const SeatLegend = () => {
 
         {/* 3. Female Booked (Mat Pink Outline) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          <LegendIcon colorClass={colors.femaleBooked} />
+          <LegendWrapper colorClass={colors.femaleBooked} />
           <span className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate font-medium">
             Female Booked
           </span>
@@ -85,7 +81,7 @@ const SeatLegend = () => {
 
         {/* 4. Male Booked (Mat Purple Outline) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          <LegendIcon colorClass={colors.maleBooked} />
+          <LegendWrapper colorClass={colors.maleBooked} />
           <span className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate font-medium">
             Male Booked
           </span>
@@ -93,7 +89,7 @@ const SeatLegend = () => {
 
         {/* 5. Booked (Generic) (Very Light Red Outline) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          <LegendIcon colorClass={colors.genericBooked} />
+          <LegendWrapper colorClass={colors.genericBooked} />
           <span className="text-[10px] sm:text-xs text-gray-600 leading-tight truncate font-medium">
             Booked
           </span>
