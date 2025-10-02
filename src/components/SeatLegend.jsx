@@ -52,7 +52,7 @@ const SeatLegend = () => {
       <div className="grid grid-cols-4 items-center text-center gap-1 sm:gap-2">
         {/* Available - Light Gray Outline (Matches "no color" outline) */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          {/* Updated to a subtle gray outline to match the image */}
+          {/* Available: Subtle light gray outline */}
           <SeatSquare className="border-2 border-gray-400 text-gray-400" />
           <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Available
@@ -61,7 +61,7 @@ const SeatLegend = () => {
 
         {/* Female booked - Mat Pink Outline */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          {/* Updated to a specific mat pink hex code: #E91E63 */}
+          {/* Female booked: Mat Pink Outline (#E91E63) */}
           <SeatSquare className="border-2 border-[#E91E63] text-[#E91E63]" />
           <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Female booked
@@ -70,16 +70,16 @@ const SeatLegend = () => {
 
         {/* Male booked - Mat Purple Outline */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          {/* Updated to a specific mat purple hex code: #9C27B0 */}
+          {/* Male booked: Mat Purple Outline (#9C27B0) */}
           <SeatSquare className="border-2 border-[#9C27B0] text-[#9C27B0]" />
           <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Male booked
           </span>
         </div>
 
-        {/* Booked (generic) – Light Red Outline (Matches the fourth icon in the image) */}
+        {/* Booked (generic) – Light Red Outline */}
         <div className="flex flex-col items-center gap-1 min-w-0">
-          {/* Updated to use the light red color and changed back to the outline style */}
+          {/* Booked: Light Red Outline (Used a common light red from Tailwind palette: #F87171) */}
           <SeatSquare className="border-2 border-[#F87171] text-[#F87171]" />
           <span className="text-[10px] sm:text-xs text-gray-700 leading-tight truncate">
             Booked
