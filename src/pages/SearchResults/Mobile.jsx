@@ -235,10 +235,10 @@ export default function Mobile() {
                             >
                                 {bus.busType}
                             </span>
-                            {/* Seat Count Down Pill */}
+                            {/* Seat Count Down Pill - Font-normal now */}
                             {typeof availableSeats === "number" && (
                               <span
-                                  className="inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-full"
+                                  className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
                                   style={{ 
                                     color: PALETTE.primaryRed, 
                                     backgroundColor: '#FEE2E2', // Light red color pill (Red 100)
@@ -267,15 +267,18 @@ export default function Mobile() {
                 {/* --- Divider for Main Info Section --- */}
                 <hr className="my-3 border-gray-100" />
 
-                {/* 2. Time & Duration Group (Compact, one line) */}
+                {/* 2. Time & Duration Group (Compact, one line with labels below) */}
                 <div className="flex items-center justify-between">
                     
-                    {/* DEPARTURE TIME (BLACK COLOR) */}
-                    <div className="flex items-baseline gap-1 text-left">
+                    {/* DEPARTURE TIME + LABEL */}
+                    <div className="flex flex-col items-start min-w-0 pr-1 text-left">
                         <span className="text-xl tabular-nums text-black font-semibold">
                             {bus.departureTime}
                         </span>
-                        <span className="text-sm text-gray-500">{from}</span>
+                        {/* New label style */}
+                        <p className="text-[10px] text-gray-500 mt-1 uppercase">
+                            Departure
+                        </p>
                     </div>
 
                     {/* DURATION (CENTERED) */}
@@ -284,15 +287,18 @@ export default function Mobile() {
                             {calculateDuration(bus.departureTime, bus.arrivalTime)}
                         </span>
                         <span className="h-[1px] w-full bg-gray-300 rounded-full my-1" />
-                        <span className="text-[10px] text-gray-500">Duration</span>
+                        <span className="text-[10px] text-gray-500 uppercase">Duration</span>
                     </div>
 
-                    {/* ARRIVAL TIME (LIGHT GRAY COLOR) */}
-                    <div className="flex items-baseline gap-1 text-right">
-                        <span className="text-sm text-gray-500">{to}</span>
+                    {/* ARRIVAL TIME + LABEL */}
+                    <div className="flex flex-col items-end min-w-0 pl-1 text-right">
                         <span className="text-xl tabular-nums text-gray-500 font-medium">
                             {bus.arrivalTime}
                         </span>
+                        {/* New label style */}
+                        <p className="text-[10px] text-gray-500 mt-1 uppercase">
+                            Arrival
+                        </p>
                     </div>
                 </div>
 
@@ -323,7 +329,7 @@ export default function Mobile() {
                             <span className="text-sm text-gray-600 mr-0.5 align-bottom">
                                 Rs.
                             </span>
-                            {/* Price is now text-xl and not bold */}
+                            {/* Price is text-xl and only font-semibold (not extra bold) */}
                             <span
                                 className="text-xl tabular-nums text-black font-semibold"
                             >
