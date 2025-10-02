@@ -39,7 +39,6 @@ const Seat = ({
 
   const disabled = isBooked || isLocked;
 
-  // bottom bar color inside seat
   const bottomBarColor =
     isBooked
       ? gender === "F"
@@ -81,15 +80,15 @@ const Seat = ({
           ${innerSeatClasses}
         `}
       >
-        {/* Top content (seat number or gender icon) */}
+        {/* Seat label or gender icon */}
         <span className="flex-1 flex items-center justify-center">
           {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
         </span>
 
-        {/* 🔥 Bottom bar INSIDE the seat */}
+        {/* Bottom bar touching the seat edge */}
         <span
           aria-hidden="true"
-          className={`w-5 sm:w-4 h-1 rounded-t-sm mb-0.5 ${bottomBarColor}`}
+          className={`w-5 sm:w-4 h-1 rounded-t-sm self-center ${bottomBarColor}`}
         />
       </span>
     </button>
@@ -114,7 +113,6 @@ const SeatLayout = ({
   onSeatClick,
   bookedSeatGenders,
 }) => {
-  // Normalize to strings once to avoid type mismatches
   const layoutAsStrings = Array.isArray(seatLayout)
     ? seatLayout.map(String)
     : [];
