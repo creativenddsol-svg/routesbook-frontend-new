@@ -1,5 +1,7 @@
+// src/components/SeatLayout.jsx
 import React from "react";
 import PropTypes from "prop-types";
+import { FaMale, FaFemale } from "react-icons/fa";
 
 /* ---------- Matte palette (selected = blue) ---------- */
 const PALETTE = {
@@ -15,28 +17,7 @@ const PALETTE = {
   femaleBorder: "#D04B78",
 };
 
-// --- Custom Inline Icons to replace react-icons/fa ---
-const MaleIcon = () => (
-  // Simplified Male symbol (Mars)
-  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="4.5"></circle>
-    <line x1="15" y1="9" x2="20" y2="4"></line>
-    <polyline points="15 4 20 4 20 9"></polyline>
-  </svg>
-);
-
-const FemaleIcon = () => (
-  // Simplified Female symbol (Venus)
-  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-    <circle cx="12" cy="12" r="5"></circle>
-    <line x1="12" y1="17" x2="12" y2="22"></line>
-    <line x1="9" y1="20" x2="15" y2="20"></line>
-  </svg>
-);
-// ---------------------------------------------------
-
-
-/* ---------- Single Seat (With Seat Icon Shape) ---------- */
+/* ---------- Single Seat ---------- */
 const Seat = ({
   seat,
   isBooked,
@@ -46,20 +27,17 @@ const Seat = ({
   onClick,
   title,
 }) => {
-  const isFemaleBooked = isBooked && gender === "F";
-  const isMaleBooked = isBooked && gender === "M";
-  const disabled = isBooked || isLocked;
-
-  // Consolidate dynamic classes for clarity
-  const innerSeatClasses = isFemaleBooked
-    ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed"
-    : isMaleBooked
-    ? "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed"
+  const innerSeatClasses = isBooked
+    ? gender === "F"
+      ? "bg-[#E05B88] text-white border-[#D04B78] cursor-not-allowed"
+      : "bg-[#6D5BD0] text-white border-[#5B4FCF] cursor-not-allowed"
     : isLocked
     ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5] cursor-not-allowed"
     : isSelected
     ? "bg-[#4C6EF5] text-white border-[#3F5ED8] shadow-sm"
     : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5]";
+
+  const disabled = isBooked || isLocked;
 
   return (
     <button
@@ -71,28 +49,26 @@ const Seat = ({
       disabled={disabled}
       className={`
         relative group select-none
-        w-12 h-12 sm:w-10 sm:h-10 // Consistent sizing
+        w-12 h-12 sm:w-10 sm:h-10
         rounded-xl flex items-center justify-center
         transition-transform duration-100
         active:scale-95 focus-visible:outline-none
         focus-visible:ring-2 focus-visible:ring-[#4C6EF5]/60
-        disabled:opacity-90 disabled:shadow-none
+        disabled:opacity-90
       `}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
       <span
         className={`
           absolute inset-1 sm:inset-[3px]
-          border-2 
-          // Custom border-radius for a seat-like icon shape: rounded-lg top, slightly rounded bottom
-          rounded-md rounded-t-lg 
+          border-2 rounded-lg
           flex items-center justify-center
           font-semibold
-          text-[13px] sm:text-sm leading-none 
+          text-[11px] sm:text-xs
           ${innerSeatClasses}
         `}
       >
-        {isBooked ? (isFemaleBooked ? <FemaleIcon /> : <MaleIcon />) : seat}
+        {isBooked ? gender === "F" ? <FaFemale /> : <FaMale /> : seat}
       </span>
     </button>
   );
@@ -108,7 +84,7 @@ Seat.propTypes = {
   title: PropTypes.string,
 };
 
-/* ---------- Layout (Professional, well-structured layout) ---------- */
+/* ---------- Layout ---------- */
 const SeatLayout = ({
   seatLayout,
   bookedSeats,
@@ -116,7 +92,7 @@ const SeatLayout = ({
   onSeatClick,
   bookedSeatGenders,
 }) => {
-  // Normalize to strings once
+  // Normalize to strings once to avoid type mismatches
   const layoutAsStrings = Array.isArray(seatLayout)
     ? seatLayout.map(String)
     : [];
@@ -124,7 +100,7 @@ const SeatLayout = ({
   const is49Seater = layoutAsStrings.length === 49;
   const is37Seater = layoutAsStrings.length === 37;
 
-  // Use Sets for O(1) lookups
+  // 🔧 Avoid repeated .map/.includes by using Sets (fixes perf hiccups on large layouts)
   const bookedSet = new Set(
     (Array.isArray(bookedSeats) ? bookedSeats : []).map(String)
   );
@@ -132,20 +108,15 @@ const SeatLayout = ({
     (Array.isArray(selectedSeats) ? selectedSeats : []).map(String)
   );
 
-  /**
-   * Helper function to determine the gender of a booked adjacent seat.
-   */
   const getAdjacentSeatInfo = (seatNumber, layoutGrid) => {
     for (const row of layoutGrid) {
       const idx = row.indexOf(seatNumber);
       if (idx !== -1) {
-        // Check left neighbor
         if (idx > 0 && row[idx - 1] !== null) {
           const neighborSeat = String(row[idx - 1]);
           if (bookedSeatGenders[neighborSeat])
             return bookedSeatGenders[neighborSeat];
         }
-        // Check right neighbor
         if (idx < row.length - 1 && row[idx + 1] !== null) {
           const neighborSeat = String(row[idx + 1]);
           if (bookedSeatGenders[neighborSeat])
@@ -157,17 +128,12 @@ const SeatLayout = ({
     return null;
   };
 
-  /**
-   * Utility to get all seat status flags.
-   */
   const getSeatStatus = (seat) => {
     const seatStr = String(seat);
-    const isBooked = !!bookedSeatGenders[seatStr]; 
-    
-    // Logic for 'Locked': Booked but no gender (e.g., placeholder, or held seat)
+    const isBooked = !!bookedSeatGenders[seatStr];
     const isLocked =
       bookedSet.has(seatStr) &&
-      !isBooked &&
+      !bookedSeatGenders[seatStr] &&
       !selectedSet.has(seatStr);
 
     return {
@@ -178,43 +144,35 @@ const SeatLayout = ({
     };
   };
 
-  /**
-   * Renders the grid of seats using CSS Grid for perfect column alignment.
-   */
   const renderLayout = (layoutGrid) =>
     layoutGrid.map((row, rowIndex) => (
       <div
         key={`row-${rowIndex}`}
-        className="grid grid-cols-5 gap-x-2 sm:gap-x-2 justify-items-center"
+        className="flex justify-center items-center gap-x-2 sm:gap-x-2"
       >
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
-            // Invisible placeholder for the aisle.
+            // 🔧 Seat-sized invisible placeholder so columns stay aligned
             return (
               <div
                 key={`aisle-${rowIndex}-${i}`}
-                className="w-12 h-12 sm:w-10 sm:h-10"
-                aria-hidden="true"
+                className="w-12 h-12 sm:w-10 sm:h-10 rounded-xl"
+                style={{ opacity: 0 }}
               />
             );
           }
           const seat = String(seatNumber);
-          
           if (!layoutAsStrings.includes(seat)) {
-            // Empty column slot if the layout doesn't use this number
             return (
               <div
                 key={`placeholder-${rowIndex}-${i}`}
                 className="w-12 h-12 sm:w-10 sm:h-10"
-                aria-hidden="true"
               />
             );
           }
 
           const seatStatus = getSeatStatus(seat);
           let tooltipTitle = "";
-
-          // Provide a clear title for seats next to a booked seat of a specific gender.
           if (
             !seatStatus.isBooked &&
             !seatStatus.isLocked &&
@@ -240,29 +198,29 @@ const SeatLayout = ({
       </div>
     ));
 
-  /**
-   * Generates the seat grid structure (2+null+2 pattern).
-   */
   const getLayoutGrid = () => {
     if (is49Seater) {
       const grid = [];
-      // 11 rows of 4 seats (1-44)
       for (let i = 0; i < 11; i++) {
+        // Use seat-sized placeholder (null) in the middle position
         grid.push([i * 4 + 1, i * 4 + 2, null, i * 4 + 3, i * 4 + 4]);
       }
-      // Last row: 5 seats (45-49)
       grid.push([45, 46, 47, 48, 49]);
       return grid;
     }
 
     if (is37Seater) {
-      // 8 rows of 4 seats (1-32)
       const base = [
-        [1, 2, null, 3, 4], [5, 6, null, 7, 8], [9, 10, null, 11, 12],
-        [13, 14, null, 15, 16], [17, 18, null, 19, 20], [21, 22, null, 23, 24],
-        [25, 26, null, 27, 28], [29, 30, null, 31, 32],
+        [1, 2, null, 3, 4],
+        [5, 6, null, 7, 8],
+        [9, 10, null, 11, 12],
+        [13, 14, null, 15, 16],
+        [17, 18, null, 19, 20],
+        [21, 22, null, 23, 24],
+        [25, 26, null, 27, 28],
+        [29, 30, null, 31, 32],
       ];
-      // Last row: 5 seats (33-37)
+      // Last row: five seats, center column filled (keeps column widths consistent)
       return [...base, [33, 34, 35, 36, 37]];
     }
 
@@ -276,16 +234,16 @@ const SeatLayout = ({
       className="p-3 sm:p-4 rounded-xl overflow-x-auto"
       style={{ background: "#FFFFFF", border: `1px solid ${PALETTE.border}` }}
     >
-      {/* Header: Front Indicator and Steering Icon */}
-      <div className="flex justify-between items-center mb-4 px-1">
+      {/* Header */}
+      <div className="relative flex justify-between items-center mb-3 sm:mb-4 px-2 sm:px-4">
         <span
-          className="font-extrabold text-xs sm:text-sm uppercase tracking-wider"
+          className="font-bold text-[11px] sm:text-sm uppercase tracking-wider"
           style={{ color: PALETTE.textSubtle }}
         >
           Front
         </span>
         <svg
-          className="w-8 h-8 sm:w-10 sm:h-10"
+          className="w-7 h-7 sm:w-10 sm:h-10"
           style={{ color: "#9CA3AF" }}
           fill="none"
           stroke="currentColor"
@@ -305,20 +263,20 @@ const SeatLayout = ({
         </svg>
       </div>
 
-      {/* Seat grid container */}
-      <div className="space-y-3 sm:space-y-2 inline-block min-w-full">
+      {/* Seat grid */}
+      <div className="space-y-2 sm:space-y-2 inline-block min-w-full">
         {layoutGrid.length > 0 ? (
           renderLayout(layoutGrid)
         ) : (
-          <p className="text-center p-8 text-sm" style={{ color: PALETTE.blue }}>
-            Unsupported seat layout. Please contact support.
+          <p className="text-center" style={{ color: PALETTE.blue }}>
+            Unsupported seat layout.
           </p>
         )}
       </div>
 
-      {/* Footer: Rear Indicator */}
+      {/* Footer */}
       <div
-        className="font-extrabold text-xs sm:text-sm uppercase tracking-wider text-center pt-4 mt-4 border-t border-gray-100"
+        className="font-bold text-[11px] sm:text-sm uppercase tracking-wider text-center mt-3 sm:mt-4"
         style={{ color: PALETTE.textSubtle }}
       >
         Rear
