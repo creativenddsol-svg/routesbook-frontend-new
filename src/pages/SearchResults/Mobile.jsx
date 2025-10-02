@@ -213,40 +213,41 @@ export default function Mobile() {
                 onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
                 disabled={isSoldOut} // Disable the whole card if sold out
               >
-                {/* START: Card Content - CLEANED UI with new pills */}
+                {/* START: Card Content - FINAL UI */}
                 
                 {/* 1. Bus Operator & Type Group (Top Left) */}
                 <div className="flex items-start justify-between">
                     <div className="min-w-0 pr-3 flex-1">
-                        {/* Operator Name and Seat Count */}
+                        {/* Operator Name */}
+                        <p className="text-sm font-semibold text-gray-900 truncate mb-1">
+                            {bus.name}
+                        </p>
+                        
+                        {/* Bus Type and Seat Count Pills (Aligned on second line) */}
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-gray-900 truncate">
-                              {bus.name}
-                          </p>
-                          {/* Seat Count Down Pill */}
-                          {typeof availableSeats === "number" && (
-                            <span
-                                className="inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-full"
+                           {/* Bus Type in Light Blue Pill */}
+                            <span 
+                                className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
                                 style={{ 
-                                  color: PALETTE.primaryRed, 
-                                  backgroundColor: '#FEE2E2', // Light red color pill (Red 100)
+                                  color: '#1D4ED8', // Darker Blue Text
+                                  backgroundColor: '#DBEAFE', // Light Blue Color Pill (Blue 100)
                                 }}
                             >
-                                {availableSeats} Seats
+                                {bus.busType}
                             </span>
-                          )}
+                            {/* Seat Count Down Pill */}
+                            {typeof availableSeats === "number" && (
+                              <span
+                                  className="inline-flex items-center text-xs font-bold px-2 py-0.5 rounded-full"
+                                  style={{ 
+                                    color: PALETTE.primaryRed, 
+                                    backgroundColor: '#FEE2E2', // Light red color pill (Red 100)
+                                  }}
+                              >
+                                  {availableSeats} Seats
+                              </span>
+                            )}
                         </div>
-
-                        {/* Bus Type in Light Blue Pill */}
-                        <span 
-                            className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full mt-1"
-                            style={{ 
-                              color: '#1D4ED8', // Darker Blue Text
-                              backgroundColor: '#DBEAFE', // Light Blue Color Pill (Blue 100)
-                            }}
-                        >
-                            {bus.busType}
-                        </span>
                     </div>
 
                     {/* Operator Logo/Placeholder (Top Right) */}
@@ -266,46 +267,52 @@ export default function Mobile() {
                 {/* --- Divider for Main Info Section --- */}
                 <hr className="my-3 border-gray-100" />
 
-                {/* 2. Time & Duration & Price Group (Main Content Area) */}
-                <div className="grid grid-cols-3 gap-2 items-center">
+                {/* 2. Time & Duration Group (Compact, one line) */}
+                <div className="flex items-center justify-between">
                     
-                    {/* DEPARTURE TIME (BLACK COLOR, LABEL BELOW) */}
-                    <div className="flex flex-col items-start min-w-0 pr-1 text-left">
+                    {/* DEPARTURE TIME (BLACK COLOR) */}
+                    <div className="flex items-baseline gap-1 text-left">
                         <span className="text-xl tabular-nums text-black font-semibold">
                             {bus.departureTime}
                         </span>
-                        {/* Replaced departure city with "Departure time" label */}
-                        <p className="text-xs text-gray-500 mt-1 truncate">
-                            Departure time
-                        </p>
+                        <span className="text-sm text-gray-500">{from}</span>
                     </div>
 
-                    {/* DURATION (CENTERED - REMOVED ARRIVAL CITY) */}
-                    <div className="flex flex-col items-center flex-1">
-                        <span className="text-[11px] font-medium text-gray-600 whitespace-nowrap">
+                    {/* DURATION (CENTERED) */}
+                    <div className="flex flex-col items-center flex-1 mx-2">
+                         <span className="text-[10px] text-gray-500">
                             {calculateDuration(bus.departureTime, bus.arrivalTime)}
                         </span>
-                        <span className="h-[1px] w-4/5 bg-gray-300 rounded-full my-1" />
-                        <span className="text-[11px] text-gray-500">Duration</span>
+                        <span className="h-[1px] w-full bg-gray-300 rounded-full my-1" />
+                        <span className="text-[10px] text-gray-500">Duration</span>
                     </div>
 
                     {/* ARRIVAL TIME (LIGHT GRAY COLOR) */}
-                    <div className="flex flex-col items-end min-w-0 pl-1 text-right">
-                        <span className="text-xl font-medium tabular-nums text-gray-500">
+                    <div className="flex items-baseline gap-1 text-right">
+                        <span className="text-sm text-gray-500">{to}</span>
+                        <span className="text-xl tabular-nums text-gray-500 font-medium">
                             {bus.arrivalTime}
                         </span>
-                        <span className="text-[10px] text-gray-400 mt-0.5">
-                           Arrival
-                        </span>
-                         <p className="text-xs text-gray-500 mt-1 truncate invisible">.</p>
                     </div>
                 </div>
 
-                {/* --- Price (Bottom Action Strip - No Seats info here, just Price) --- */}
+                {/* --- Price and Countdown (Bottom Action Strip) --- */}
                 <hr className="my-3 border-gray-100" />
-                <div className="flex items-center justify-end mt-3">
+                <div className="flex items-center justify-between mt-3">
                     
-                    {/* Price Block (RIGHT SIDE - High Contrast) */}
+                    {/* Booking Deadline Timer (LEFT SIDE) */}
+                     <div className="flex-1 min-w-0">
+                         {timerProps && (
+                             <span
+                                 className="px-2 py-0.5 rounded-full text-xs font-medium inline-block"
+                                 style={{ backgroundColor: "#FFF7ED", color: "#B45309" }}
+                             >
+                                 <BookingDeadlineTimer {...timerProps} />
+                             </span>
+                         )}
+                     </div>
+                    
+                    {/* Price Block (RIGHT SIDE - Black, smaller font) */}
                     <div className="flex-shrink-0 leading-tight flex flex-col items-end">
                          {hasStrike && (
                             <div className="text-[10px] text-gray-400 line-through">
@@ -313,32 +320,18 @@ export default function Mobile() {
                             </div>
                          )}
                         <div className="flex items-baseline">
-                            <span className="text-sm text-gray-500 mr-0.5 align-bottom">
+                            <span className="text-sm text-gray-600 mr-0.5 align-bottom">
                                 Rs.
                             </span>
-                            {/* Price is largest/boldest in its group */}
+                            {/* Price is now text-xl and not bold */}
                             <span
-                                className="text-2xl font-extrabold tabular-nums"
-                                style={{ color: PALETTE.primaryRed }}
+                                className="text-xl tabular-nums text-black font-semibold"
                             >
                                 {displayPrice}
                             </span>
                         </div>
                     </div>
                 </div>
-
-                {/* Booking Deadline Timer (Placed below CTA strip) */}
-                 {timerProps && (
-                    <div className="mt-3">
-                        <span
-                            className="px-2 py-0.5 rounded-full text-xs font-medium inline-block"
-                            style={{ backgroundColor: "#FFF7ED", color: "#B45309" }}
-                        >
-                            <BookingDeadlineTimer {...timerProps} />
-                        </span>
-                    </div>
-                )}
-
 
                 {/* END: Card Content */}
               </button>
