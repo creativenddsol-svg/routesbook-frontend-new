@@ -1,14 +1,3 @@
-That's the final polish to make the information hierarchy perfect\! You're aiming for consistency between the seat count and AC tags, and a clear, compact structure for the time details.
-
-I've made the requested updates in the `renderCards` function of `src/pages/SearchResults/Mobile.jsx`:
-
-1.  **Seat Count Font:** Removed `font-bold` from the available seats pill and ensured the `text-xs` font size matches the AC tag.
-2.  **City Removal:** Removed the city names (`{from}` and `{to}`) next to the departure and arrival times.
-3.  **New Time Labels:** Added the labels "**Departure**" and "**Arrival**" below their respective times, using the same style and alignment as the "Duration" label in the center.
-
-Here is the updated full code:
-
-```jsx
 // src/pages/SearchResults/Mobile.jsx
 import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
@@ -24,13 +13,13 @@ import {
 import { TbSunrise, TbSun, TbSunset, TbMoon } from "react-icons/tb";
 
 import {
-  // shared context + helpers from _core (contract listed below)
+  // shared context + helpers from _core
   useSearchCore,
   PALETTE,
   calculateDuration,
   getDisplayPrice,
   getReadableDate,
-  TIME_SLOTS, // ✅ import TIME_SLOTS for chips
+  TIME_SLOTS,
 } from "./_core";
 
 // mobile-only leaf components
@@ -81,15 +70,9 @@ export default function Mobile() {
     todayStr,
     loading,
     fetchError,
-    // sortedBuses, // not used directly in renderCards
     visibleBuses,
     availability,
-
-    // card open/close
-    // expandedBusId, // not used in Mobile card render
     handleToggleSeatLayout,
-
-    // filters + sort
     isFilterOpen,
     setIsFilterOpen,
     activeFilterCount,
@@ -97,9 +80,6 @@ export default function Mobile() {
     setSortBy,
     filters,
     setFilters,
-
-    // pickers/sheets
-    // mobileSearchOpen, // not used directly, only setter
     setMobileSearchOpen,
     mobilePickerOpen,
     setMobilePickerOpen,
@@ -107,20 +87,15 @@ export default function Mobile() {
     setMobilePickerMode,
     calOpen,
     setCalOpen,
-
     fromOptions,
     toOptions,
     recent,
-
-    // navigation search update
     updateSearchWithDate,
     fetchData,
     handleMobilePick,
   } = useSearchCore();
 
-  // hidden native <input type="date"> for the header chip quick change
   const mobileDateInputRef = useRef(null);
-  // const openDateNative = () => mobileDateInputRef.current?.showPicker(); // Removed as we use the calendar sheet
   const onNativeDateChange = (e) => {
     const d = e.target.value;
     setSearchDate(d);
@@ -174,12 +149,7 @@ export default function Mobile() {
     }
 
     return (
-      <motion.div 
-        variants={listVariants} 
-        initial="hidden" 
-        animate="visible"
-        className="space-y-3"
-      >
+      <motion.div variants={listVariants} initial="hidden" animate="visible" className="space-y-3">
         {visibleBuses.map((bus) => {
           const busKey = `${bus._id}-${bus.departureTime}`;
           const displayPrice = getDisplayPrice(bus, from, to);
@@ -188,18 +158,14 @@ export default function Mobile() {
           if (searchDateParam && bus.departureTime) {
             const now = new Date();
             const [depH, depM] = bus.departureTime.split(":").map(Number);
-            // searchDateParam is YYYY-MM-DD
             const [yy, mm, dd] = searchDateParam.split("-").map(Number);
-            // Date constructor: year, monthIndex (0-11), day, hour, minute
             const dep = new Date(yy, mm - 1, dd, depH, depM).getTime();
             const diffHrs = (dep - now.getTime()) / (1000 * 60 * 60);
-            // Show timer if departure is within the next 12 hours
             if (diffHrs > 0 && diffHrs <= 12) {
-              // Set deadline 1 hour before departure
               timerProps = {
                 deadlineTimestamp: dep - 60 * 60 * 1000,
                 departureTimestamp: dep,
-                onDeadline: fetchData, // Refresh data on deadline
+                onDeadline: fetchData,
               };
             }
           }
@@ -222,134 +188,95 @@ export default function Mobile() {
                 type="button"
                 className={`w-full text-left p-4 ${isSoldOut ? "cursor-not-allowed" : ""}`}
                 onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
-                disabled={isSoldOut} // Disable the whole card if sold out
+                disabled={isSoldOut}
               >
-                {/* START: Card Content - FINAL UI */}
-                
-                {/* 1. Bus Operator & Type Group (Top Left) */}
-                <div className="flex items-start justify-between">
-                    <div className="min-w-0 pr-3 flex-1">
-                        {/* Operator Name */}
-                        <p className="text-sm font-semibold text-gray-900 truncate mb-1">
-                            {bus.name}
-                        </p>
-                        
-                        {/* Bus Type and Seat Count Pills (Aligned on second line) */}
-                        <div className="flex items-center gap-2">
-                           {/* Bus Type in Light Blue Pill */}
-                            <span 
-                                className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
-                                style={{ 
-                                  color: '#1D4ED8', // Darker Blue Text
-                                  backgroundColor: '#DBEAFE', // Light Blue Color Pill (Blue 100)
-                                }}
-                            >
-                                {bus.busType}
-                            </span>
-                            {/* Seat Count Down Pill - Font-normal now */}
-                            {typeof availableSeats === "number" && (
-                              <span
-                                  className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
-                                  style={{ 
-                                    color: PALETTE.primaryRed, 
-                                    backgroundColor: '#FEE2E2', // Light red color pill (Red 100)
-                                  }}
-                              >
-                                  {availableSeats} Seats
-                              </span>
-                            )}
-                        </div>
-                    </div>
+                {/* START: Card Content */}
 
-                    {/* Operator Logo/Placeholder (Top Right) */}
-                    <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-100">
-                      {bus.operatorLogo ? (
-                        <img
-                          src={bus.operatorLogo}
-                          alt={`${bus.name} logo`}
-                          className="max-w-full max-h-full object-contain rounded-full"
-                        />
-                      ) : (
-                        <FaBus className="text-lg text-gray-400" />
+                {/* 1. Bus Operator & Type Group */}
+                <div className="flex items-start justify-between">
+                  <div className="min-w-0 pr-3 flex-1">
+                    <p className="text-sm font-semibold text-gray-900 truncate mb-1">{bus.name}</p>
+                    <div className="flex items-center gap-2">
+                      <span
+                        className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
+                        style={{ color: "#1D4ED8", backgroundColor: "#DBEAFE" }}
+                      >
+                        {bus.busType}
+                      </span>
+                      {typeof availableSeats === "number" && (
+                        <span
+                          className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
+                          style={{ color: PALETTE.primaryRed, backgroundColor: "#FEE2E2" }}
+                        >
+                          {availableSeats} Seats
+                        </span>
                       )}
                     </div>
+                  </div>
+                  <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-100">
+                    {bus.operatorLogo ? (
+                      <img
+                        src={bus.operatorLogo}
+                        alt={`${bus.name} logo`}
+                        className="max-w-full max-h-full object-contain rounded-full"
+                      />
+                    ) : (
+                      <FaBus className="text-lg text-gray-400" />
+                    )}
+                  </div>
                 </div>
 
-                {/* --- Divider for Main Info Section --- */}
                 <hr className="my-3 border-gray-100" />
 
-                {/* 2. Time & Duration Group (Compact, one line with labels below) */}
+                {/* 2. Time & Duration */}
                 <div className="flex items-center justify-between">
-                    
-                    {/* DEPARTURE TIME + LABEL */}
-                    <div className="flex flex-col items-start min-w-0 pr-1 text-left">
-                        <span className="text-xl tabular-nums text-black font-semibold">
-                            {bus.departureTime}
-                        </span>
-                        {/* New label style */}
-                        <p className="text-[10px] text-gray-500 mt-1 uppercase">
-                            Departure
-                        </p>
-                    </div>
-
-                    {/* DURATION (CENTERED) */}
-                    <div className="flex flex-col items-center flex-1 mx-2">
-                         <span className="text-[10px] text-gray-500">
-                            {calculateDuration(bus.departureTime, bus.arrivalTime)}
-                        </span>
-                        <span className="h-[1px] w-full bg-gray-300 rounded-full my-1" />
-                        <span className="text-[10px] text-gray-500 uppercase">Duration</span>
-                    </div>
-
-                    {/* ARRIVAL TIME + LABEL */}
-                    <div className="flex flex-col items-end min-w-0 pl-1 text-right">
-                        <span className="text-xl tabular-nums text-gray-500 font-medium">
-                            {bus.arrivalTime}
-                        </span>
-                        {/* New label style */}
-                        <p className="text-[10px] text-gray-500 mt-1 uppercase">
-                            Arrival
-                        </p>
-                    </div>
+                  <div className="flex flex-col items-start min-w-0 pr-1 text-left">
+                    <span className="text-xl tabular-nums text-black font-semibold">
+                      {bus.departureTime}
+                    </span>
+                    <p className="text-[10px] text-gray-500 mt-1 uppercase">Departure</p>
+                  </div>
+                  <div className="flex flex-col items-center flex-1 mx-2">
+                    <span className="text-[10px] text-gray-500">
+                      {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                    </span>
+                    <span className="h-[1px] w-full bg-gray-300 rounded-full my-1" />
+                    <span className="text-[10px] text-gray-500 uppercase">Duration</span>
+                  </div>
+                  <div className="flex flex-col items-end min-w-0 pl-1 text-right">
+                    <span className="text-xl tabular-nums text-gray-500 font-medium">
+                      {bus.arrivalTime}
+                    </span>
+                    <p className="text-[10px] text-gray-500 mt-1 uppercase">Arrival</p>
+                  </div>
                 </div>
 
-                {/* --- Price and Countdown (Bottom Action Strip) --- */}
                 <hr className="my-3 border-gray-100" />
                 <div className="flex items-center justify-between mt-3">
-                    
-                    {/* Booking Deadline Timer (LEFT SIDE) */}
-                     <div className="flex-1 min-w-0">
-                         {timerProps && (
-                             <span
-                                 className="px-2 py-0.5 rounded-full text-xs font-medium inline-block"
-                                 style={{ backgroundColor: "#FFF7ED", color: "#B45309" }}
-                             >
-                                 <BookingDeadlineTimer {...timerProps} />
-                             </span>
-                         )}
-                     </div>
-                    
-                    {/* Price Block (RIGHT SIDE - Black, smaller font) */}
-                    <div className="flex-shrink-0 leading-tight flex flex-col items-end">
-                         {hasStrike && (
-                            <div className="text-[10px] text-gray-400 line-through">
-                                Rs. {bus.originalPrice}
-                            </div>
-                         )}
-                        <div className="flex items-baseline">
-                            <span className="text-sm text-gray-600 mr-0.5 align-bottom">
-                                Rs.
-                            </span>
-                            {/* Price is text-xl and only font-semibold (not extra bold) */}
-                            <span
-                                className="text-xl tabular-nums text-black font-semibold"
-                            >
-                                {displayPrice}
-                            </span>
-                        </div>
+                  <div className="flex-1 min-w-0">
+                    {timerProps && (
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-medium inline-block"
+                        style={{ backgroundColor: "#FFF7ED", color: "#B45309" }}
+                      >
+                        <BookingDeadlineTimer {...timerProps} />
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex-shrink-0 leading-tight flex flex-col items-end">
+                    {hasStrike && (
+                      <div className="text-[10px] text-gray-400 line-through">
+                        Rs. {bus.originalPrice}
+                      </div>
+                    )}
+                    <div className="flex items-baseline">
+                      <span className="text-sm text-gray-600 mr-0.5 align-bottom">Rs.</span>
+                      <span className="text-xl tabular-nums text-black font-semibold">
+                        {displayPrice}
+                      </span>
                     </div>
+                  </div>
                 </div>
-
                 {/* END: Card Content */}
               </button>
             </motion.div>
@@ -358,13 +285,13 @@ export default function Mobile() {
       </motion.div>
     );
   };
-  // --------------------------------------------------------------------------------------
-  // END RENDER CARDS
-  // --------------------------------------------------------------------------------------
 
+  // --------------------------------------------------------------------------------------
+  // MAIN RETURN
+  // --------------------------------------------------------------------------------------
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F2F5]">
-      {/* Header pill - Fixed at top */}
+      {/* Header */}
       <div className="sticky top-0 z-10 bg-white px-4 pt-2 pb-2 shadow-sm">
         <div className="flex items-center">
           <button
@@ -374,7 +301,6 @@ export default function Mobile() {
           >
             <FaChevronLeft className="text-lg" />
           </button>
-
           <button
             onClick={() => setMobileSearchOpen(true)}
             className="flex-1 flex items-center justify-between px-3 py-1.5 rounded-2xl bg-gray-100 mr-2"
@@ -389,18 +315,13 @@ export default function Mobile() {
             </div>
             <FaPen className="text-gray-700 text-sm flex-shrink-0 ml-2" />
           </button>
-          
-          {/* Quick Date Change Button */}
           <button
             onClick={() => setCalOpen(true)}
             className="p-1.5 rounded-full bg-gray-100 hover:bg-gray-200 active:bg-gray-300 flex-shrink-0"
             aria-label="Change date"
           >
-            {/* The calendar icon or a small date representation could go here */}
-            <FaClock className="text-gray-700 text-base" /> 
+            <FaClock className="text-gray-700 text-base" />
           </button>
-          
-
           <input
             ref={mobileDateInputRef}
             type="date"
@@ -413,98 +334,89 @@ export default function Mobile() {
           />
         </div>
       </div>
-      
+
       {/* Filter/Chip Section */}
-      <div className="bg-white sticky top-[60px] z-10 py-2 border-b border-gray-200 shadow-xs"> 
+      <div className="bg-white sticky top-[60px] z-10 py-2 border-b border-gray-200 shadow-xs">
         <div className="max-w-7xl mx-auto px-4">
-            <SpecialNoticesSection />
-
-            <div className="flex gap-2 overflow-x-auto hide-scrollbar pt-1 pb-1">
-              
-              {/* 1. Filter/Sort Button */}
-              <button
-                onClick={() => setIsFilterOpen(true)}
-                className="flex items-center gap-1.5 h-8 px-2.5 border border-gray-200 rounded-xl text-[12.5px] leading-none font-medium bg-white whitespace-nowrap flex-shrink-0 shadow-sm"
-                aria-label="Open Filter & Sort"
-              >
-                <FaSlidersH className="text-[14px]" />
-                {"Filter \u00A0&\u00A0 Sort"}
-                {activeFilterCount > 0 && (
-                  <span className="ml-0.5 text-[11px] font-semibold text-white bg-red-500 rounded-full w-4 h-4 flex items-center justify-center">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-
-              {/* 2. Time Slot Chips */}
-              {Object.keys(TIME_SLOTS).map((slot) => {
-                const Icon = slotIcon(slot);
-                const active = !!filters.timeSlots[slot];
-                return (
-                  <button
-                    key={slot}
-                    onClick={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
-                      }))
-                    }
-                    className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
-                      active
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
-                    }`}
-                    aria-pressed={active}
-                  >
-                    <Icon className="text-[16px]" />
-                    {slot}
-                  </button>
-                );
-              })}
-
-              {/* 3. AC/Non-AC Chips */}
-              {["AC", "Non-AC"].map((type) => {
-                const active = filters.type === type;
-                return (
-                  <button
-                    key={type}
-                    onClick={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        type: prev.type === type ? "" : type, // Toggle logic
-                      }))
-                    }
-                    className={`h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
-                      active
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
-                    }`}
-                    aria-pressed={active}
-                  >
-                    {type}
-                  </button>
-                );
-              })}
-            </div>
+          <SpecialNoticesSection />
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar pt-1 pb-1">
+            {/* Filter/Sort */}
+            <button
+              onClick={() => setIsFilterOpen(true)}
+              className="flex items-center gap-1.5 h-8 px-2.5 border border-gray-200 rounded-xl text-[12.5px] leading-none font-medium bg-white whitespace-nowrap flex-shrink-0 shadow-sm"
+              aria-label="Open Filter & Sort"
+            >
+              <FaSlidersH className="text-[14px]" />
+              {"Filter \u00A0&\u00A0 Sort"}
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 text-[11px] font-semibold text-white bg-red-500 rounded-full w-4 h-4 flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            {/* Time Slots */}
+            {Object.keys(TIME_SLOTS).map((slot) => {
+              const Icon = slotIcon(slot);
+              const active = !!filters.timeSlots[slot];
+              return (
+                <button
+                  key={slot}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
+                    }))
+                  }
+                  className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
+                    active
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
+                  }`}
+                  aria-pressed={active}
+                >
+                  <Icon className="text-[16px]" />
+                  {slot}
+                </button>
+              );
+            })}
+            {/* AC/Non-AC */}
+            {["AC", "Non-AC"].map((type) => {
+              const active = filters.type === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: prev.type === type ? "" : type,
+                    }))
+                  }
+                  className={`h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
+                    active
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
+                  }`}
+                  aria-pressed={active}
+                >
+                  {type}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
-      {/* --- End of Sticky Filter/Chip Section --- */}
 
-
-      {/* Main Bus List Content */}
+      {/* Bus List */}
       <div className="flex-1 w-full pb-6 pt-3">
         <div className="max-w-7xl mx-auto px-4">
           <AnimatePresence>{renderCards()}</AnimatePresence>
         </div>
       </div>
-      {/* --- End of Main Content --- */}
 
-
-      {/* Filter Panel (Left Side Sheet) */}
+      {/* Filter Panel */}
       <AnimatePresence>
         {isFilterOpen && (
           <>
-            {/* Backdrop */}
             <motion.button
               type="button"
               aria-label="Close filters"
@@ -514,7 +426,6 @@ export default function Mobile() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             />
-            {/* Panel */}
             <motion.div
               className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 overflow-y-auto rounded-r-2xl shadow-xl"
               initial={{ x: "-100%" }}
@@ -522,11 +433,10 @@ export default function Mobile() {
               exit={{ x: "-100%" }}
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
-              {/* Pass necessary props to FilterPanel */}
-              <FilterPanel 
-                isMobile 
-                sortBy={sortBy} 
-                setSortBy={setSortBy} 
+              <FilterPanel
+                isMobile
+                sortBy={sortBy}
+                setSortBy={setSortBy}
                 filters={filters}
                 setFilters={setFilters}
                 onClose={() => setIsFilterOpen(false)}
@@ -536,7 +446,7 @@ export default function Mobile() {
         )}
       </AnimatePresence>
 
-      {/* Other Sheets/Modals */}
+      {/* Other Sheets */}
       <MobileBottomSheet />
       <MobileSearchSheet />
       <MobileCityPicker
@@ -553,7 +463,7 @@ export default function Mobile() {
         minDateString={todayStr}
         onPick={(d) => {
           setSearchDate(d);
-          updateSearchWithDate(d); // Update URL/trigger new search
+          updateSearchWithDate(d);
           setCalOpen(false);
         }}
         onClose={() => setCalOpen(false)}
@@ -561,4 +471,3 @@ export default function Mobile() {
     </div>
   );
 }
-```
