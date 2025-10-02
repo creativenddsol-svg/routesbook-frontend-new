@@ -39,6 +39,7 @@ const Seat = ({
 
   const disabled = isBooked || isLocked;
 
+  // bottom bar color inside seat
   const bottomBarColor =
     isBooked
       ? gender === "F"
@@ -69,34 +70,32 @@ const Seat = ({
       `}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {/* Seat box with inner elements */}
+      {/* Seat box (unchanged layout) */}
       <span
         className={`
           absolute inset-1 sm:inset-[3px]
           border-2 rounded-lg
-          flex flex-col items-center justify-between
+          flex items-center justify-center
           font-semibold
           text-[11px] sm:text-xs
           relative
           ${innerSeatClasses}
         `}
       >
-        {/* 🔵 Small circle tag in top-left */}
+        {/* Small gray circle tag (top-left, overlay, no layout shift) */}
         <span
           aria-hidden="true"
-          className="absolute top-1 left-1 w-2 h-2 sm:w-1.5 sm:h-1.5 rounded-full bg-gray-300"
+          className="pointer-events-none absolute top-1 left-1 w-2 h-2 sm:w-1.5 sm:h-1.5 rounded-full bg-gray-300"
+        />
+
+        {/* Bottom bar INSIDE the seat (flush to bottom) */}
+        <span
+          aria-hidden="true"
+          className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-0 w-5 sm:w-4 h-[3px] rounded-t-sm ${bottomBarColor}`}
         />
 
         {/* Seat label or gender icon */}
-        <span className="flex-1 flex items-center justify-center">
-          {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
-        </span>
-
-        {/* Bottom bar touching seat edge */}
-        <span
-          aria-hidden="true"
-          className={`w-5 sm:w-4 h-1 rounded-t-sm self-center ${bottomBarColor}`}
-        />
+        {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
       </span>
     </button>
   );
@@ -120,6 +119,7 @@ const SeatLayout = ({
   onSeatClick,
   bookedSeatGenders,
 }) => {
+  // Normalize to strings once to avoid type mismatches
   const layoutAsStrings = Array.isArray(seatLayout)
     ? seatLayout.map(String)
     : [];
@@ -178,6 +178,7 @@ const SeatLayout = ({
       >
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
+            // Seat-sized invisible placeholder so columns stay aligned
             return (
               <div
                 key={`aisle-${rowIndex}-${i}`}
@@ -227,6 +228,7 @@ const SeatLayout = ({
     if (is49Seater) {
       const grid = [];
       for (let i = 0; i < 11; i++) {
+        // Use seat-sized placeholder (null) in the middle position
         grid.push([i * 4 + 1, i * 4 + 2, null, i * 4 + 3, i * 4 + 4]);
       }
       grid.push([45, 46, 47, 48, 49]);
@@ -244,6 +246,7 @@ const SeatLayout = ({
         [25, 26, null, 27, 28],
         [29, 30, null, 31, 32],
       ];
+      // Last row: five seats, center column filled (keeps column widths consistent)
       return [...base, [33, 34, 35, 36, 37]];
     }
 
