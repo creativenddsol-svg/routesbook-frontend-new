@@ -1,6 +1,5 @@
 import React from "react";
 import PropTypes from "prop-types";
-import { FaMale, FaFemale } from "react-icons/fa";
 
 /* ---------- Matte palette (selected = blue) ---------- */
 const PALETTE = {
@@ -16,7 +15,28 @@ const PALETTE = {
   femaleBorder: "#D04B78",
 };
 
-/* ---------- Single Seat (UPDATED FOR SEAT ICON SHAPE) ---------- */
+// --- Custom Inline Icons to replace react-icons/fa ---
+const MaleIcon = () => (
+  // Simplified Male symbol (Mars)
+  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="4.5"></circle>
+    <line x1="15" y1="9" x2="20" y2="4"></line>
+    <polyline points="15 4 20 4 20 9"></polyline>
+  </svg>
+);
+
+const FemaleIcon = () => (
+  // Simplified Female symbol (Venus)
+  <svg className="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="5"></circle>
+    <line x1="12" y1="17" x2="12" y2="22"></line>
+    <line x1="9" y1="20" x2="15" y2="20"></line>
+  </svg>
+);
+// ---------------------------------------------------
+
+
+/* ---------- Single Seat (With Seat Icon Shape) ---------- */
 const Seat = ({
   seat,
   isBooked,
@@ -64,7 +84,7 @@ const Seat = ({
         className={`
           absolute inset-1 sm:inset-[3px]
           border-2 
-          // 💡 Custom border-radius for a seat-like icon shape: rounded-lg top, slightly rounded bottom
+          // Custom border-radius for a seat-like icon shape: rounded-lg top, slightly rounded bottom
           rounded-md rounded-t-lg 
           flex items-center justify-center
           font-semibold
@@ -72,7 +92,7 @@ const Seat = ({
           ${innerSeatClasses}
         `}
       >
-        {isBooked ? (isFemaleBooked ? <FaFemale /> : <FaMale />) : seat}
+        {isBooked ? (isFemaleBooked ? <FemaleIcon /> : <MaleIcon />) : seat}
       </span>
     </button>
   );
@@ -144,7 +164,7 @@ const SeatLayout = ({
     const seatStr = String(seat);
     const isBooked = !!bookedSeatGenders[seatStr]; 
     
-    // Note: This 'isLocked' logic handles seats that are booked but don't have a gender defined in bookedSeatGenders.
+    // Logic for 'Locked': Booked but no gender (e.g., placeholder, or held seat)
     const isLocked =
       bookedSet.has(seatStr) &&
       !isBooked &&
