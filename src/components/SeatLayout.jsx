@@ -39,16 +39,15 @@ const Seat = ({
 
   const disabled = isBooked || isLocked;
 
-  const bottomBarColor =
-    isBooked
-      ? gender === "F"
-        ? "bg-[#D04B78]"
-        : "bg-[#5B4FCF]"
-      : isLocked
-      ? "bg-[#FCA5A5]"
-      : isSelected
-      ? "bg-[#3F5ED8]"
-      : "bg-gray-300";
+  const bottomBarColor = isBooked
+    ? gender === "F"
+      ? "bg-[#D04B78]"
+      : "bg-[#5B4FCF]"
+    : isLocked
+    ? "bg-[#FCA5A5]"
+    : isSelected
+    ? "bg-[#3F5ED8]"
+    : "bg-gray-300";
 
   return (
     <button
@@ -69,29 +68,26 @@ const Seat = ({
       `}
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {/* Seat box */}
+      {/* Seat box with inner bottom bar */}
       <span
         className={`
           absolute inset-1 sm:inset-[3px]
           border-2 rounded-lg
-          flex items-center justify-center
+          flex flex-col items-center justify-between
           font-semibold
           text-[11px] sm:text-xs
           ${innerSeatClasses}
         `}
       >
-        {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
+        {/* Seat label or gender icon */}
+        <span className="flex-1 flex items-center justify-center">
+          {isBooked ? gender === "F" ? <FaFemale /> : <FaMale /> : seat}
+        </span>
 
-        {/* Small circle tag (top-left overlay) */}
+        {/* Bottom bar touching the seat edge */}
         <span
           aria-hidden="true"
-          className="absolute top-0.5 left-0.5 w-2 h-2 sm:w-1.5 sm:h-1.5 rounded-full bg-gray-300"
-        />
-
-        {/* Bottom bar (flush at bottom inside seat) */}
-        <span
-          aria-hidden="true"
-          className={`absolute bottom-0 left-1/2 -translate-x-1/2 w-5 sm:w-4 h-[3px] rounded-t-sm ${bottomBarColor}`}
+          className={`w-5 sm:w-4 h-1 rounded-t-sm self-center ${bottomBarColor}`}
         />
       </span>
     </button>
