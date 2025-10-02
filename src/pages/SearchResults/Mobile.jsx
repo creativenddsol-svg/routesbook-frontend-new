@@ -59,6 +59,38 @@ const slotIcon = (slot) => {
   return TbSun;
 };
 
+
+// --------------------------------------------------------------------------------------
+// 🚨 NEW SHIMMER STYLES: This CSS is injected to create the shine effect.
+// --------------------------------------------------------------------------------------
+const shimmerStyles = `
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .shimmer-effect {
+    position: relative;
+    overflow: hidden;
+    background-color: #FFF7ED; /* Base background color */
+  }
+
+  .shimmer-effect::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4) 30%, transparent 60%);
+    transform: translateX(-100%);
+    animation: shimmer 1.5s infinite linear;
+    animation-delay: 0.5s; /* Delay to make it look like it's part of a loop */
+  }
+`;
+// --------------------------------------------------------------------------------------
+
+
 export default function Mobile() {
   const nav = useNavigate();
   const {
@@ -213,7 +245,7 @@ export default function Mobile() {
                 onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
                 disabled={isSoldOut} // Disable the whole card if sold out
               >
-                {/* START: Card Content - FINAL UI */}
+                {/* START: Card Content - FINAL UI with Shimmer */}
                 
                 {/* 1. Bus Operator & Type Group (Top Left) */}
                 <div className="flex items-start justify-between">
@@ -235,7 +267,7 @@ export default function Mobile() {
                             >
                                 {bus.busType}
                             </span>
-                            {/* Seat Count Down Pill - Font-normal now */}
+                            {/* Seat Count Down Pill - Font-normal */}
                             {typeof availableSeats === "number" && (
                               <span
                                   className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
@@ -310,8 +342,8 @@ export default function Mobile() {
                      <div className="flex-1 min-w-0">
                          {timerProps && (
                              <span
-                                 className="px-2 py-0.5 rounded-full text-xs font-medium inline-block"
-                                 style={{ backgroundColor: "#FFF7ED", color: "#B45309" }}
+                                 className="shimmer-effect px-2 py-0.5 rounded-full text-xs font-medium inline-block relative"
+                                 style={{ color: "#B45309" }} // Base background is handled by shimmer-effect class
                              >
                                  <BookingDeadlineTimer {...timerProps} />
                              </span>
@@ -353,6 +385,9 @@ export default function Mobile() {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#F0F2F5]">
+       {/* 🚨 INJECTING SHIMMER STYLES */}
+      <style>{shimmerStyles}</style>
+
       {/* Header pill - Fixed at top */}
       <div className="sticky top-0 z-10 bg-white px-4 pt-2 pb-2 shadow-sm">
         <div className="flex items-center">
