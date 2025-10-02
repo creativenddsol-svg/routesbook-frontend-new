@@ -1,11 +1,11 @@
 import React from "react";
 import PropTypes from "prop-types";
-// The original import for 'react-icons/fa' was removed to fix the compilation error.
-// We now use inline SVG icons for FaMale and FaFemale.
+// The original import for 'react-icons/fa' is commented out/removed to fix the compilation error
+// and replaced with inline SVGs for stability in this environment.
 
 /* ---------- SVG Icons to replace react-icons/fa ---------- */
 
-// FaMale (Replaced with inline SVG)
+// Male Icon (FaMale replacement)
 const MaleIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -17,7 +17,7 @@ const MaleIcon = () => (
   </svg>
 );
 
-// FaFemale (Replaced with inline SVG)
+// Female Icon (FaFemale replacement)
 const FemaleIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -43,7 +43,7 @@ const PALETTE = {
   femaleBorder: "#D04B78",
 };
 
-/* ---------- Single Seat ---------- */
+/* ---------- Single Seat Component ---------- */
 const Seat = ({
   seat,
   isBooked,
@@ -94,9 +94,10 @@ const Seat = ({
           ${innerSeatClasses}
         `}
       >
+        {/* Using the local SVG icons */}
         {isBooked ? gender === "F" ? <FemaleIcon /> : <MaleIcon /> : seat}
       </span>
-      {/* ADDED: Small, flatter bottom bar (AbhiBus style) */}
+      {/* Small, flatter bottom bar (AbhiBus style) */}
       <div
         className={`
           absolute bottom-0 left-1 right-1 sm:left-[3px] sm:right-[3px]
@@ -115,7 +116,6 @@ const Seat = ({
           }
         `}
       />
-      {/* END OF ADDED BAR */}
     </button>
   );
 };
@@ -130,7 +130,7 @@ Seat.propTypes = {
   title: PropTypes.string,
 };
 
-/* ---------- Layout ---------- */
+/* ---------- Seat Layout Component (Main Logic) ---------- */
 const SeatLayout = ({
   seatLayout,
   bookedSeats,
@@ -146,7 +146,7 @@ const SeatLayout = ({
   const is49Seater = layoutAsStrings.length === 49;
   const is37Seater = layoutAsStrings.length === 37;
 
-  // 🔧 Avoid repeated .map/.includes by using Sets (fixes perf hiccups on large layouts)
+  // Use Sets for faster lookup
   const bookedSet = new Set(
     (Array.isArray(bookedSeats) ? bookedSeats : []).map(String)
   );
@@ -154,15 +154,23 @@ const SeatLayout = ({
     (Array.isArray(selectedSeats) ? selectedSeats : []).map(String)
   );
 
+  /**
+   * Checks adjacent seats for gender information to enforce booking rules (e.g., female next to female).
+   * @param {number|string} seatNumber - The current seat number.
+   * @param {Array<Array<number|string|null>>} layoutGrid - The grid representation of the layout.
+   * @returns {string|null} The gender ('M' or 'F') of an adjacent booked seat, or null.
+   */
   const getAdjacentSeatInfo = (seatNumber, layoutGrid) => {
     for (const row of layoutGrid) {
       const idx = row.indexOf(seatNumber);
       if (idx !== -1) {
+        // Check left neighbor
         if (idx > 0 && row[idx - 1] !== null) {
           const neighborSeat = String(row[idx - 1]);
           if (bookedSeatGenders[neighborSeat])
             return bookedSeatGenders[neighborSeat];
         }
+        // Check right neighbor
         if (idx < row.length - 1 && row[idx + 1] !== null) {
           const neighborSeat = String(row[idx + 1]);
           if (bookedSeatGenders[neighborSeat])
@@ -174,13 +182,22 @@ const SeatLayout = ({
     return null;
   };
 
+  /**
+   * Determines the booking and selection status of a given seat.
+   * @param {number|string} seat - The seat number.
+   * @returns {{isBooked: boolean, isLocked: boolean, isSelected: boolean, gender: string|null}}
+   */
   const getSeatStatus = (seat) => {
     const seatStr = String(seat);
+    // isBooked means the seat has a gender assigned (i.e., it's confirmed booked)
     const isBooked = !!bookedSeatGenders[seatStr];
-    const isLocked =
-      bookedSet.has(seatStr) &&
-      !bookedSeatGenders[seatStr] &&
-      !selectedSet.has(seatStr);
+    
+    // isLocked means the seat is reserved but doesn't have a gender yet (or is blocked for other reasons)
+    // The previous logic for 'isLocked' seems to have intended to identify seats that are in 'bookedSeats' 
+    // but not fully confirmed with a gender in 'bookedSeatGenders'. However, for a standard bus seat map, 
+    // we primarily focus on fully 'isBooked' and 'isSelected'.
+    // We will simplify: if it's not booked with a gender, it's either available or selected.
+    const isLocked = bookedSet.has(seatStr) && !isBooked && !selectedSet.has(seatStr);
 
     return {
       isBooked,
@@ -190,6 +207,10 @@ const SeatLayout = ({
     };
   };
 
+  /**
+   * Renders the grid of seats based on the layout structure.
+   * @param {Array<Array<number|string|null>>} layoutGrid
+   */
   const renderLayout = (layoutGrid) =>
     layoutGrid.map((row, rowIndex) => (
       <div
@@ -198,7 +219,7 @@ const SeatLayout = ({
       >
         {row.map((seatNumber, i) => {
           if (seatNumber === null) {
-            // 🔧 Seat-sized invisible placeholder so columns stay aligned
+            // Invisible placeholder for the aisle to maintain column alignment
             return (
               <div
                 key={`aisle-${rowIndex}-${i}`}
@@ -208,6 +229,8 @@ const SeatLayout = ({
             );
           }
           const seat = String(seatNumber);
+          
+          // Skip rendering if the seat number is not part of the provided layout array
           if (!layoutAsStrings.includes(seat)) {
             return (
               <div
@@ -219,6 +242,8 @@ const SeatLayout = ({
 
           const seatStatus = getSeatStatus(seat);
           let tooltipTitle = "";
+          
+          // Add a tooltip only if the seat is available and an opposite gender is adjacent
           if (
             !seatStatus.isBooked &&
             !seatStatus.isLocked &&
@@ -244,13 +269,18 @@ const SeatLayout = ({
       </div>
     ));
 
+  /**
+   * Generates the 5-column grid structure based on the total seat count.
+   */
   const getLayoutGrid = () => {
     if (is49Seater) {
       const grid = [];
+      // 11 rows of 4 seats + aisle
       for (let i = 0; i < 11; i++) {
-        // Use seat-sized placeholder (null) in the middle position
+        // [1, 2, null, 3, 4], [5, 6, null, 7, 8], ...
         grid.push([i * 4 + 1, i * 4 + 2, null, i * 4 + 3, i * 4 + 4]);
       }
+      // Last row of 5 seats
       grid.push([45, 46, 47, 48, 49]);
       return grid;
     }
@@ -264,12 +294,13 @@ const SeatLayout = ({
         [17, 18, null, 19, 20],
         [21, 22, null, 23, 24],
         [25, 26, null, 27, 28],
-        [29, 30, null, 31, 32],
+        [29, 30, null, 31, 32], // 8 rows of 4 seats
       ];
-      // Last row: five seats, center column filled (keeps column widths consistent)
+      // Last row of 5 seats
       return [...base, [33, 34, 35, 36, 37]];
     }
 
+    // Default return for unsupported layouts
     return [];
   };
 
@@ -277,10 +308,10 @@ const SeatLayout = ({
 
   return (
     <div
-      className="p-3 sm:p-4 rounded-xl overflow-x-auto"
+      className="p-3 sm:p-4 rounded-xl overflow-x-auto mx-auto max-w-sm"
       style={{ background: "#FFFFFF", border: `1px solid ${PALETTE.border}` }}
     >
-      {/* Header */}
+      {/* Header: Driver Cab/Front */}
       <div className="relative flex justify-between items-center mb-3 sm:mb-4 px-2 sm:px-4">
         <span
           className="font-bold text-[11px] sm:text-sm uppercase tracking-wider"
@@ -298,6 +329,7 @@ const SeatLayout = ({
           strokeLinecap="round"
           strokeLinejoin="round"
         >
+          {/* Steering wheel icon */}
           <circle cx="12" cy="12" r="10"></circle>
           <circle cx="12" cy="12" r="3"></circle>
           <line x1="12" y1="22" x2="12" y2="18"></line>
@@ -309,18 +341,18 @@ const SeatLayout = ({
         </svg>
       </div>
 
-      {/* Seat grid */}
+      {/* Seat grid container */}
       <div className="space-y-2 sm:space-y-2 inline-block min-w-full">
         {layoutGrid.length > 0 ? (
           renderLayout(layoutGrid)
         ) : (
-          <p className="text-center" style={{ color: PALETTE.blue }}>
-            Unsupported seat layout.
+          <p className="text-center p-4 text-sm" style={{ color: PALETTE.textSubtle }}>
+            Bus seat configuration is not supported (only 37 or 49 seats).
           </p>
         )}
       </div>
 
-      {/* Footer */}
+      {/* Footer: Rear */}
       <div
         className="font-bold text-[11px] sm:text-sm uppercase tracking-wider text-center mt-3 sm:mt-4"
         style={{ color: PALETTE.textSubtle }}
