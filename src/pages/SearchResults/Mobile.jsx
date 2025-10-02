@@ -191,106 +191,32 @@ export default function Mobile() {
             <motion.div
               key={busKey}
               variants={itemVariants}
-              className={`bg-white rounded-xl border border-gray-200 overflow-hidden ${
+              className={`bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm ${ // Added shadow-sm for better separation
                 isSoldOut ? "opacity-60" : "hover:shadow-md"
-              } mb-3`}
+              } mb-3`} // mb-3 for consistent spacing
             >
               <button
                 type="button"
                 className={`w-full text-left ${isSoldOut ? "cursor-not-allowed" : ""}`}
                 onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
               >
-                <div className="p-3">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      {/* ✅ Screenshot-style time rail */}
-                      <div className="flex items-center">
-                        {/* departure pill */}
-                        <span
-                          className="inline-flex items-center px-2 py-0.5 rounded-lg text-[15px] font-medium tabular-nums"
-                          style={{
-                            backgroundColor: "#ECFDF5",
-                            color: "#065F46",
-                            border: "1px solid #A7F3D0",
-                          }}
-                        >
-                          {bus.departureTime}
-                        </span>
-
-                        {/* dot + line */}
-                        <span className="ml-2 mr-1.5 h-1.5 w-1.5 rounded-full bg-gray-400" />
-                        <span className="h-[2px] w-8 bg-gray-300 rounded-full" />
-
-                        {/* duration (nowrap to stay in one line) */}
-                        <span className="mx-2 inline-flex items-center text-[12px] font-medium text-gray-700 whitespace-nowrap">
-                          <FaClock className="text-[12px] mr-1" />
-                          {calculateDuration(bus.departureTime, bus.arrivalTime)}
-                        </span>
-
-                        {/* line + dot */}
-                        <span className="h-[2px] w-8 bg-gray-300 rounded-full" />
-                        <span className="mx-1.5 h-1.5 w-1.5 rounded-full bg-gray-400" />
-
-                        {/* arrival (not bold now) */}
-                        <span className="text-[15px] font-normal text-gray-900 tabular-nums">
-                          {bus.arrivalTime}
-                        </span>
-                      </div>
-
-                      {/* Seats-left */}
-                      {typeof availableSeats === "number" && (
-                        <div className="mt-1.5">
-                          <span
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold"
-                            style={{
-                              background: "#FFE9EC",
-                              color: PALETTE.primaryRed,
-                            }}
-                          >
-                            {availableSeats} seats left
-                          </span>
-                        </div>
-                      )}
-
-                      {timerProps && (
-                        <div className="mt-2 inline-flex">
-                          <div
-                            className="px-2 py-0.5 rounded-lg text-[11px]"
-                            style={{ backgroundColor: "#FFF7ED" }}
-                          >
-                            <BookingDeadlineTimer {...timerProps} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="text-right pl-3">
-                      {hasStrike && (
-                        <div className="text-[12px] text-gray-400 line-through">
-                          Rs. {bus.originalPrice}
-                        </div>
-                      )}
-                      <div className="leading-tight">
-                        <span className="text-[12px] text-gray-500 mr-1 align-top">
-                          Rs.
-                        </span>
-                        <span className="text-[20px] font-semibold tabular-nums text-gray-900">
-                          {displayPrice}
-                        </span>
-                      </div>
-                      <div className="text-[11px] text-gray-500">Onwards</div>
-                    </div>
-                  </div>
-
-                  <hr className="my-2 border-t border-gray-100" />
-
-                  <div className="flex items-center justify-between">
+                {/* START: Card Content (p-4 for better padding/spacing)
+                */}
+                <div className="p-4"> 
+                  {/* 1. Bus Operator & Type Group (Top Section) */}
+                  <div className="flex items-center justify-between mb-3">
                     <div className="min-w-0 pr-3">
-                      <h4 className="text-[15px] font-medium text-gray-800 truncate">
+                      {/* Typo Hierarchy: Bus Name is biggest/boldest */}
+                      <h4 className="text-lg font-bold text-gray-900 truncate">
                         {bus.name}
                       </h4>
-                      <p className="text-[12px] text-gray-500 truncate">{bus.busType}</p>
+                      {/* Bus Type is secondary, lighter text */}
+                      <p className="text-sm text-gray-600 truncate mt-0.5">
+                        {bus.busType}
+                      </p>
+                      {/* TODO: Add a rating element here if available, for trust */}
                     </div>
+                    {/* Operator Logo (moved here for grouping) */}
                     <div className="w-16 h-10 flex-shrink-0 flex items-center justify-center">
                       {bus.operatorLogo ? (
                         <img
@@ -302,6 +228,108 @@ export default function Mobile() {
                         <FaBus className="text-2xl text-gray-300" />
                       )}
                     </div>
+                  </div>
+
+                  {/* 2. Time & Duration Group (Middle Section) */}
+                  <div className="flex items-center justify-between mt-3 mb-4">
+                    {/* Departure Time */}
+                    <div className="text-center">
+                      <span className="text-xl font-bold tabular-nums text-gray-900">
+                        {bus.departureTime}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {from}
+                      </p>
+                    </div>
+
+                    {/* Duration Display */}
+                    <div className="flex flex-col items-center flex-1 mx-3">
+                      <span className="text-[12px] font-medium text-gray-700 whitespace-nowrap">
+                        {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                      </span>
+                      <span className="h-[1px] w-full bg-gray-300 rounded-full my-1.5" />
+                      <FaClock className="text-[14px] text-gray-500" />
+                    </div>
+
+                    {/* Arrival Time */}
+                    <div className="text-center">
+                      <span className="text-xl font-bold tabular-nums text-gray-900">
+                        {bus.arrivalTime}
+                      </span>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {to}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Seats-left / Timer (Below Timing) */}
+                  <div className="flex items-center gap-2 mb-2">
+                    {typeof availableSeats === "number" && (
+                      <span
+                        className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold"
+                        style={{
+                          background: availableSeats <= 5 ? "#FFE9EC" : "#E6FFFA", // Red for low seats, Green for high
+                          color: availableSeats <= 5 ? PALETTE.primaryRed : "#065F46",
+                        }}
+                      >
+                        {availableSeats} seats left
+                      </span>
+                    )}
+
+                    {timerProps && (
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-medium"
+                        style={{ backgroundColor: "#FFF7ED", color: "#B45309" }}
+                      >
+                        <BookingDeadlineTimer {...timerProps} />
+                      </span>
+                    )}
+                  </div>
+                </div>
+                {/* END: Card Content
+                */}
+
+                {/* 3. Price & CTA Group (Footer Section) */}
+                <div
+                  className="p-4 pt-3 flex items-center justify-between rounded-b-xl border-t"
+                  style={{ borderColor: "#E5E7EB", backgroundColor: "#F9FAFB" }} // Subtle background for the footer
+                >
+                  {/* Price Block */}
+                  <div className="leading-tight">
+                    {hasStrike && (
+                      <div className="text-xs text-gray-500 line-through">
+                        Rs. {bus.originalPrice}
+                      </div>
+                    )}
+                    <div className="flex items-baseline">
+                      <span className="text-sm text-gray-500 mr-1 align-bottom">
+                        Rs.
+                      </span>
+                      {/* Price is largest/boldest in its group */}
+                      <span
+                        className="text-2xl font-extrabold tabular-nums"
+                        style={{ color: PALETTE.primaryRed }}
+                      >
+                        {displayPrice}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* CTA Button - High Contrast */}
+                  <div className="flex-shrink-0">
+                    <button
+                      type="button"
+                      // Use a strong, non-primary-blue color for the action button
+                      style={{ backgroundColor: PALETTE.primaryRed, color: 'white' }} 
+                      className="px-6 py-2 rounded-lg font-bold text-sm shadow-md"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        !isSoldOut && handleToggleSeatLayout(bus);
+                      }}
+                      disabled={isSoldOut}
+                    >
+                      {isSoldOut ? "SOLD OUT" : "View Seats"}
+                    </button>
                   </div>
                 </div>
               </button>
