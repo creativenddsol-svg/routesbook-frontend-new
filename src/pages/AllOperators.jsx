@@ -1,6 +1,8 @@
+// src/pages/AllOperators.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Link } from "react-router-dom";
+// ✅ use shared API client (no localhost hardcode)
+import apiClient from "../api";
 
 const AllOperators = () => {
   const [operators, setOperators] = useState([]);
@@ -8,7 +10,7 @@ const AllOperators = () => {
   useEffect(() => {
     const fetchOperators = async () => {
       try {
-        const res = await axios.get("/api/operators");
+        const res = await apiClient.get("/operators");
         setOperators(res.data);
       } catch (err) {
         console.error("Failed to load operators", err);
@@ -27,17 +29,23 @@ const AllOperators = () => {
             className="border p-4 rounded shadow hover:shadow-md transition"
           >
             <div className="flex items-center gap-4 mb-2">
-              {op.logo && (
+              {op.logoUrl || op.logo ? (
                 <img
-                  src={op.logo}
+                  src={op.logoUrl || op.logo}
                   alt={op.name}
                   className="w-12 h-12 rounded-full object-cover"
                 />
+              ) : (
+                <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center text-gray-500">
+                  🚌
+                </div>
               )}
               <h2 className="text-xl font-semibold">{op.name}</h2>
             </div>
             <p className="text-gray-600 text-sm mb-2">
-              {op.operatingCities?.join(", ")}
+              {op.operatingCities?.length
+                ? op.operatingCities.join(", ")
+                : "No city info available"}
             </p>
             <Link
               to={`/operators/${op._id}`}
@@ -47,6 +55,11 @@ const AllOperators = () => {
             </Link>
           </div>
         ))}
+        {operators.length === 0 && (
+          <div className="col-span-full text-center text-gray-500 py-6">
+            No operators found.
+          </div>
+        )}
       </div>
     </div>
   );
