@@ -1,15 +1,10 @@
 // src/pages/AdminOperatorList.jsx
-import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { toast } from "react-hot-toast";
+import { Link } from "react-router-dom";
 import apiClient from "../api";
 
-const maskAccount = (n = "") => {
-  const s = String(n || "");
-  if (!s) return "—";
-  if (s.length <= 4) return "••••";
-  return `••••••••${s.slice(-4)}`;
-};
+const FREQS = ["Daily", "Weekly", "Monthly", "On Demand"];
 
 export default function AdminOperatorList() {
   const [operators, setOperators] = useState([]);
@@ -17,32 +12,28 @@ export default function AdminOperatorList() {
   const [query, setQuery] = useState("");
 
   // modal state
-  const [editing, setEditing] = useState(null); // operator object or null
+  const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const emptyForm = {
+  const [selected, setSelected] = useState(null);
+  const [form, setForm] = useState({
     fullName: "",
     email: "",
     mobile: "",
-    nic: "",
+    active: true,
     operatorProfile: {
       businessName: "",
       address: "",
-      payoutMethod: {
-        bankName: "",
-        accountHolder: "",
-        accountNumber: "",
-        payoutFrequency: "monthly",
-      },
+      bankName: "",
+      bankBranch: "",
+      bankAccountNumber: "",
+      payoutFrequency: "Monthly",
     },
-    active: true,
-  };
-  const [form, setForm] = useState(emptyForm);
+  });
 
-  // ---------- load ----------
+  /* load operators */
   useEffect(() => {
     (async () => {
       try {
-        setLoading(true);
         const res = await apiClient.get("/admin/operators", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
@@ -56,13 +47,135 @@ export default function AdminOperatorList() {
     })();
   }, []);
 
-  // ---------- actions ----------
+  /* helpers */
+  const authHeader = () => ({
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+
+  const filtered = operators.filter((op) =>
+    `${op.fullName} ${op.email} ${op.mobile} ${op.operatorProfile?.businessName ?? ""}`
+      .toLowerCase()
+      .includes(query.toLowerCase())
+  );
+
+  const openEdit = (op) => {
+    setSelected(op);
+    setForm({
+      fullName: op.fullName || "",
+      email: op.email || "",
+      mobile: op.mobile || "",
+      active: !!op.active,
+      operatorProfile: {
+        businessName: op.operatorProfile?.businessName || "",
+        address: op.operatorProfile?.address || "",
+        bankName: op.operatorProfile?.bankName || "",
+        bankBranch: op.operatorProfile?.bankBranch || "",
+        bankAccountNumber: op.operatorProfile?.bankAccountNumber || "",
+        payoutFrequency: op.operatorProfile?.payoutFrequency || "Monthly",
+      },
+    });
+    setOpen(true);
+  };
+
+  const closeEdit = () => {
+    setOpen(false);
+    setSelected(null);
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    if (name.startsWith("operatorProfile.")) {
+      const key = name.split(".")[1];
+      setForm((f) => ({
+        ...f,
+        operatorProfile: { ...f.operatorProfile, [key]: value },
+      }));
+    } else if (type === "checkbox") {
+      setForm((f) => ({ ...f, [name]: checked }));
+    } else {
+      setForm((f) => ({ ...f, [name]: value }));
+    }
+  };
+
+  /* resilient update: try multiple endpoints until one works */
+  const tryUpdate = async (id, payload) => {
+    const tries = [
+      // common admin shapes
+      { method: "patch", url: `/admin/operators/${id}` },
+      { method: "put",   url: `/admin/operators/${id}` },
+      { method: "patch", url: `/admin/operators/update/${id}` },
+      { method: "put",   url: `/admin/operators/update/${id}` },
+
+      // “users” variant
+      { method: "patch", url: `/admin/users/${id}` },
+      { method: "put",   url: `/admin/users/${id}` },
+
+      // explicit profile path
+      { method: "patch", url: `/admin/operators/${id}/profile` },
+      { method: "put",   url: `/admin/operators/${id}/profile` },
+    ];
+
+    const errors = [];
+    for (const t of tries) {
+      try {
+        const res = await apiClient[t.method](
+          t.url,
+          payload,
+          authHeader()
+        );
+        return res;
+      } catch (err) {
+        errors.push(`${t.method.toUpperCase()} ${t.url}: ${err?.response?.status || "ERR"}`);
+      }
+    }
+    const msg = `No admin update endpoint responded (tried ${tries.length}).\n` +
+                errors.slice(0, 5).join(" | ") + (errors.length > 5 ? " ..." : "");
+    throw new Error(msg);
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!selected) return;
+    setSaving(true);
+    try {
+      // normalize payload to match OperatorProfile.jsx contract as well
+      // If your backend expects flat fields, your tried endpoints above cover both.
+      const payload = {
+        fullName: form.fullName,
+        email: form.email,
+        mobile: form.mobile,
+        active: form.active,
+        operatorProfile: { ...form.operatorProfile },
+      };
+
+      await tryUpdate(selected._id, payload);
+
+      // update locally
+      setOperators((prev) =>
+        prev.map((op) =>
+          op._id === selected._id
+            ? {
+                ...op,
+                ...payload,
+              }
+            : op
+        )
+      );
+      toast.success("Operator updated");
+      closeEdit();
+    } catch (err) {
+      console.error(err);
+      toast.error(err.message || "Update failed");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /* delete */
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this operator?")) return;
     try {
-      await apiClient.delete(`/admin/operators/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      await apiClient.delete(`/admin/operators/${id}`, authHeader());
       setOperators((prev) => prev.filter((op) => op._id !== id));
       toast.success("Operator deleted");
     } catch (err) {
@@ -71,276 +184,138 @@ export default function AdminOperatorList() {
     }
   };
 
-  const sendResetLink = async (id) => {
-    try {
-      await apiClient.post(
-        `/admin/operators/${id}/send-reset-link`,
-        {},
-        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
-      );
-      toast.success("Password reset link sent");
-    } catch (e) {
-      console.error(e);
-      toast.error("Failed to send reset link");
-    }
-  };
+  /* reset password: try several shapes */
+  const resetPassword = async (op) => {
+    const newPass = window.prompt(
+      `Enter a new password for ${op.fullName || op.email}:`,
+      Math.random().toString(36).slice(-10)
+    );
+    if (!newPass) return;
 
-  const openEdit = (op) => {
-    setEditing(op);
-    setForm({
-      fullName: op.fullName || "",
-      email: op.email || "",
-      mobile: op.mobile || "",
-      nic: op.nic || "",
-      operatorProfile: {
-        businessName: op.operatorProfile?.businessName || "",
-        address: op.operatorProfile?.address || "",
-        payoutMethod: {
-          bankName: op.operatorProfile?.payoutMethod?.bankName || "",
-          accountHolder: op.operatorProfile?.payoutMethod?.accountHolder || "",
-          accountNumber: op.operatorProfile?.payoutMethod?.accountNumber || "",
-          payoutFrequency:
-            op.operatorProfile?.payoutMethod?.payoutFrequency || "monthly",
-        },
-      },
-      active: op.active ?? true,
-    });
-  };
+    const candidates = [
+      // dedicated reset endpoints if present
+      { method: "post", url: `/admin/operators/${op._id}/reset-password`, body: { password: newPass } },
+      { method: "post", url: `/admin/users/${op._id}/reset-password`,     body: { password: newPass } },
 
-  const closeEdit = () => {
-    setEditing(null);
-    setForm(emptyForm);
-    setSaving(false);
-  };
-
-  const onChange = (e) => {
-    const { name, value, type, checked } = e.target;
-
-    if (name.startsWith("operatorProfile.")) {
-      const [, key] = name.split(".");
-      setForm((prev) => ({
-        ...prev,
-        operatorProfile: { ...prev.operatorProfile, [key]: value },
-      }));
-      return;
-    }
-
-    if (name.startsWith("payoutMethod.")) {
-      const [, key] = name.split(".");
-      setForm((prev) => ({
-        ...prev,
-        operatorProfile: {
-          ...prev.operatorProfile,
-          payoutMethod: { ...prev.operatorProfile.payoutMethod, [key]: value },
-        },
-      }));
-      return;
-    }
-
-    if (type === "checkbox") {
-      setForm((prev) => ({ ...prev, [name]: checked }));
-      return;
-    }
-
-    setForm((prev) => ({ ...prev, [name]: value }));
-  };
-
-  // ---- helper: try multiple endpoints until one works
-  const tryUpdateEndpoints = async (id, payloads) => {
-    const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
-
-    // Candidate endpoints & verbs (in order)
-    const routes = [
-      { method: "put", path: `/admin/operators/${id}` },
-      { method: "patch", path: `/admin/operators/${id}` },
-      { method: "put", path: `/admin/operators/update/${id}` },
-      { method: "patch", path: `/admin/operators/update/${id}` },
-      { method: "put", path: `/admin/operator/${id}` },
-      { method: "patch", path: `/admin/operator/${id}` },
-      { method: "put", path: `/operators/${id}` },
-      { method: "patch", path: `/operators/${id}` },
+      // generic “update with password”
+      { method: "patch", url: `/admin/operators/${op._id}`, body: { password: newPass } },
+      { method: "put",   url: `/admin/operators/${op._id}`, body: { password: newPass } },
+      { method: "patch", url: `/admin/users/${op._id}`,     body: { password: newPass } },
+      { method: "put",   url: `/admin/users/${op._id}`,     body: { password: newPass } },
     ];
 
-    let lastErr = null;
-
-    for (const route of routes) {
-      for (const body of payloads) {
-        try {
-          const res = await apiClient[route.method](route.path, body, { headers });
-          return res;
-        } catch (e) {
-          // 404 / 405 / 400 => try next combo
-          lastErr = e;
-          continue;
-        }
+    const errors = [];
+    for (const c of candidates) {
+      try {
+        await apiClient[c.method](c.url, c.body, authHeader());
+        toast.success("Password updated");
+        return;
+      } catch (err) {
+        errors.push(`${c.method.toUpperCase()} ${c.url}: ${err?.response?.status || "ERR"}`);
       }
     }
-    throw lastErr || new Error("No matching update endpoint");
+    toast.error("No reset-password endpoint found. Ask backend to enable one.");
+    console.warn("Reset password attempts:", errors);
   };
 
-  const handleSave = async (e) => {
-    e.preventDefault();
-    if (!editing?._id) return;
-    setSaving(true);
-    try {
-      // Preferred nested payload
-      const nestedPayload = { ...form };
-
-      // Fallback flat payload (for older servers)
-      const flatPayload = {
-        fullName: form.fullName,
-        email: form.email,
-        mobile: form.mobile,
-        nic: form.nic,
-        active: form.active,
-        businessName: form.operatorProfile?.businessName,
-        address: form.operatorProfile?.address,
-        bankName: form.operatorProfile?.payoutMethod?.bankName,
-        accountHolder: form.operatorProfile?.payoutMethod?.accountHolder,
-        accountNumber: form.operatorProfile?.payoutMethod?.accountNumber,
-        payoutFrequency: form.operatorProfile?.payoutMethod?.payoutFrequency,
-        operatorProfile: { ...form.operatorProfile }, // include both just in case
-      };
-
-      // Try nested first, then flat
-      await tryUpdateEndpoints(editing._id, [nestedPayload, flatPayload]);
-
-      // update table without refetch
-      setOperators((prev) =>
-        prev.map((op) => (op._id === editing._id ? { ...op, ...nestedPayload } : op))
-      );
-
-      toast.success("Operator updated");
-      closeEdit();
-    } catch (err) {
-      console.error("Update failed", err);
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Update failed (no compatible endpoint)";
-      toast.error(msg);
-      setSaving(false);
-    }
-  };
-
-  // ---------- filter ----------
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return operators;
-    return operators.filter((op) => {
-      const hay = [
-        op.fullName,
-        op.email,
-        op.mobile,
-        op.nic,
-        op.operatorProfile?.businessName,
-        op.operatorProfile?.address,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [operators, query]);
-
-  // ---------- render ----------
   if (loading) return <p className="p-6">Loading operators…</p>;
 
   return (
-    <div className="max-w-[1200px] mx-auto p-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-        <h1 className="text-2xl font-bold">All Operators</h1>
+    <div className="max-w-7xl mx-auto p-6">
+      <h1 className="text-2xl font-bold mb-4">All Operators</h1>
+
+      {/* Search */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
         <input
           className="border px-3 py-2 rounded w-full sm:w-80"
-          placeholder="Search name, email, mobile, business, address…"
+          placeholder="Search by name, email, mobile, business, addr"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        <Link
+          to="/admin/register-operator"
+          className="ml-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+        >
+          Register New
+        </Link>
       </div>
 
-      <div className="overflow-auto border rounded shadow-sm">
-        <table className="min-w-[1100px] w-full text-sm">
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="min-w-full border rounded shadow-sm text-sm">
           <thead className="bg-gray-100">
             <tr>
-              <th className="px-4 py-2 text-left">Name</th>
-              <th className="px-4 py-2 text-left">Email</th>
-              <th className="px-4 py-2 text-left">Mobile</th>
-              <th className="px-4 py-2 text-left">NIC</th>
-              <th className="px-4 py-2 text-left">Business</th>
-              <th className="px-4 py-2 text-left">Address</th>
-              <th className="px-4 py-2 text-left">Bank</th>
-              <th className="px-4 py-2 text-left">Holder</th>
-              <th className="px-4 py-2 text-left">Account</th>
-              <th className="px-4 py-2 text-left">Frequency</th>
-              <th className="px-4 py-2 text-left">Created</th>
-              <th className="px-4 py-2 text-center">Status</th>
-              <th className="px-4 py-2 text-center">Actions</th>
+              <th className="px-3 py-2 text-left">Name</th>
+              <th className="px-3 py-2 text-left">Email</th>
+              <th className="px-3 py-2 text-left">Mobile</th>
+              <th className="px-3 py-2 text-left">Active</th>
+              <th className="px-3 py-2 text-left">Business</th>
+              <th className="px-3 py-2 text-left">Address</th>
+              <th className="px-3 py-2 text-left">Bank</th>
+              <th className="px-3 py-2 text-left">Branch</th>
+              <th className="px-3 py-2 text-left">Account No</th>
+              <th className="px-3 py-2 text-left">Payout</th>
+              <th className="px-3 py-2 text-left">Created</th>
+              <th className="px-3 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((op) => {
-              const prof = op.operatorProfile || {};
-              const pay = prof.payoutMethod || {};
-              return (
-                <tr key={op._id} className="border-t hover:bg-gray-50">
-                  <td className="px-4 py-2">{op.fullName || "—"}</td>
-                  <td className="px-4 py-2">{op.email || "—"}</td>
-                  <td className="px-4 py-2">{op.mobile || "—"}</td>
-                  <td className="px-4 py-2">{op.nic || "—"}</td>
-                  <td className="px-4 py-2">{prof.businessName || "—"}</td>
-                  <td className="px-4 py-2">{prof.address || "—"}</td>
-                  <td className="px-4 py-2">{pay.bankName || "—"}</td>
-                  <td className="px-4 py-2">{pay.accountHolder || "—"}</td>
-                  <td className="px-4 py-2">{maskAccount(pay.accountNumber)}</td>
-                  <td className="px-4 py-2">{pay.payoutFrequency || "—"}</td>
-                  <td className="px-4 py-2">
-                    {op.createdAt ? new Date(op.createdAt).toLocaleDateString() : "—"}
-                  </td>
-                  <td className="px-4 py-2 text-center">
-                    {op.active ? (
-                      <span className="text-green-700 font-medium">Active</span>
-                    ) : (
-                      <span className="text-gray-500">Inactive</span>
-                    )}
-                  </td>
-                  <td className="px-4 py-2">
-                    <div className="flex items-center justify-center gap-3">
-                      <Link
-                        to={`/operators/${op._id}`}
-                        className="text-blue-600 hover:underline"
-                        title="View public profile"
-                      >
-                        View
-                      </Link>
-                      <button
-                        onClick={() => openEdit(op)}
-                        className="text-gray-800 hover:underline"
-                        title="Edit operator"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => sendResetLink(op._id)}
-                        className="text-indigo-600 hover:underline"
-                        title="Send password reset link"
-                      >
-                        Reset&nbsp;Password
-                      </button>
-                      <button
-                        onClick={() => handleDelete(op._id)}
-                        className="text-red-600 hover:underline"
-                        title="Delete operator"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              );
-            })}
+            {filtered.map((op) => (
+              <tr key={op._id} className="border-t hover:bg-gray-50">
+                <td className="px-3 py-2">{op.fullName}</td>
+                <td className="px-3 py-2">{op.email}</td>
+                <td className="px-3 py-2">{op.mobile || "—"}</td>
+                <td className="px-3 py-2">
+                  <span
+                    className={
+                      op.active
+                        ? "inline-block px-2 py-0.5 rounded text-xs bg-green-100 text-green-700"
+                        : "inline-block px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600"
+                    }
+                  >
+                    {op.active ? "Active" : "Inactive"}
+                  </span>
+                </td>
+                <td className="px-3 py-2">{op.operatorProfile?.businessName || "—"}</td>
+                <td className="px-3 py-2">{op.operatorProfile?.address || "—"}</td>
+                <td className="px-3 py-2">{op.operatorProfile?.bankName || "—"}</td>
+                <td className="px-3 py-2">{op.operatorProfile?.bankBranch || "—"}</td>
+                <td className="px-3 py-2">{op.operatorProfile?.bankAccountNumber || "—"}</td>
+                <td className="px-3 py-2">{op.operatorProfile?.payoutFrequency || "—"}</td>
+                <td className="px-3 py-2">
+                  {op.createdAt ? new Date(op.createdAt).toLocaleDateString() : "—"}
+                </td>
+                <td className="px-3 py-2 text-center space-x-3">
+                  <button
+                    className="text-blue-600 hover:underline"
+                    onClick={() => openEdit(op)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    className="text-amber-600 hover:underline"
+                    onClick={() => resetPassword(op)}
+                  >
+                    Reset Password
+                  </button>
+                  <Link
+                    to={`/operators/${op._id}`}
+                    className="text-slate-600 hover:underline"
+                  >
+                    View
+                  </Link>
+                  <button
+                    className="text-red-600 hover:underline"
+                    onClick={() => handleDelete(op._id)}
+                  >
+                    Delete
+                  </button>
+                </td>
+              </tr>
+            ))}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan={13} className="text-center py-6 text-gray-500">
+                <td colSpan="12" className="text-center py-6 text-gray-500">
                   No operators match your search.
                 </td>
               </tr>
@@ -349,129 +324,119 @@ export default function AdminOperatorList() {
         </table>
       </div>
 
-      {/* ---------- Edit Modal ---------- */}
-      {editing && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
-            <div className="p-5 border-b flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Edit Operator</h2>
-              <button
-                onClick={closeEdit}
-                className="text-gray-500 hover:text-black"
-                title="Close"
-              >
-                ✕
-              </button>
-            </div>
+      {/* Edit Modal */}
+      {open && selected && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg w-full max-w-3xl p-5">
+            <h3 className="text-lg font-semibold mb-4">Edit Operator</h3>
 
-            <form onSubmit={handleSave} className="p-5 space-y-5">
-              {/* Account */}
-              <div>
-                <div className="font-semibold mb-2">Account</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <form onSubmit={handleSave} className="space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm text-gray-600">Full Name</label>
                   <input
                     name="fullName"
                     value={form.fullName}
-                    onChange={onChange}
-                    placeholder="Full Name"
-                    className="border rounded px-3 py-2"
-                    required
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
                   />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Email</label>
                   <input
-                    type="email"
                     name="email"
+                    type="email"
                     value={form.email}
-                    onChange={onChange}
-                    placeholder="Email"
-                    className="border rounded px-3 py-2"
-                    required
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
                   />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Mobile</label>
                   <input
                     name="mobile"
                     value={form.mobile}
-                    onChange={onChange}
-                    placeholder="Mobile"
-                    className="border rounded px-3 py-2"
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
                   />
-                  <input
-                    name="nic"
-                    value={form.nic}
-                    onChange={onChange}
-                    placeholder="NIC"
-                    className="border rounded px-3 py-2"
-                  />
-                  <label className="flex items-center gap-2 text-sm mt-1">
-                    <input
-                      type="checkbox"
-                      name="active"
-                      checked={!!form.active}
-                      onChange={onChange}
-                    />
-                    Active
-                  </label>
                 </div>
-              </div>
+                <div className="flex items-center gap-2 mt-6">
+                  <input
+                    id="active"
+                    type="checkbox"
+                    name="active"
+                    checked={form.active}
+                    onChange={handleChange}
+                    className="h-4 w-4"
+                  />
+                  <label htmlFor="active" className="text-sm">Active</label>
+                </div>
 
-              {/* Business */}
-              <div>
-                <div className="font-semibold mb-2">Business</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="md:col-span-2">
+                  <label className="text-sm text-gray-600">Business</label>
                   <input
                     name="operatorProfile.businessName"
                     value={form.operatorProfile.businessName}
-                    onChange={onChange}
-                    placeholder="Business Name"
-                    className="border rounded px-3 py-2"
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
                   />
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-sm text-gray-600">Address</label>
                   <input
                     name="operatorProfile.address"
                     value={form.operatorProfile.address}
-                    onChange={onChange}
-                    placeholder="Address"
-                    className="border rounded px-3 py-2"
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
                   />
                 </div>
-              </div>
 
-              {/* Payout / Bank */}
-              <div>
-                <div className="font-semibold mb-2">Payout / Bank</div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm text-gray-600">Bank</label>
                   <input
-                    name="payoutMethod.bankName"
-                    value={form.operatorProfile.payoutMethod.bankName}
-                    onChange={onChange}
-                    placeholder="Bank Name"
-                    className="border rounded px-3 py-2"
+                    name="operatorProfile.bankName"
+                    value={form.operatorProfile.bankName}
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
                   />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Branch</label>
                   <input
-                    name="payoutMethod.accountHolder"
-                    value={form.operatorProfile.payoutMethod.accountHolder}
-                    onChange={onChange}
-                    placeholder="Account Holder"
-                    className="border rounded px-3 py-2"
+                    name="operatorProfile.bankBranch"
+                    value={form.operatorProfile.bankBranch}
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
                   />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Account No</label>
                   <input
-                    name="payoutMethod.accountNumber"
-                    value={form.operatorProfile.payoutMethod.accountNumber}
-                    onChange={onChange}
-                    placeholder="Account Number"
-                    className="border rounded px-3 py-2"
+                    name="operatorProfile.bankAccountNumber"
+                    value={form.operatorProfile.bankAccountNumber}
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
                   />
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Payout Frequency</label>
                   <select
-                    name="payoutMethod.payoutFrequency"
-                    value={form.operatorProfile.payoutMethod.payoutFrequency}
-                    onChange={onChange}
-                    className="border rounded px-3 py-2"
+                    name="operatorProfile.payoutFrequency"
+                    value={form.operatorProfile.payoutFrequency}
+                    onChange={handleChange}
+                    className="w-full border rounded px-3 py-2"
                   >
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="monthly">Monthly</option>
+                    {FREQS.map((f) => (
+                      <option key={f} value={f}>
+                        {f}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
 
-              <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2 pt-3">
                 <button
                   type="button"
                   onClick={closeEdit}
