@@ -31,7 +31,7 @@ import AdminAuditLogs from "./pages/AdminAuditLogs";
 import AdminSpecialNotices from "./pages/AdminSpecialNotices";
 import AdminRegisterOperator from "./pages/AdminRegisterOperator";
 import AdminOperatorList from "./pages/AdminOperatorList";
-import AdminOperatorPayments from "./pages/AdminOperatorPayments"; // ✅ NEW IMPORT
+import AdminOperatorPayments from "./pages/AdminOperatorPayments.jsx"; // ✅ force .jsx
 import AdminNotices from "./pages/AdminNotices"; // ✅ ADDED
 import AdminWhatsNew from "./pages/AdminWhatsNew"; // ✅ ADDED
 
