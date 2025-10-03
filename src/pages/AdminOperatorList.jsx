@@ -1,23 +1,52 @@
 // src/pages/AdminOperatorList.jsx
-import { useEffect, useState } from "react";
-import { toast } from "react-hot-toast";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-// ✅ use shared API client (same as AdminBusList)
+import { toast } from "react-hot-toast";
 import apiClient from "../api";
+
+const maskAccount = (n = "") => {
+  const s = String(n || "");
+  if (!s) return "—";
+  if (s.length <= 4) return "••••";
+  return `••••••••${s.slice(-4)}`;
+};
 
 export default function AdminOperatorList() {
   const [operators, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
-  /* ✅ fetch operators once using apiClient */
+  // modal state
+  const [editing, setEditing] = useState(null); // operator object or null
+  const [saving, setSaving] = useState(false);
+  const emptyForm = {
+    fullName: "",
+    email: "",
+    mobile: "",
+    nic: "",
+    operatorProfile: {
+      businessName: "",
+      address: "",
+      payoutMethod: {
+        bankName: "",
+        accountHolder: "",
+        accountNumber: "",
+        payoutFrequency: "monthly",
+      },
+    },
+    active: true,
+  };
+  const [form, setForm] = useState(emptyForm);
+
+  // ---------- load ----------
   useEffect(() => {
     (async () => {
       try {
+        setLoading(true);
         const res = await apiClient.get("/admin/operators", {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
-        setOperators(res.data);
+        setOperators(Array.isArray(res.data) ? res.data : []);
       } catch (err) {
         console.error("Failed to load operators", err);
         toast.error("Failed to load operators");
@@ -27,7 +56,7 @@ export default function AdminOperatorList() {
     })();
   }, []);
 
-  /* ✅ delete handler using apiClient */
+  // ---------- actions ----------
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this operator?")) return;
     try {
@@ -42,65 +71,224 @@ export default function AdminOperatorList() {
     }
   };
 
-  /* filtered list */
-  const filtered = operators.filter((op) =>
-    `${op.fullName} ${op.email}`.toLowerCase().includes(query.toLowerCase())
-  );
+  const sendResetLink = async (id) => {
+    try {
+      await apiClient.post(
+        `/admin/operators/${id}/send-reset-link`,
+        {},
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
+      toast.success("Password reset link sent");
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to send reset link");
+    }
+  };
 
+  const openEdit = (op) => {
+    setEditing(op);
+    setForm({
+      fullName: op.fullName || "",
+      email: op.email || "",
+      mobile: op.mobile || "",
+      nic: op.nic || "",
+      operatorProfile: {
+        businessName: op.operatorProfile?.businessName || "",
+        address: op.operatorProfile?.address || "",
+        payoutMethod: {
+          bankName: op.operatorProfile?.payoutMethod?.bankName || "",
+          accountHolder: op.operatorProfile?.payoutMethod?.accountHolder || "",
+          accountNumber: op.operatorProfile?.payoutMethod?.accountNumber || "",
+          payoutFrequency:
+            op.operatorProfile?.payoutMethod?.payoutFrequency || "monthly",
+        },
+      },
+      active: op.active ?? true,
+    });
+  };
+
+  const closeEdit = () => {
+    setEditing(null);
+    setForm(emptyForm);
+    setSaving(false);
+  };
+
+  const onChange = (e) => {
+    const { name, value, type, checked } = e.target;
+
+    // nested operatorProfile.*
+    if (name.startsWith("operatorProfile.")) {
+      const [, key] = name.split(".");
+      setForm((prev) => ({
+        ...prev,
+        operatorProfile: { ...prev.operatorProfile, [key]: value },
+      }));
+      return;
+    }
+
+    // nested payoutMethod.*
+    if (name.startsWith("payoutMethod.")) {
+      const [, key] = name.split(".");
+      setForm((prev) => ({
+        ...prev,
+        operatorProfile: {
+          ...prev.operatorProfile,
+          payoutMethod: { ...prev.operatorProfile.payoutMethod, [key]: value },
+        },
+      }));
+      return;
+    }
+
+    // booleans
+    if (type === "checkbox") {
+      setForm((prev) => ({ ...prev, [name]: checked }));
+      return;
+    }
+
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async (e) => {
+    e.preventDefault();
+    if (!editing?._id) return;
+    setSaving(true);
+    try {
+      const payload = { ...form };
+      await apiClient.put(`/admin/operators/${editing._id}`, payload, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
+
+      // update table without refetch
+      setOperators((prev) =>
+        prev.map((op) => (op._id === editing._id ? { ...op, ...payload } : op))
+      );
+      toast.success("Operator updated");
+      closeEdit();
+    } catch (err) {
+      console.error("Update failed", err);
+      toast.error(err.response?.data?.message || "Update failed");
+      setSaving(false);
+    }
+  };
+
+  // ---------- filter ----------
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return operators;
+    return operators.filter((op) => {
+      const hay = [
+        op.fullName,
+        op.email,
+        op.mobile,
+        op.nic,
+        op.operatorProfile?.businessName,
+        op.operatorProfile?.address,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [operators, query]);
+
+  // ---------- render ----------
   if (loading) return <p className="p-6">Loading operators…</p>;
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-4">All Operators</h1>
+    <div className="max-w-[1200px] mx-auto p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+        <h1 className="text-2xl font-bold">All Operators</h1>
+        <input
+          className="border px-3 py-2 rounded w-full sm:w-80"
+          placeholder="Search name, email, mobile, business, address…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
 
-      {/* Search */}
-      <input
-        className="border px-3 py-2 rounded mb-4 w-full sm:w-72"
-        placeholder="Search by name or email"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-      />
-
-      {/* Table */}
-      <div className="overflow-x-auto">
-        <table className="min-w-full border rounded shadow-sm">
+      <div className="overflow-auto border rounded shadow-sm">
+        <table className="min-w-[1100px] w-full text-sm">
           <thead className="bg-gray-100">
             <tr>
               <th className="px-4 py-2 text-left">Name</th>
               <th className="px-4 py-2 text-left">Email</th>
               <th className="px-4 py-2 text-left">Mobile</th>
+              <th className="px-4 py-2 text-left">NIC</th>
               <th className="px-4 py-2 text-left">Business</th>
+              <th className="px-4 py-2 text-left">Address</th>
+              <th className="px-4 py-2 text-left">Bank</th>
+              <th className="px-4 py-2 text-left">Holder</th>
+              <th className="px-4 py-2 text-left">Account</th>
+              <th className="px-4 py-2 text-left">Frequency</th>
+              <th className="px-4 py-2 text-left">Created</th>
+              <th className="px-4 py-2 text-center">Status</th>
               <th className="px-4 py-2 text-center">Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.map((op) => (
-              <tr key={op._id} className="border-t hover:bg-gray-50">
-                <td className="px-4 py-2">{op.fullName}</td>
-                <td className="px-4 py-2">{op.email}</td>
-                <td className="px-4 py-2">{op.mobile || "-"}</td>
-                <td className="px-4 py-2">
-                  {op.operatorProfile?.businessName || "-"}
-                </td>
-                <td className="px-4 py-2 text-center space-x-2">
-                  <Link
-                    to={`/operators/${op._id}`}
-                    className="text-blue-600 text-sm hover:underline"
-                  >
-                    View
-                  </Link>
-                  <button
-                    onClick={() => handleDelete(op._id)}
-                    className="text-red-600 text-sm hover:underline"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {filtered.map((op) => {
+              const prof = op.operatorProfile || {};
+              const pay = prof.payoutMethod || {};
+              return (
+                <tr key={op._id} className="border-t hover:bg-gray-50">
+                  <td className="px-4 py-2">{op.fullName || "—"}</td>
+                  <td className="px-4 py-2">{op.email || "—"}</td>
+                  <td className="px-4 py-2">{op.mobile || "—"}</td>
+                  <td className="px-4 py-2">{op.nic || "—"}</td>
+                  <td className="px-4 py-2">{prof.businessName || "—"}</td>
+                  <td className="px-4 py-2">{prof.address || "—"}</td>
+                  <td className="px-4 py-2">{pay.bankName || "—"}</td>
+                  <td className="px-4 py-2">{pay.accountHolder || "—"}</td>
+                  <td className="px-4 py-2">{maskAccount(pay.accountNumber)}</td>
+                  <td className="px-4 py-2">{pay.payoutFrequency || "—"}</td>
+                  <td className="px-4 py-2">
+                    {op.createdAt ? new Date(op.createdAt).toLocaleDateString() : "—"}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    {op.active ? (
+                      <span className="text-green-700 font-medium">Active</span>
+                    ) : (
+                      <span className="text-gray-500">Inactive</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2">
+                    <div className="flex items-center justify-center gap-3">
+                      <Link
+                        to={`/operators/${op._id}`}
+                        className="text-blue-600 hover:underline"
+                        title="View public profile"
+                      >
+                        View
+                      </Link>
+                      <button
+                        onClick={() => openEdit(op)}
+                        className="text-gray-800 hover:underline"
+                        title="Edit operator"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => sendResetLink(op._id)}
+                        className="text-indigo-600 hover:underline"
+                        title="Send password reset link"
+                      >
+                        Reset&nbsp;Password
+                      </button>
+                      <button
+                        onClick={() => handleDelete(op._id)}
+                        className="text-red-600 hover:underline"
+                        title="Delete operator"
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
             {filtered.length === 0 && (
               <tr>
-                <td colSpan="5" className="text-center py-6 text-gray-500">
+                <td colSpan={13} className="text-center py-6 text-gray-500">
                   No operators match your search.
                 </td>
               </tr>
@@ -108,6 +296,149 @@ export default function AdminOperatorList() {
           </tbody>
         </table>
       </div>
+
+      {/* ---------- Edit Modal ---------- */}
+      {editing && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div className="p-5 border-b flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Edit Operator</h2>
+              <button
+                onClick={closeEdit}
+                className="text-gray-500 hover:text-black"
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSave} className="p-5 space-y-5">
+              {/* Account */}
+              <div>
+                <div className="font-semibold mb-2">Account</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    name="fullName"
+                    value={form.fullName}
+                    onChange={onChange}
+                    placeholder="Full Name"
+                    className="border rounded px-3 py-2"
+                    required
+                  />
+                  <input
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    onChange={onChange}
+                    placeholder="Email"
+                    className="border rounded px-3 py-2"
+                    required
+                  />
+                  <input
+                    name="mobile"
+                    value={form.mobile}
+                    onChange={onChange}
+                    placeholder="Mobile"
+                    className="border rounded px-3 py-2"
+                  />
+                  <input
+                    name="nic"
+                    value={form.nic}
+                    onChange={onChange}
+                    placeholder="NIC"
+                    className="border rounded px-3 py-2"
+                  />
+                  <label className="flex items-center gap-2 text-sm mt-1">
+                    <input
+                      type="checkbox"
+                      name="active"
+                      checked={!!form.active}
+                      onChange={onChange}
+                    />
+                    Active
+                  </label>
+                </div>
+              </div>
+
+              {/* Business */}
+              <div>
+                <div className="font-semibold mb-2">Business</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    name="operatorProfile.businessName"
+                    value={form.operatorProfile.businessName}
+                    onChange={onChange}
+                    placeholder="Business Name"
+                    className="border rounded px-3 py-2"
+                  />
+                  <input
+                    name="operatorProfile.address"
+                    value={form.operatorProfile.address}
+                    onChange={onChange}
+                    placeholder="Address"
+                    className="border rounded px-3 py-2"
+                  />
+                </div>
+              </div>
+
+              {/* Payout / Bank */}
+              <div>
+                <div className="font-semibold mb-2">Payout / Bank</div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <input
+                    name="payoutMethod.bankName"
+                    value={form.operatorProfile.payoutMethod.bankName}
+                    onChange={onChange}
+                    placeholder="Bank Name"
+                    className="border rounded px-3 py-2"
+                  />
+                  <input
+                    name="payoutMethod.accountHolder"
+                    value={form.operatorProfile.payoutMethod.accountHolder}
+                    onChange={onChange}
+                    placeholder="Account Holder"
+                    className="border rounded px-3 py-2"
+                  />
+                  <input
+                    name="payoutMethod.accountNumber"
+                    value={form.operatorProfile.payoutMethod.accountNumber}
+                    onChange={onChange}
+                    placeholder="Account Number"
+                    className="border rounded px-3 py-2"
+                  />
+                  <select
+                    name="payoutMethod.payoutFrequency"
+                    value={form.operatorProfile.payoutMethod.payoutFrequency}
+                    onChange={onChange}
+                    className="border rounded px-3 py-2"
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={closeEdit}
+                  className="px-4 py-2 rounded border"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="px-4 py-2 rounded bg-blue-600 text-white disabled:opacity-60"
+                >
+                  {saving ? "Saving…" : "Save Changes"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
