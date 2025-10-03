@@ -1,21 +1,25 @@
-/* src/pages/AdminOperatorList.jsx */
+// src/pages/AdminOperatorList.jsx
 import { useEffect, useState } from "react";
-import axios from "../utils/axiosInstance";
 import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
+// ✅ use shared API client (same as AdminBusList)
+import apiClient from "../api";
 
 export default function AdminOperatorList() {
   const [operators, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
 
-  /* fetch operators once */
+  /* ✅ fetch operators once using apiClient */
   useEffect(() => {
     (async () => {
       try {
-        const res = await axios.get("/admin/operators");
+        const res = await apiClient.get("/admin/operators", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
         setOperators(res.data);
-      } catch {
+      } catch (err) {
+        console.error("Failed to load operators", err);
         toast.error("Failed to load operators");
       } finally {
         setLoading(false);
@@ -23,14 +27,17 @@ export default function AdminOperatorList() {
     })();
   }, []);
 
-  /* delete handler */
+  /* ✅ delete handler using apiClient */
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this operator?")) return;
     try {
-      await axios.delete(`/admin/operators/${id}`);
+      await apiClient.delete(`/admin/operators/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
       setOperators((prev) => prev.filter((op) => op._id !== id));
       toast.success("Operator deleted");
-    } catch {
+    } catch (err) {
+      console.error("Delete failed", err);
       toast.error("Delete failed");
     }
   };
