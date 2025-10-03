@@ -116,7 +116,6 @@ export default function AdminOperatorList() {
   const onChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    // nested operatorProfile.*
     if (name.startsWith("operatorProfile.")) {
       const [, key] = name.split(".");
       setForm((prev) => ({
@@ -126,7 +125,6 @@ export default function AdminOperatorList() {
       return;
     }
 
-    // nested payoutMethod.*
     if (name.startsWith("payoutMethod.")) {
       const [, key] = name.split(".");
       setForm((prev) => ({
@@ -139,7 +137,6 @@ export default function AdminOperatorList() {
       return;
     }
 
-    // booleans
     if (type === "checkbox") {
       setForm((prev) => ({ ...prev, [name]: checked }));
       return;
@@ -148,25 +145,80 @@ export default function AdminOperatorList() {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  // ---- helper: try multiple endpoints until one works
+  const tryUpdateEndpoints = async (id, payloads) => {
+    const headers = { Authorization: `Bearer ${localStorage.getItem("token")}` };
+
+    // Candidate endpoints & verbs (in order)
+    const routes = [
+      { method: "put", path: `/admin/operators/${id}` },
+      { method: "patch", path: `/admin/operators/${id}` },
+      { method: "put", path: `/admin/operators/update/${id}` },
+      { method: "patch", path: `/admin/operators/update/${id}` },
+      { method: "put", path: `/admin/operator/${id}` },
+      { method: "patch", path: `/admin/operator/${id}` },
+      { method: "put", path: `/operators/${id}` },
+      { method: "patch", path: `/operators/${id}` },
+    ];
+
+    let lastErr = null;
+
+    for (const route of routes) {
+      for (const body of payloads) {
+        try {
+          const res = await apiClient[route.method](route.path, body, { headers });
+          return res;
+        } catch (e) {
+          // 404 / 405 / 400 => try next combo
+          lastErr = e;
+          continue;
+        }
+      }
+    }
+    throw lastErr || new Error("No matching update endpoint");
+  };
+
   const handleSave = async (e) => {
     e.preventDefault();
     if (!editing?._id) return;
     setSaving(true);
     try {
-      const payload = { ...form };
-      await apiClient.put(`/admin/operators/${editing._id}`, payload, {
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
+      // Preferred nested payload
+      const nestedPayload = { ...form };
+
+      // Fallback flat payload (for older servers)
+      const flatPayload = {
+        fullName: form.fullName,
+        email: form.email,
+        mobile: form.mobile,
+        nic: form.nic,
+        active: form.active,
+        businessName: form.operatorProfile?.businessName,
+        address: form.operatorProfile?.address,
+        bankName: form.operatorProfile?.payoutMethod?.bankName,
+        accountHolder: form.operatorProfile?.payoutMethod?.accountHolder,
+        accountNumber: form.operatorProfile?.payoutMethod?.accountNumber,
+        payoutFrequency: form.operatorProfile?.payoutMethod?.payoutFrequency,
+        operatorProfile: { ...form.operatorProfile }, // include both just in case
+      };
+
+      // Try nested first, then flat
+      await tryUpdateEndpoints(editing._id, [nestedPayload, flatPayload]);
 
       // update table without refetch
       setOperators((prev) =>
-        prev.map((op) => (op._id === editing._id ? { ...op, ...payload } : op))
+        prev.map((op) => (op._id === editing._id ? { ...op, ...nestedPayload } : op))
       );
+
       toast.success("Operator updated");
       closeEdit();
     } catch (err) {
       console.error("Update failed", err);
-      toast.error(err.response?.data?.message || "Update failed");
+      const msg =
+        err?.response?.data?.message ||
+        err?.message ||
+        "Update failed (no compatible endpoint)";
+      toast.error(msg);
       setSaving(false);
     }
   };
