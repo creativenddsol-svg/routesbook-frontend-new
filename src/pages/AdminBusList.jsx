@@ -6,14 +6,33 @@ import apiClient from "../api";
 
 // --- Helper & Icon Components ---
 const Icon = ({ path, className = "w-5 h-5" }) => (
-  <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d={path} />
+  <svg
+    className={className}
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth="2"
+      d={path}
+    />
   </svg>
 );
 
 const Badge = ({ children, color = "gray" }) => {
-  const colors = { gray: "bg-gray-100 text-gray-700", red: "bg-red-100 text-red-700" };
-  return <span className={`px-2 py-1 text-xs font-medium rounded-full ${colors[color]}`}>{children}</span>;
+  const colors = {
+    gray: "bg-gray-100 text-gray-700",
+    red: "bg-red-100 text-red-700",
+  };
+  return (
+    <span
+      className={`px-2 py-1 text-xs font-medium rounded-full ${colors[color]}`}
+    >
+      {children}
+    </span>
+  );
 };
 
 // --- UI Components ---
@@ -26,8 +45,12 @@ const LoadingSpinner = () => (
 const EmptyState = ({ onClearFilters }) => (
   <div className="text-center py-20 bg-white rounded-lg shadow-sm">
     <div className="text-6xl mb-4">🔍</div>
-    <h3 className="text-xl font-semibold text-gray-800">No Buses Match Your Filters</h3>
-    <p className="text-gray-500 mt-2 mb-6">Try adjusting your search or clearing the filters.</p>
+    <h3 className="text-xl font-semibold text-gray-800">
+      No Buses Match Your Filters
+    </h3>
+    <p className="text-gray-500 mt-2 mb-6">
+      Try adjusting your search or clearing the filters.
+    </p>
     <button
       onClick={onClearFilters}
       className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg transition-colors"
@@ -37,7 +60,7 @@ const EmptyState = ({ onClearFilters }) => (
   </div>
 );
 
-// ✅ helper now accepts operatorMap for graceful fallback
+// ✅ helpers for operator display/ids
 const getOperatorText = (bus, operatorMap) =>
   bus?.operator?.fullName ||
   bus?.operatorName ||
@@ -45,8 +68,11 @@ const getOperatorText = (bus, operatorMap) =>
   bus?.operator?.email ||
   operatorMap[bus?.operator?._id] ||
   operatorMap[bus?.operatorId] ||
-  operatorMap[bus?.operator] || // in case the field is a plain id
+  operatorMap[bus?.operator] ||
   "—";
+
+const getOperatorId = (bus) =>
+  bus?.operator?._id || bus?.operatorId || (typeof bus?.operator === "string" ? bus.operator : "");
 
 // --- Bus List Components (Card and Table Row) ---
 const BusCard = ({ bus, onDelete, operatorMap }) => (
@@ -100,7 +126,9 @@ const BusCard = ({ bus, onDelete, operatorMap }) => (
       </div>
       {bus.unavailableDates?.length > 0 && (
         <div className="pt-2">
-          <h4 className="text-xs font-semibold text-red-800 mb-1">Unavailable Dates</h4>
+          <h4 className="text-xs font-semibold text-red-800 mb-1">
+            Unavailable Dates
+          </h4>
           <div className="flex flex-wrap gap-1">
             {bus.unavailableDates.map((date) => (
               <Badge key={date} color="red">
@@ -129,8 +157,12 @@ const BusTableRow = ({ bus, onDelete, operatorMap }) => (
     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
       {bus.from} → {bus.to}
     </td>
-    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{bus.departureTime}</td>
-    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">{bus.arrivalTime}</td>
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+      {bus.departureTime}
+    </td>
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+      {bus.arrivalTime}
+    </td>
     <td className="px-6 py-4">
       {bus.unavailableDates?.length > 0 ? (
         <div className="flex flex-wrap gap-1 max-w-xs">
@@ -169,7 +201,8 @@ const BusTableRow = ({ bus, onDelete, operatorMap }) => (
 const AdminBusList = () => {
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
-  // ✅ new: hold operators and create a fast lookup map
+
+  // ✅ new: operators and map for display/search/filter
   const [operators, setOperators] = useState([]);
   const operatorMap = useMemo(() => {
     const o = {};
@@ -184,7 +217,8 @@ const AdminBusList = () => {
     route: "",
     date: "",
     sortBy: "name",
-    operatorSearch: "", // ✅ new filter for operator search
+    operatorSearch: "", // free-text operator search
+    operatorId: "",     // ✅ dropdown exact-match operator filter
   });
 
   useEffect(() => {
@@ -199,7 +233,8 @@ const AdminBusList = () => {
         setLoading(false);
       }
     };
-    // ✅ also fetch operators for display/search
+
+    // ✅ fetch operators to build dropdown + map
     const fetchOperators = async () => {
       try {
         const res = await apiClient.get("/admin/operators", {
@@ -207,7 +242,6 @@ const AdminBusList = () => {
         });
         setOperators(Array.isArray(res.data) ? res.data : []);
       } catch (e) {
-        // non-fatal; names will show as —
         console.warn("Could not fetch operators", e);
       }
     };
@@ -222,12 +256,19 @@ const AdminBusList = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ searchTerm: "", route: "", date: "", sortBy: "name", operatorSearch: "" });
+    setFilters({
+      searchTerm: "",
+      route: "",
+      date: "",
+      sortBy: "name",
+      operatorSearch: "",
+      operatorId: "", // ✅ reset dropdown too
+    });
   };
 
   const filteredBuses = useMemo(() => {
     let filtered = [...buses];
-    const { searchTerm, route, date, sortBy, operatorSearch } = filters;
+    const { searchTerm, route, date, sortBy, operatorSearch, operatorId } = filters;
 
     if (searchTerm) {
       const lowerCaseSearch = searchTerm.toLowerCase();
@@ -240,14 +281,19 @@ const AdminBusList = () => {
       );
     }
 
-    // ✅ filter by operator text (name/email/id) using map fallback
+    // ✅ dropdown exact-match by operatorId
+    if (operatorId) {
+      filtered = filtered.filter((bus) => getOperatorId(bus) === operatorId);
+    }
+
+    // free-text operator search
     if (operatorSearch) {
       const q = operatorSearch.toLowerCase();
       filtered = filtered.filter((bus) => {
         const opText = (
           getOperatorText(bus, operatorMap) +
           " " +
-          (bus?.operator?._id || bus?.operatorId || bus?.operator || "")
+          (getOperatorId(bus) || "")
         )
           .toString()
           .toLowerCase();
@@ -260,12 +306,15 @@ const AdminBusList = () => {
     }
 
     if (date) {
-      filtered = filtered.filter((bus) => bus.date === date || bus.unavailableDates?.includes(date));
+      filtered = filtered.filter(
+        (bus) => bus.date === date || bus.unavailableDates?.includes(date)
+      );
     }
 
     filtered.sort((a, b) => {
       if (sortBy === "name") return a.name.localeCompare(b.name);
-      if (sortBy === "route") return `${a.from} → ${a.to}`.localeCompare(`${b.from} → ${b.to}`);
+      if (sortBy === "route")
+        return `${a.from} → ${a.to}`.localeCompare(`${b.from} → ${b.to}`);
       if (sortBy === "date") return new Date(a.date) - new Date(b.date);
       return 0;
     });
@@ -279,7 +328,11 @@ const AdminBusList = () => {
   );
 
   const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to permanently delete this bus?")) return;
+    if (
+      !window.confirm("Are you sure you want to permanently delete this bus?")
+    )
+      return;
+
     try {
       await apiClient.delete(`/admin/buses/${id}`, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -298,7 +351,9 @@ const AdminBusList = () => {
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Bus Management</h1>
-            <p className="mt-1 text-gray-600">A complete overview of your bus fleet.</p>
+            <p className="mt-1 text-gray-600">
+              A complete overview of your bus fleet.
+            </p>
           </div>
           <Link to="/admin/add-bus">
             <button className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-5 py-2.5 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 inline-flex items-center gap-2 w-full sm:w-auto">
@@ -309,8 +364,8 @@ const AdminBusList = () => {
         </header>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-          {/* ⬇️ expanded to 6 cols to fit operator search */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
+          {/* ✅ expanded grid to fit the new Operator dropdown */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
             <div className="lg:col-span-2">
               <input
                 type="text"
@@ -322,7 +377,23 @@ const AdminBusList = () => {
               />
             </div>
 
-            {/* ✅ operator search */}
+            {/* ✅ operator dropdown (exact match) */}
+            <select
+              name="operatorId"
+              value={filters.operatorId}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+              title="Filter by operator"
+            >
+              <option value="">All Operators</option>
+              {operators.map((op) => (
+                <option key={op._id} value={op._id}>
+                  {op.fullName || op.name || op.email} ({op._id.slice(-6)})
+                </option>
+              ))}
+            </select>
+
+            {/* Optional: keep free-text operator search */}
             <input
               type="text"
               name="operatorSearch"
@@ -365,10 +436,21 @@ const AdminBusList = () => {
           </div>
           <div className="flex justify-between items-center mt-4 pt-4 border-t border-gray-200">
             <div className="text-sm text-gray-600">
-              Showing <span className="font-semibold text-gray-800">{filteredBuses.length}</span> of {buses.length} buses.
+              Showing{" "}
+              <span className="font-semibold text-gray-800">
+                {filteredBuses.length}
+              </span>{" "}
+              of {buses.length} buses.
             </div>
-            {(filters.searchTerm || filters.route || filters.date || filters.operatorSearch) && (
-              <button onClick={clearFilters} className="text-sm font-medium text-blue-600 hover:text-blue-800">
+            {(filters.searchTerm ||
+              filters.route ||
+              filters.date ||
+              filters.operatorSearch ||
+              filters.operatorId) && (
+              <button
+                onClick={clearFilters}
+                className="text-sm font-medium text-blue-600 hover:text-blue-800"
+              >
                 Clear Filters
               </button>
             )}
@@ -386,7 +468,12 @@ const AdminBusList = () => {
                 {/* Mobile/Tablet Card View */}
                 <div className="block lg:hidden space-y-4">
                   {filteredBuses.map((bus) => (
-                    <BusCard key={bus._id} bus={bus} onDelete={handleDelete} operatorMap={operatorMap} />
+                    <BusCard
+                      key={bus._id}
+                      bus={bus}
+                      onDelete={handleDelete}
+                      operatorMap={operatorMap}
+                    />
                   ))}
                 </div>
 
@@ -421,7 +508,12 @@ const AdminBusList = () => {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {filteredBuses.map((bus) => (
-                        <BusTableRow key={bus._id} bus={bus} onDelete={handleDelete} operatorMap={operatorMap} />
+                        <BusTableRow
+                          key={bus._id}
+                          bus={bus}
+                          onDelete={handleDelete}
+                          operatorMap={operatorMap}
+                        />
                       ))}
                     </tbody>
                   </table>
