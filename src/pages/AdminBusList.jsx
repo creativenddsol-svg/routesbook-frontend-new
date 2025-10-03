@@ -35,6 +35,14 @@ const Badge = ({ children, color = "gray" }) => {
   );
 };
 
+// Helper to extract operator display text safely
+const getOperatorText = (bus) =>
+  bus?.operator?.fullName ||
+  bus?.operatorName ||
+  bus?.operator?.name ||
+  bus?.operator?.email ||
+  "—";
+
 // --- UI Components ---
 const LoadingSpinner = () => (
   <div className="flex justify-center items-center py-20">
@@ -93,6 +101,16 @@ const BusCard = ({ bus, onDelete }) => (
         <span className="mx-2">→</span>
         <span className="font-medium">{bus.to}</span>
       </div>
+
+      {/* ✅ Operator line (new) */}
+      <div className="flex items-center text-gray-700">
+        <Icon
+          path="M5.121 17.804A7 7 0 0112 15a7 7 0 016.879 2.804M15 10a3 3 0 11-6 0 3 3 0 016 0z"
+          className="w-5 h-5 mr-3 text-gray-400"
+        />
+        <span>Operator: {getOperatorText(bus)}</span>
+      </div>
+
       <div className="flex items-center text-gray-700">
         <Icon
           path="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4m-4 5h4m-4 4h4m-4-8h4m-8 4h.01M4 21h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v12a2 2 0 002 2z"
@@ -124,6 +142,12 @@ const BusTableRow = ({ bus, onDelete }) => (
       <div className="text-sm font-semibold text-gray-900">{bus.name}</div>
       <div className="text-xs text-gray-500">{bus.busNumber}</div>
     </td>
+
+    {/* ✅ Operator column (new) */}
+    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
+      {getOperatorText(bus)}
+    </td>
+
     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-800">
       {bus.from} → {bus.to}
     </td>
@@ -176,6 +200,7 @@ const AdminBusList = () => {
     route: "",
     date: "",
     sortBy: "name",
+    operatorSearch: "", // ✅ new filter for operator search
   });
 
   useEffect(() => {
@@ -201,12 +226,12 @@ const AdminBusList = () => {
   };
 
   const clearFilters = () => {
-    setFilters({ searchTerm: "", route: "", date: "", sortBy: "name" });
+    setFilters({ searchTerm: "", route: "", date: "", sortBy: "name", operatorSearch: "" });
   };
 
   const filteredBuses = useMemo(() => {
     let filtered = [...buses];
-    const { searchTerm, route, date, sortBy } = filters;
+    const { searchTerm, route, date, sortBy, operatorSearch } = filters;
 
     if (searchTerm) {
       const lowerCaseSearch = searchTerm.toLowerCase();
@@ -217,6 +242,21 @@ const AdminBusList = () => {
           bus.to.toLowerCase().includes(lowerCaseSearch) ||
           bus.busNumber?.toLowerCase().includes(lowerCaseSearch)
       );
+    }
+
+    // ✅ filter by operator text (name/email/id)
+    if (operatorSearch) {
+      const q = operatorSearch.toLowerCase();
+      filtered = filtered.filter((bus) => {
+        const opText =
+          (bus?.operator?.fullName ||
+            bus?.operatorName ||
+            bus?.operator?.name ||
+            bus?.operator?.email ||
+            bus?.operator?._id ||
+            "").toString().toLowerCase();
+        return opText.includes(q);
+      });
     }
 
     if (route) {
@@ -283,7 +323,8 @@ const AdminBusList = () => {
         </header>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          {/* ⬇️ changed lg:grid-cols-5 -> lg:grid-cols-6 to fit operator search */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4">
             <div className="lg:col-span-2">
               <input
                 type="text"
@@ -294,6 +335,17 @@ const AdminBusList = () => {
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
               />
             </div>
+
+            {/* ✅ operator search input (new) */}
+            <input
+              type="text"
+              name="operatorSearch"
+              placeholder="Search by operator…"
+              value={filters.operatorSearch}
+              onChange={handleFilterChange}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+            />
+
             <select
               name="route"
               value={filters.route}
@@ -333,7 +385,7 @@ const AdminBusList = () => {
               </span>{" "}
               of {buses.length} buses.
             </div>
-            {(filters.searchTerm || filters.route || filters.date) && (
+            {(filters.searchTerm || filters.route || filters.date || filters.operatorSearch) && (
               <button
                 onClick={clearFilters}
                 className="text-sm font-medium text-blue-600 hover:text-blue-800"
@@ -367,6 +419,12 @@ const AdminBusList = () => {
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Bus Details
                         </th>
+
+                        {/* ✅ header for operator column (new) */}
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Operator
+                        </th>
+
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Route
                         </th>
