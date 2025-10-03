@@ -1,7 +1,9 @@
+// src/pages/AdminRegisterOperator.jsx
 import { useState } from "react";
-import axios from "../utils/axiosInstance";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
+// ✅ use shared API client (same as AdminBusList)
+import apiClient from "../api";
 
 const initialState = {
   fullName: "",
@@ -25,14 +27,22 @@ export default function AdminRegisterOperator() {
     e.preventDefault();
     setSaving(true);
     try {
-      await axios.post("/admin/operators/register", {
-        ...form,
-        operatorProfile: { businessName: form.businessName },
-      });
+      await apiClient.post(
+        "/admin/operators/register",
+        {
+          ...form,
+          operatorProfile: { businessName: form.businessName },
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        }
+      );
+
       toast.success("Operator registered successfully");
       setForm(initialState);
       navigate("/admin/operators"); // optional redirect to operators list
     } catch (err) {
+      console.error("Registration failed", err);
       toast.error(err.response?.data?.message || "Registration failed");
     } finally {
       setSaving(false);
