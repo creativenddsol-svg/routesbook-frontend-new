@@ -1,6 +1,6 @@
+// src/pages/AdminBusOperators.jsx
 import { useState, useEffect } from "react";
 import { toast } from "react-hot-toast";
-import axios from "axios";
 import {
   FaPlus,
   FaEdit,
@@ -10,8 +10,8 @@ import {
   FaToggleOff,
 } from "react-icons/fa";
 import { AnimatePresence, motion } from "framer-motion";
-
-const API_URL = "http://localhost:5000/api/operators"; // Update if needed
+// ✅ use shared API client (same as AdminBusList)
+import apiClient from "../api";
 
 const AdminBusOperators = () => {
   const [operators, setOperators] = useState([]);
@@ -38,9 +38,12 @@ const AdminBusOperators = () => {
   const fetchOperators = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(API_URL);
+      const res = await apiClient.get("/operators", {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+      });
       setOperators(res.data);
-    } catch {
+    } catch (err) {
+      console.error("Failed to load operators", err);
       toast.error("Failed to load operators");
     } finally {
       setLoading(false);
@@ -110,21 +113,21 @@ const AdminBusOperators = () => {
     }
     setSaving(true);
     try {
-      const token = localStorage.getItem("token");
       if (currentOperator) {
-        await axios.put(`${API_URL}/${currentOperator._id}`, formData, {
-          headers: { Authorization: `Bearer ${token}` },
+        await apiClient.put(`/operators/${currentOperator._id}`, formData, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         toast.success("Operator updated");
       } else {
-        await axios.post(API_URL, formData, {
-          headers: { Authorization: `Bearer ${token}` },
+        await apiClient.post("/operators", formData, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
         toast.success("Operator created");
       }
       fetchOperators();
       closeModal();
     } catch (err) {
+      console.error("Save failed", err);
       toast.error(err.response?.data?.message || "Failed to save");
     } finally {
       setSaving(false);
@@ -135,13 +138,13 @@ const AdminBusOperators = () => {
   const handleDelete = async (id) => {
     if (!window.confirm("Are you sure?")) return;
     try {
-      const token = localStorage.getItem("token");
-      await axios.delete(`${API_URL}/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      await apiClient.delete(`/operators/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       toast.success("Operator deleted");
       fetchOperators();
-    } catch {
+    } catch (err) {
+      console.error("Delete failed", err);
       toast.error("Failed to delete");
     }
   };
