@@ -9,16 +9,22 @@ const FREQS = ["Daily", "Weekly", "Monthly", "On Demand"];
 /* --------- helpers to read fields from multiple shapes safely --------- */
 const r = (x, d = "—") => (x === 0 ? "0" : x ? x : d);
 const getProfile = (op) =>
-  op?.operatorProfile || op?.profile || (op?.data && (op.data.operatorProfile || op.data.profile)) || {};
+  op?.operatorProfile ||
+  op?.profile ||
+  (op?.data && (op.data.operatorProfile || op.data.profile)) ||
+  {};
 const getPayout = (op) => getProfile(op)?.payoutMethod || {};
 
 const readMobile = (op) => r(op?.mobile || getProfile(op)?.contactNumber);
 const readBusiness = (op) => r(getProfile(op)?.businessName);
 const readAddress = (op) => r(getProfile(op)?.address);
 const readBank = (op) => r(getProfile(op)?.bankName || getPayout(op)?.bankName);
-const readBranch = (op) => r(getProfile(op)?.bankBranch || getPayout(op)?.bankBranch);
-const readAccount = (op) => r(getProfile(op)?.bankAccountNumber || getPayout(op)?.accountNumber);
-const readFreq = (op) => r(getProfile(op)?.payoutFrequency || getPayout(op)?.payoutFrequency);
+const readBranch = (op) =>
+  r(getProfile(op)?.bankBranch || getPayout(op)?.bankBranch);
+const readAccount = (op) =>
+  r(getProfile(op)?.bankAccountNumber || getPayout(op)?.accountNumber);
+const readFreq = (op) =>
+  r(getProfile(op)?.payoutFrequency || getPayout(op)?.payoutFrequency);
 
 /* --------- component --------- */
 export default function AdminOperatorList() {
@@ -63,7 +69,10 @@ export default function AdminOperatorList() {
         let list = [];
         // 1) preferred: backend returns operator + profile inline
         try {
-          const res = await apiClient.get("/admin/operators?include=profile", authHeader());
+          const res = await apiClient.get(
+            "/admin/operators?include=profile",
+            authHeader()
+          );
           list = Array.isArray(res.data) ? res.data : [];
         } catch {
           // 2) fallback: plain list
@@ -84,21 +93,23 @@ export default function AdminOperatorList() {
   /* --- search across wide details --- */
   const filtered = operators.filter((op) => {
     const hay =
-      [
-        op?.fullName,
-        op?.email,
-        readMobile(op),
-        readBusiness(op),
-        readAddress(op),
-        readBank(op),
-        readBranch(op),
-        readAccount(op),
-        readFreq(op),
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase() || "";
-    return hay.includes(query.toLowerCase());
+      (
+        [
+          op?.fullName,
+          op?.email,
+          readMobile(op),
+          readBusiness(op),
+          readAddress(op),
+          readBank(op),
+          readBranch(op),
+          readAccount(op),
+          readFreq(op),
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase() || ""
+      ).includes(query.toLowerCase());
+    return hay;
   });
 
   /* --- edit modal handlers --- */
@@ -163,12 +174,12 @@ export default function AdminOperatorList() {
   const tryUpdate = async (id, payload) => {
     const attempts = [
       { method: "patch", url: `/admin/operators/${id}` },
-      { method: "put",   url: `/admin/operators/${id}` },
+      { method: "put", url: `/admin/operators/${id}` },
       { method: "patch", url: `/admin/operators/update/${id}` },
       { method: "patch", url: `/admin/users/${id}` },
-      { method: "put",   url: `/admin/users/${id}` },
+      { method: "put", url: `/admin/users/${id}` },
       { method: "patch", url: `/admin/operators/${id}/profile` },
-      { method: "put",   url: `/admin/operators/${id}/profile` },
+      { method: "put", url: `/admin/operators/${id}/profile` },
     ];
     for (const a of attempts) {
       try {
@@ -197,20 +208,26 @@ export default function AdminOperatorList() {
           contactNumber: p.contactNumber || form.mobile,
           bankName: p.bankName || p.payoutMethod?.bankName || "",
           bankBranch: p.bankBranch || p.payoutMethod?.bankBranch || "",
-          bankAccountNumber: p.bankAccountNumber || p.payoutMethod?.accountNumber || "",
-          payoutFrequency: p.payoutFrequency || p.payoutMethod?.payoutFrequency || "Monthly",
+          bankAccountNumber:
+            p.bankAccountNumber || p.payoutMethod?.accountNumber || "",
+          payoutFrequency:
+            p.payoutFrequency || p.payoutMethod?.payoutFrequency || "Monthly",
           payoutMethod: {
             bankName: p.payoutMethod?.bankName || p.bankName || "",
             bankBranch: p.payoutMethod?.bankBranch || p.bankBranch || "",
-            accountNumber: p.payoutMethod?.accountNumber || p.bankAccountNumber || "",
-            payoutFrequency: p.payoutMethod?.payoutFrequency || p.payoutFrequency || "Monthly",
+            accountNumber:
+              p.payoutMethod?.accountNumber || p.bankAccountNumber || "",
+            payoutFrequency:
+              p.payoutMethod?.payoutFrequency || p.payoutFrequency || "Monthly",
           },
         },
       };
 
       await tryUpdate(selected._id, payload);
 
-      setOperators((prev) => prev.map((op) => (op._id === selected._id ? { ...op, ...payload } : op)));
+      setOperators((prev) =>
+        prev.map((op) => (op._id === selected._id ? { ...op, ...payload } : op))
+      );
       toast.success("Operator updated");
       closeEdit();
     } catch (err) {
@@ -241,12 +258,20 @@ export default function AdminOperatorList() {
     if (!newPass) return;
 
     const attempts = [
-      { method: "post", url: `/admin/operators/${op._id}/reset-password`, body: { password: newPass } },
-      { method: "post", url: `/admin/users/${op._id}/reset-password`,     body: { password: newPass } },
+      {
+        method: "post",
+        url: `/admin/operators/${op._id}/reset-password`,
+        body: { password: newPass },
+      },
+      {
+        method: "post",
+        url: `/admin/users/${op._id}/reset-password`,
+        body: { password: newPass },
+      },
       { method: "patch", url: `/admin/operators/${op._id}`, body: { password: newPass } },
-      { method: "put",   url: `/admin/operators/${op._id}`, body: { password: newPass } },
-      { method: "patch", url: `/admin/users/${op._id}`,     body: { password: newPass } },
-      { method: "put",   url: `/admin/users/${op._id}`,     body: { password: newPass } },
+      { method: "put", url: `/admin/operators/${op._id}`, body: { password: newPass } },
+      { method: "patch", url: `/admin/users/${op._id}`, body: { password: newPass } },
+      { method: "put", url: `/admin/users/${op._id}`, body: { password: newPass } },
     ];
     for (const a of attempts) {
       try {
@@ -324,19 +349,35 @@ export default function AdminOperatorList() {
                 <td>{readBranch(op)}</td>
                 <td className="font-medium">{readAccount(op)}</td>
                 <td>{readFreq(op)}</td>
-                <td>{op.createdAt ? new Date(op.createdAt).toLocaleDateString() : "—"}</td>
+                <td>
+                  {op.createdAt
+                    ? new Date(op.createdAt).toLocaleDateString()
+                    : "—"}
+                </td>
                 <td className="text-center">
                   <div className="flex items-center justify-center gap-4">
-                    <button className="text-blue-600 hover:underline" onClick={() => openEdit(op)}>
+                    <button
+                      className="text-blue-600 hover:underline"
+                      onClick={() => openEdit(op)}
+                    >
                       Edit
                     </button>
-                    <button className="text-amber-600 hover:underline" onClick={() => onResetPassword(op)}>
+                    <button
+                      className="text-amber-600 hover:underline"
+                      onClick={() => onResetPassword(op)}
+                    >
                       Reset Password
                     </button>
-                    <Link to={`/operators/${op._id}`} className="text-slate-600 hover:underline">
+                    <Link
+                      to={`/operators/${op._id}`}
+                      className="text-slate-600 hover:underline"
+                    >
                       View
                     </Link>
-                    <button className="text-red-600 hover:underline" onClick={() => onDelete(op._id)}>
+                    <button
+                      className="text-red-600 hover:underline"
+                      onClick={() => onDelete(op._id)}
+                    >
                       Delete
                     </button>
                   </div>
@@ -452,7 +493,9 @@ export default function AdminOperatorList() {
                   />
                 </div>
                 <div>
-                  <label className="text-sm text-gray-600">Payout Frequency</label>
+                  <label className="text-sm text-gray-600">
+                    Payout Frequency
+                  </label>
                   <select
                     name="operatorProfile.payoutFrequency"
                     value={form.operatorProfile.payoutFrequency}
@@ -469,7 +512,11 @@ export default function AdminOperatorList() {
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={closeEdit} className="px-4 py-2 rounded border">
+                <button
+                  type="button"
+                  onClick={closeEdit}
+                  className="px-4 py-2 rounded border"
+                >
                   Cancel
                 </button>
                 <button
