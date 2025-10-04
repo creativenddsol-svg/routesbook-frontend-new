@@ -1,15 +1,36 @@
 // src/components/NoticesSection.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import apiClient from "../api";
 import NoticeCard from "./NoticeCard";
 import { Link } from "react-router-dom";
+
+// Helper component for the navigation dots
+const Dots = ({ count, activeIndex, goToIndex }) => {
+  return (
+    <div className="flex justify-center mt-4 space-x-2">
+      {[...Array(count)].map((_, index) => (
+        <button
+          key={index}
+          onClick={() => goToIndex(index)}
+          className={`h-2 w-2 rounded-full transition-all ${
+            index === activeIndex
+              ? "bg-red-600 w-4" // Active dot is slightly wider
+              : "bg-gray-300 hover:bg-gray-400"
+          }`}
+          aria-label={`Go to slide ${index + 1}`}
+        />
+      ))}
+    </div>
+  );
+};
 
 const NoticesSection = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [atStart, setAtStart] = useState(true);
-  const [atEnd, setAtEnd] = useState(false);
+  // Removed atStart and atEnd
+
+  const [activeIndex, setActiveIndex] = useState(0); // New state for active dot
 
   const railRef = useRef(null);
 
@@ -29,29 +50,54 @@ const NoticesSection = () => {
     return () => (live = false);
   }, []);
 
-  const updateArrowVisibility = () => {
+  // Recalculate the active dot index on scroll
+  const updateActiveIndex = useCallback(() => {
     const el = railRef.current;
-    if (!el) return;
-    const { scrollLeft, scrollWidth, clientWidth } = el;
-    setAtStart(scrollLeft <= 0);
-    setAtEnd(scrollLeft + clientWidth >= scrollWidth - 5);
-  };
+    if (!el || items.length === 0) return;
 
-  const scrollBy = (dir) => {
-    if (!railRef.current) return;
-    const cardWidth = railRef.current.firstChild?.offsetWidth || 320;
-    railRef.current.scrollBy({
-      left: dir * (cardWidth + 16),
+    // Get the width of one card (assuming they are uniform)
+    // Fallback to 300px + 16px gap = 316px
+    const cardScrollWidth = el.firstChild?.offsetWidth ? el.firstChild.offsetWidth + 16 : 316;
+
+    // Calculate the index of the item that is currently most visible on the left
+    // Math.round() ensures it snaps to the closest card index
+    const newIndex = Math.round(el.scrollLeft / cardScrollWidth);
+    
+    // Ensure the index is within bounds
+    setActiveIndex(Math.max(0, Math.min(newIndex, items.length - 1)));
+  }, [items.length]);
+
+  // Scroll to a specific index
+  const scrollToCard = useCallback((index) => {
+    const el = railRef.current;
+    if (!el || items.length === 0 || index < 0 || index >= items.length) return;
+
+    // Get the width of one card (assuming they are uniform)
+    const cardWidth = el.firstChild?.offsetWidth || 300;
+    const gap = 16;
+    
+    el.scrollTo({
+      left: index * (cardWidth + gap),
       behavior: "smooth",
     });
-    // allow smooth scroll to settle then recompute
-    setTimeout(updateArrowVisibility, 350);
-  };
 
-  // Ensure arrows are correct after items mount
+    // Update the active index right away for responsiveness
+    setActiveIndex(index); 
+    
+    // Although the index is set above, we keep the timeout for safety on smooth scroll end
+    setTimeout(updateActiveIndex, 350); 
+  }, [items.length, updateActiveIndex]);
+
+  // Ensure initial active index is correct and set up scroll listener on mount
   useEffect(() => {
-    updateArrowVisibility();
-  }, [items]);
+    updateActiveIndex(); // Set initial active index
+    const el = railRef.current;
+    if (el) {
+      el.addEventListener('scroll', updateActiveIndex);
+      return () => el.removeEventListener('scroll', updateActiveIndex);
+    }
+  }, [items, updateActiveIndex]);
+
 
   if (loading) {
     return (
@@ -89,40 +135,12 @@ const NoticesSection = () => {
         </Link>
       </div>
 
-      {/* Rail wrapper is relative so mist + arrows sit INSIDE the row only */}
-      <div className="relative">
-        {/* Left mist + arrow (only when not at start) */}
-        {!atStart && (
-          <>
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white via-white/70 to-transparent z-10" />
-            <button
-              onClick={() => scrollBy(-1)}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 flex items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 hover:bg-white transition"
-              aria-label="Scroll left"
-            >
-              ‹
-            </button>
-          </>
-        )}
-
-        {/* Right mist + arrow (only when not at end) */}
-        {!atEnd && (
-          <>
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white via-white/70 to-transparent z-10" />
-            <button
-              onClick={() => scrollBy(1)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 flex items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 hover:bg-white transition"
-              aria-label="Scroll right"
-            >
-              ›
-            </button>
-          </>
-        )}
-
+      {/* Rail wrapper (no longer relative as arrows are removed) */}
+      <div>
         {/* Horizontal scroll rail */}
         <div
           ref={railRef}
-          onScroll={updateArrowVisibility}
+          onScroll={updateActiveIndex} // Updated to call updateActiveIndex
           className="flex gap-4 overflow-x-auto scroll-smooth pb-2 hide-scrollbar"
         >
           {items.map((n) => (
@@ -132,6 +150,15 @@ const NoticesSection = () => {
           ))}
         </div>
       </div>
+      
+      {/* Tiny Navigation Dots */}
+      {items.length > 1 && (
+        <Dots 
+          count={items.length} 
+          activeIndex={activeIndex} 
+          goToIndex={scrollToCard} 
+        />
+      )}
 
       {/* Hide scrollbar */}
       <style>{`
