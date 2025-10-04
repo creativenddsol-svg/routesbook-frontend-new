@@ -4,65 +4,44 @@ import { Link } from "react-router-dom";
 import { toImgURL } from "../api";
 
 /**
- * Minimal, image-first banner card:
- * - No padding/shadow/background color
+ * Image-only banner card, identical in structure to NoticeCard:
+ * - Fixed height of h-40
  * - Rounded corners + overflow hidden
- * - Consistent 16:9 banner aspect (like Abhibus)
- * - Image shown as-is (no tint), with subtle hover zoom
  */
 const WhatsNewCard = ({ item, linkTo }) => {
-  const src = toImgURL(item?.imageUrl || item?.image || item?.cover || "");
-  const alt = item?.title || "What's new";
+  // We continue to use toImgURL as the NoticeCard example relies on internal logic (buildAbsolute/apiClient)
+  const src = toImgURL(item?.imageUrl || item?.image || item?.cover || "");
+  const alt = item?.title || "What's new";
 
-  const Card = (
-    <div
-      className="
-        group relative w-full overflow-hidden rounded-xl
-        aspect-[16/9]               /* keep uniform banner shape */
-      "
-    >
-      {src ? (
-        <img
-          src={src}
-          alt={alt}
-          loading="lazy"
-          decoding="async"
-          draggable={false}
-          className="
-            h-full w-full object-cover
-            transition-transform duration-300
-            group-hover:scale-[1.03]  /* soft zoom on hover */
-          "
-        />
-      ) : (
-        <div className="h-full w-full bg-gray-100" />
-      )}
+  const CardInner = (
+    <div className="w-full rounded-lg overflow-hidden">
+      {/* Pure image, fixed height, matching NoticeCard */}
+      <div className="relative w-full h-40">
+        {src ? (
+          <img
+            src={src}
+            alt={alt}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
+            draggable={false}
+          />
+        ) : (
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
+            No Image
+          </div>
+        )}
+      </div>
+    </div>
+  );
 
-      {/* Optional bottom text if provided (kept minimal; no tint on image) */}
-      {(item?.title || item?.subtitle) && (
-        <div className="pointer-events-none absolute inset-x-0 bottom-0 p-2 sm:p-3">
-          {item?.title && (
-            <div className="inline-flex rounded-md bg-white/90 px-2 py-1 text-[12px] font-semibold text-gray-900">
-              {item.title}
-            </div>
-          )}
-          {item?.subtitle && (
-            <div className="mt-1 inline-flex rounded-md bg-white/85 px-2 py-0.5 text-[11px] text-gray-700">
-              {item.subtitle}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-
-  return linkTo ? (
-    <Link to={linkTo} aria-label={alt} className="block no-underline">
-      {Card}
-    </Link>
-  ) : (
-    Card
-  );
+  return linkTo ? (
+    <Link to={linkTo} aria-label={alt}>
+      {CardInner}
+    </Link>
+  ) : (
+    CardInner
+  );
 };
 
 export default WhatsNewCard;
