@@ -12,9 +12,8 @@ import { Link } from "react-router-dom";
 
 // Define a constant for consistent mobile/desktop horizontal padding
 const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8"; 
-const MOBILE_SNAP_PADDING = "1rem"; // Equivalent to Tailwind's px-4
 
-// Helper component for the navigation dots (omitted for brevity, no change)
+// Helper component for the navigation dots
 const Dots = ({ count, activeIndex, goToIndex }) => {
   return (
     <div className="flex justify-center mt-4 space-x-2">
@@ -24,7 +23,7 @@ const Dots = ({ count, activeIndex, goToIndex }) => {
           onClick={() => goToIndex(index)}
           className={`h-2 w-2 rounded-full transition-all ${
             index === activeIndex
-              ? "bg-red-600 w-4"
+              ? "bg-red-600 w-4" // Active dot is slightly wider
               : "bg-gray-300 hover:bg-gray-400"
           }`}
           aria-label={`Go to slide ${index + 1}`}
@@ -34,7 +33,7 @@ const Dots = ({ count, activeIndex, goToIndex }) => {
   );
 };
 
-// Simple loading card skeleton (omitted for brevity, no change)
+// Simple loading card skeleton
 const Skeleton = () => (
   <div className="w-[300px] h-48 bg-gray-200 rounded-xl animate-pulse flex-shrink-0" />
 );
@@ -48,27 +47,36 @@ const NoticesSection = () => {
   const [activeIndex, setActiveIndex] = useState(0); 
   const railRef = useRef(null);
 
-  // ... (useEffect for fetching data remains the same)
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await apiClient.get("/notices/active");
+        const data = Array.isArray(res.data) ? res.data : [];
+        if (live) setItems(data);
+      } catch (e) {
+        if (live) setErr(e?.response?.data?.message || "Failed to load notices.");
+      } finally {
+        if (live) setLoading(false);
+      }
+    })();
+    return () => (live = false);
+  }, []);
 
-  // Recalculate the active dot index on scroll (remains the same)
+  // Recalculate the active dot index on scroll
   const updateActiveIndex = useCallback(() => {
     const el = railRef.current;
     if (!el || items.length === 0) return;
-    
-    // We assume the first child is the card, width 300px + gap 16px (0.5rem)
+
+    // Card width + gap = 316.
     const cardScrollWidth = el.firstChild?.offsetWidth ? el.firstChild.offsetWidth + 16 : 316;
 
-    // We must account for the scroll-padding-left being the new 'zero' point.
-    // Since we're using 1rem (16px) scroll-padding, we add that to the scrollLeft value
-    const scrollLeftWithPadding = el.scrollLeft; 
-    
-    // Calculate index based on how many full cards have been scrolled past
-    const newIndex = Math.round(scrollLeftWithPadding / cardScrollWidth);
+    const newIndex = Math.round(el.scrollLeft / cardScrollWidth);
     
     setActiveIndex(Math.max(0, Math.min(newIndex, items.length - 1)));
   }, [items.length]);
 
-  // Scroll to a specific index (remains the same)
+  // Scroll to a specific index
   const scrollToCard = useCallback((index) => {
     const el = railRef.current;
     if (!el || items.length === 0 || index < 0 || index >= items.length) return;
@@ -86,7 +94,7 @@ const NoticesSection = () => {
     setTimeout(updateActiveIndex, 350); 
   }, [items.length, updateActiveIndex]);
 
-  // Set up scroll listener on mount (remains the same)
+  // Set up scroll listener on mount
   useEffect(() => {
     updateActiveIndex(); 
     const el = railRef.current;
@@ -98,10 +106,10 @@ const NoticesSection = () => {
 
 
   if (loading) {
-    // ... (Loading state remains the same for simplicity)
     return (
       <section className="w-full max-w-7xl mx-auto py-8 sm:py-12">
         <div className={`flex items-center justify-between mb-4 sm:mb-6 ${CONTAINER_MARGIN_X}`}>
+          {/* ✅ FIX: Final title name and reduced boldness (font-semibold) */}
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
             Deals and Offers
           </h2>
@@ -124,6 +132,7 @@ const NoticesSection = () => {
       
       {/* Header (aligned with screen edge padding) */}
       <div className={`flex items-center justify-between mb-4 sm:mb-6 ${CONTAINER_MARGIN_X}`}>
+        {/* ✅ FIX: Final title name and reduced boldness (font-semibold) */}
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
           Deals and Offers
         </h2>
@@ -141,16 +150,15 @@ const NoticesSection = () => {
         <div
           ref={railRef}
           onScroll={updateActiveIndex}
-          // ✅ FIX: Removed pl-4. We will use scroll-padding-left via the style tag.
-          // This keeps the element's start flush, but tells the snap feature where to align.
-          className="flex gap-4 overflow-x-auto scroll-smooth pb-2 hide-scrollbar snap-x snap-mandatory scroll-pr-4"
+          // ✅ FIX: Using pl-4 on the rail for the perfect mobile padding.
+          className="flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-4 hide-scrollbar snap-x snap-mandatory"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {items.map((n, index) => (
             <div 
               key={n._id} 
-              // ✅ FIX: Removed pr-4 from the last item and added scroll-pr-4 to the rail above.
-              className={`w-[300px] flex-shrink-0 snap-start`}
+              // ✅ FIX: Added pr-4 to the LAST card's wrapper to provide end padding.
+              className={`w-[300px] flex-shrink-0 snap-start ${index === items.length - 1 ? 'pr-4' : ''}`}
             >
               <NoticeCard notice={n} linkTo="/notices" />
             </div>
@@ -169,15 +177,10 @@ const NoticesSection = () => {
         )}
       </div>
 
-      {/* Hide scrollbar and apply scroll-padding-left */}
+      {/* Hide scrollbar */}
       <style>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        /* ✅ CRITICAL FIX: Ensures the snap-start point respects the screen padding on mobile */
-        /* Use a media query to apply this only on mobile if necessary, or rely on the container's max-width on desktop */
-        .snap-x { 
-          scroll-padding-left: ${MOBILE_SNAP_PADDING};
-        }
       `}</style>
     </section>
   );
