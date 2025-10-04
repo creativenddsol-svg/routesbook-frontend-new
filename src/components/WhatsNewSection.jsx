@@ -1,150 +1,189 @@
 // src/components/WhatsNewSection.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { Link } from "react-router-dom";
 import WhatsNewCard from "./WhatsNewCard";
 import apiClient, { toImgURL } from "../api";
 
+// Helper component for the navigation dots
+const Dots = ({ count, activeIndex, goToIndex }) => {
+  return (
+    <div className="flex justify-center mt-4 space-x-2">
+      {[...Array(count)].map((_, index) => (
+        <button
+          key={index}
+          onClick={() => goToIndex(index)}
+          className={`h-2 w-2 rounded-full transition-all ${
+            index === activeIndex
+              ? "bg-blue-600 w-4" // Active dot is slightly wider (using blue for "What's new" to match the View More link)
+              : "bg-gray-300 hover:bg-gray-400"
+          }`}
+          aria-label={`Go to slide ${index + 1}`}
+        />
+      ))}
+    </div>
+  );
+};
+
 /** Simple loading card */
 const Skeleton = () => (
-  <div className="w-[300px] sm:w-[340px] h-[220px] bg-gray-100 rounded-xl animate-pulse flex-shrink-0" />
+  // Updated size to w-[300px] and h-40 to match Notice Card
+  <div className="w-[300px] h-40 bg-gray-100 rounded-xl animate-pulse flex-shrink-0" />
 );
 
 const WhatsNewSection = () => {
-  const [items, setItems] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  
+  const railRef = useRef(null);
+  // Removed atStart and atEnd states
 
-  const railRef = useRef(null);
-  const [atStart, setAtStart] = useState(true);
-  const [atEnd, setAtEnd] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(0); // New state for active dot
 
-  // Fetch active items
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const { data } = await apiClient.get("/whats-new/active");
-        if (!alive) return;
-        const normalized = Array.isArray(data)
-          ? data.map((it) => ({
-              ...it,
-              imageUrl: toImgURL(it?.imageUrl || it?.image || it?.cover || ""),
-            }))
-          : [];
-        setItems(normalized);
-      } catch (e) {
-        if (!alive) return;
-        setErr(e?.response?.data?.message || e?.message || "Failed to load What's new.");
-        setItems([]);
-      } finally {
-        if (alive) setLoading(false);
-      }
-    })();
-    return () => {
-      alive = false;
-    };
-  }, []);
+  // Fetch active items
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const { data } = await apiClient.get("/whats-new/active");
+        if (!alive) return;
+        const normalized = Array.isArray(data)
+          ? data.map((it) => ({
+              ...it,
+              imageUrl: toImgURL(it?.imageUrl || it?.image || it?.cover || ""),
+            }))
+          : [];
+        setItems(normalized);
+      } catch (e) {
+        if (!alive) return;
+        setErr(e?.response?.data?.message || e?.message || "Failed to load What's new.");
+        setItems([]);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
-  const updateArrowVisibility = () => {
+
+  // Recalculate the active dot index on scroll
+  const updateActiveIndex = useCallback(() => {
     const el = railRef.current;
-    if (!el) return;
-    const { scrollLeft, scrollWidth, clientWidth } = el;
-    setAtStart(scrollLeft <= 0);
-    setAtEnd(scrollLeft + clientWidth >= scrollWidth - 5);
-  };
+    if (!el || items.length === 0) return;
 
-  const scrollBy = (dir) => {
+    // Get the width of one card + gap (assuming w-[300px] + gap-4 = 316px)
+    // Using 316px as the standard scroll distance (300px width + 16px gap)
+    const cardScrollWidth = 316; // 300px card width + 16px (gap-4)
+
+    // Calculate the index of the item that is currently most visible on the left
+    const newIndex = Math.round(el.scrollLeft / cardScrollWidth);
+    
+    // Ensure the index is within bounds
+    setActiveIndex(Math.max(0, Math.min(newIndex, items.length - 1)));
+  }, [items.length]);
+
+
+  // Scroll to a specific index (for dot click)
+  const scrollToCard = useCallback((index) => {
     const el = railRef.current;
-    if (!el) return;
-    const cardW = el.firstChild?.offsetWidth || 320;
-    el.scrollBy({ left: dir * (cardW + 16), behavior: "smooth" });
-    setTimeout(updateArrowVisibility, 350);
-  };
+    if (!el || items.length === 0 || index < 0 || index >= items.length) return;
 
+    // Get the width of one card + gap
+    const cardWidth = 300;
+    const gap = 16;
+    
+    el.scrollTo({
+      left: index * (cardWidth + gap),
+      behavior: "smooth",
+    });
+
+    // Update the active index right away for responsiveness
+    setActiveIndex(index); 
+    
+    // Allow smooth scroll to settle then recompute for safety
+    setTimeout(updateActiveIndex, 350); 
+  }, [items.length, updateActiveIndex]);
+
+  // Ensure initial active index is correct and set up scroll listener on mount
   useEffect(() => {
-    // ensure correct arrow state after items mount
-    updateArrowVisibility();
-  }, [items]);
+    updateActiveIndex(); // Set initial active index
+    const el = railRef.current;
+    if (el) {
+      // Use the native onScroll event for continuous updates
+      el.addEventListener('scroll', updateActiveIndex); 
+      return () => el.removeEventListener('scroll', updateActiveIndex);
+    }
+  }, [items, updateActiveIndex]);
 
-  if (loading) {
-    return (
-      <section className="w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[22px] sm:text-2xl font-bold text-gray-900">What’s new</h2>
-        </div>
-        <div className="flex gap-3 overflow-x-auto">
-          {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} />
-          ))}
-        </div>
-      </section>
-    );
-  }
 
-  if (err || !Array.isArray(items) || items.length === 0) return null;
+  if (loading) {
+    return (
+      // Updated max-w-7xl to match NoticesSection
+      <section className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12"> 
+        <div className="flex items-center justify-between mb-6"> {/* Updated mb-6 */}
+          <h2 className="text-2xl font-bold text-gray-900">What’s new</h2> {/* Updated size */}
+        </div>
+        <div className="flex gap-4 overflow-x-auto"> {/* Updated gap-4 */}
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} />
+          ))}
+        </div>
+      </section>
+    );
+  }
 
-  return (
-    <section className="w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <h4 className="text-[22px] sm:text-2xl font-bold text-gray-900">What’s new</h4>
-        <Link to="/whats-new" className="text-sm font-semibold text-blue-600 hover:underline">
-          View more
-        </Link>
-      </div>
+  if (err || !Array.isArray(items) || items.length === 0) return null;
 
-      {/* Rail wrapper is relative so mist + arrows sit ONLY over the card row */}
-      <div className="relative">
-        {/* Left mist + arrow */}
-        {!atStart && (
-          <>
-            <div className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-white via-white/70 to-transparent z-10" />
-            <button
-              onClick={() => scrollBy(-1)}
-              aria-label="Scroll left"
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 flex items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 hover:bg-white transition"
-            >
-              ‹
-            </button>
-          </>
-        )}
+  return (
+    // Updated max-w-7xl and py-12 to match NoticesSection
+    <section className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6"> {/* Updated mb-6 */}
+        <h4 className="text-2xl font-bold text-gray-900">What’s new</h4> {/* Updated size */}
+        <Link 
+          to="/whats-new" 
+          className="text-sm font-semibold text-blue-600 hover:underline"
+        >
+          View more → {/* Added arrow to match NoticesSection */}
+        </Link>
+      </div>
 
-        {/* Right mist + arrow */}
-        {!atEnd && (
-          <>
-            <div className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-white via-white/70 to-transparent z-10" />
-            <button
-              onClick={() => scrollBy(1)}
-              aria-label="Scroll right"
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 h-9 w-9 flex items-center justify-center rounded-full bg-white/90 shadow ring-1 ring-black/10 hover:bg-white transition"
-            >
-              ›
-            </button>
-          </>
-        )}
+      {/* Rail wrapper - removed 'relative' and arrows */}
+      <div>
+        {/* Horizontal scroll rail (single row) */}
+        <div
+          ref={railRef}
+          onScroll={updateActiveIndex} // Updated to track scroll position
+          className="flex gap-4 overflow-x-auto scroll-smooth pb-2 hide-scrollbar" // Updated gap-4
+          style={{ WebkitOverflowScrolling: "touch" }}
+        >
+          {items.map((it) => (
+            {/* Updated card width to w-[300px] */}
+            <div key={it._id || it.id} className="w-[300px] flex-shrink-0">
+              <WhatsNewCard item={it} linkTo="/whats-new" />
+            </div>
+          ))}
+        </div>
+      </div>
+      
+      {/* Tiny Navigation Dots */}
+      {items.length > 1 && (
+        <Dots 
+          count={items.length} 
+          activeIndex={activeIndex} 
+          goToIndex={scrollToCard} 
+        />
+      )}
 
-        {/* Horizontal scroll rail (single row) */}
-        <div
-          ref={railRef}
-          onScroll={updateArrowVisibility}
-          className="flex gap-3 overflow-x-auto scroll-smooth pb-2 hide-scrollbar"
-          style={{ WebkitOverflowScrolling: "touch" }}
-        >
-          {items.map((it) => (
-            <div key={it._id || it.id} className="w-[300px] sm:w-[340px] flex-shrink-0">
-              <WhatsNewCard item={it} linkTo="/whats-new" />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Hide scrollbar */}
-      <style>{`
-        .hide-scrollbar::-webkit-scrollbar { display: none; }
-        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-      `}</style>
-    </section>
-  );
+      {/* Hide scrollbar */}
+      <style>{`
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+      `}</style>
+    </section>
+  );
 };
 
 export default WhatsNewSection;
