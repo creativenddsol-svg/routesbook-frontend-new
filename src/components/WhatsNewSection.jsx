@@ -36,7 +36,6 @@ const WhatsNewSection = () => {
   const [err, setErr] = useState("");
   
   const railRef = useRef(null);
-  // Removed atStart and atEnd states
 
   const [activeIndex, setActiveIndex] = useState(0); // New state for active dot
 
@@ -73,9 +72,8 @@ const WhatsNewSection = () => {
     const el = railRef.current;
     if (!el || items.length === 0) return;
 
-    // Get the width of one card + gap (assuming w-[300px] + gap-4 = 316px)
-    // Using 316px as the standard scroll distance (300px width + 16px gap)
-    const cardScrollWidth = 316; // 300px card width + 16px (gap-4)
+    // Card width (300px) + Gap (tailwind's gap-4 is 16px) = 316px
+    const cardScrollWidth = 316;
 
     // Calculate the index of the item that is currently most visible on the left
     const newIndex = Math.round(el.scrollLeft / cardScrollWidth);
@@ -90,7 +88,6 @@ const WhatsNewSection = () => {
     const el = railRef.current;
     if (!el || items.length === 0 || index < 0 || index >= items.length) return;
 
-    // Get the width of one card + gap
     const cardWidth = 300;
     const gap = 16;
     
@@ -106,7 +103,7 @@ const WhatsNewSection = () => {
     setTimeout(updateActiveIndex, 350); 
   }, [items.length, updateActiveIndex]);
 
-  // Ensure initial active index is correct and set up scroll listener on mount
+  // Set up scroll listener on mount
   useEffect(() => {
     updateActiveIndex(); // Set initial active index
     const el = railRef.current;
@@ -120,12 +117,12 @@ const WhatsNewSection = () => {
 
   if (loading) {
     return (
-      // Updated max-w-7xl to match NoticesSection
+      // Matched max-w-7xl and padding/margin of NoticesSection
       <section className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12"> 
-        <div className="flex items-center justify-between mb-6"> {/* Updated mb-6 */}
-          <h2 className="text-2xl font-bold text-gray-900">What’s new</h2> {/* Updated size */}
+        <div className="flex items-center justify-between mb-6"> 
+          <h2 className="text-2xl font-bold text-gray-900">What’s new</h2> 
         </div>
-        <div className="flex gap-4 overflow-x-auto"> {/* Updated gap-4 */}
+        <div className="flex gap-4 overflow-x-auto"> {/* Matched gap-4 */}
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} />
           ))}
@@ -137,16 +134,16 @@ const WhatsNewSection = () => {
   if (err || !Array.isArray(items) || items.length === 0) return null;
 
   return (
-    // Updated max-w-7xl and py-12 to match NoticesSection
+    // Matched max-w-7xl and py-12 of NoticesSection
     <section className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6"> {/* Updated mb-6 */}
-        <h4 className="text-2xl font-bold text-gray-900">What’s new</h4> {/* Updated size */}
+      <div className="flex items-center justify-between mb-6"> 
+        <h4 className="text-2xl font-bold text-gray-900">What’s new</h4> 
         <Link 
           to="/whats-new" 
           className="text-sm font-semibold text-blue-600 hover:underline"
         >
-          View more → {/* Added arrow to match NoticesSection */}
+          View more →
         </Link>
       </div>
 
@@ -160,7 +157,7 @@ const WhatsNewSection = () => {
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {items.map((it) => (
-            {/* Updated card width to w-[300px] */}
+            {/* Updated card width to w-[300px] to match NoticesSection */}
             <div key={it._id || it.id} className="w-[300px] flex-shrink-0">
               <WhatsNewCard item={it} linkTo="/whats-new" />
             </div>
