@@ -6,31 +6,85 @@ import apiClient from "../api";
 
 const FREQS = ["Daily", "Weekly", "Monthly", "On Demand"];
 
-/* ---------- safe access helpers (handle multiple shapes) ---------- */
-const getMobile = (op) => op?.mobile || op?.operatorProfile?.contactNumber || "—";
-const getBusiness = (op) => op?.operatorProfile?.businessName || "—";
-const getAddress = (op) => op?.operatorProfile?.address || "—";
+/* ---------- fallback readers for multiple shapes ---------- */
+const readMobile = (op) => op?.mobile || op?.operatorProfile?.contactNumber || "—";
+const readBusiness = (op) => op?.operatorProfile?.businessName || "—";
+const readAddress = (op) => op?.operatorProfile?.address || "—";
 
-// Payout / bank details may be flat or inside operatorProfile.payoutMethod
-const getBankName = (op) =>
+const readBankName = (op) =>
   op?.operatorProfile?.bankName ||
   op?.operatorProfile?.payoutMethod?.bankName ||
   "—";
 
-const getBankBranch = (op) =>
+const readBankBranch = (op) =>
   op?.operatorProfile?.bankBranch ||
-  op?.operatorProfile?.payoutMethod?.bankBranch || // if your backend uses this
+  op?.operatorProfile?.payoutMethod?.bankBranch ||
   "—";
 
-const getAccountNo = (op) =>
+const readAccountNo = (op) =>
   op?.operatorProfile?.bankAccountNumber ||
   op?.operatorProfile?.payoutMethod?.accountNumber ||
   "—";
 
-const getPayoutFreq = (op) =>
+const readPayoutFreq = (op) =>
   op?.operatorProfile?.payoutFrequency ||
   op?.operatorProfile?.payoutMethod?.payoutFrequency ||
   "—";
+
+/* ---------- normalize a profile payload from various endpoints ---------- */
+function extractProfile(data) {
+  // common shapes
+  const raw =
+    data?.operatorProfile ||
+    data?.profile ||
+    (data?.data && (data.data.operatorProfile || data.data.profile)) ||
+    // sometimes the whole object itself is the profile
+    (data?.businessName || data?.payoutMethod || data?.bankName ? data : null);
+
+  if (!raw) return null;
+
+  const pm = raw.payoutMethod || {};
+  return {
+    businessName: raw.businessName || "",
+    address: raw.address || "",
+    contactNumber: raw.contactNumber || "",
+
+    // flat fields
+    bankName: raw.bankName || pm.bankName || "",
+    bankBranch: raw.bankBranch || pm.bankBranch || "",
+    bankAccountNumber: raw.bankAccountNumber || pm.accountNumber || "",
+    payoutFrequency: raw.payoutFrequency || pm.payoutFrequency || "Monthly",
+
+    // keep nested too
+    payoutMethod: {
+      bankName: pm.bankName || raw.bankName || "",
+      bankBranch: pm.bankBranch || raw.bankBranch || "",
+      accountNumber: pm.accountNumber || raw.bankAccountNumber || "",
+      payoutFrequency: pm.payoutFrequency || raw.payoutFrequency || "Monthly",
+    },
+  };
+}
+
+/* try a few profile endpoints and return the first that works */
+async function tryFetchProfile(id, authHeader) {
+  const tries = [
+    { method: "get", url: `/admin/operators/${id}` },
+    { method: "get", url: `/admin/operators/${id}/profile` },
+    { method: "get", url: `/operators/${id}` },
+    { method: "get", url: `/operators/${id}/profile` },
+    { method: "get", url: `/admin/users/${id}` },
+  ];
+  for (const t of tries) {
+    try {
+      const res = await apiClient[t.method](t.url, authHeader());
+      const prof = extractProfile(res.data);
+      if (prof) return prof;
+    } catch (_) {
+      // ignore and try the next one
+    }
+  }
+  return null;
+}
 
 export default function AdminOperatorList() {
   const [operators, setOperators] = useState([]);
@@ -53,7 +107,6 @@ export default function AdminOperatorList() {
       bankBranch: "",
       bankAccountNumber: "",
       payoutFrequency: "Monthly",
-      // keep a mirror of payoutMethod for compatibility
       payoutMethod: {
         bankName: "",
         bankBranch: "",
@@ -64,14 +117,29 @@ export default function AdminOperatorList() {
     },
   });
 
-  /* load operators */
+  const authHeader = () => ({
+    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+  });
+
+  /* load operators + enrich with profiles */
   useEffect(() => {
     (async () => {
       try {
-        const res = await apiClient.get("/admin/operators", {
-          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-        });
-        setOperators(Array.isArray(res.data) ? res.data : []);
+        const res = await apiClient.get("/admin/operators", authHeader());
+        const base = Array.isArray(res.data) ? res.data : [];
+
+        // Enrich each row with a best-effort profile fetch (runs in parallel)
+        const enriched = await Promise.all(
+          base.map(async (op) => {
+            if (op.operatorProfile && (op.operatorProfile.businessName || op.operatorProfile.payoutMethod)) {
+              return op; // already has details
+            }
+            const prof = await tryFetchProfile(op._id, authHeader);
+            return prof ? { ...op, operatorProfile: { ...(op.operatorProfile || {}), ...prof } } : op;
+          })
+        );
+
+        setOperators(enriched);
       } catch (err) {
         console.error("Failed to load operators", err);
         toast.error("Failed to load operators");
@@ -79,25 +147,21 @@ export default function AdminOperatorList() {
         setLoading(false);
       }
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  /* helpers */
-  const authHeader = () => ({
-    headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-  });
 
   /* include fallback fields in search text */
   const filtered = operators.filter((op) => {
     const haystack = [
       op?.fullName,
       op?.email,
-      getMobile(op),
-      getBusiness(op),
-      getAddress(op),
-      getBankName(op),
-      getBankBranch(op),
-      getAccountNo(op),
-      getPayoutFreq(op),
+      readMobile(op),
+      readBusiness(op),
+      readAddress(op),
+      readBankName(op),
+      readBankBranch(op),
+      readAccountNo(op),
+      readPayoutFreq(op),
     ]
       .filter(Boolean)
       .join(" ")
@@ -106,32 +170,27 @@ export default function AdminOperatorList() {
   });
 
   const openEdit = (op) => {
-    const profile = op?.operatorProfile || {};
-    const pm = profile?.payoutMethod || {};
-
+    const p = op?.operatorProfile || {};
+    const pm = p?.payoutMethod || {};
     setSelected(op);
     setForm({
       fullName: op.fullName || "",
       email: op.email || "",
-      // prefer top-level mobile, fallback to profile contactNumber
-      mobile: op.mobile || profile.contactNumber || "",
+      mobile: op.mobile || p.contactNumber || "",
       active: !!op.active,
       operatorProfile: {
-        businessName: profile.businessName || "",
-        address: profile.address || "",
-        // flat fields
-        bankName: profile.bankName || pm.bankName || "",
-        bankBranch: profile.bankBranch || pm.bankBranch || "",
-        bankAccountNumber: profile.bankAccountNumber || pm.accountNumber || "",
-        payoutFrequency: profile.payoutFrequency || pm.payoutFrequency || "Monthly",
-        // also keep contactNumber
-        contactNumber: profile.contactNumber || op.mobile || "",
-        // mirror payoutMethod for compatibility
+        businessName: p.businessName || "",
+        address: p.address || "",
+        contactNumber: p.contactNumber || op.mobile || "",
+        bankName: p.bankName || pm.bankName || "",
+        bankBranch: p.bankBranch || pm.bankBranch || "",
+        bankAccountNumber: p.bankAccountNumber || pm.accountNumber || "",
+        payoutFrequency: p.payoutFrequency || pm.payoutFrequency || "Monthly",
         payoutMethod: {
-          bankName: pm.bankName || profile.bankName || "",
-          bankBranch: pm.bankBranch || profile.bankBranch || "",
-          accountNumber: pm.accountNumber || profile.bankAccountNumber || "",
-          payoutFrequency: pm.payoutFrequency || profile.payoutFrequency || "Monthly",
+          bankName: pm.bankName || p.bankName || "",
+          bankBranch: pm.bankBranch || p.bankBranch || "",
+          accountNumber: pm.accountNumber || p.bankAccountNumber || "",
+          payoutFrequency: pm.payoutFrequency || p.payoutFrequency || "Monthly",
         },
       },
     });
@@ -146,7 +205,6 @@ export default function AdminOperatorList() {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
-    // operatorProfile.payoutMethod.*
     if (name.startsWith("operatorProfile.payoutMethod.")) {
       const key = name.split(".")[2];
       setForm((f) => ({
@@ -159,7 +217,6 @@ export default function AdminOperatorList() {
       return;
     }
 
-    // operatorProfile.*
     if (name.startsWith("operatorProfile.")) {
       const key = name.split(".")[1];
       setForm((f) => ({
@@ -169,7 +226,6 @@ export default function AdminOperatorList() {
       return;
     }
 
-    // top-level fields
     if (type === "checkbox") {
       setForm((f) => ({ ...f, [name]: checked }));
     } else {
@@ -177,17 +233,15 @@ export default function AdminOperatorList() {
     }
   };
 
-  /* resilient update: try multiple endpoints until one works */
+  /* resilient update */
   const tryUpdate = async (id, payload) => {
     const tries = [
       { method: "patch", url: `/admin/operators/${id}` },
       { method: "put",   url: `/admin/operators/${id}` },
       { method: "patch", url: `/admin/operators/update/${id}` },
       { method: "put",   url: `/admin/operators/update/${id}` },
-
       { method: "patch", url: `/admin/users/${id}` },
       { method: "put",   url: `/admin/users/${id}` },
-
       { method: "patch", url: `/admin/operators/${id}/profile` },
       { method: "put",   url: `/admin/operators/${id}/profile` },
     ];
@@ -201,10 +255,9 @@ export default function AdminOperatorList() {
         errors.push(`${t.method.toUpperCase()} ${t.url}: ${err?.response?.status || "ERR"}`);
       }
     }
-    const msg =
-      `No admin update endpoint responded (tried ${tries.length}).\n` +
-      errors.slice(0, 5).join(" | ") + (errors.length > 5 ? " ..." : "");
-    throw new Error(msg);
+    throw new Error(
+      `No admin update endpoint responded (tried ${tries.length}). ${errors.slice(0, 4).join(" | ")}`
+    );
   };
 
   const handleSave = async (e) => {
@@ -212,32 +265,24 @@ export default function AdminOperatorList() {
     if (!selected) return;
     setSaving(true);
     try {
-      // Write to BOTH shapes (flat fields + payoutMethod) so all code paths keep working.
       const p = form.operatorProfile;
       const payload = {
         fullName: form.fullName,
         email: form.email,
-        mobile: form.mobile, // keep top-level too
+        mobile: form.mobile,
         active: form.active,
         operatorProfile: {
           businessName: p.businessName,
           address: p.address,
           contactNumber: p.contactNumber || form.mobile,
-
-          // flat
           bankName: p.bankName || p.payoutMethod?.bankName || "",
           bankBranch: p.bankBranch || p.payoutMethod?.bankBranch || "",
-          bankAccountNumber:
-            p.bankAccountNumber || p.payoutMethod?.accountNumber || "",
-
+          bankAccountNumber: p.bankAccountNumber || p.payoutMethod?.accountNumber || "",
           payoutFrequency: p.payoutFrequency || p.payoutMethod?.payoutFrequency || "Monthly",
-
-          // nested
           payoutMethod: {
             bankName: p.payoutMethod?.bankName || p.bankName || "",
             bankBranch: p.payoutMethod?.bankBranch || p.bankBranch || "",
-            accountNumber:
-              p.payoutMethod?.accountNumber || p.bankAccountNumber || "",
+            accountNumber: p.payoutMethod?.accountNumber || p.bankAccountNumber || "",
             payoutFrequency: p.payoutMethod?.payoutFrequency || p.payoutFrequency || "Monthly",
           },
         },
@@ -245,11 +290,9 @@ export default function AdminOperatorList() {
 
       await tryUpdate(selected._id, payload);
 
-      // update locally for instant UI feedback
       setOperators((prev) =>
         prev.map((op) => (op._id === selected._id ? { ...op, ...payload } : op))
       );
-
       toast.success("Operator updated");
       closeEdit();
     } catch (err) {
@@ -260,7 +303,6 @@ export default function AdminOperatorList() {
     }
   };
 
-  /* delete */
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this operator?")) return;
     try {
@@ -273,7 +315,6 @@ export default function AdminOperatorList() {
     }
   };
 
-  /* reset password: try several shapes */
   const resetPassword = async (op) => {
     const newPass = window.prompt(
       `Enter a new password for ${op.fullName || op.email}:`,
@@ -290,18 +331,14 @@ export default function AdminOperatorList() {
       { method: "put",   url: `/admin/users/${op._id}`,     body: { password: newPass } },
     ];
 
-    const errors = [];
     for (const c of candidates) {
       try {
         await apiClient[c.method](c.url, c.body, authHeader());
         toast.success("Password updated");
         return;
-      } catch (err) {
-        errors.push(`${c.method.toUpperCase()} ${c.url}: ${err?.response?.status || "ERR"}`);
-      }
+      } catch (_) {}
     }
     toast.error("No reset-password endpoint found. Ask backend to enable one.");
-    console.warn("Reset password attempts:", errors);
   };
 
   if (loading) return <p className="p-6">Loading operators…</p>;
@@ -310,7 +347,6 @@ export default function AdminOperatorList() {
     <div className="max-w-7xl mx-auto p-6">
       <h1 className="text-2xl font-bold mb-4">All Operators</h1>
 
-      {/* Search */}
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <input
           className="border px-3 py-2 rounded w-full sm:w-80"
@@ -326,7 +362,6 @@ export default function AdminOperatorList() {
         </Link>
       </div>
 
-      {/* Table */}
       <div className="overflow-x-auto">
         <table className="min-w-full border rounded shadow-sm text-sm">
           <thead className="bg-gray-100">
@@ -350,7 +385,7 @@ export default function AdminOperatorList() {
               <tr key={op._id} className="border-t hover:bg-gray-50">
                 <td className="px-3 py-2">{op.fullName}</td>
                 <td className="px-3 py-2">{op.email}</td>
-                <td className="px-3 py-2">{getMobile(op)}</td>
+                <td className="px-3 py-2">{readMobile(op)}</td>
                 <td className="px-3 py-2">
                   <span
                     className={
@@ -362,40 +397,26 @@ export default function AdminOperatorList() {
                     {op.active ? "Active" : "Inactive"}
                   </span>
                 </td>
-                <td className="px-3 py-2">{getBusiness(op)}</td>
-                <td className="px-3 py-2">{getAddress(op)}</td>
-                <td className="px-3 py-2">{getBankName(op)}</td>
-                <td className="px-3 py-2">{getBankBranch(op)}</td>
-                <td className="px-3 py-2">{getAccountNo(op)}</td>
-                <td className="px-3 py-2">{getPayoutFreq(op)}</td>
+                <td className="px-3 py-2">{readBusiness(op)}</td>
+                <td className="px-3 py-2">{readAddress(op)}</td>
+                <td className="px-3 py-2">{readBankName(op)}</td>
+                <td className="px-3 py-2">{readBankBranch(op)}</td>
+                <td className="px-3 py-2">{readAccountNo(op)}</td>
+                <td className="px-3 py-2">{readPayoutFreq(op)}</td>
                 <td className="px-3 py-2">
-                  {op.createdAt
-                    ? new Date(op.createdAt).toLocaleDateString()
-                    : "—"}
+                  {op.createdAt ? new Date(op.createdAt).toLocaleDateString() : "—"}
                 </td>
                 <td className="px-3 py-2 text-center space-x-3">
-                  <button
-                    className="text-blue-600 hover:underline"
-                    onClick={() => openEdit(op)}
-                  >
+                  <button className="text-blue-600 hover:underline" onClick={() => openEdit(op)}>
                     Edit
                   </button>
-                  <button
-                    className="text-amber-600 hover:underline"
-                    onClick={() => resetPassword(op)}
-                  >
+                  <button className="text-amber-600 hover:underline" onClick={() => resetPassword(op)}>
                     Reset Password
                   </button>
-                  <Link
-                    to={`/operators/${op._id}`}
-                    className="text-slate-600 hover:underline"
-                  >
+                  <Link to={`/operators/${op._id}`} className="text-slate-600 hover:underline">
                     View
                   </Link>
-                  <button
-                    className="text-red-600 hover:underline"
-                    onClick={() => handleDelete(op._id)}
-                  >
+                  <button className="text-red-600 hover:underline" onClick={() => handleDelete(op._id)}>
                     Delete
                   </button>
                 </td>
@@ -412,7 +433,7 @@ export default function AdminOperatorList() {
         </table>
       </div>
 
-      {/* Edit Modal */}
+      {/* Edit modal */}
       {open && selected && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-lg w-full max-w-3xl p-5">
@@ -508,7 +529,6 @@ export default function AdminOperatorList() {
                   />
                 </div>
 
-                {/* Also expose nested payoutMethod to keep both shapes aligned */}
                 <div>
                   <label className="text-sm text-gray-600">Payout Frequency</label>
                   <select
@@ -524,8 +544,12 @@ export default function AdminOperatorList() {
                     ))}
                   </select>
                 </div>
+
+                {/* Mirrors so both shapes stay aligned */}
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Mirror: payoutMethod.bankName</label>
+                  <label className="text-xs text-gray-500 block mb-1">
+                    Mirror: payoutMethod.bankName
+                  </label>
                   <input
                     name="operatorProfile.payoutMethod.bankName"
                     value={form.operatorProfile.payoutMethod.bankName}
@@ -534,7 +558,9 @@ export default function AdminOperatorList() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Mirror: payoutMethod.accountNumber</label>
+                  <label className="text-xs text-gray-500 block mb-1">
+                    Mirror: payoutMethod.accountNumber
+                  </label>
                   <input
                     name="operatorProfile.payoutMethod.accountNumber"
                     value={form.operatorProfile.payoutMethod.accountNumber}
@@ -543,7 +569,9 @@ export default function AdminOperatorList() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 block mb-1">Mirror: payoutMethod.payoutFrequency</label>
+                  <label className="text-xs text-gray-500 block mb-1">
+                    Mirror: payoutMethod.payoutFrequency
+                  </label>
                   <select
                     name="operatorProfile.payoutMethod.payoutFrequency"
                     value={form.operatorProfile.payoutMethod.payoutFrequency}
@@ -560,11 +588,7 @@ export default function AdminOperatorList() {
               </div>
 
               <div className="flex justify-end gap-2 pt-3">
-                <button
-                  type="button"
-                  onClick={closeEdit}
-                  className="px-4 py-2 rounded border"
-                >
+                <button type="button" onClick={closeEdit} className="px-4 py-2 rounded border">
                   Cancel
                 </button>
                 <button
