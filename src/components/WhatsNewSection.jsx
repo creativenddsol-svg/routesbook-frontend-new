@@ -14,7 +14,7 @@ const Dots = ({ count, activeIndex, goToIndex }) => {
           onClick={() => goToIndex(index)}
           className={`h-2 w-2 rounded-full transition-all ${
             index === activeIndex
-              ? "bg-blue-600 w-4" // Active dot is slightly wider (using blue for "What's new")
+              ? "bg-blue-600 w-4" 
               : "bg-gray-300 hover:bg-gray-400"
           }`}
           aria-label={`Go to slide ${index + 1}`}
@@ -26,7 +26,6 @@ const Dots = ({ count, activeIndex, goToIndex }) => {
 
 /** Simple loading card */
 const Skeleton = () => (
-  // Matched size: w-[300px] and h-40 to Notice Card
   <div className="w-[300px] h-40 bg-gray-100 rounded-xl animate-pulse flex-shrink-0" />
 );
 
@@ -71,14 +70,10 @@ const WhatsNewSection = () => {
     const el = railRef.current;
     if (!el || items.length === 0) return;
 
-    // Card width (300px) + Gap (tailwind's gap-4 is 16px) = 316px
-    // We use the actual card width + gap from the DOM if available, otherwise fallback.
     const cardScrollWidth = el.firstChild?.offsetWidth ? el.firstChild.offsetWidth + 16 : 316;
 
-    // Calculate the index of the item that is currently most visible on the left
     const newIndex = Math.round(el.scrollLeft / cardScrollWidth);
     
-    // Ensure the index is within bounds
     setActiveIndex(Math.max(0, Math.min(newIndex, items.length - 1)));
   }, [items.length]);
 
@@ -96,23 +91,19 @@ const WhatsNewSection = () => {
       behavior: "smooth",
     });
 
-    // Update the active index right away for responsiveness
     setActiveIndex(index); 
     
-    // Allow smooth scroll to settle then recompute for safety
     setTimeout(updateActiveIndex, 350); 
   }, [items.length, updateActiveIndex]);
 
   // Set up scroll listener on mount
   useEffect(() => {
-    updateActiveIndex(); // Set initial active index
+    updateActiveIndex(); 
     const el = railRef.current;
     if (el) {
-      // Use the native onScroll event for continuous updates
       el.addEventListener('scroll', updateActiveIndex); 
       return () => el.removeEventListener('scroll', updateActiveIndex);
     }
-    // Re-run when items change to correct the initial scroll position/index
   }, [items, updateActiveIndex]);
 
 
@@ -137,12 +128,14 @@ const WhatsNewSection = () => {
     <section className="w-full max-w-7xl mx-auto px-4 lg:px-8 py-12">
       {/* Header */}
       <div className="flex items-center justify-between mb-6"> 
-        <h4 className="text-2xl font-bold text-gray-900">What’s new</h4> 
+        {/* Updated tag to h2 for consistency */}
+        <h2 className="text-2xl font-bold text-gray-900">What’s new</h2> 
         <Link 
           to="/whats-new" 
           className="text-sm font-semibold text-blue-600 hover:underline"
         >
-          View more →
+          {/* Updated text from "View more" to "View All" */}
+          View All →
         </Link>
       </div>
 
