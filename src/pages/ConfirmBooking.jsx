@@ -1,7 +1,6 @@
 // src/pages/ConfirmBooking.jsx
 import { useMemo, useState, useCallback, memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-// import BookingSteps from "../components/BookingSteps";
 import apiClient from "../api"; // baseURL configured inside ../api
 import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
@@ -68,20 +67,29 @@ const Label = ({ children }) => (
 );
 
 const Pill = ({ children }) => (
-  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: PALETTE.pillBg, color: PALETTE.text }}>
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+    style={{ background: PALETTE.pillBg, color: PALETTE.text }}
+  >
     {children}
   </span>
 );
 
 const SoftPill = ({ children, bg }) => (
-  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium" style={{ background: bg, color: PALETTE.text }}>
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+    style={{ background: bg, color: PALETTE.text }}
+  >
     {children}
   </span>
 );
 const DatePill = ({ children }) => <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>;
 const AcPill = ({ children }) => <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>;
 const SeatPill = ({ children }) => (
-  <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}>
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+    style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
+  >
     {children}
   </span>
 );
@@ -92,7 +100,10 @@ const GenderSeatPill = ({ gender, children }) => {
   const bg = isMale ? PALETTE.violetBg : PALETTE.pinkBg;
   const fg = isMale ? PALETTE.violet : PALETTE.pink;
   return (
-    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: bg, color: fg }}>
+    <span
+      className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+      style={{ background: bg, color: fg }}
+    >
       {children}
     </span>
   );
@@ -103,10 +114,18 @@ async function fetchHoldRemaining({ busId, date, departureTime }) {
   const params = { busId, date, departureTime, t: Date.now() }; // cache-buster
   try {
     const r1 = await apiClient.get("/bookings/lock-remaining", { params });
-    return { ms: r1?.data?.remainingMs ?? r1?.data?.ms ?? null, expiresAt: r1?.data?.expiresAt ?? null, headers: r1?.headers };
+    return {
+      ms: r1?.data?.remainingMs ?? r1?.data?.ms ?? null,
+      expiresAt: r1?.data?.expiresAt ?? null,
+      headers: r1?.headers,
+    };
   } catch {
     const r2 = await apiClient.get("/bookings/lock/remaining", { params });
-    return { ms: r2?.data?.remainingMs ?? r2?.data?.ms ?? null, expiresAt: r2?.data?.expiresAt ?? null, headers: r2?.headers };
+    return {
+      ms: r2?.data?.remainingMs ?? r2?.data?.ms ?? null,
+      expiresAt: r2?.data?.expiresAt ?? null,
+      headers: r2?.headers,
+    };
   }
 }
 
@@ -183,7 +202,10 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
 
   if (remainingMs == null) {
     return (
-      <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold" style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}>
+      <span
+        className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+        style={{ background: PALETTE.seatPillBg, color: PALETTE.primary }}
+      >
         Securing seats…
       </span>
     );
@@ -208,7 +230,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
   );
 };
 
-/* RowInput: now supports inline errors & blur validation (desktop unchanged) */
+/* RowInput: supports inline errors & blur validation */
 const RowInput = ({
   id,
   name,
@@ -221,10 +243,10 @@ const RowInput = ({
   enterKeyHint,
   placeholder,
   required,
-  onBlur,          // ✅ added
-  error,           // ✅ added
-  maxLength,       // ✅ passthrough
-  pattern,         // ✅ passthrough
+  onBlur,
+  error,
+  maxLength,
+  pattern,
 }) => (
   <div className="w-full">
     <Label>{label}</Label>
@@ -255,9 +277,21 @@ const RowInput = ({
 );
 
 /* -------- Passenger row -------- */
-const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGender, errorsForSeat, onBlurName, onBlurAge }) {
+const PassengerRow = memo(function PassengerRow({
+  p,
+  index,
+  onName,
+  onAge,
+  onGender,
+  errorsForSeat,
+  onBlurName,
+  onBlurAge,
+}) {
   return (
-    <div className="p-4 rounded-2xl" style={{ background: PALETTE.surfaceAlt, border: `1px solid ${PALETTE.border}` }}>
+    <div
+      className="p-4 rounded-2xl"
+      style={{ background: PALETTE.surfaceAlt, border: `1px solid ${PALETTE.border}` }}
+    >
       <div className="flex items-center justify-between">
         <p className="font-semibold" style={{ color: PALETTE.text }}>
           Passenger {index + 1}
@@ -304,7 +338,7 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
               onClick={() => onGender(p.seat, "M")}
               className="py-2.5 rounded-full border text-sm font-medium transition"
               style={{
-                borderColor: p.gender === "M" ? PALETTE.violet : (errorsForSeat?.gender ? "#DC2626" : PALETTE.border),
+                borderColor: p.gender === "M" ? PALETTE.violet : errorsForSeat?.gender ? "#DC2626" : PALETTE.border,
                 background: p.gender === "M" ? PALETTE.violetBg : "#FFFFFF",
                 color: p.gender === "M" ? PALETTE.violet : PALETTE.text,
               }}
@@ -316,7 +350,7 @@ const PassengerRow = memo(function PassengerRow({ p, index, onName, onAge, onGen
               onClick={() => onGender(p.seat, "F")}
               className="py-2.5 rounded-full border text-sm font-medium transition"
               style={{
-                borderColor: p.gender === "F" ? PALETTE.pink : (errorsForSeat?.gender ? "#DC2626" : PALETTE.border),
+                borderColor: p.gender === "F" ? PALETTE.pink : errorsForSeat?.gender ? "#DC2626" : PALETTE.border,
                 background: p.gender === "F" ? PALETTE.pinkBg : "#FFFFFF",
                 color: p.gender === "F" ? PALETTE.pink : PALETTE.text,
               }}
@@ -456,20 +490,17 @@ const ConfirmBooking = () => {
   const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
   const nonEmpty = (v) => String(v || "").trim().length > 1;
 
-  const computePassengerErrors = useCallback(
-    (list) => {
-      const pe = {};
-      list.forEach((p) => {
-        const e = {};
-        if (!nonEmpty(p.name)) e.name = "Passenger name is required";
-        if (p.age && Number(p.age) < 0) e.age = "Age must be positive";
-        if (!p.gender) e.gender = "Please select gender";
-        if (Object.keys(e).length) pe[p.seat] = e;
-      });
-      return pe;
-    },
-    []
-  );
+  const computePassengerErrors = useCallback((list) => {
+    const pe = {};
+    list.forEach((p) => {
+      const e = {};
+      if (!nonEmpty(p.name)) e.name = "Passenger name is required";
+      if (p.age && Number(p.age) < 0) e.age = "Age must be positive";
+      if (!p.gender) e.gender = "Please select gender";
+      if (Object.keys(e).length) pe[p.seat] = e;
+    });
+    return pe;
+  }, []);
 
   const validateAll = useCallback(() => {
     const next = {
@@ -484,12 +515,17 @@ const ConfirmBooking = () => {
 
     // find first error key for scroll/focus
     const firstFieldId =
-      next.name ? "name" :
-      next.mobile ? "mobile" :
-      next.nic ? "nic" :
-      next.email ? "email" :
-      Object.keys(next.passengers)[0] ? `p-name-${Object.keys(next.passengers)[0]}` :
-      "";
+      next.name
+        ? "name"
+        : next.mobile
+        ? "mobile"
+        : next.nic
+        ? "nic"
+        : next.email
+        ? "email"
+        : Object.keys(next.passengers)[0]
+        ? `p-name-${Object.keys(next.passengers)[0]}`
+        : "";
 
     if (firstFieldId) {
       const el = document.getElementById(firstFieldId);
@@ -500,30 +536,37 @@ const ConfirmBooking = () => {
     return true;
   }, [form, termsAccepted, passengers, computePassengerErrors]);
 
-  const blurValidateField = useCallback((field) => {
-    setErrors((prev) => {
-      const next = { ...prev };
-      if (field === "name") next.name = nonEmpty(form.name) ? "" : "Full name is required";
-      if (field === "mobile") next.mobile = phoneOk(form.mobile) ? "" : "Enter a valid mobile number (e.g., 07XXXXXXXX)";
-      if (field === "nic") next.nic = nonEmpty(form.nic) ? "" : "NIC / Passport is required";
-      if (field === "email") next.email = emailOk(form.email) ? "" : "Enter a valid email address";
-      return next;
-    });
-  }, [form]);
+  const blurValidateField = useCallback(
+    (field) => {
+      setErrors((prev) => {
+        const next = { ...prev };
+        if (field === "name") next.name = nonEmpty(form.name) ? "" : "Full name is required";
+        if (field === "mobile")
+          next.mobile = phoneOk(form.mobile) ? "" : "Enter a valid mobile number (e.g., 07XXXXXXXX)";
+        if (field === "nic") next.nic = nonEmpty(form.nic) ? "" : "NIC / Passport is required";
+        if (field === "email") next.email = emailOk(form.email) ? "" : "Enter a valid email address";
+        return next;
+      });
+    },
+    [form]
+  );
 
-  const blurValidatePassenger = useCallback((seat, field) => {
-    setErrors((prev) => {
-      const next = { ...prev, passengers: { ...prev.passengers } };
-      const p = passengers.find((x) => x.seat === String(seat));
-      const slot = { ...(next.passengers[seat] || {}) };
-      if (field === "name") slot.name = nonEmpty(p?.name) ? "" : "Passenger name is required";
-      if (field === "age" && p?.age && Number(p.age) < 0) slot.age = "Age must be positive";
-      next.passengers[seat] = slot;
-      // cleanup empty seat error object
-      if (!slot.name && !slot.age && !slot.gender) delete next.passengers[seat];
-      return next;
-    });
-  }, [passengers]);
+  const blurValidatePassenger = useCallback(
+    (seat, field) => {
+      setErrors((prev) => {
+        const next = { ...prev, passengers: { ...prev.passengers } };
+        const p = passengers.find((x) => x.seat === String(seat));
+        const slot = { ...(next.passengers[seat] || {}) };
+        if (field === "name") slot.name = nonEmpty(p?.name) ? "" : "Passenger name is required";
+        if (field === "age" && p?.age && Number(p.age) < 0) slot.age = "Age must be positive";
+        next.passengers[seat] = slot;
+        // cleanup empty seat error object
+        if (!slot.name && !slot.age && !slot.gender) delete next.passengers[seat];
+        return next;
+      });
+    },
+    [passengers]
+  );
 
   const toggleTerms = () => {
     setTermsAccepted((v) => {
@@ -564,9 +607,11 @@ const ConfirmBooking = () => {
       const seatGendersOut = {};
       passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
 
-      // keep the lock while going to external payment flow
+      // keep the lock while going to payment (align with cart flow handoff)
       suppressAutoRelease();
+      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
 
+      // Navigate to payment — cart flow should already have seats in cart.
       navigate("/payment", {
         state: {
           bus,
@@ -588,6 +633,7 @@ const ConfirmBooking = () => {
             gender,
           })),
           seatGenders: seatGendersOut,
+          from: "confirm", // helpful breadcrumb for the payment page
         },
       });
     },
@@ -649,7 +695,10 @@ const ConfirmBooking = () => {
   return (
     <div ref={pageTopRef} className="min-h-screen" style={{ background: PALETTE.bg }}>
       {/* Matte top bar */}
-      <div className="sticky top-0 z-30" style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}>
+      <div
+        className="sticky top-0 z-30"
+        style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}
+      >
         <div className="max-w-6xl mx-auto px-4 py-3">
           <p className="text-white text-base font-semibold leading-tight">Confirm Booking</p>
           <p className="text-white/90 text-xs">
@@ -664,9 +713,22 @@ const ConfirmBooking = () => {
         </div>
 
         {/* Error banner (mobile-friendly) */}
-        {(errors.name || errors.mobile || errors.nic || errors.email || Object.keys(errors.passengers || {}).length || errors.terms || holdExpired) ? (
-          <div className="mt-3 rounded-xl px-3 py-2 text-xs font-medium" style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid #FECACA" }}>
-            {holdExpired ? "Your seat hold has expired. Please go back and reselect seats." : "Please correct the highlighted fields below."}
+        {(
+          errors.name ||
+          errors.mobile ||
+          errors.nic ||
+          errors.email ||
+          Object.keys(errors.passengers || {}).length ||
+          errors.terms ||
+          holdExpired
+        ) ? (
+          <div
+            className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
+            style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid #FECACA" }}
+          >
+            {holdExpired
+              ? "Your seat hold has expired. Please go back and reselect seats."
+              : "Please correct the highlighted fields below."}
           </div>
         ) : null}
 
@@ -704,13 +766,15 @@ const ConfirmBooking = () => {
             <div>
               <Label>Boarding</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedBoardingPoint.point} <span className="text-xs">at</span> <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
+                {selectedBoardingPoint.point} <span className="text-xs">at</span>{" "}
+                <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
               </p>
             </div>
             <div>
               <Label>Dropping</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedDroppingPoint.point} <span className="text-xs">at</span> <span className="tabular-nums">{selectedDroppingPoint.time}</span>
+                {selectedDroppingPoint.point} <span className="text-xs">at</span>{" "}
+                <span className="tabular-nums">{selectedDroppingPoint.time}</span>
               </p>
             </div>
             <div className="sm:col-span-2">
@@ -849,13 +913,7 @@ const ConfirmBooking = () => {
         {/* Terms */}
         <div className="mt-4">
           <label className="flex items-center text-sm" style={{ color: PALETTE.text }}>
-            <input
-              type="checkbox"
-              className="mr-2"
-              checked={termsAccepted}
-              onChange={toggleTerms}
-              required
-            />
+            <input type="checkbox" className="mr-2" checked={termsAccepted} onChange={toggleTerms} required />
             I agree to all Terms &amp; Conditions
           </label>
           {errors.terms ? (
@@ -865,13 +923,12 @@ const ConfirmBooking = () => {
           ) : null}
         </div>
 
-        {/* Inline mobile CTA (shows on small screens where fixed bars can be obscured) */}
+        {/* Inline mobile CTA */}
         <div className="sm:hidden mt-6">
           <button
             type="button"
             disabled={!termsAccepted || holdExpired}
-            onClick={(e) => {
-              // reuse validation + final hold check
+            onClick={(evt) => {
               handleSubmit({ preventDefault: () => {} });
             }}
             className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
@@ -880,13 +937,19 @@ const ConfirmBooking = () => {
             Proceed to Pay
           </button>
           <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
-            Payable Amount: <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>Rs. {prices.total.toFixed(2)}</span>
+            Payable Amount:{" "}
+            <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>
+              Rs. {prices.total.toFixed(2)}
+            </span>
           </p>
         </div>
       </div>
 
-      {/* Sticky bottom CTA — visible from sm and up (desktop unchanged) */}
-      <div className="hidden sm:block fixed bottom-0 left-0 right-0 z-40" style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}`, paddingBottom: "env(safe-area-inset-bottom)" }}>
+      {/* Sticky bottom CTA — desktop */}
+      <div
+        className="hidden sm:block fixed bottom-0 left-0 right-0 z-40"
+        style={{ background: PALETTE.surface, borderTop: `1px solid ${PALETTE.border}`, paddingBottom: "env(safe-area-inset-bottom)" }}
+      >
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center gap-3">
           <div className="flex-1">
             <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
@@ -899,8 +962,7 @@ const ConfirmBooking = () => {
           <button
             type="button"
             disabled={!termsAccepted || holdExpired}
-            onClick={(e) => {
-              // reuse validation + final hold check
+            onClick={(evt) => {
               handleSubmit({ preventDefault: () => {} });
             }}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
