@@ -9,7 +9,8 @@ import SeatLegend from "../../../components/SeatLegend";
 import BookingSummary from "../../../components/BookingSummary";
 import PointSelection from "../../../components/PointSelection";
 
-import { useSearchCore, PALETTE } from "../_core"; // ✅ import PALETTE directly
+import { useSearchCore, PALETTE } from "../_core"; // ✅ keep using your core
+import { useCart } from "../../../features/cart/CartContext"; // ✅ new (dual-write seats into Cart)
 
 export default function MobileBottomSheet({ hideSteps }) {
   const {
@@ -23,14 +24,16 @@ export default function MobileBottomSheet({ hideSteps }) {
     busSpecificBookingData,
     mobileSheetStepByBus,
     setMobileSheetStepByBus,
-    handleSeatToggle,
+    handleSeatToggle,              // legacy seat toggle (kept)
     handleBoardingPointSelect,
     handleDroppingPointSelect,
-    handleProceedToPayment,
-    releaseSeats,
+    handleProceedToPayment,        // legacy proceed (kept)
+    releaseSeats,                  // legacy release (kept)
   } = useSearchCore();
 
-  /* ---------------- Mobile bottom sheet (portaled) ---------------- */
+  const { api: cartApi } = useCart(); // ✅ access Cart API (add/remove)
+
+  /* ---------------- pick the selected bus from busId-time key ---------------- */
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
@@ -62,13 +65,52 @@ export default function MobileBottomSheet({ hideSteps }) {
 
   if (!selectedBus) return null;
 
-  // 🔁 ensure seat locks are released when the sheet is closed from mobile
+  // 🔁 release legacy locks when closing the sheet (kept)
   const handleCloseSheet = () => {
     const seats = busSpecificBookingData[expandedBusId]?.selectedSeats || [];
     if (seats.length) {
       releaseSeats(selectedBus, seats).finally(() => setExpandedBusId(null));
     } else {
       setExpandedBusId(null);
+    }
+  };
+
+  /* -------- Seat click: KEEP legacy toggle, but also dual-write to cart -------- */
+  const onSeatClick = async (seat) => {
+    const seatStr = String(seat);
+    const isSelected = selectedBookingData.selectedSeats.includes(seatStr);
+
+    // 1) Always do your existing flow first (UI + legacy lock)
+    handleSeatToggle(selectedBus, seatStr);
+
+    // 2) Mirror into Cart API (best-effort; non-blocking)
+    try {
+      if (isSelected) {
+        // deselect -> remove from cart
+        // we need cartId, but Cart API supports remove with { cartId, seatNo }.
+        // Our CartProvider fetches active cart lazily; if not present, backend no-ops.
+        await cartApi.removeSeat({
+          bus: selectedBus,
+          date: searchDateParam,
+          departureTime: selectedBus.departureTime,
+          seatNo: seatStr,
+        });
+      } else {
+        // select -> add to cart (gender from your local state or default "M")
+        const g = selectedBookingData.seatGenders?.[seatStr] || "M";
+        await cartApi.addSeat({
+          bus: selectedBus,
+          date: searchDateParam,
+          departureTime: selectedBus.departureTime,
+          seatNo: seatStr,
+          gender: g,
+        });
+      }
+    } catch (e) {
+      // Do not block the UI if cart fails — legacy path still works.
+      // This keeps UX snappy while we roll in cart gradually.
+      // eslint-disable-next-line no-console
+      console.warn("Cart sync failed (non-blocking):", e?.response?.data || e?.message);
     }
   };
 
@@ -183,7 +225,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                   seatLayout={selectedBus.seatLayout}
                   bookedSeats={[...(selectedAvailability?.bookedSeats || [])]}
                   selectedSeats={selectedBookingData.selectedSeats}
-                  onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
+                  onSeatClick={(seat) => onSeatClick(seat)}
                   bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
                   selectedSeatGenders={selectedBookingData.seatGenders || {}}
                 />
@@ -249,7 +291,6 @@ export default function MobileBottomSheet({ hideSteps }) {
           {currentMobileStep === 3 && (
             <div className="flex flex-col h-full">
               <div className="flex-1 overflow-y-auto space-y-4 pb-4">
-                {/* 🚫 Removed onProceed to avoid duplicate button */}
                 <BookingSummary
                   bus={selectedBus}
                   selectedSeats={selectedBookingData.selectedSeats}
@@ -261,7 +302,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                   droppingPoint={selectedBookingData.selectedDroppingPoint}
                 />
               </div>
-              {/* ✅ Single sticky button only */}
               <div className="border-t pt-3 bg-white">
                 <button
                   onClick={() => handleProceedToPayment(selectedBus)}
