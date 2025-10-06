@@ -150,6 +150,14 @@ apiClient.interceptors.request.use(
       addToParams();
     }
 
+    // 🆕 Cart endpoints: ensure clientId is always present
+    // - GET  => add to params
+    // - POST/DELETE => add to body
+    if (path.includes("/bookings/cart")) {
+      if (method === "get") addToParams();
+      else if (method === "post" || method === "delete") addToData();
+    }
+
     // Creating bookings (server needs clientId to match locks)
     if (
       method === "post" &&
