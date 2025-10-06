@@ -18,25 +18,8 @@ import {
   useContext,
 } from "react";
 import apiClient, { getClientId } from "../../api"; // NOTE: path relative to this folder
-import { motion, AnimatePresence } from "framer-motion";
-import Select from "react-select";
 import toast from "react-hot-toast";
-import {
-  FaBus,
-  FaClock,
-  FaRoute,
-  FaTimes,
-  FaChevronLeft,
-  FaExclamationCircle,
-  FaHourglassHalf,
-  FaSyncAlt,
-  FaSlidersH,
-  FaCalendarAlt,
-  FaExchangeAlt,
-  FaSearch,
-  FaChevronDown,
-} from "react-icons/fa";
-import { createPortal } from "react-dom";
+import { FaHourglassHalf } from "react-icons/fa";
 import { useCart } from "../../features/cart/CartContext";
 
 /* ---------------- Context ---------------- */
@@ -388,7 +371,8 @@ export function SearchCoreProvider({ children }) {
   const mobileDateInputRef = useRef(null);
 
   const stickySearchCardRef = useRef(null);
-  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
+  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] =
+    useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
   const tomorrow = new Date();
@@ -719,7 +703,7 @@ export function SearchCoreProvider({ children }) {
   // Release everything on page unmount (back/forward, navigating away)
   useEffect(() => {
     return () => {
-      // 👉 Skip releasing if we're intentionally handing off to ConfirmBooking
+      // 👉 Skip releasing if we're intentionally handing off to Cart/Confirm page
       const skip = sessionStorage.getItem("rb_skip_release_on_unmount");
       if (skip === "1") {
         sessionStorage.removeItem("rb_skip_release_on_unmount");
@@ -975,7 +959,7 @@ export function SearchCoreProvider({ children }) {
     const now = new Date();
     const today = new Date();
     const currentDateString = toLocalYYYYMMDD(today);
-    aconst searchingToday = searchDateParam === currentDateString;
+    const searchingToday = searchDateParam === currentDateString;
 
     return {
       filteredBuses: buses.filter((bus) => {
@@ -1365,7 +1349,8 @@ export function SearchCoreProvider({ children }) {
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
-    const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+    const id =
+      lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
     const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
     return buses.find((b) => b._id === id && b.departureTime === time) || null;
   }, [expandedBusId, buses]);
@@ -1374,16 +1359,16 @@ export function SearchCoreProvider({ children }) {
     ? availability[expandedBusId] || {}
     : {};
 
-  const selectedBookingData = (expandedBusId &&
-    busSpecificBookingData[expandedBusId]) || {
-    selectedSeats: [],
-    seatGenders: {},
-    selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
-    selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
-    basePrice: 0,
-    convenienceFee: 0,
-    totalPrice: 0,
-  };
+  const selectedBookingData =
+    (expandedBusId && busSpecificBookingData[expandedBusId]) || {
+      selectedSeats: [],
+      seatGenders: {},
+      selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
+      selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+      basePrice: 0,
+      convenienceFee: 0,
+      totalPrice: 0,
+    };
 
   const currentMobileStep =
     (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
