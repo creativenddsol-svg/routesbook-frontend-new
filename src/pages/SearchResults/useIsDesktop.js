@@ -1,41 +1,38 @@
 // src/pages/SearchResults/useIsDesktop.js
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 /**
  * useIsDesktop
  * Returns true when (min-width: 1024px) matches.
- * - Safe on SSR (assumes desktop to avoid hydration mismatch).
- * - Works across older browsers that still use addListener/removeListener.
+ * - SSR-safe (assumes desktop on server to avoid hydration mismatch).
+ * - Uses useSyncExternalStore for correct subscription semantics.
  */
 export default function useIsDesktop(query = "(min-width: 1024px)") {
-  const getInitial = () => {
+  const subscribe = (onStoreChange) => {
     if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-      // On SSR or very old browsers, default to desktop layout
-      return true;
+      // nothing to subscribe to on the server
+      return () => {};
+    }
+    const mql = window.matchMedia(query);
+    // modern + legacy listeners
+    if (typeof mql.addEventListener === "function") {
+      mql.addEventListener("change", onStoreChange);
+      return () => mql.removeEventListener("change", onStoreChange);
+    } else {
+      mql.addListener(onStoreChange);
+      return () => mql.removeListener(onStoreChange);
+    }
+  };
+
+  const getSnapshot = () => {
+    if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+      return true; // default to desktop on SSR/very old browsers
     }
     return window.matchMedia(query).matches;
   };
 
-  const [isDesktop, setIsDesktop] = useState(getInitial);
+  // server snapshot = same as fallback (desktop) to keep hydration consistent
+  const getServerSnapshot = () => true;
 
-  useEffect(() => {
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-
-    const mql = window.matchMedia(query);
-    const onChange = (e) => setIsDesktop(e.matches);
-
-    // keep state in sync if query prop changes
-    if (mql.matches !== isDesktop) setIsDesktop(mql.matches);
-
-    // modern + legacy listeners
-    if (typeof mql.addEventListener === "function") {
-      mql.addEventListener("change", onChange);
-      return () => mql.removeEventListener("change", onChange);
-    } else {
-      mql.addListener(onChange);
-      return () => mql.removeListener(onChange);
-    }
-  }, [query]);
-
-  return isDesktop;
+  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
