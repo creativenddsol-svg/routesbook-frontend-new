@@ -8,7 +8,7 @@ const API_BASE_URL =
     process.env.REACT_APP_API_URL) ||
   "https://routesbook-backend-api.onrender.com/api"; // fallback
 
-/* === ADD: derive absolute origin (no /api) + image URL normalizer === */
+/* === Absolute origin (no /api) + image URL normalizer === */
 export const API_ORIGIN = (() => {
   try {
     const u = new URL(API_BASE_URL);
@@ -21,7 +21,6 @@ export const API_ORIGIN = (() => {
 export const toImgURL = (p) => {
   if (!p) return "";
   if (/^https?:\/\//i.test(p)) {
-    // if backend accidentally returns http while site is https, prefer https
     try {
       const u = new URL(p);
       return u.protocol === "http:" ? `https://${u.host}${u.pathname}${u.search}${u.hash}` : p;
@@ -31,7 +30,6 @@ export const toImgURL = (p) => {
   }
   return `${API_ORIGIN}${p.startsWith("/") ? p : "/" + p}`;
 };
-/* === END ADD === */
 
 /** Axios instance */
 const apiClient = axios.create({
@@ -58,9 +56,7 @@ export const getClientId = () => {
         if (hasRand) {
           const buf = new Uint32Array(2);
           window.crypto.getRandomValues(buf);
-          id = `${Date.now()}-${Array.from(buf)
-            .map((n) => n.toString(16))
-            .join("")}`;
+          id = `${Date.now()}-${Array.from(buf).map((n) => n.toString(16)).join("")}`;
         } else {
           id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         }
@@ -73,27 +69,63 @@ export const getClientId = () => {
   }
 };
 
+/* ---------- Idempotency helpers (checkout only) ---------- */
+/** Persist per-attempt key in sessionStorage (cartId + paymentIntentId scoped) */
+function getOrCreateIdemKey(cartId, paymentIntentId) {
+  const safeCart = String(cartId || "").trim();
+  const safePi = String(paymentIntentId || "").trim();
+  const k = `rb_idem_${safeCart}_${safePi}`;
+  try {
+    let val = sessionStorage.getItem(k);
+    if (!val) {
+      if (typeof window !== "undefined" && window.crypto?.randomUUID) {
+        val = window.crypto.randomUUID();
+      } else {
+        val = `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+      }
+      sessionStorage.setItem(k, val);
+    }
+    return val;
+  } catch {
+    // fallback, non-persistent
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
+  }
+}
+
+/** Quick path matcher that strips baseURL if axios got an absolute URL */
+function pathOf(config) {
+  const rawUrl = (config.url || "").toLowerCase();
+  const baseLower = API_BASE_URL.toLowerCase();
+  let path = rawUrl.startsWith(baseLower) ? rawUrl.slice(baseLower.length) : rawUrl;
+  if (!path.startsWith("/")) path = `/${path}`;
+  return path;
+}
+
 /** Interceptors */
 apiClient.interceptors.request.use(
   (config) => {
     // Auth
-    const token =
-      localStorage.getItem("token") || localStorage.getItem("authToken");
+    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Add clientId ONLY in payload/params for the lock & booking APIs (no custom header)
+    // Always ensure Accept
+    config.headers = { ...(config.headers || {}), Accept: "application/json" };
+
+    // Never send x-client-id as a header (CORS); we’ll send clientId in body/params instead.
+    try {
+      const h = config.headers;
+      const del = (k) =>
+        typeof h?.delete === "function" ? h.delete(k) : delete h[k];
+      del?.("x-client-id"); del?.("X-Client-Id"); del?.("xClientId");
+    } catch {}
+
+    // ---- clientId injection (body/params) ----
     const clientId = getClientId();
-
-    // Normalize URL for matching (strip base if axios was given an absolute URL)
-    const rawUrl = (config.url || "").toLowerCase();
-    const baseLower = API_BASE_URL.toLowerCase();
-    let path = rawUrl.startsWith(baseLower) ? rawUrl.slice(baseLower.length) : rawUrl;
-    if (!path.startsWith("/")) path = `/${path}`;
-
     const method = (config.method || "get").toLowerCase();
+    const path = pathOf(config);
 
     const addToData = () => {
       if (config.data && typeof config.data === "object") {
@@ -110,17 +142,15 @@ apiClient.interceptors.request.use(
     if (path.includes("/bookings/lock") && method === "post") addToData();
     if (path.includes("/bookings/release") && method === "delete") addToData();
 
-    // Lock remaining (both styles: /lock-remaining and /lock/remaining)
+    // Lock remaining (both styles)
     if (
       method === "get" &&
-      (path.includes("/bookings/lock-remaining") ||
-        path.includes("/bookings/lock/remaining"))
+      (path.includes("/bookings/lock-remaining") || path.includes("/bookings/lock/remaining"))
     ) {
       addToParams();
     }
 
-    // NEW: ensure clientId is also sent when creating the booking
-    // Matches POST /bookings and POST /bookings/... (but not the lock/release endpoints already handled)
+    // Creating bookings (server needs clientId to match locks)
     if (
       method === "post" &&
       /(^|\/)bookings(\/|$)/.test(path) &&
@@ -130,41 +160,29 @@ apiClient.interceptors.request.use(
       addToData();
     }
 
+    // ---- Idempotency: checkout endpoint ONLY ----
+    // POST /api/bookings/cart/checkout
+    if (method === "post" && /\/bookings\/cart\/checkout(?:\/|$)/.test(path)) {
+      const cartId = config.data?.cartId ?? "";
+      const paymentIntentId = config.data?.paymentIntentId ?? "";
+      const idemKey = getOrCreateIdemKey(cartId, paymentIntentId);
+
+      // Send header (recommended) …
+      // NOTE: Backend CORS must allow this header: "Idempotency-Key"
+      config.headers["Idempotency-Key"] = config.headers["Idempotency-Key"] || idemKey;
+
+      // …and also include a body fallback so server-side middleware can read if desired
+      if (config.data && typeof config.data === "object" && !("idempotencyKey" in config.data)) {
+        config.data.idempotencyKey = idemKey;
+      }
+    }
+
     return config;
   },
   (error) => Promise.reject(error)
 );
 
-apiClient.interceptors.response.use(
-  (res) => res,
-  (err) => Promise.reject(err)
-);
-
-/* ---------------- Additional, non-breaking enhancements below ---------------- */
-
-/* 2nd request interceptor: CORS-safe guard — never send x-client-id as a header; keep Accept */
-apiClient.interceptors.request.use(
-  (config) => {
-    try {
-      // Remove any x-client-id header injected elsewhere (CORS preflight will fail otherwise)
-      if (config && config.headers) {
-        const h = config.headers;
-        const del = (k) =>
-          typeof h.delete === "function" ? h.delete(k) : delete h[k];
-        del("x-client-id");
-        del("X-Client-Id");
-        del("xClientId");
-      }
-      if (!config.headers?.Accept) {
-        config.headers = { ...(config.headers || {}), Accept: "application/json" };
-      }
-    } catch {}
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-/* Safe 401 auto-refresh (cookie-based) with concurrency control */
+/* Safe 401 auto-refresh (cookie-based) with concurrency control) */
 let isRefreshing = false;
 let refreshWaiters = [];
 
@@ -208,9 +226,6 @@ apiClient.interceptors.response.use(
       } catch (e) {
         isRefreshing = false;
         rejectWaiters(e);
-        // Optional: clear volatile tokens if you want a clean state
-        // localStorage.removeItem("token");
-        // localStorage.removeItem("authToken");
         throw e;
       }
     }
