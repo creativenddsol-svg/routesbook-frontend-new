@@ -24,12 +24,10 @@ import BookingDeadlineTimer from "./components/BookingDeadlineTimer";
 import FilterPanel from "./components/FilterPanel";
 import SpecialNoticesSection from "./components/SpecialNoticesSection";
 
-
 import SeatLayout from "../../components/SeatLayout";
 import SeatLegend from "../../components/SeatLegend";
 import BookingSummary from "../../components/BookingSummary";
 import PointSelection from "../../components/PointSelection";
-
 
 /* ————————————————————————————————
    Small skeleton while loading
@@ -104,7 +102,6 @@ export default function Desktop() {
     busSpecificBookingData,
     handleBoardingPointSelect,
     handleDroppingPointSelect,
-    handleProceedToPayment,
   } = useSearchCore();
 
   const selectStyles = {
@@ -365,7 +362,8 @@ export default function Desktop() {
                               selectedSeats={currentBusBookingData.selectedSeats}
                               onSeatClick={(seat) => handleSeatToggle(bus, seat)}
                               bookedSeatGenders={a?.seatGenderMap || {}}
-                              selectedSeatGenders={{}}
+                              /* ✅ use the tracked genders from current booking data */
+                              selectedSeatGenders={currentBusBookingData.seatGenders || {}}
                             />
                           </div>
                         </div>
@@ -388,7 +386,8 @@ export default function Desktop() {
                               basePrice={currentBusBookingData.basePrice}
                               convenienceFee={currentBusBookingData.convenienceFee}
                               totalPrice={currentBusBookingData.totalPrice}
-                              onProceed={() => handleProceedToPayment(bus)}
+                              /* ✅ go to Cart page (new flow) */
+                              onProceed={() => navigate("/cart")}
                               boardingPoint={currentBusBookingData.selectedBoardingPoint}
                               droppingPoint={currentBusBookingData.selectedDroppingPoint}
                             />
