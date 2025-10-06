@@ -37,6 +37,7 @@ import {
   FaChevronDown,
 } from "react-icons/fa";
 import { createPortal } from "react-dom";
+import { useCart } from "../../features/cart/CartContext";
 
 /* ---------------- Context ---------------- */
 const SearchCoreContext = createContext(null);
@@ -352,6 +353,7 @@ export function SearchCoreProvider({ children }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { api: cartApi } = useCart();
 
   const {
     from,
@@ -973,7 +975,7 @@ export function SearchCoreProvider({ children }) {
     const now = new Date();
     const today = new Date();
     const currentDateString = toLocalYYYYMMDD(today);
-    const searchingToday = searchDateParam === currentDateString;
+    aconst searchingToday = searchDateParam === currentDateString;
 
     return {
       filteredBuses: buses.filter((bus) => {
@@ -1304,7 +1306,7 @@ export function SearchCoreProvider({ children }) {
     }
   }, [expandedBusId, busSpecificBookingData, buses, from, to]);
 
-  const handleProceedToPayment = (bus) => {
+  const handleProceedToPayment = async (bus) => {
     const busKey = `${bus._id}-${bus.departureTime}`;
     const busData = busSpecificBookingData[busKey];
 
@@ -1315,8 +1317,6 @@ export function SearchCoreProvider({ children }) {
 
     const {
       selectedSeats,
-      basePrice,
-      convenienceFee,
       totalPrice,
       selectedBoardingPoint,
       selectedDroppingPoint,
@@ -1339,24 +1339,26 @@ export function SearchCoreProvider({ children }) {
     // 👉 tell unmount cleanup not to release seats during handoff
     sessionStorage.setItem("rb_skip_release_on_unmount", "1");
 
-    navigate("/confirm-booking", {
-      state: {
-        bus,
-        busId: bus._id,
-        date: searchDateParam,
-        departureTime: bus.departureTime,
-        selectedSeats,
-        seatGenders: seatGenders || {},
-        priceDetails: {
-          basePrice,
-          convenienceFee,
-          totalPrice,
-        },
-        selectedBoardingPoint,
-        selectedDroppingPoint,
-        clientId: getClientId(), // ✅ pass same id to confirm page
-      },
-    });
+    // Add selected seats to server cart, then navigate to /cart
+    try {
+      for (const seat of selectedSeats) {
+        await cartApi.add({
+          bus,
+          date: searchDateParam,
+          departureTime: bus.departureTime,
+          seatNo: String(seat),
+          gender: seatGenders?.[String(seat)] || "M",
+        });
+      }
+      navigate("/cart");
+    } catch (e) {
+      console.error("Add to cart failed:", e);
+      toast.error(
+        e?.response?.data?.message ||
+          "Could not add seats to cart. Please try again."
+      );
+      sessionStorage.removeItem("rb_skip_release_on_unmount");
+    }
   };
 
   /* -------- Derived selections for consumers -------- */
