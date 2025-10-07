@@ -1,42 +1,48 @@
-// src/pages/SearchResults/index.jsx
-// Route target for /search-results
-// Chooses Mobile vs Desktop UI while sharing all logic via _core.
+// src/pages/SearchResults/useIsDesktop.js
+import { useEffect, useState } from "react";
 
-import React, { Suspense, memo } from "react";
-import { Toaster } from "react-hot-toast";
-import { SearchCoreProvider } from "./_core";          // shared state/effects/handlers
-import useIsDesktop from "./useIsDesktop";             // matchMedia('(min-width:1024px)')
+/**
+ * useIsDesktop
+ * Returns true when (min-width: 1024px) matches.
+ * - Safe on SSR (assumes desktop to avoid hydration mismatch).
+ * - Works across older browsers that still use addListener/removeListener.
+ */
+export default function useIsDesktop(query = "(min-width: 1024px)") {
+  const getInitial = () => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    ) {
+      // On SSR or very old browsers, default to desktop layout
+      return true;
+    }
+    return window.matchMedia(query).matches;
+  };
 
-// Code-split UIs (helps initial load)
-const Mobile = React.lazy(() => import(/* webpackChunkName: "sr-mobile" */ "./Mobile"));
-const Desktop = React.lazy(() => import(/* webpackChunkName: "sr-desktop" */ "./Desktop"));
+  const [isDesktop, setIsDesktop] = useState(getInitial);
 
-// Tiny inline fallback to avoid layout shift
-const Fallback = () => (
-  <div className="min-h-[40vh] w-full flex items-center justify-center">
-    <div className="animate-spin h-6 w-6 rounded-full border-2 border-gray-300 border-t-gray-500" />
-  </div>
-);
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof window.matchMedia !== "function"
+    )
+      return;
 
-function SearchResultsIndex(props) {
-  const isDesktop = useIsDesktop();
+    const mql = window.matchMedia(query);
+    const onChange = (e) => setIsDesktop(e.matches);
 
-  return (
-    <SearchCoreProvider>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 3500,
-          style: { fontSize: 14 },
-          success: { iconTheme: { primary: "#16a34a", secondary: "#fff" } },
-          error: { iconTheme: { primary: "#dc2626", secondary: "#fff" } },
-        }}
-      />
-      <Suspense fallback={<Fallback />}>
-        {isDesktop ? <Desktop {...props} /> : <Mobile {...props} />}
-      </Suspense>
-    </SearchCoreProvider>
-  );
+    // keep state in sync if query prop changes
+    if (mql.matches !== isDesktop) setIsDesktop(mql.matches);
+
+    // modern + legacy listeners
+    if (typeof mql.addEventListener === "function") {
+      mql.addEventListener("change", onChange);
+      return () => mql.removeEventListener("change", onChange);
+    } else {
+      mql.addListener(onChange);
+      return () => mql.removeListener(onChange);
+    }
+  }, [query]);
+
+  return isDesktop;
 }
-
-export default memo(SearchResultsIndex);
