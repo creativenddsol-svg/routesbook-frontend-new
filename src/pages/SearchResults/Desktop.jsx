@@ -102,7 +102,8 @@ export default function Desktop() {
     busSpecificBookingData,
     handleBoardingPointSelect,
     handleDroppingPointSelect,
-    /* ✅ added */
+
+    // 🆕 ensure desktop can add-to-cart/continue using the same core flow
     handleProceedToPayment,
   } = useSearchCore();
 
@@ -388,7 +389,7 @@ export default function Desktop() {
                               basePrice={currentBusBookingData.basePrice}
                               convenienceFee={currentBusBookingData.convenienceFee}
                               totalPrice={currentBusBookingData.totalPrice}
-                              /* ✅ call core proceed handler (adds to cart OR goes to confirm) */
+                              /* ✅ FIX: use core flow so seats are actually added to cart (or continue) */
                               onProceed={() => handleProceedToPayment(bus)}
                               boardingPoint={currentBusBookingData.selectedBoardingPoint}
                               droppingPoint={currentBusBookingData.selectedDroppingPoint}
