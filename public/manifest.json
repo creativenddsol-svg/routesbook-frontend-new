@@ -10,30 +10,30 @@
   "background_color": "#ffffff",
   "icons": [
     {
-      "src": "favicon.ico",
+      "src": "/favicon.ico",
       "sizes": "16x16 24x24 32x32 64x64",
       "type": "image/x-icon"
     },
     {
-      "src": "images/route.jpeg",
+      "src": "/images/route.jpeg",
       "sizes": "192x192",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "images/route.jpeg",
+      "src": "/images/route.jpeg",
       "sizes": "512x512",
       "type": "image/jpeg",
       "purpose": "any"
     },
     {
-      "src": "logo192.png",
+      "src": "/logo192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "logo512.png",
+      "src": "/logo512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
