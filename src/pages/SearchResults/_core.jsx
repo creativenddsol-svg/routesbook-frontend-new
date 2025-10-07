@@ -304,20 +304,20 @@ export const selectStyles = {
     color: PALETTE.textLight,
     fontSize: "16px",
     fontWeight: "500",
-  })),
+  }),
   singleValue: (p) => ({
     ...p,
     color: PALETTE.textDark,
     fontSize: "18px",
     fontWeight: "600",
-  })),
+  }),
   menu: (p) => ({
     ...p,
     borderRadius: "12px",
     boxShadow:
       "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-  })),
-  menuPortal: (p) => ({ ...p, zIndex: 9999 })),
+  }),
+  menuPortal: (p) => ({ ...p, zIndex: 9999 }),
   option: (p, state) => ({
     ...p,
     backgroundColor: state.isSelected
@@ -329,7 +329,7 @@ export const selectStyles = {
     cursor: "pointer",
     padding: "12px 16px",
     transition: "background-color 0.2s ease, color 0.2s ease",
-  })),
+  }),
 };
 
 /* ======================================================= */
