@@ -1,48 +1,21 @@
-// src/pages/SearchResults/useIsDesktop.js
-import { useEffect, useState } from "react";
+// src/pages/SearchResults/index.jsx
+// Route target for /search-results
+// Chooses Mobile vs Desktop UI while sharing all logic via _core.
 
-/**
- * useIsDesktop
- * Returns true when (min-width: 1024px) matches.
- * - Safe on SSR (assumes desktop to avoid hydration mismatch).
- * - Works across older browsers that still use addListener/removeListener.
- */
-export default function useIsDesktop(query = "(min-width: 1024px)") {
-  const getInitial = () => {
-    if (
-      typeof window === "undefined" ||
-      typeof window.matchMedia !== "function"
-    ) {
-      // On SSR or very old browsers, default to desktop layout
-      return true;
-    }
-    return window.matchMedia(query).matches;
-  };
+import React from "react";
+import { Toaster } from "react-hot-toast";
+import { SearchCoreProvider } from "./_core"; // shared state/effects/handlers
+import useIsDesktop from "./useIsDesktop"; // matchMedia('(min-width:1024px)')
+import Mobile from "./Mobile"; // mobile-only markup
+import Desktop from "./Desktop"; // desktop-only markup
 
-  const [isDesktop, setIsDesktop] = useState(getInitial);
+export default function SearchResultsIndex(props) {
+  const isDesktop = useIsDesktop();
 
-  useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      typeof window.matchMedia !== "function"
-    )
-      return;
-
-    const mql = window.matchMedia(query);
-    const onChange = (e) => setIsDesktop(e.matches);
-
-    // keep state in sync if query prop changes
-    if (mql.matches !== isDesktop) setIsDesktop(mql.matches);
-
-    // modern + legacy listeners
-    if (typeof mql.addEventListener === "function") {
-      mql.addEventListener("change", onChange);
-      return () => mql.removeEventListener("change", onChange);
-    } else {
-      mql.addListener(onChange);
-      return () => mql.removeListener(onChange);
-    }
-  }, [query]);
-
-  return isDesktop;
+  return (
+    <SearchCoreProvider>
+      <Toaster position="top-right" />
+      {isDesktop ? <Desktop {...props} /> : <Mobile {...props} />}
+    </SearchCoreProvider>
+  );
 }
