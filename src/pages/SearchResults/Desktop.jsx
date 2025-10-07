@@ -53,7 +53,10 @@ const BusCardSkeleton = () => (
 );
 
 const listVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
-const itemVariants = { hidden: { y: 16, opacity: 0 }, visible: { y: 0, opacity: 1 } };
+const itemVariants = {
+  hidden: { y: 16, opacity: 0 },
+  visible: { y: 0, opacity: 1 },
+};
 
 export default function Desktop() {
   const {
@@ -102,8 +105,6 @@ export default function Desktop() {
     busSpecificBookingData,
     handleBoardingPointSelect,
     handleDroppingPointSelect,
-
-    // 🆕 ensure desktop can add-to-cart/continue using the same core flow
     handleProceedToPayment,
   } = useSearchCore();
 
@@ -158,15 +159,22 @@ export default function Desktop() {
 
   const renderCards = () => {
     if (loading) {
-      return Array.from({ length: 5 }).map((_, i) => <BusCardSkeleton key={i} />);
+      return Array.from({ length: 5 }).map((_, i) => (
+        <BusCardSkeleton key={i} />
+      ));
     }
     if (fetchError) {
       return (
         <div className="text-center p-10 bg-white rounded-2xl shadow">
-          <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
+          <h3
+            className="text-2xl font-bold mb-2"
+            style={{ color: PALETTE.textDark }}
+          >
             Oops! Something went wrong.
           </h3>
-          <p className="mb-6" style={{ color: PALETTE.textLight }}>{fetchError}</p>
+          <p className="mb-6" style={{ color: PALETTE.textLight }}>
+            {fetchError}
+          </p>
           <button
             onClick={fetchData}
             className="px-6 py-2.5 font-semibold rounded-lg text-white"
@@ -180,8 +188,13 @@ export default function Desktop() {
     if (!visibleBuses.length) {
       return (
         <div className="text-center p-10 bg-white rounded-2xl shadow">
-          <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
-            {activeFilterCount ? "No Buses Match Your Filters" : "No Buses Available"}
+          <h3
+            className="text-2xl font-bold mb-2"
+            style={{ color: PALETTE.textDark }}
+          >
+            {activeFilterCount
+              ? "No Buses Match Your Filters"
+              : "No Buses Available"}
           </h3>
           <p className="mb-6" style={{ color: PALETTE.textLight }}>
             {activeFilterCount
@@ -257,9 +270,13 @@ export default function Desktop() {
                         )}
                       </div>
                       <div>
-                        <h3 className="text-base font-semibold text-gray-900">{bus.name}</h3>
+                        <h3 className="text-base font-semibold text-gray-900">
+                          {bus.name}
+                        </h3>
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-medium text-gray-600">{bus.busType}</p>
+                          <p className="text-sm font-medium text-gray-600">
+                            {bus.busType}
+                          </p>
                         </div>
                         {bus.liveTracking && (
                           <p className="text-xs font-medium mt-1 flex items-center gap-1 text-gray-500">
@@ -272,7 +289,9 @@ export default function Desktop() {
                     <div className="mb-1">
                       <div className="flex items-center">
                         <div className="flex flex-col min-w-[84px]">
-                          <span className="text-[11px] uppercase tracking-wide text-gray-500">Departs</span>
+                          <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                            Departs
+                          </span>
                           <span className="text-xl font-semibold tabular-nums text-gray-900">
                             {bus.departureTime}
                           </span>
@@ -281,7 +300,9 @@ export default function Desktop() {
                           <div className="h-[2px] w-full rounded bg-gray-200" />
                         </div>
                         <div className="flex flex-col min-w-[84px] text-right">
-                          <span className="text-[11px] uppercase tracking-wide text-gray-500">Arrives</span>
+                          <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                            Arrives
+                          </span>
                           <span className="text-xl font-semibold tabular-nums text-gray-900">
                             {bus.arrivalTime}
                           </span>
@@ -289,18 +310,23 @@ export default function Desktop() {
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-600">
                         <span className="inline-flex items-center gap-1">
-                          <FaClock /> {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                          <FaClock />{" "}
+                          {calculateDuration(
+                            bus.departureTime,
+                            bus.arrivalTime
+                          )}
                         </span>
-                        {typeof availableSeats === "number" && <span>{availableSeats} seats</span>}
-                        {typeof availableWindowSeats === "number" && availableWindowSeats > 0 && (
-                          <span>{availableWindowSeats} window</span>
+                        {typeof availableSeats === "number" && (
+                          <span>{availableSeats} seats</span>
                         )}
+                        {typeof availableWindowSeats === "number" &&
+                          availableWindowSeats > 0 && (
+                            <span>{availableWindowSeats} window</span>
+                          )}
                       </div>
                     </div>
 
-                    {timerProps && (
-                      <BookingDeadlineTimer {...timerProps} />
-                    )}
+                    {timerProps && <BookingDeadlineTimer {...timerProps} />}
                   </div>
 
                   <div className="flex flex-col items-start md:items-end">
@@ -308,7 +334,8 @@ export default function Desktop() {
                       className="text-sm font-medium"
                       style={{
                         color:
-                          typeof availableSeats === "number" && availableSeats > 0
+                          typeof availableSeats === "number" &&
+                          availableSeats > 0
                             ? "#EF4444"
                             : "#9CA3AF",
                       }}
@@ -322,20 +349,30 @@ export default function Desktop() {
 
                     <div className="mt-2 inline-block text-right">
                       {hasStrike && (
-                        <div className="text-xs line-through text-gray-400">Rs. {bus.originalPrice}</div>
+                        <div className="text-xs line-through text-gray-400">
+                          Rs. {bus.originalPrice}
+                        </div>
                       )}
                       <div className="leading-tight">
-                        <span className="text-[11px] font-medium mr-1 align-top text-gray-500">Rs.</span>
-                        <span className="text-2xl font-bold tabular-nums text-gray-900">{displayPrice}</span>
+                        <span className="text-[11px] font-medium mr-1 align-top text-gray-500">
+                          Rs.
+                        </span>
+                        <span className="text-2xl font-bold tabular-nums text-gray-900">
+                          {displayPrice}
+                        </span>
                       </div>
-                      <div className="text-[11px] font-medium mt-0.5 text-gray-500">Onwards</div>
+                      <div className="text-[11px] font-medium mt-0.5 text-gray-500">
+                        Onwards
+                      </div>
                     </div>
 
                     <button
                       onClick={() => handleToggleSeatLayout(bus)}
                       disabled={isSoldOut}
                       className="w-full md:w-auto mt-3 px-6 py-2.5 text-white font-semibold rounded-full transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-                      style={{ backgroundColor: isSoldOut ? "#9CA3AF" : "#DC2626" }}
+                      style={{
+                        backgroundColor: isSoldOut ? "#9CA3AF" : "#DC2626",
+                      }}
                     >
                       {isSoldOut
                         ? "Sold Out"
@@ -362,11 +399,14 @@ export default function Desktop() {
                             <SeatLayout
                               seatLayout={bus.seatLayout}
                               bookedSeats={[...(a?.bookedSeats || [])]}
-                              selectedSeats={currentBusBookingData.selectedSeats}
-                              onSeatClick={(seat) => handleSeatToggle(bus, seat)}
+                              selectedSeats={
+                                currentBusBookingData.selectedSeats
+                              }
+                              onSeatClick={(seat) =>
+                                handleSeatToggle(bus, seat)
+                              }
                               bookedSeatGenders={a?.seatGenderMap || {}}
-                              /* ✅ use the tracked genders from current booking data */
-                              selectedSeatGenders={currentBusBookingData.seatGenders || {}}
+                              selectedSeatGenders={{}}
                             />
                           </div>
                         </div>
@@ -375,24 +415,39 @@ export default function Desktop() {
                             <PointSelection
                               boardingPoints={bus.boardingPoints}
                               droppingPoints={bus.droppingPoints}
-                              selectedBoardingPoint={currentBusBookingData.selectedBoardingPoint}
-                              setSelectedBoardingPoint={(p) => handleBoardingPointSelect(bus, p)}
-                              selectedDroppingPoint={currentBusBookingData.selectedDroppingPoint}
-                              setSelectedDroppingPoint={(p) => handleDroppingPointSelect(bus, p)}
+                              selectedBoardingPoint={
+                                currentBusBookingData.selectedBoardingPoint
+                              }
+                              setSelectedBoardingPoint={(p) =>
+                                handleBoardingPointSelect(bus, p)
+                              }
+                              selectedDroppingPoint={
+                                currentBusBookingData.selectedDroppingPoint
+                              }
+                              setSelectedDroppingPoint={(p) =>
+                                handleDroppingPointSelect(bus, p)
+                              }
                             />
                           </div>
                           <div className="w-full mx-auto xs:max-w-xs sm:max-w-sm">
                             <BookingSummary
                               bus={bus}
-                              selectedSeats={currentBusBookingData.selectedSeats}
+                              selectedSeats={
+                                currentBusBookingData.selectedSeats
+                              }
                               date={searchDateParam}
                               basePrice={currentBusBookingData.basePrice}
-                              convenienceFee={currentBusBookingData.convenienceFee}
+                              convenienceFee={
+                                currentBusBookingData.convenienceFee
+                              }
                               totalPrice={currentBusBookingData.totalPrice}
-                              /* ✅ FIX: use core flow so seats are actually added to cart (or continue) */
                               onProceed={() => handleProceedToPayment(bus)}
-                              boardingPoint={currentBusBookingData.selectedBoardingPoint}
-                              droppingPoint={currentBusBookingData.selectedDroppingPoint}
+                              boardingPoint={
+                                currentBusBookingData.selectedBoardingPoint
+                              }
+                              droppingPoint={
+                                currentBusBookingData.selectedDroppingPoint
+                              }
                             />
                           </div>
                         </div>
@@ -409,7 +464,10 @@ export default function Desktop() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ backgroundColor: PALETTE.bgLight }}>
+    <div
+      className="flex flex-col min-h-screen"
+      style={{ backgroundColor: PALETTE.bgLight }}
+    >
       {/* Header */}
       <div className="w-full bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
@@ -419,19 +477,31 @@ export default function Desktop() {
                 className="text-xl mr-2 cursor-pointer"
                 onClick={() => navigate(-1)}
               />
-              <span className="text-sm font-medium" style={{ color: PALETTE.textLight }}>
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
                 Bus Ticket
               </span>
               <span className="mx-1 text-gray-400 text-sm">&gt;</span>
-              <span className="text-sm font-medium" style={{ color: PALETTE.textLight }}>
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
                 {from} to {to} Bus
               </span>
             </div>
-            <h1 className="text-2xl font-bold" style={{ color: PALETTE.textDark }}>
-              {from} <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
+            <h1
+              className="text-2xl font-bold"
+              style={{ color: PALETTE.textDark }}
+            >
+              {from}{" "}
+              <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
             </h1>
             {!loading && !fetchError && (
-              <p className="text-sm text-gray-500 mb-4">{sortedBuses.length} buses</p>
+              <p className="text-sm text-gray-500 mb-4">
+                {sortedBuses.length} buses
+              </p>
             )}
           </div>
         </div>
@@ -446,21 +516,34 @@ export default function Desktop() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="bg-white border border-gray-300 rounded-3xl">
             <div className="hidden lg:flex rounded-2xl">
-              <div className="relative flex-1 p-4 flex items-center border-r" style={{ borderColor: PALETTE.borderLight }}>
+              <div
+                className="relative flex-1 p-4 flex items-center border-r"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
                 <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
                 <div className="w-full">
-                  <label className="block text-xs font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
                     From
                   </label>
                   <Select
                     options={fromOptions}
-                    value={searchFrom ? { value: searchFrom, label: searchFrom } : null}
+                    value={
+                      searchFrom
+                        ? { value: searchFrom, label: searchFrom }
+                        : null
+                    }
                     onChange={(s) => setSearchFrom(s?.value || "")}
                     placeholder="Select departure"
                     isClearable
                     styles={selectStyles}
                     menuPortalTarget={document.body}
-                    components={{ DropdownIndicator: () => null, IndicatorSeparator: () => null }}
+                    components={{
+                      DropdownIndicator: () => null,
+                      IndicatorSeparator: () => null,
+                    }}
                   />
                 </div>
                 <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 z-20">
@@ -478,35 +561,66 @@ export default function Desktop() {
                 </div>
               </div>
 
-              <div className="flex-1 p-4 flex items-center border-r" style={{ borderColor: PALETTE.borderLight }}>
+              <div
+                className="flex-1 p-4 flex items-center border-r"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
                 <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
                 <div className="w-full">
-                  <label className="block text-xs font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
                     To
                   </label>
                   <Select
                     options={toOptions}
-                    value={searchTo ? { value: searchTo, label: searchTo } : null}
+                    value={
+                      searchTo ? { value: searchTo, label: searchTo } : null
+                    }
                     onChange={(s) => setSearchTo(s?.value || "")}
                     placeholder="Select destination"
                     isClearable
                     styles={selectStyles}
                     menuPortalTarget={document.body}
-                    components={{ DropdownIndicator: () => null, IndicatorSeparator: () => null }}
+                    components={{
+                      DropdownIndicator: () => null,
+                      IndicatorSeparator: () => null,
+                    }}
                   />
                 </div>
               </div>
 
               <div className="flex-1 p-4 flex items-center">
                 <div className="mr-4">
-                  <svg width="22" height="22" viewBox="0 0 24 24" className="text-gray-400"><path fill="currentColor" d="M7 11h5v5H7z"/><path fill="currentColor" d="M19 4h-1V2h-2v2H8V2H6v2H5a3 3 0 0 0-3 3v11a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V10h16z"/></svg>
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    className="text-gray-400"
+                  >
+                    <path fill="currentColor" d="M7 11h5v5H7z" />
+                    <path
+                      fill="currentColor"
+                      d="M19 4h-1V2h-2v2H8V2H6v2H5a3 3 0 0 0-3 3v11a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V10h16z"
+                    />
+                  </svg>
                 </div>
                 <div className="w-full">
-                  <label className="block text-xs font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
                     Date of Journey
                   </label>
-                  <div onClick={handleDateContainerClick} className="cursor-pointer">
-                    <span className="text-lg font-medium" style={{ color: PALETTE.textDark }}>
+                  <div
+                    onClick={handleDateContainerClick}
+                    className="cursor-pointer"
+                  >
+                    <span
+                      className="text-lg font-medium"
+                      style={{ color: PALETTE.textDark }}
+                    >
                       {getReadableDate(searchDate)}
                     </span>
                   </div>
@@ -514,14 +628,24 @@ export default function Desktop() {
                     <button
                       onClick={() => setSearchDate(todayStr)}
                       className="text-xs font-medium mr-3 hover:underline"
-                      style={{ color: searchDate === todayStr ? PALETTE.primaryRed : PALETTE.accentBlue }}
+                      style={{
+                        color:
+                          searchDate === todayStr
+                            ? PALETTE.primaryRed
+                            : PALETTE.accentBlue,
+                      }}
                     >
                       Today
                     </button>
                     <button
                       onClick={() => setSearchDate(tomorrowStr)}
                       className="text-xs font-medium hover:underline"
-                      style={{ color: searchDate === tomorrowStr ? PALETTE.primaryRed : PALETTE.accentBlue }}
+                      style={{
+                        color:
+                          searchDate === tomorrowStr
+                            ? PALETTE.primaryRed
+                            : PALETTE.accentBlue,
+                      }}
                     >
                       Tomorrow
                     </button>
@@ -560,7 +684,11 @@ export default function Desktop() {
               className="hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 sticky"
               style={{ top: `${filterPanelTopOffset}px`, zIndex: 20 }}
             >
-              <FilterPanel isMobile={false} sortBy={sortBy} setSortBy={setSortBy} />
+              <FilterPanel
+                isMobile={false}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+              />
             </aside>
 
             {/* Main column */}
