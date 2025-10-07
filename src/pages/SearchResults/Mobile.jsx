@@ -48,7 +48,10 @@ const BusCardSkeleton = () => (
 
 // simple fade/slide
 const listVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
-const itemVariants = { hidden: { y: 16, opacity: 0 }, visible: { y: 0, opacity: 1 } };
+const itemVariants = {
+  hidden: { y: 16, opacity: 0 },
+  visible: { y: 0, opacity: 1 },
+};
 
 // minimal icon per time slot (redbus-like)
 const slotIcon = (slot) => {
@@ -126,12 +129,17 @@ export default function Mobile() {
   // --------------------------------------------------------------------------------------
   const renderCards = () => {
     if (loading) {
-      return Array.from({ length: 5 }).map((_, i) => <BusCardSkeleton key={i} />);
+      return Array.from({ length: 5 }).map((_, i) => (
+        <BusCardSkeleton key={i} />
+      ));
     }
     if (fetchError) {
       return (
         <div className="text-center p-8 bg-white rounded-2xl border border-gray-200">
-          <div className="text-lg font-semibold mb-1" style={{ color: PALETTE.textDark }}>
+          <div
+            className="text-lg font-semibold mb-1"
+            style={{ color: PALETTE.textDark }}
+          >
             Oops! Something went wrong.
           </div>
           <div className="text-sm mb-4" style={{ color: PALETTE.textLight }}>
@@ -150,8 +158,13 @@ export default function Mobile() {
     if (!visibleBuses.length) {
       return (
         <div className="text-center p-8 bg-white rounded-2xl border border-gray-200">
-          <div className="text-lg font-semibold mb-1" style={{ color: PALETTE.textDark }}>
-            {activeFilterCount ? "No Buses Match Your Filters" : "No Buses Available"}
+          <div
+            className="text-lg font-semibold mb-1"
+            style={{ color: PALETTE.textDark }}
+          >
+            {activeFilterCount
+              ? "No Buses Match Your Filters"
+              : "No Buses Available"}
           </div>
           <div className="text-sm" style={{ color: PALETTE.textLight }}>
             {activeFilterCount
@@ -163,9 +176,9 @@ export default function Mobile() {
     }
 
     return (
-      <motion.div 
-        variants={listVariants} 
-        initial="hidden" 
+      <motion.div
+        variants={listVariants}
+        initial="hidden"
         animate="visible"
         className="space-y-3"
       >
@@ -197,7 +210,8 @@ export default function Mobile() {
           const availableSeats = a?.available;
           const isSoldOut = activeIsSoldOut(busKey);
           const hasStrike =
-            typeof bus.originalPrice === "number" && bus.originalPrice > displayPrice;
+            typeof bus.originalPrice === "number" &&
+            bus.originalPrice > displayPrice;
 
           return (
             <motion.div
@@ -209,59 +223,61 @@ export default function Mobile() {
             >
               <button
                 type="button"
-                className={`w-full text-left p-4 ${isSoldOut ? "cursor-not-allowed" : ""}`}
+                className={`w-full text-left p-4 ${
+                  isSoldOut ? "cursor-not-allowed" : ""
+                }`}
                 onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
                 disabled={isSoldOut} // Disable the whole card if sold out
               >
                 {/* START: Card Content - FINAL UI */}
-                
+
                 {/* 1. Bus Operator & Type Group (Top Left) */}
                 <div className="flex items-start justify-between">
-                    <div className="min-w-0 pr-3 flex-1">
-                        {/* Operator Name */}
-                        <p className="text-sm font-semibold text-gray-900 truncate mb-1">
-                            {bus.name}
-                        </p>
-                        
-                        {/* Bus Type and Seat Count Pills (Aligned on second line) */}
-                        <div className="flex items-center gap-2">
-                           {/* Bus Type in Light Blue Pill */}
-                            <span 
-                                className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
-                                style={{ 
-                                  color: '#1D4ED8', // Darker Blue Text
-                                  backgroundColor: '#DBEAFE', // Light Blue Color Pill (Blue 100)
-                                }}
-                            >
-                                {bus.busType}
-                            </span>
-                            {/* Seat Count Down Pill - Font-normal now */}
-                            {typeof availableSeats === "number" && (
-                              <span
-                                  className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
-                                  style={{ 
-                                    color: PALETTE.primaryRed, 
-                                    backgroundColor: '#FEE2E2', // Light red color pill (Red 100)
-                                  }}
-                              >
-                                  {availableSeats} Seats
-                              </span>
-                            )}
-                        </div>
-                    </div>
+                  <div className="min-w-0 pr-3 flex-1">
+                    {/* Operator Name */}
+                    <p className="text-sm font-semibold text-gray-900 truncate mb-1">
+                      {bus.name}
+                    </p>
 
-                    {/* Operator Logo/Placeholder (Top Right) */}
-                    <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-100">
-                      {bus.operatorLogo ? (
-                        <img
-                          src={bus.operatorLogo}
-                          alt={`${bus.name} logo`}
-                          className="max-w-full max-h-full object-contain rounded-full"
-                        />
-                      ) : (
-                        <FaBus className="text-lg text-gray-400" />
+                    {/* Bus Type and Seat Count Pills (Aligned on second line) */}
+                    <div className="flex items-center gap-2">
+                      {/* Bus Type in Light Blue Pill */}
+                      <span
+                        className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
+                        style={{
+                          color: "#1D4ED8", // Darker Blue Text
+                          backgroundColor: "#DBEAFE", // Light Blue Color Pill (Blue 100)
+                        }}
+                      >
+                        {bus.busType}
+                      </span>
+                      {/* Seat Count Down Pill - Font-normal now */}
+                      {typeof availableSeats === "number" && (
+                        <span
+                          className="inline-flex items-center text-xs font-normal px-2 py-0.5 rounded-full"
+                          style={{
+                            color: PALETTE.primaryRed,
+                            backgroundColor: "#FEE2E2", // Light red color pill (Red 100)
+                          }}
+                        >
+                          {availableSeats} Seats
+                        </span>
                       )}
                     </div>
+                  </div>
+
+                  {/* Operator Logo/Placeholder (Top Right) */}
+                  <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center rounded-full bg-gray-100">
+                    {bus.operatorLogo ? (
+                      <img
+                        src={bus.operatorLogo}
+                        alt={`${bus.name} logo`}
+                        className="max-w-full max-h-full object-contain rounded-full"
+                      />
+                    ) : (
+                      <FaBus className="text-lg text-gray-400" />
+                    )}
+                  </div>
                 </div>
 
                 {/* --- Divider for Main Info Section --- */}
@@ -269,74 +285,72 @@ export default function Mobile() {
 
                 {/* 2. Time & Duration Group (Compact, one line with labels below) */}
                 <div className="flex items-center justify-between">
-                    
-                    {/* DEPARTURE TIME + LABEL */}
-                    <div className="flex flex-col items-start min-w-0 pr-1 text-left">
-                        <span className="text-xl tabular-nums text-black font-semibold">
-                            {bus.departureTime}
-                        </span>
-                        {/* New label style */}
-                        <p className="text-[10px] text-gray-500 mt-1 uppercase">
-                            Departure
-                        </p>
-                    </div>
+                  {/* DEPARTURE TIME + LABEL */}
+                  <div className="flex flex-col items-start min-w-0 pr-1 text-left">
+                    <span className="text-xl tabular-nums text-black font-semibold">
+                      {bus.departureTime}
+                    </span>
+                    {/* New label style */}
+                    <p className="text-[10px] text-gray-500 mt-1 uppercase">
+                      Departure
+                    </p>
+                  </div>
 
-                    {/* DURATION (CENTERED) */}
-                    <div className="flex flex-col items-center flex-1 mx-2">
-                         <span className="text-[10px] text-gray-500">
-                            {calculateDuration(bus.departureTime, bus.arrivalTime)}
-                        </span>
-                        <span className="h-[1px] w-full bg-gray-300 rounded-full my-1" />
-                        <span className="text-[10px] text-gray-500 uppercase">Duration</span>
-                    </div>
+                  {/* DURATION (CENTERED) */}
+                  <div className="flex flex-col items-center flex-1 mx-2">
+                    <span className="text-[10px] text-gray-500">
+                      {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                    </span>
+                    <span className="h-[1px] w-full bg-gray-300 rounded-full my-1" />
+                    <span className="text-[10px] text-gray-500 uppercase">
+                      Duration
+                    </span>
+                  </div>
 
-                    {/* ARRIVAL TIME + LABEL */}
-                    <div className="flex flex-col items-end min-w-0 pl-1 text-right">
-                        <span className="text-xl tabular-nums text-gray-500 font-medium">
-                            {bus.arrivalTime}
-                        </span>
-                        {/* New label style */}
-                        <p className="text-[10px] text-gray-500 mt-1 uppercase">
-                            Arrival
-                        </p>
-                    </div>
+                  {/* ARRIVAL TIME + LABEL */}
+                  <div className="flex flex-col items-end min-w-0 pl-1 text-right">
+                    <span className="text-xl tabular-nums text-gray-500 font-medium">
+                      {bus.arrivalTime}
+                    </span>
+                    {/* New label style */}
+                    <p className="text-[10px] text-gray-500 mt-1 uppercase">
+                      Arrival
+                    </p>
+                  </div>
                 </div>
 
                 {/* --- Price and Countdown (Bottom Action Strip) --- */}
                 <hr className="my-3 border-gray-100" />
                 <div className="flex items-center justify-between mt-3">
-                    
-                    {/* Booking Deadline Timer (LEFT SIDE) */}
-                     <div className="flex-1 min-w-0">
-                         {timerProps && (
-                             <span
-                                 className="px-2 py-0.5 rounded-full text-xs font-medium inline-block"
-                                 style={{ backgroundColor: "#FFF7ED", color: "#B45309" }}
-                             >
-                                 <BookingDeadlineTimer {...timerProps} />
-                             </span>
-                         )}
-                     </div>
-                    
-                    {/* Price Block (RIGHT SIDE - Black, smaller font) */}
-                    <div className="flex-shrink-0 leading-tight flex flex-col items-end">
-                         {hasStrike && (
-                            <div className="text-[10px] text-gray-400 line-through">
-                                Rs. {bus.originalPrice}
-                            </div>
-                         )}
-                        <div className="flex items-baseline">
-                            <span className="text-sm text-gray-600 mr-0.5 align-bottom">
-                                Rs.
-                            </span>
-                            {/* Price is text-xl and only font-semibold (not extra bold) */}
-                            <span
-                                className="text-xl tabular-nums text-black font-semibold"
-                            >
-                                {displayPrice}
-                            </span>
-                        </div>
+                  {/* Booking Deadline Timer (LEFT SIDE) */}
+                  <div className="flex-1 min-w-0">
+                    {timerProps && (
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-medium inline-block"
+                        style={{ backgroundColor: "#FFF7ED", color: "#B45309" }}
+                      >
+                        <BookingDeadlineTimer {...timerProps} />
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Price Block (RIGHT SIDE - Black, smaller font) */}
+                  <div className="flex-shrink-0 leading-tight flex flex-col items-end">
+                    {hasStrike && (
+                      <div className="text-[10px] text-gray-400 line-through">
+                        Rs. {bus.originalPrice}
+                      </div>
+                    )}
+                    <div className="flex items-baseline">
+                      <span className="text-sm text-gray-600 mr-0.5 align-bottom">
+                        Rs.
+                      </span>
+                      {/* Price is text-xl and only font-semibold (not extra bold) */}
+                      <span className="text-xl tabular-nums text-black font-semibold">
+                        {displayPrice}
+                      </span>
                     </div>
+                  </div>
                 </div>
 
                 {/* END: Card Content */}
@@ -378,7 +392,7 @@ export default function Mobile() {
             </div>
             <FaPen className="text-gray-700 text-sm flex-shrink-0 ml-2" />
           </button>
-          
+
           {/* Quick Date Change Button */}
           <button
             onClick={() => setCalOpen(true)}
@@ -386,9 +400,8 @@ export default function Mobile() {
             aria-label="Change date"
           >
             {/* The calendar icon or a small date representation could go here */}
-            <FaClock className="text-gray-700 text-base" /> 
+            <FaClock className="text-gray-700 text-base" />
           </button>
-          
 
           <input
             ref={mobileDateInputRef}
@@ -402,83 +415,84 @@ export default function Mobile() {
           />
         </div>
       </div>
-      
+
       {/* Filter/Chip Section */}
-      <div className="bg-white sticky top-[60px] z-10 py-2 border-b border-gray-200 shadow-xs"> 
+      <div className="bg-white sticky top-[60px] z-10 py-2 border-b border-gray-200 shadow-xs">
         <div className="max-w-7xl mx-auto px-4">
-            <SpecialNoticesSection />
+          <SpecialNoticesSection />
 
-            <div className="flex gap-2 overflow-x-auto hide-scrollbar pt-1 pb-1">
-              
-              {/* 1. Filter/Sort Button */}
-              <button
-                onClick={() => setIsFilterOpen(true)}
-                className="flex items-center gap-1.5 h-8 px-2.5 border border-gray-200 rounded-xl text-[12.5px] leading-none font-medium bg-white whitespace-nowrap flex-shrink-0 shadow-sm"
-                aria-label="Open Filter & Sort"
-              >
-                <FaSlidersH className="text-[14px]" />
-                {"Filter \u00A0&\u00A0 Sort"}
-                {activeFilterCount > 0 && (
-                  <span className="ml-0.5 text-[11px] font-semibold text-white bg-red-500 rounded-full w-4 h-4 flex items-center justify-center">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
+          <div className="flex gap-2 overflow-x-auto hide-scrollbar pt-1 pb-1">
+            {/* 1. Filter/Sort Button */}
+            <button
+              onClick={() => setIsFilterOpen(true)}
+              className="flex items-center gap-1.5 h-8 px-2.5 border border-gray-200 rounded-xl text-[12.5px] leading-none font-medium bg-white whitespace-nowrap flex-shrink-0 shadow-sm"
+              aria-label="Open Filter & Sort"
+            >
+              <FaSlidersH className="text-[14px]" />
+              {"Filter \u00A0&\u00A0 Sort"}
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 text-[11px] font-semibold text-white bg-red-500 rounded-full w-4 h-4 flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
 
-              {/* 2. Time Slot Chips */}
-              {Object.keys(TIME_SLOTS).map((slot) => {
-                const Icon = slotIcon(slot);
-                const active = !!filters.timeSlots[slot];
-                return (
-                  <button
-                    key={slot}
-                    onClick={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
-                      }))
-                    }
-                    className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
-                      active
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
-                    }`}
-                    aria-pressed={active}
-                  >
-                    <Icon className="text-[16px]" />
-                    {slot}
-                  </button>
-                );
-              })}
+            {/* 2. Time Slot Chips */}
+            {Object.keys(TIME_SLOTS).map((slot) => {
+              const Icon = slotIcon(slot);
+              const active = !!filters.timeSlots[slot];
+              return (
+                <button
+                  key={slot}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      timeSlots: {
+                        ...prev.timeSlots,
+                        [slot]: !prev.timeSlots[slot],
+                      },
+                    }))
+                  }
+                  className={`flex items-center gap-1.5 h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
+                    active
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
+                  }`}
+                  aria-pressed={active}
+                >
+                  <Icon className="text-[16px]" />
+                  {slot}
+                </button>
+              );
+            })}
 
-              {/* 3. AC/Non-AC Chips */}
-              {["AC", "Non-AC"].map((type) => {
-                const active = filters.type === type;
-                return (
-                  <button
-                    key={type}
-                    onClick={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        type: prev.type === type ? "" : type, // Toggle logic
-                      }))
-                    }
-                    className={`h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
-                      active
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
-                    }`}
-                    aria-pressed={active}
-                  >
-                    {type}
-                  </button>
-                );
-              })}
-            </div>
+            {/* 3. AC/Non-AC Chips */}
+            {["AC", "Non-AC"].map((type) => {
+              const active = filters.type === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: prev.type === type ? "" : type, // Toggle logic
+                    }))
+                  }
+                  className={`h-8 px-3 rounded-xl text-[12.5px] leading-none font-medium whitespace-nowrap border flex-shrink-0 transition duration-150 ${
+                    active
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-800 border-gray-200 hover:bg-gray-50"
+                  }`}
+                  aria-pressed={active}
+                >
+                  {type}
+                </button>
+              );
+            })}
+          </div>
         </div>
       </div>
       {/* --- End of Sticky Filter/Chip Section --- */}
-
 
       {/* Main Bus List Content */}
       <div className="flex-1 w-full pb-6 pt-3">
@@ -487,7 +501,6 @@ export default function Mobile() {
         </div>
       </div>
       {/* --- End of Main Content --- */}
-
 
       {/* Filter Panel (Left Side Sheet) */}
       <AnimatePresence>
@@ -512,10 +525,10 @@ export default function Mobile() {
               transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
               {/* Pass necessary props to FilterPanel */}
-              <FilterPanel 
-                isMobile 
-                sortBy={sortBy} 
-                setSortBy={setSortBy} 
+              <FilterPanel
+                isMobile
+                sortBy={sortBy}
+                setSortBy={setSortBy}
                 filters={filters}
                 setFilters={setFilters}
                 onClose={() => setIsFilterOpen(false)}
