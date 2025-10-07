@@ -23,7 +23,9 @@ export const toImgURL = (p) => {
   if (/^https?:\/\//i.test(p)) {
     try {
       const u = new URL(p);
-      return u.protocol === "http:" ? `https://${u.host}${u.pathname}${u.search}${u.hash}` : p;
+      return u.protocol === "http:"
+        ? `https://${u.host}${u.pathname}${u.search}${u.hash}`
+        : p;
     } catch {
       return p;
     }
@@ -56,7 +58,9 @@ export const getClientId = () => {
         if (hasRand) {
           const buf = new Uint32Array(2);
           window.crypto.getRandomValues(buf);
-          id = `${Date.now()}-${Array.from(buf).map((n) => n.toString(16)).join("")}`;
+          id = `${Date.now()}-${Array.from(buf)
+            .map((n) => n.toString(16))
+            .join("")}`;
         } else {
           id = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
         }
@@ -94,9 +98,15 @@ function getOrCreateIdemKey(cartId, paymentIntentId) {
 
 /** Quick path matcher that strips baseURL if axios got an absolute URL */
 function pathOf(config) {
-  const rawUrl = (config.url || "").toLowerCase();
+  const rawUrl = String(config.url || "");
+  // lowercase both to compare safely
+  const rawLower = rawUrl.toLowerCase();
   const baseLower = API_BASE_URL.toLowerCase();
-  let path = rawUrl.startsWith(baseLower) ? rawUrl.slice(baseLower.length) : rawUrl;
+  let path = rawLower.startsWith(baseLower)
+    ? rawLower.slice(baseLower.length)
+    : rawLower;
+  // strip query/hash for simpler matching
+  path = path.split("?")[0].split("#")[0];
   if (!path.startsWith("/")) path = `/${path}`;
   return path;
 }
@@ -105,7 +115,8 @@ function pathOf(config) {
 apiClient.interceptors.request.use(
   (config) => {
     // Auth
-    const token = localStorage.getItem("token") || localStorage.getItem("authToken");
+    const token =
+      localStorage.getItem("token") || localStorage.getItem("authToken");
     if (token) {
       config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
@@ -114,12 +125,14 @@ apiClient.interceptors.request.use(
     // Always ensure Accept
     config.headers = { ...(config.headers || {}), Accept: "application/json" };
 
-    // Never send x-client-id as a header (CORS); we’ll send clientId in body/params instead.
+    // Never send x-client-id as a header (CORS); use body/params instead.
     try {
       const h = config.headers;
       const del = (k) =>
         typeof h?.delete === "function" ? h.delete(k) : delete h[k];
-      del?.("x-client-id"); del?.("X-Client-Id"); del?.("xClientId");
+      del?.("x-client-id");
+      del?.("X-Client-Id");
+      del?.("xClientId");
     } catch {}
 
     // ---- clientId injection (body/params) ----
@@ -145,17 +158,17 @@ apiClient.interceptors.request.use(
     // Lock remaining (both styles)
     if (
       method === "get" &&
-      (path.includes("/bookings/lock-remaining") || path.includes("/bookings/lock/remaining"))
+      (path.includes("/bookings/lock-remaining") ||
+        path.includes("/bookings/lock/remaining"))
     ) {
       addToParams();
     }
 
-    // 🆕 Cart endpoints: ensure clientId is always present
-    // - GET  => add to params
-    // - POST/DELETE => add to body
-    if (path.includes("/bookings/cart")) {
+    // 👇 ALWAYS attach clientId to all cart endpoints
+    // Matches: /bookings/cart, /bookings/cart/anything, /bookings/cart/checkout
+    if (/\/bookings\/cart(\/|$)/.test(path)) {
       if (method === "get") addToParams();
-      else if (method === "post" || method === "delete") addToData();
+      else addToData(); // post/patch/delete
     }
 
     // Creating bookings (server needs clientId to match locks)
@@ -175,12 +188,16 @@ apiClient.interceptors.request.use(
       const paymentIntentId = config.data?.paymentIntentId ?? "";
       const idemKey = getOrCreateIdemKey(cartId, paymentIntentId);
 
-      // Send header (recommended) …
-      // NOTE: Backend CORS must allow this header: "Idempotency-Key"
-      config.headers["Idempotency-Key"] = config.headers["Idempotency-Key"] || idemKey;
+      // Header (backend CORS must allow "Idempotency-Key")
+      config.headers["Idempotency-Key"] =
+        config.headers["Idempotency-Key"] || idemKey;
 
-      // …and also include a body fallback so server-side middleware can read if desired
-      if (config.data && typeof config.data === "object" && !("idempotencyKey" in config.data)) {
+      // Body fallback (optional server-side read)
+      if (
+        config.data &&
+        typeof config.data === "object" &&
+        !("idempotencyKey" in config.data)
+      ) {
         config.data.idempotencyKey = idemKey;
       }
     }
