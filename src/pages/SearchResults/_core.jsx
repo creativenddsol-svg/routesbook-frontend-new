@@ -18,12 +18,25 @@ import {
   useContext,
 } from "react";
 import apiClient, { getClientId } from "../../api"; // NOTE: path relative to this folder
+import { motion, AnimatePresence } from "framer-motion";
+import Select from "react-select";
 import toast from "react-hot-toast";
-import { FaHourglassHalf } from "react-icons/fa";
-import { useCart } from "../../features/cart/CartContext";
-
-/* -------- switch desired flow here -------- */
-const USE_CART_FLOW = false; // true => add to server cart then /cart, false => go straight to /confirm-booking
+import {
+  FaBus,
+  FaClock,
+  FaRoute,
+  FaTimes,
+  FaChevronLeft,
+  FaExclamationCircle,
+  FaHourglassHalf,
+  FaSyncAlt,
+  FaSlidersH,
+  FaCalendarAlt,
+  FaExchangeAlt,
+  FaSearch,
+  FaChevronDown,
+} from "react-icons/fa";
+import { createPortal } from "react-dom";
 
 /* ---------------- Context ---------------- */
 const SearchCoreContext = createContext(null);
@@ -87,7 +100,7 @@ export const getReadableDate = (dateString) => {
   });
 };
 
-/* AbhiBus-style compact date: "Tue 23 09 2025" */
+/* 🆕 AbhiBus-style compact date: "Tue 23 09 2025" */
 export const getAbhiDate = (dateString) => {
   if (!dateString) return "Select Date";
   const [y, m, d] = dateString.split("-").map(Number);
@@ -156,7 +169,7 @@ const getAuthToken = () =>
 const buildAuthConfig = (token) =>
   token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
-/* -------------- lock registry (cross-tab via logout signal) -------------- */
+/* -------------- 🆕 lock registry (cross-tab aware via logout signal) -------------- */
 const LOCK_REGISTRY_KEY = "rb_lock_registry_v1";
 const readLockReg = () => {
   try {
@@ -339,7 +352,6 @@ export function SearchCoreProvider({ children }) {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { api: cartApi } = useCart();
 
   const {
     from,
@@ -374,8 +386,7 @@ export function SearchCoreProvider({ children }) {
   const mobileDateInputRef = useRef(null);
 
   const stickySearchCardRef = useRef(null);
-  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] =
-    useState(0);
+  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
   const tomorrow = new Date();
@@ -442,13 +453,13 @@ export function SearchCoreProvider({ children }) {
     latestBusesRef.current = buses;
   }, [buses]);
 
-  // keep availability in a ref so refreshAvailability stays stable
+  // 🆕 keep availability in a ref so refreshAvailability stays stable
   const availabilityRef = useRef(availability);
   useEffect(() => {
     availabilityRef.current = availability;
   }, [availability]);
 
-  // throttle/de-dupe/backoff refs
+  // 🆕 throttle/de-dupe/backoff refs
   const inFlightAvailRef = useRef(new Map()); // key -> Promise
   const lastFetchedAtRef = useRef(new Map()); // key -> timestamp
   const backoffUntilRef = useRef(0); // global backoff timestamp
@@ -485,7 +496,7 @@ export function SearchCoreProvider({ children }) {
                     date: searchDateParam,
                     departureTime: busObj.departureTime,
                     seats: seats.map(String),
-                    clientId: getClientId(), // unified client id
+                    clientId: getClientId(), // ✅ unified client id
                   },
                 });
               } catch {
@@ -498,7 +509,9 @@ export function SearchCoreProvider({ children }) {
       if (tasks.length) {
         try {
           await Promise.allSettled(tasks);
-        } catch {}
+        } catch {
+          /* no-op */
+        }
       }
       if (clearLocal) {
         setBusSpecificBookingData((prev) => {
@@ -516,18 +529,19 @@ export function SearchCoreProvider({ children }) {
           return next;
         });
       }
-      // also clear the global registry when we bulk-release
+      // 🆕 also clear the global registry when we bulk-release
       writeLockReg([]);
     },
     [searchDateParam]
   );
 
-  // listen for logout (custom event) + token removal (multi-tab)
+  // 🆕 listen for logout (custom event) + token removal (multi-tab)
   useEffect(() => {
     const handleLogout = async () => {
       try {
         await releaseAllFromRegistry();
       } finally {
+        // clear any local UI selection
         setExpandedBusId(null);
         setBusSpecificBookingData({});
         sessionStorage.removeItem("rb_skip_release_on_unmount");
@@ -549,7 +563,7 @@ export function SearchCoreProvider({ children }) {
     };
   }, []);
 
-  /* ensure fresh availability on re-login */
+  /* 🆕 ensure fresh availability on re-login (without resetting selections) */
   const refreshAvailability = useCallback(
     async (targetBuses, opts = {}) => {
       const { force = false } = opts;
@@ -571,12 +585,14 @@ export function SearchCoreProvider({ children }) {
           // throttle per bus
           if (!force && now - last < minGap) return;
 
-          // de-dupe
+          // de-dupe: if a request is already running for this bus, reuse it
           if (inFlightAvailRef.current.has(key)) {
             try {
               const data = await inFlightAvailRef.current.get(key);
               if (data) updates[key] = data;
-            } catch {}
+            } catch {
+              /* ignore */
+            }
             return;
           }
 
@@ -604,9 +620,10 @@ export function SearchCoreProvider({ children }) {
               return payload;
             } catch (e) {
               if (e?.response?.status === 429) {
-                // back off a bit
+                // back off a bit to be nice to the server
                 backoffUntilRef.current = Date.now() + 15000; // 15s
               }
+              // keep whatever we had before
               const prev = availabilityRef.current?.[key];
               return (
                 prev || {
@@ -642,15 +659,16 @@ export function SearchCoreProvider({ children }) {
     return () => window.removeEventListener("rb:login", onLogin);
   }, [refreshAvailability]);
 
-  /* tiny memo so the polling effect doesn't capture stale list before init */
+  /* 🆕 tiny memo so the polling effect doesn't capture sortedBuses before init */
   const visibleForPolling = useMemo(() => {
+    // we only need a list to refresh; order doesn't matter
     return buses ? [...buses] : [];
   }, [buses]);
 
-  // prevent overlapping polls
+  // 🆕 prevent overlapping polls
   const pollInFlightRef = useRef(false);
 
-  /* near real-time polling */
+  /* 🆕 near real-time polling to reflect other users' locks without page refresh */
   useEffect(() => {
     if (!buses.length) return;
     let stopped = false;
@@ -659,7 +677,8 @@ export function SearchCoreProvider({ children }) {
       if (pollInFlightRef.current) return;
       pollInFlightRef.current = true;
       try {
-        if (document.hidden) return; // save resources
+        if (document.hidden) return; // save resources in background tabs
+        // Always prioritize the currently expanded card, then visible list
         const list = [];
         if (expandedBusId) {
           const lastDash = expandedBusId.lastIndexOf("-");
@@ -669,6 +688,7 @@ export function SearchCoreProvider({ children }) {
           const b = buses.find((x) => x._id === id && x.departureTime === time);
           if (b) list.push(b);
         }
+        // append first N visible buses (based on current pagination)
         const visible = visibleForPolling.slice(0, page * RESULTS_PER_PAGE);
         for (const b of visible) {
           const key = `${b._id}-${b.departureTime}`;
@@ -685,7 +705,8 @@ export function SearchCoreProvider({ children }) {
     };
 
     const id = setInterval(tick, LIVE_POLL_MS);
-    tick(); // prime immediately
+    // prime immediately
+    tick();
 
     return () => {
       stopped = true;
@@ -696,13 +717,14 @@ export function SearchCoreProvider({ children }) {
   // Release everything on page unmount (back/forward, navigating away)
   useEffect(() => {
     return () => {
-      // Skip releasing if we're intentionally handing off
+      // 👉 Skip releasing if we're intentionally handing off to ConfirmBooking
       const skip = sessionStorage.getItem("rb_skip_release_on_unmount");
       if (skip === "1") {
         sessionStorage.removeItem("rb_skip_release_on_unmount");
         return;
       }
-      releaseAllSelectedSeats(false); // fire & forget
+      // fire-and-forget; we don't await on unmount
+      releaseAllSelectedSeats(false);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -807,7 +829,7 @@ export function SearchCoreProvider({ children }) {
     updateSearchWithDate(d);
   };
 
-  /* ---------------- Seat lock helpers ---------------- */
+  /* ---------------- Seat lock helpers (UNIFIED) ---------------- */
   const lockSeat = async (bus, seat) => {
     const token = getAuthToken();
     const payload = {
@@ -815,15 +837,18 @@ export function SearchCoreProvider({ children }) {
       date: searchDateParam,
       departureTime: bus.departureTime,
       seats: [String(seat)],
-      clientId: getClientId(),
+      clientId: getClientId(), // ✅ unified client id
     };
+    // try to lock even if not logged in; fall back gracefully
     try {
       const res = await apiClient.post(
         "/bookings/lock",
         payload,
         buildAuthConfig(token)
       );
+      // 🆕 register if actually locked
       if (res?.data?.ok) addToRegistry(bus, searchDateParam, [seat]);
+      // quick refresh for this bus so other users' view reflects promptly
       refreshAvailability([bus], { force: true });
       return res.data;
     } catch (err) {
@@ -845,13 +870,14 @@ export function SearchCoreProvider({ children }) {
       date: searchDateParam,
       departureTime: bus.departureTime,
       seats: seats.map(String),
-      clientId: getClientId(),
+      clientId: getClientId(), // ✅ unified client id
     };
     try {
       await apiClient.delete("/bookings/release", {
         ...buildAuthConfig(token),
         data: payload,
       });
+      // 🆕 keep registry in sync + refresh this bus availability
       removeFromRegistry(bus, searchDateParam, seats);
       refreshAvailability([bus], { force: true });
     } catch (e) {
@@ -1278,7 +1304,7 @@ export function SearchCoreProvider({ children }) {
     }
   }, [expandedBusId, busSpecificBookingData, buses, from, to]);
 
-  const handleProceedToPayment = async (bus) => {
+  const handleProceedToPayment = (bus) => {
     const busKey = `${bus._id}-${bus.departureTime}`;
     const busData = busSpecificBookingData[busKey];
 
@@ -1289,12 +1315,12 @@ export function SearchCoreProvider({ children }) {
 
     const {
       selectedSeats,
+      basePrice,
+      convenienceFee,
       totalPrice,
       selectedBoardingPoint,
       selectedDroppingPoint,
       seatGenders,
-      basePrice,
-      convenienceFee,
     } = busData;
 
     if (selectedSeats.length === 0) {
@@ -1310,58 +1336,34 @@ export function SearchCoreProvider({ children }) {
       return;
     }
 
-    // hold seats across navigation
+    // 👉 tell unmount cleanup not to release seats during handoff
     sessionStorage.setItem("rb_skip_release_on_unmount", "1");
 
-    try {
-      if (USE_CART_FLOW) {
-        // Add to server cart then go to /cart
-        for (const seat of selectedSeats) {
-          await cartApi.add({
-            bus,
-            date: searchDateParam,
-            departureTime: bus.departureTime,
-            seatNo: String(seat),
-            gender: seatGenders?.[String(seat)] || "M",
-          });
-        }
-        navigate("/cart");
-      } else {
-        // Go straight to Confirm Booking (pass everything via state)
-        navigate("/confirm-booking", {
-          state: {
-            bus,
-            selectedSeats,
-            seatGenders,
-            date: searchDateParam,
-            departureTime: bus.departureTime,
-            selectedBoardingPoint,
-            selectedDroppingPoint,
-            totalPrice,
-            priceDetails: {
-              basePrice,
-              convenienceFee,
-              totalPrice,
-            },
-          },
-        });
-      }
-    } catch (e) {
-      console.error("Proceed failed:", e);
-      toast.error(
-        e?.response?.data?.message ||
-          "Something went wrong. Please try again."
-      );
-      sessionStorage.removeItem("rb_skip_release_on_unmount");
-    }
+    navigate("/confirm-booking", {
+      state: {
+        bus,
+        busId: bus._id,
+        date: searchDateParam,
+        departureTime: bus.departureTime,
+        selectedSeats,
+        seatGenders: seatGenders || {},
+        priceDetails: {
+          basePrice,
+          convenienceFee,
+          totalPrice,
+        },
+        selectedBoardingPoint,
+        selectedDroppingPoint,
+        clientId: getClientId(), // ✅ pass same id to confirm page
+      },
+    });
   };
 
   /* -------- Derived selections for consumers -------- */
   const selectedBus = useMemo(() => {
     if (!expandedBusId) return null;
     const lastDash = expandedBusId.lastIndexOf("-");
-    const id =
-      lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
+    const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
     const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
     return buses.find((b) => b._id === id && b.departureTime === time) || null;
   }, [expandedBusId, buses]);
@@ -1370,16 +1372,16 @@ export function SearchCoreProvider({ children }) {
     ? availability[expandedBusId] || {}
     : {};
 
-  const selectedBookingData =
-    (expandedBusId && busSpecificBookingData[expandedBusId]) || {
-      selectedSeats: [],
-      seatGenders: {},
-      selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
-      selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
-      basePrice: 0,
-      convenienceFee: 0,
-      totalPrice: 0,
-    };
+  const selectedBookingData = (expandedBusId &&
+    busSpecificBookingData[expandedBusId]) || {
+    selectedSeats: [],
+    seatGenders: {},
+    selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
+    selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+    basePrice: 0,
+    convenienceFee: 0,
+    totalPrice: 0,
+  };
 
   const currentMobileStep =
     (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
