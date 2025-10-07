@@ -930,22 +930,28 @@ const Home = () => {
 <div
   className="hidden lg:block w-screen relative left-1/2 ml-[-50vw] overflow-hidden pb-20 lg:pb-40"
   style={{
-    backgroundImage: "url('/images/re.png')",
+    backgroundImage: `url(${process.env.PUBLIC_URL + '/images/re.png'})`,
     backgroundSize: "cover",
     backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
   }}
 >
-  <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-black/10 to-transparent"></div>
+  {/* Soft gradient overlay for contrast */}
+  <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-transparent"></div>
+
+  {/* Animated floating glow effects */}
   <motion.div
     animate={{ y: [0, -10, 0] }}
     transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-    className="absolute top-20 left-10 w-32 h-32 bg-white/10 rounded-full blur-xl"
+    className="absolute top-20 left-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"
   />
   <motion.div
     animate={{ y: [0, 15, 0] }}
     transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-    className="absolute top-40 right-20 w-48 h-48 bg-white/5 rounded-full blur-2xl"
+    className="absolute top-40 right-20 w-48 h-48 bg-white/10 rounded-full blur-3xl"
   />
+
+  {/* Hero Text */}
   <div className="relative z-10 px-4 pt-16 sm:pt-24">
     <div className="max-w-6xl mx-auto text-center">
       <motion.div
@@ -953,11 +959,11 @@ const Home = () => {
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.8 }}
       >
-        <h1 className="font-heading text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight">
+        <h1 className="font-heading text-4xl sm:text-5xl font-extrabold text-white mb-4 tracking-tight drop-shadow-md">
           Sri Lanka No:1 Bus Ticket Booking Platform
         </h1>
-        <p className="text-lg sm:text-xl text-white/90 max-w-3xl mx-auto">
-          Travel Smart with Routesbook.lk - Book Instantly
+        <p className="text-lg sm:text-xl text-white/90 max-w-3xl mx-auto leading-relaxed">
+          Travel Smart with Routesbook.lk — Book Instantly
         </p>
       </motion.div>
     </div>
