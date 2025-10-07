@@ -1,12 +1,7 @@
-// src/components/Navbar.jsx
-
 // 🔹 React & Router imports
 import { useState, useRef, useEffect } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-
-// 🔹 Cart context
-import { useCart } from "../features/cart/CartContext";
 
 // 🔹 Icons
 import {
@@ -15,23 +10,15 @@ import {
   FaTimes,
   FaChevronDown,
   FaBus,
-  FaShoppingCart, // ✅ NEW
 } from "react-icons/fa";
 
 // 🔹 Navbar Component
 const Navbar = () => {
   const { user, token, logout, loading } = useAuth();
-  const { byTrip } = useCart(); // ✅ NEW
   const [menuOpen, setMenuOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
-
-  // derive total seat count across all active trips for badge
-  const cartCount = Object.values(byTrip || {}).reduce(
-    (sum, t) => sum + (t?.seats?.length || 0),
-    0
-  ); // ✅ NEW
 
   // 🔹 Close dropdown when clicking outside
   useEffect(() => {
@@ -106,23 +93,6 @@ const Navbar = () => {
               </li>
             )}
 
-            {/* ✅ Ticket Cart button with live badge */}
-            <li>
-              <NavLink to="/cart" className={getLinkStyle}>
-                <span className="inline-flex items-center gap-2">
-                  <span className="relative">
-                    <FaShoppingCart className="text-[16px]" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                        {cartCount}
-                      </span>
-                    )}
-                  </span>
-                  <span>Ticket Cart</span>
-                </span>
-              </NavLink>
-            </li>
-
             {isOperator && (
               <li>
                 <NavLink to="/operator/dashboard" className={getLinkStyle}>
@@ -151,7 +121,9 @@ const Navbar = () => {
                 className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-gray-700 hover:bg-gray-100"
               >
                 <FaUserCircle size={20} />
-                <span className="text-sm font-medium">{user?.name || "Account"}</span>
+                <span className="text-sm font-medium">
+                  {user?.name || "Account"}
+                </span>
                 <FaChevronDown
                   size={12}
                   className={`transition-transform ${
@@ -238,15 +210,6 @@ const Navbar = () => {
                 className="p-3 text-base font-medium text-gray-700 rounded-lg hover:bg-gray-100 text-left"
               >
                 Home
-              </NavLink>
-
-              {/* ✅ Cart in mobile drawer */}
-              <NavLink
-                to="/cart"
-                onClick={() => setMenuOpen(false)}
-                className="p-3 text-base font-medium text-gray-700 rounded-lg hover:bg-gray-100 text-left"
-              >
-                Ticket Cart {cartCount > 0 && <span className="ml-2 text-sm text-red-500 font-semibold">({cartCount})</span>}
               </NavLink>
 
               {isLoggedIn && (
