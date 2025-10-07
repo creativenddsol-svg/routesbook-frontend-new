@@ -930,16 +930,16 @@ const Home = () => {
 <div
   className="hidden lg:block w-screen relative left-1/2 ml-[-50vw] overflow-hidden pb-20 lg:pb-40"
   style={{
-    backgroundImage: `url(${process.env.PUBLIC_URL + '/images/re.png'})`,
+    backgroundImage: `url(${process.env.PUBLIC_URL}/images/re.jpg)`,
     backgroundSize: "cover",
-    backgroundPosition: "center",
+    backgroundPosition: "center center",
     backgroundRepeat: "no-repeat",
   }}
 >
-  {/* Soft gradient overlay for contrast */}
+  {/* Overlay for readability */}
   <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/20 to-transparent"></div>
 
-  {/* Animated floating glow effects */}
+  {/* Decorative animated glows */}
   <motion.div
     animate={{ y: [0, -10, 0] }}
     transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
@@ -969,7 +969,6 @@ const Home = () => {
     </div>
   </div>
 </div>
-
 
 
 
