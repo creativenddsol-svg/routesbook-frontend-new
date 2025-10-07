@@ -49,6 +49,12 @@ export default function CartPage() {
   const [loading, setLoading] = useState(false);
   const [extending, setExtending] = useState(false);
 
+  // Pull/refresh cart on mount so newly added desktop seats appear
+  useEffect(() => {
+    api.getMine().catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // pick the “freshest” cart by expiresAt (fallback to last key)
   const current = useMemo(() => {
     const entries = Object.entries(byTrip || {});
@@ -58,17 +64,10 @@ export default function CartPage() {
     return withScore[0][1];
   }, [byTrip]);
 
-  // Try to load any active cart on mount
-  useEffect(() => {
-    if (!current) {
-      api.getMine().catch(() => {});
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   const { leftMs, mm, expired } = useCountdown(current?.expiresAt);
 
   const removeSeat = async (seatNo) => {
+    if (!current) return;
     try {
       await api.removeSeat({
         bus: { _id: current.bus },
@@ -91,7 +90,7 @@ export default function CartPage() {
         date: current.date,
         departureTime: current.departureTime,
       });
-      // CartContext will refresh on next mutation; here we can soft refresh by re-getMine
+      // Refresh snapshot
       await api.getMine({
         busId: current.bus,
         date: current.date,
@@ -105,7 +104,8 @@ export default function CartPage() {
     }
   };
 
-  const pay = async () => {
+  // 👉 New: go to Confirm Booking instead of /payment
+  const proceedToConfirm = async () => {
     if (!current) return;
     if (expired) {
       alert("Your cart hold has expired. Please reselect seats.");
@@ -113,33 +113,32 @@ export default function CartPage() {
     }
     try {
       setLoading(true);
-      const pi = await api.paymentIntent(current.cartId); // { paymentIntentId, amount, currency }
-      navigate("/payment", {
+      // No need to create a payment intent here — ConfirmBooking will handle next step
+      navigate("/confirm-booking", {
         state: {
-          // keep compat with your Payment.jsx (it tolerates partial bus info)
+          // minimal bus info (Confirm page tolerates partial bus)
           bus: { _id: current.bus },
           date: current.date,
           departureTime: current.departureTime,
           selectedSeats: current.seats,
-          seatGenders: current.genders,
+          seatGenders: current.genders || {},
           priceDetails: {
-            basePrice: current.pricing.subtotal,
-            convenienceFee: current.pricing.fee,
-            totalPrice: current.pricing.total,
+            basePrice: current.pricing?.subtotal ?? 0,
+            convenienceFee: current.pricing?.fee ?? 0,
+            totalPrice: current.pricing?.total ?? 0,
           },
-          // pass hold hints
+          // hold info for UI
           expiresAt: current.expiresAt,
           holdExpiresAt: current.expiresAt,
           lockExpiresAt: current.expiresAt,
           remainingMs: leftMs ?? undefined,
-          // cart + payments
+          // if your backend returns these, good to forward:
           cartId: current.cartId,
-          paymentIntentId: pi.data.paymentIntentId,
         },
       });
     } catch (e) {
-      console.warn("Create payment intent failed:", e?.response?.data || e?.message);
-      alert("Could not prepare payment. Please try again.");
+      console.warn("Proceed to confirm failed:", e?.response?.data || e?.message);
+      alert("Could not proceed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -162,7 +161,7 @@ export default function CartPage() {
     );
   }
 
-  const { cartId, seats, genders, pricing, date, departureTime } = current;
+  const { seats = [], genders = {}, pricing = {}, date, departureTime } = current;
 
   return (
     <div className="max-w-3xl mx-auto p-4 space-y-4">
@@ -210,7 +209,9 @@ export default function CartPage() {
                 key={s}
                 className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gray-100"
               >
-                <span>Seat {s} {genders[s] === "F" ? "(F)" : "(M)"}</span>
+                <span>
+                  Seat {s} {genders?.[s] === "F" ? "(F)" : genders?.[s] === "M" ? "(M)" : ""}
+                </span>
                 <button
                   onClick={() => removeSeat(s)}
                   className="text-xs underline text-rose-700"
@@ -230,27 +231,27 @@ export default function CartPage() {
       <div className="rounded-lg border p-4">
         <div className="flex justify-between py-1">
           <span className="text-gray-600">Subtotal</span>
-          <span>Rs. {pricing.subtotal.toFixed(2)}</span>
+          <span>Rs. {(pricing.subtotal ?? 0).toFixed(2)}</span>
         </div>
         <div className="flex justify-between py-1">
           <span className="text-gray-600">Convenience Fee</span>
-          <span>Rs. {pricing.fee.toFixed(2)}</span>
+          <span>Rs. {(pricing.fee ?? 0).toFixed(2)}</span>
         </div>
         <div className="border-t my-2" />
         <div className="flex justify-between font-bold">
           <span>Total</span>
-          <span>Rs. {pricing.total.toFixed(2)}</span>
+          <span>Rs. {(pricing.total ?? 0).toFixed(2)}</span>
         </div>
       </div>
 
       <div className="flex gap-3">
         <button
-          onClick={pay}
+          onClick={proceedToConfirm}
           disabled={loading || !seats.length || expired}
           className="px-5 py-2 rounded-md bg-rose-600 text-white disabled:opacity-60"
-          title={expired ? "Hold expired — reselect seats" : "Proceed to payment"}
+          title={expired ? "Hold expired — reselect seats" : "Proceed to confirm"}
         >
-          {loading ? "Preparing…" : "Proceed to Payment"}
+          {loading ? "Preparing…" : "Proceed to Confirm Booking"}
         </button>
         <button
           onClick={() => navigate(-1)}
