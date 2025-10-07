@@ -1,4 +1,3 @@
-// src/components/MobileBottomNav.jsx
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import {
@@ -6,24 +5,17 @@ import {
   FaTicketAlt,
   FaQuestionCircle,
   FaUserCircle,
-  FaShoppingCart, // ✅ NEW
 } from "react-icons/fa";
 import { useAuth } from "../AuthContext";
-import { useCart } from "../features/cart/CartContext"; // ✅ NEW
 
 /** Keep this in sync with the bar height in Tailwind classes below */
 const NAV_HEIGHT_PX = 64; // 16 * 4
 
 const MobileBottomNav = () => {
   const { isLoggedIn, user, logout } = useAuth();
-  const { byTrip } = useCart(); // ✅ NEW
   const [showMenu, setShowMenu] = useState(false);
   const navigate = useNavigate();
   const sheetRef = useRef(null);
-
-  // Derive total seats across all active trips for the badge
-  const totalSeats =
-    Object.values(byTrip || {}).reduce((sum, t) => sum + (t?.seats?.length || 0), 0); // ✅ NEW
 
   // Add bottom padding to the page so content never hides behind the bar
   useEffect(() => {
@@ -47,7 +39,8 @@ const MobileBottomNav = () => {
   // Close bottom sheet when tapping outside
   useEffect(() => {
     const onDown = (e) => {
-      if (sheetRef.current && !sheetRef.current.contains(e.target)) setShowMenu(false);
+      if (sheetRef.current && !sheetRef.current.contains(e.target))
+        setShowMenu(false);
     };
     document.addEventListener("mousedown", onDown);
     return () => document.removeEventListener("mousedown", onDown);
@@ -80,8 +73,7 @@ const MobileBottomNav = () => {
         role="navigation"
         aria-label="Primary"
       >
-        {/* ⬇️ grid-cols changed 4 → 5 to include Cart */}
-        <ul className="grid grid-cols-5">
+        <ul className="grid grid-cols-4">
           {/* Home */}
           <li className="relative">
             <NavLink to="/" className={({ isActive }) => tabClasses(isActive)}>
@@ -106,29 +98,6 @@ const MobileBottomNav = () => {
                   <Indicator active={isActive} />
                   <FaTicketAlt className="text-[22px]" />
                   <span className="text-[11px] mt-0.5">Bookings</span>
-                </>
-              )}
-            </NavLink>
-          </li>
-
-          {/* Cart — NEW */}
-          <li className="relative">
-            <NavLink
-              to="/cart"
-              className={({ isActive }) => tabClasses(isActive)}
-            >
-              {({ isActive }) => (
-                <>
-                  <Indicator active={isActive} />
-                  <span className="relative">
-                    <FaShoppingCart className="text-[22px]" />
-                    {totalSeats > 0 && (
-                      <span className="absolute -top-1.5 -right-2 bg-[#d84e55] text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                        {totalSeats}
-                      </span>
-                    )}
-                  </span>
-                  <span className="text-[11px] mt-0.5">Cart</span>
                 </>
               )}
             </NavLink>
@@ -168,7 +137,11 @@ const MobileBottomNav = () => {
 
       {/* --- Account Bottom Sheet (full-width, aligned) --- */}
       {showMenu && (
-        <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-[60] lg:hidden"
+          role="dialog"
+          aria-modal="true"
+        >
           {/* backdrop */}
           <div
             className="absolute inset-0 bg-black/35"
