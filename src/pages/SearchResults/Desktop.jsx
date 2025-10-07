@@ -102,6 +102,8 @@ export default function Desktop() {
     busSpecificBookingData,
     handleBoardingPointSelect,
     handleDroppingPointSelect,
+    /* ✅ added */
+    handleProceedToPayment,
   } = useSearchCore();
 
   const selectStyles = {
@@ -386,8 +388,8 @@ export default function Desktop() {
                               basePrice={currentBusBookingData.basePrice}
                               convenienceFee={currentBusBookingData.convenienceFee}
                               totalPrice={currentBusBookingData.totalPrice}
-                              /* ✅ go to Cart page (new flow) */
-                              onProceed={() => navigate("/cart")}
+                              /* ✅ call core proceed handler (adds to cart OR goes to confirm) */
+                              onProceed={() => handleProceedToPayment(bus)}
                               boardingPoint={currentBusBookingData.selectedBoardingPoint}
                               droppingPoint={currentBusBookingData.selectedDroppingPoint}
                             />
