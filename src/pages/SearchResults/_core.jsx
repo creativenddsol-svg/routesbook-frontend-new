@@ -386,7 +386,8 @@ export function SearchCoreProvider({ children }) {
   const mobileDateInputRef = useRef(null);
 
   const stickySearchCardRef = useRef(null);
-  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
+  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] =
+    useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
   const tomorrow = new Date();
@@ -952,6 +953,85 @@ export function SearchCoreProvider({ children }) {
     }
   };
 
+  /* ---------------- 🆕 Keepalive release for refresh/close ---------------- */
+  const releaseAllSelectedSeatsKeepalive = () => {
+    try {
+      const skip = sessionStorage.getItem("rb_skip_release_on_unmount");
+      if (skip === "1") return;
+
+      const token = getAuthToken();
+      const baseURL =
+        (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
+      const url = (path) =>
+        baseURL ? `${baseURL.replace(/\/+$/, "")}${path}` : `${path}`;
+
+      // 1) Release from in-memory selections
+      const entries = Object.entries(latestBookingRef.current || {});
+      for (const [key, data] of entries) {
+        const seats = data?.selectedSeats || [];
+        if (!seats.length) continue;
+
+        const { id, time } = parseBusKey(key);
+        const busObj = (latestBusesRef.current || []).find(
+          (b) => b._id === id && b.departureTime === time
+        );
+        if (!busObj) continue;
+
+        const payload = {
+          busId: busObj._id,
+          date: searchDateParam,
+          departureTime: busObj.departureTime,
+          seats: seats.map(String),
+          clientId: getClientId(),
+        };
+
+        try {
+          fetch(url("/bookings/release"), {
+            method: "DELETE",
+            keepalive: true,
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          /* swallow */
+        }
+      }
+
+      // 2) Release anything still in the registry
+      const reg = readLockReg();
+      for (const r of reg) {
+        const payload = {
+          busId: r.busId,
+          date: r.date,
+          departureTime: r.departureTime,
+          seats: (r.seats || []).map(String),
+          clientId: getClientId(),
+        };
+        try {
+          fetch(url("/bookings/release"), {
+            method: "DELETE",
+            keepalive: true,
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          /* swallow */
+        }
+      }
+
+      // Clear local registry snapshot
+      writeLockReg([]);
+    } catch {
+      /* no-op */
+    }
+  };
+
   /* ---------------- Fetch data ---------------- */
   const fetchData = useCallback(async () => {
     if (!from || !to || !searchDateParam) {
@@ -1203,9 +1283,9 @@ export function SearchCoreProvider({ children }) {
 
     // 🆕 If we're about to SELECT on this bus, first release any selections on other buses.
     if (!alreadySelected) {
-      const hasOtherSelections = Object.entries(busSpecificBookingData || {}).some(
-        ([k, data]) => k !== busKey && (data?.selectedSeats?.length || 0) > 0
-      );
+      const hasOtherSelections = Object.entries(
+        busSpecificBookingData || {}
+      ).some(([k, data]) => k !== busKey && (data?.selectedSeats?.length || 0) > 0);
       if (hasOtherSelections) {
         await releaseOtherSelectedSeats(busKey, true);
       }
@@ -1324,9 +1404,9 @@ export function SearchCoreProvider({ children }) {
       lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
 
     const currentBus = buses.find(
-      (b) => b._id === currentBusId && b.departureTime === currentBusTime
-    );
-    const busData = busSpecificBookingData[expandedBusId];
+        (b) => b._id === currentBusId && b.departureTime === currentBusTime
+      ),
+      busData = busSpecificBookingData[expandedBusId];
 
     if (!currentBus || !busData) return;
 
@@ -1435,6 +1515,41 @@ export function SearchCoreProvider({ children }) {
       },
     });
   };
+
+  /* -------- Defensive cleanup on fresh mount -------- */
+  useEffect(() => {
+    (async () => {
+      try {
+        await releaseAllFromRegistry();
+      } catch {
+        /* ignore */
+      }
+    })();
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  /* -------- Fire keepalive releases on refresh/close -------- */
+  useEffect(() => {
+    const onPageHide = () => {
+      releaseAllSelectedSeatsKeepalive();
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        releaseAllSelectedSeatsKeepalive();
+      }
+    };
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    // last resort
+    window.addEventListener("beforeunload", onPageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("beforeunload", onPageHide);
+    };
+  }, [searchDateParam]);
 
   /* -------- Derived selections for consumers -------- */
   const selectedBus = useMemo(() => {
