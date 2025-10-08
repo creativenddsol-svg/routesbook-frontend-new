@@ -73,6 +73,15 @@ const Label = ({ children }) => (
   </span>
 );
 
+const Pill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+    style={{ background: PALETTE.pillBg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
+
 const SoftPill = ({ children, bg }) => (
   <span
     className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
@@ -113,31 +122,38 @@ const GenderSeatPill = ({ gender, children }) => {
   );
 };
 
-/* ----- hold remaining helpers ----- */
+/* ---------------- persist-to-SearchResults helpers ---------------- */
+// Keep this definition here as it's used by the new persistAndGoBack logic
+const CHECKOUT_STATE_KEY = "rb_checkout_state_v1";
+function saveCheckoutState(payload) {
+  try {
+    sessionStorage.setItem(CHECKOUT_STATE_KEY, JSON.stringify(payload));
+  } catch {}
+}
+
+/* ----- hold remaining helpers (FIXED: removed ?.? and ?? ) ----- */
 async function fetchHoldRemaining({ busId, date, departureTime }) {
   const params = { busId, date, departureTime, t: Date.now() };
   try {
-    const r1 = await apiClient.get("/bookings/lock-remaining", {
-      params
-    });
+    const r1 = await apiClient.get("/bookings/lock-remaining", { params });
+    const data1 = r1 && r1.data;
     return {
-      ms: r1 ? .data ? .remainingMs ?? r1 ? .data ? .ms ?? null,
-      expiresAt: r1 ? .data ? .expiresAt ?? null,
-      headers: r1 ? .headers,
+      ms: (data1 && data1.remainingMs) || (data1 && data1.ms) || null,
+      expiresAt: (data1 && data1.expiresAt) || null,
+      headers: r1 && r1.headers,
     };
   } catch {
-    const r2 = await apiClient.get("/bookings/lock/remaining", {
-      params
-    });
+    const r2 = await apiClient.get("/bookings/lock/remaining", { params });
+    const data2 = r2 && r2.data;
     return {
-      ms: r2 ? .data ? .remainingMs ?? r2 ? .data ? .ms ?? null,
-      expiresAt: r2 ? .data ? .expiresAt ?? null,
-      headers: r2 ? .headers,
+      ms: (data2 && data2.remainingMs) || (data2 && data2.ms) || null,
+      expiresAt: (data2 && data2.expiresAt) || null,
+      headers: r2 && r2.headers,
     };
   }
 }
 function serverNowFromHeaders(headers) {
-  const h = headers ? .date;
+  const h = headers && headers.date;
   const t = h ? Date.parse(h) : NaN;
   return Number.isFinite(t) ? t : Date.now();
 }
@@ -156,7 +172,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
       const tick = () => {
         const left = Math.max(
           0,
-          (expiryRef.current ?? Date.now()) - Date.now()
+          (expiryRef.current || Date.now()) - Date.now() // FIX: Replaced ?? with || in calculation
         );
         setRemainingMs(left);
         if (left <= 0) {
@@ -177,15 +193,16 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
           departureTime,
         });
         const nowServer = serverNowFromHeaders(headers);
-        const target = expiresAt ?
-          new Date(expiresAt).getTime() :
-          ms != null ?
-          nowServer + Math.max(0, Number(ms)) :
-          nowServer + 15 * 60 * 1000;
+        const target = expiresAt
+          ? new Date(expiresAt).getTime()
+          : ms != null
+          ? nowServer + Math.max(0, Number(ms))
+          : nowServer + 15 * 60 * 1000; // conservative fallback
         if (cancelled) return;
         expiryRef.current = target;
         startTicking();
       } catch {
+        // conservative fallback (10 min) if API temporarily unavailable
         expiryRef.current = Date.now() + 10 * 60 * 1000;
         startTicking();
       }
@@ -242,15 +259,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
   );
 };
 
-/* ---------------- persist-to-SearchResults helpers ---------------- */
-const CHECKOUT_STATE_KEY = "rb_checkout_state_v1";
-function saveCheckoutState(payload) {
-  try {
-    sessionStorage.setItem(CHECKOUT_STATE_KEY, JSON.stringify(payload));
-  } catch {}
-}
-
-/* RowInput (unchanged except error/blur passthrough) */
+/* RowInput: now supports inline errors & blur validation (desktop unchanged) */
 const RowInput = ({
   id,
   name,
@@ -263,10 +272,10 @@ const RowInput = ({
   enterKeyHint,
   placeholder,
   required,
-  onBlur,
-  error,
-  maxLength,
-  pattern,
+  onBlur, // ✅ added
+  error, // ✅ added
+  maxLength, // ✅ passthrough
+  pattern, // ✅ passthrough
 }) => (
   <div className="w-full">
     <Label>{label}</Label>
@@ -299,7 +308,7 @@ const RowInput = ({
   </div>
 );
 
-/* -------- Passenger row -------- */
+/* -------- Passenger row (FIXED: removed ?.) -------- */
 const PassengerRow = memo(function PassengerRow({
   p,
   index,
@@ -310,6 +319,7 @@ const PassengerRow = memo(function PassengerRow({
   onBlurName,
   onBlurAge,
 }) {
+  const passengerErrors = errorsForSeat || {};
   return (
     <div
       className="p-4 rounded-2xl"
@@ -333,12 +343,12 @@ const PassengerRow = memo(function PassengerRow({
             label="Name"
             value={p.name}
             onChange={(e) => onName(p.seat, e.target.value)}
-            onBlur={() => onBlurName ? .(p.seat)}
+            onBlur={() => onBlurName && onBlurName(p.seat)} // FIX: Replaced ?.
             autoComplete="name"
             enterKeyHint="next"
             placeholder="e.g., Ramesh Perera"
             required
-            error={errorsForSeat ? .name}
+            error={passengerErrors.name} // FIX: Used object from above
           />
         </div>
         <div className="md:col-span-1">
@@ -349,11 +359,11 @@ const PassengerRow = memo(function PassengerRow({
             type="number"
             value={p.age}
             onChange={(e) => onAge(p.seat, e.target.value)}
-            onBlur={() => onBlurAge ? .(p.seat)}
+            onBlur={() => onBlurAge && onBlurAge(p.seat)} // FIX: Replaced ?.
             inputMode="numeric"
             enterKeyHint="next"
             placeholder="e.g., 28"
-            error={errorsForSeat ? .age}
+            error={passengerErrors.age} // FIX: Used object from above
           />
         </div>
         <div className="md:col-span-2">
@@ -365,11 +375,11 @@ const PassengerRow = memo(function PassengerRow({
               className="py-2.5 rounded-full border text-sm font-medium transition"
               style={{
                 borderColor:
-                  p.gender === "M" ?
-                  PALETTE.violet :
-                  errorsForSeat ? .gender ?
-                  "#DC2626" :
-                  PALETTE.border,
+                  p.gender === "M"
+                    ? PALETTE.violet
+                    : passengerErrors.gender
+                    ? "#DC2626"
+                    : PALETTE.border,
                 background: p.gender === "M" ? PALETTE.violetBg : "#FFFFFF",
                 color: p.gender === "M" ? PALETTE.violet : PALETTE.text,
               }}
@@ -382,11 +392,11 @@ const PassengerRow = memo(function PassengerRow({
               className="py-2.5 rounded-full border text-sm font-medium transition"
               style={{
                 borderColor:
-                  p.gender === "F" ?
-                  PALETTE.pink :
-                  errorsForSeat ? .gender ?
-                  "#DC2626" :
-                  PALETTE.border,
+                  p.gender === "F"
+                    ? PALETTE.pink
+                    : passengerErrors.gender
+                    ? "#DC2626"
+                    : PALETTE.border,
                 background: p.gender === "F" ? PALETTE.pinkBg : "#FFFFFF",
                 color: p.gender === "F" ? PALETTE.pink : PALETTE.text,
               }}
@@ -394,9 +404,12 @@ const PassengerRow = memo(function PassengerRow({
               Female
             </button>
           </div>
-          {errorsForSeat ? .gender ? (
-            <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
-              {errorsForSeat.gender}
+          {passengerErrors.gender ? (
+            <p
+              className="mt-1 text-xs font-medium"
+              style={{ color: "#B91C1C" }}
+            >
+              {passengerErrors.gender}
             </p>
           ) : null}
         </div>
@@ -411,6 +424,7 @@ const ConfirmBooking = () => {
   const navigate = useNavigate();
   const pageTopRef = useRef(null);
 
+  const state = location.state || {}; // FIX: Access state via single object
   const {
     bus,
     selectedSeats,
@@ -421,14 +435,16 @@ const ConfirmBooking = () => {
     selectedDroppingPoint,
     departureTime,
     seatGenders,
-  } = location.state || {};
+  } = state; // FIX: Deconstruct from state object
 
   const prices = useMemo(() => {
+    // FIX: Removed ?. usage
     const base =
-      priceDetails ? .basePrice ??
+      (priceDetails && priceDetails.basePrice) ||
       (typeof totalPrice === "number" ? totalPrice : 0);
-    const fee = priceDetails ? .convenienceFee ?? 0;
-    const tot = priceDetails ? .totalPrice ?? totalPrice ?? base + fee;
+    const fee = (priceDetails && priceDetails.convenienceFee) || 0;
+    const tot =
+      (priceDetails && priceDetails.totalPrice) || totalPrice || base + fee;
     return {
       basePrice: Number(base) || 0,
       convenienceFee: Number(fee) || 0,
@@ -443,10 +459,7 @@ const ConfirmBooking = () => {
     email: "",
   });
   const onChangeForm = useCallback((e) => {
-    const {
-      name,
-      value
-    } = e.target;
+    const { name, value } = e.target;
     setForm((prev) =>
       prev[name] === value ? prev : { ...prev, [name]: value }
     );
@@ -454,12 +467,13 @@ const ConfirmBooking = () => {
 
   const initialPassengers = useMemo(
     () =>
-    (selectedSeats || []).map((seatNo) => ({
-      seat: String(seatNo),
-      name: "",
-      age: "",
-      gender: seatGenders ? .[String(seatNo)] === "F" ? "F" : "M",
-    })), [selectedSeats, seatGenders]
+      (selectedSeats || []).map((seatNo) => ({
+        seat: String(seatNo),
+        name: "",
+        age: "",
+        gender: (seatGenders && seatGenders[String(seatNo)]) === "F" ? "F" : "M", // FIX: Replaced ?.
+      })),
+    [selectedSeats, seatGenders]
   );
   const [passengers, setPassengers] = useState(initialPassengers);
 
@@ -503,15 +517,16 @@ const ConfirmBooking = () => {
     nic: "",
     email: "",
     terms: "",
-    passengers: {},
+    passengers: {}, // { [seat]: { name, age, gender } }
   });
 
   const selectedSeatStrings = useMemo(
-    () => (selectedSeats || []).map(String), [selectedSeats]
+    () => (selectedSeats || []).map(String),
+    [selectedSeats]
   );
 
   const { releaseSeats, suppressAutoRelease } = useSeatLockCleanup({
-    busId: bus ? ._id,
+    busId: bus && bus._id, // FIX: Replaced ?.
     date,
     departureTime,
     seats: selectedSeatStrings,
@@ -521,19 +536,20 @@ const ConfirmBooking = () => {
   const verifyHoldAlive = useCallback(async () => {
     try {
       const { ms, expiresAt, headers } = await fetchHoldRemaining({
-        busId: bus ? ._id,
+        busId: bus && bus._id, // FIX: Replaced ?.
         date,
         departureTime,
       });
       const now = serverNowFromHeaders(headers);
-      const left = expiresAt ? new Date(expiresAt).getTime() - now : ms ?? 0;
+      const left = expiresAt ? new Date(expiresAt).getTime() - now : ms || 0; // FIX: Replaced ?? with ||
       return left > 0;
     } catch {
+      // If API temporarily fails, be conservative: allow proceed
       return true;
     }
-  }, [bus ? ._id, date, departureTime]);
+  }, [bus, date, departureTime]);
 
-  /* ---------- Validation helpers ---------- */
+  /* ---------- Validation helpers (mobile-first inline errors) ---------- */
   const phoneOk = (v) => /^0\d{9,10}$/.test(String(v || "").trim());
   const emailOk = (v) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
@@ -554,9 +570,9 @@ const ConfirmBooking = () => {
   const validateAll = useCallback(() => {
     const next = {
       name: nonEmpty(form.name) ? "" : "Full name is required",
-      mobile: phoneOk(form.mobile) ?
-        "" :
-        "Enter a valid mobile number (e.g., 07XXXXXXXX)",
+      mobile: phoneOk(form.mobile)
+        ? ""
+        : "Enter a valid mobile number (e.g., 07XXXXXXXX)",
       nic: nonEmpty(form.nic) ? "" : "NIC / Passport is required",
       email: emailOk(form.email) ? "" : "Enter a valid email address",
       terms: termsAccepted ? "" : "You must accept the Terms & Conditions",
@@ -564,26 +580,24 @@ const ConfirmBooking = () => {
     };
     setErrors(next);
 
-    const firstFieldId = next.name ?
-      "name" :
-      next.mobile ?
-      "mobile" :
-      next.nic ?
-      "nic" :
-      next.email ?
-      "email" :
-      Object.keys(next.passengers)[0] ?
-      `p-name-${Object.keys(next.passengers)[0]}` :
-      "";
+    // find first error key for scroll/focus
+    const firstFieldId = next.name
+      ? "name"
+      : next.mobile
+      ? "mobile"
+      : next.nic
+      ? "nic"
+      : next.email
+      ? "email"
+      : Object.keys(next.passengers)[0]
+      ? `p-name-${Object.keys(next.passengers)[0]}`
+      : "";
 
     if (firstFieldId) {
       const el = document.getElementById(firstFieldId);
-      if (el ? .scrollIntoView)
-        el.scrollIntoView({
-          behavior: "smooth",
-          block: "center"
-        });
-      if (el ? .focus) setTimeout(() => el.focus(), 200);
+      if (el?.scrollIntoView)
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (el?.focus) setTimeout(() => el.focus(), 200);
       return false;
     }
     return true;
@@ -596,16 +610,17 @@ const ConfirmBooking = () => {
         if (field === "name")
           next.name = nonEmpty(form.name) ? "" : "Full name is required";
         if (field === "mobile")
-          next.mobile = phoneOk(form.mobile) ?
-          "" :
-          "Enter a valid mobile number (e.g., 07XXXXXXXX)";
+          next.mobile = phoneOk(form.mobile)
+            ? ""
+            : "Enter a valid mobile number (e.g., 07XXXXXXXX)";
         if (field === "nic")
           next.nic = nonEmpty(form.nic) ? "" : "NIC / Passport is required";
         if (field === "email")
           next.email = emailOk(form.email) ? "" : "Enter a valid email address";
         return next;
       });
-    }, [form]
+    },
+    [form]
   );
 
   const blurValidatePassenger = useCallback(
@@ -615,15 +630,17 @@ const ConfirmBooking = () => {
         const p = passengers.find((x) => x.seat === String(seat));
         const slot = { ...(next.passengers[seat] || {}) };
         if (field === "name")
-          slot.name = nonEmpty(p ? .name) ? "" : "Passenger name is required";
-        if (field === "age" && p ? .age && Number(p.age) < 0)
+          slot.name = (p && nonEmpty(p.name)) ? "" : "Passenger name is required"; // FIX: Used &&
+        if (field === "age" && p && p.age && Number(p.age) < 0) // FIX: Used &&
           slot.age = "Age must be positive";
         next.passengers[seat] = slot;
+        // cleanup empty seat error object
         if (!slot.name && !slot.age && !slot.gender)
           delete next.passengers[seat];
         return next;
       });
-    }, [passengers]
+    },
+    [passengers]
   );
 
   const toggleTerms = () => {
@@ -637,21 +654,26 @@ const ConfirmBooking = () => {
     });
   };
 
-  /* -------- Proceed to payment -------- */
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
 
-      if (!validateAll()) return;
+      // ✅ Inline validation first (shows messages + scroll)
+      if (!validateAll()) {
+        return;
+      }
+
       if (holdExpired) {
         alert("Your seat hold has expired. Please go back and reselect seats.");
         return;
       }
+
       if (!termsAccepted) {
         alert("Please agree to the Terms & Conditions.");
         return;
       }
 
+      // ✅ Double-check the hold right before payment
       const stillHeld = await verifyHoldAlive();
       if (!stillHeld) {
         setHoldExpired(true);
@@ -661,10 +683,11 @@ const ConfirmBooking = () => {
       }
 
       const seatGendersOut = {};
-      (passengers || []).forEach((p) => (seatGendersOut[p.seat] = p.gender));
+      passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
 
       // 🆕 Clear the session storage flag to tell SearchResults to NOT auto-release on mount
       sessionStorage.removeItem("rb_skip_release_on_unmount");
+      sessionStorage.removeItem("rb_restored_from_confirm"); // Clear flag used for restoring state
 
       // keep the lock while going to external payment flow
       suppressAutoRelease();
@@ -692,7 +715,8 @@ const ConfirmBooking = () => {
           seatGenders: seatGendersOut,
         },
       });
-    }, [
+    },
+    [
       bus,
       date,
       departureTime,
@@ -720,14 +744,14 @@ const ConfirmBooking = () => {
     !selectedDroppingPoint ||
     prices.total === undefined;
 
-  /* --------- Back behavior: go back to Search Results + keep locks --------- */
+  /* --------- Back behavior: go back to Search Results + keep locks (FIXED) --------- */
   const persistAndGoBack = useCallback(() => {
     // 1. Set flags for SearchResults to restore state and skip cleanup
     sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-    sessionStorage.setItem("rb_returning_from_confirm", "1");
+    sessionStorage.setItem("rb_returning_from_confirm", "1"); // Flag to skip initial state wipe
 
     // 2. Persist snapshot so Search Results can rehydrate
-    const busKey = `${bus?._id}-${departureTime}`;
+    const busKey = `${(bus && bus._id) || ''}-${departureTime || ''}`; // FIX: Added safety check
     saveCheckoutState({
       busKey,
       date,
@@ -746,24 +770,21 @@ const ConfirmBooking = () => {
     suppressAutoRelease();
 
     // 4. Robustly route back to the SAME search
-    const fromCity = bus ? .from;
-    const toCity = bus ? .to;
+    const fromCity = bus && bus.from; // FIX: Replaced ?.
+    const toCity = bus && bus.to; // FIX: Replaced ?.
+
     if (fromCity && toCity && date) {
       const qs = `from=${encodeURIComponent(fromCity)}&to=${encodeURIComponent(
         toCity
       )}&date=${encodeURIComponent(date)}`;
-      // Use replace to avoid polluting the history stack too much
-      navigate(`/search-results?${qs}`, {
-        replace: true
-      });
+      // Use replace to avoid polluting the history stack too much, or navigate directly
+      navigate(`/search-results?${qs}`);
     } else {
-      // safe fallback if somehow missing metadata
+      // If we don't have enough data to reconstruct the search URL, go back one step
       navigate(-1);
     }
   }, [
-    bus ? ._id,
-    bus ? .from,
-    bus ? .to,
+    bus,
     departureTime,
     date,
     selectedSeats,
@@ -776,8 +797,8 @@ const ConfirmBooking = () => {
   ]);
 
   useSeatLockBackGuard({
-    enabled: !missingData && !holdExpired && (selectedSeatStrings ? .length || 0) > 0,
-    busId: bus ? ._id,
+    enabled: !missingData && !holdExpired && selectedSeatStrings.length > 0,
+    busId: bus && bus._id, // FIX: Replaced ?.
     date,
     departureTime,
     seats: selectedSeatStrings,
@@ -804,16 +825,25 @@ const ConfirmBooking = () => {
 
   /* -------------------- UI -------------------- */
   return (
-    <div ref={pageTopRef} className="min-h-screen" style={{ background: PALETTE.bg }}>
+    <div
+      ref={pageTopRef}
+      className="min-h-screen"
+      style={{ background: PALETTE.bg }}
+    >
       {/* Matte top bar */}
       <div
         className="sticky top-0 z-30"
-        style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}
+        style={{
+          background: PALETTE.primary,
+          paddingTop: "env(safe-area-inset-top)",
+        }}
       >
         <div className="max-w-6xl mx-auto px-4 py-3">
-          <p className="text-white text-base font-semibold leading-tight">Confirm Booking</p>
+          <p className="text-white text-base font-semibold leading-tight">
+            Confirm Booking
+          </p>
           <p className="text-white/90 text-xs">
-            {bus ? .from} → {bus ? .to} • {getNiceDate(date, departureTime)}
+            {bus && bus.from} → {bus && bus.to} • {getNiceDate(date, departureTime)}
           </p>
         </div>
       </div>
@@ -823,49 +853,57 @@ const ConfirmBooking = () => {
           <BookingSteps currentStep={3} />
         </div>
 
-        {/* Error banner */}
+        {/* Error banner (mobile-friendly) */}
         {errors.name ||
-          errors.mobile ||
-          errors.nic ||
-          errors.email ||
-          Object.keys(errors.passengers || {}).length ||
-          errors.terms ||
-          holdExpired ? (
-            <div
-              className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
-              style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid #FECACA" }}
-            >
-              {holdExpired ?
-                "Your seat hold has expired. Please go back and reselect seats." :
-                "Please correct the highlighted fields below."}
-            </div>
-          ) : null}
+        errors.mobile ||
+        errors.nic ||
+        errors.email ||
+        Object.keys(errors.passengers || {}).length ||
+        errors.terms ||
+        holdExpired ? (
+          <div
+            className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
+            style={{
+              background: "#FEF2F2",
+              color: "#991B1B",
+              border: "1px solid #FECACA",
+            }}
+          >
+            {holdExpired
+              ? "Your seat hold has expired. Please go back and reselect seats."
+              : "Please correct the highlighted fields below."}
+          </div>
+        ) : null}
 
         {/* Journey Overview */}
         <SectionCard>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-lg font-bold truncate" style={{ color: PALETTE.text }}>
-                {bus ? .name || "Bus"}
+              <h2
+                className="text-lg font-bold truncate"
+                style={{ color: PALETTE.text }}
+              >
+                {bus && bus.name || "Bus"}
               </h2>
               <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
-                {bus ? .from} → {bus ? .to}
+                {bus && bus.from} → {bus && bus.to}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
               <DatePill>{getNiceDate(date, departureTime)}</DatePill>
-              <AcPill>{bus ? .busType || "Seating"}</AcPill>
+              <AcPill>{bus && bus.busType || "Seating"}</AcPill>
               <SeatPill>
-                {selectedSeats ? .length} Seat{selectedSeats ? .length > 1 ? "s" : ""}
+                {selectedSeats?.length} Seat
+                {selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
               <HoldCountdown
-                busId={bus ? ._id}
+                busId={bus && bus._id}
                 date={date}
                 departureTime={departureTime}
                 onExpire={() => {
                   setHoldExpired(true);
-                  releaseSeats();
+                  releaseSeats(); // proactively release if countdown hits zero
                 }}
               />
             </div>
@@ -875,15 +913,19 @@ const ConfirmBooking = () => {
             <div>
               <Label>Boarding</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedBoardingPoint.point} <span className="text-xs">at</span>{" "}
+                {selectedBoardingPoint.point}{" "}
+                <span className="text-xs">at</span>{" "}
                 <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
               </p>
             </div>
             <div>
               <Label>Dropping</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedDroppingPoint.point} <span className="text-xs">at</span>{" "}
-                <span className="tabular-nums">{selectedDroppingPoint.time}</span>
+                {selectedDroppingPoint.point}{" "}
+                <span className="text-xs">at</span>{" "}
+                <span className="tabular-nums">
+                  {selectedDroppingPoint.time}
+                </span>
               </p>
             </div>
             <div className="sm:col-span-2">
@@ -975,7 +1017,7 @@ const ConfirmBooking = () => {
                 onName={setPassengerName}
                 onAge={setPassengerAge}
                 onGender={setPassengerGender}
-                errorsForSeat={errors.passengers ? .[p.seat]}
+                errorsForSeat={errors.passengers?.[p.seat]}
                 onBlurName={(seat) => blurValidatePassenger(seat, "name")}
                 onBlurAge={(seat) => blurValidatePassenger(seat, "age")}
               />
@@ -987,18 +1029,30 @@ const ConfirmBooking = () => {
         <SectionCard title="Fare Summary">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
+              <span
+                className="font-medium"
+                style={{ color: PALETTE.textSubtle }}
+              >
                 Subtotal
               </span>
-              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
+              <span
+                className="tabular-nums font-semibold"
+                style={{ color: PALETTE.text }}
+              >
                 Rs. {prices.basePrice.toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
+              <span
+                className="font-medium"
+                style={{ color: PALETTE.textSubtle }}
+              >
                 Convenience Fee
               </span>
-              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
+              <span
+                className="tabular-nums font-semibold"
+                style={{ color: PALETTE.text }}
+              >
                 Rs. {prices.convenienceFee.toFixed(2)}
               </span>
             </div>
@@ -1007,12 +1061,18 @@ const ConfirmBooking = () => {
               <span className="font-bold" style={{ color: PALETTE.text }}>
                 Total
               </span>
-              <span className="tabular-nums font-extrabold" style={{ color: PALETTE.text }}>
+              <span
+                className="tabular-nums font-extrabold"
+                style={{ color: PALETTE.text }}
+              >
                 Rs. {prices.total.toFixed(2)}
               </span>
             </div>
             {holdExpired && (
-              <p className="text-xs mt-2 font-semibold" style={{ color: "#991B1C" }}>
+              <p
+                className="text-xs mt-2 font-semibold"
+                style={{ color: "#991B1B" }}
+              >
                 Your seat hold has expired. Please go back and reselect seats.
               </p>
             )}
@@ -1021,7 +1081,10 @@ const ConfirmBooking = () => {
 
         {/* Terms */}
         <div className="mt-4">
-          <label className="flex items-center text-sm" style={{ color: PALETTE.text }}>
+          <label
+            className="flex items-center text-sm"
+            style={{ color: PALETTE.text }}
+          >
             <input
               type="checkbox"
               className="mr-2"
@@ -1032,37 +1095,45 @@ const ConfirmBooking = () => {
             I agree to all Terms &amp; Conditions
           </label>
           {errors.terms ? (
-            <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
+            <p
+              className="mt-1 text-xs font-medium"
+              style={{ color: "#B91C1C" }}
+            >
               {errors.terms}
             </p>
           ) : null}
         </div>
 
-        {/* Mobile CTA */}
+        {/* Inline mobile CTA (shows on small screens where fixed bars can be obscured) */}
         <div className="sm:hidden mt-6">
           <button
             type="button"
             disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
-              handleSubmit({
-                preventDefault: () => {}
-              });
+              // reuse validation + final hold check
+              handleSubmit({ preventDefault: () => {} });
             }}
             className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: PALETTE.primary }}
           >
             Proceed to Pay
           </button>
-          <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
+          <p
+            className="mt-2 text-center text-xs"
+            style={{ color: PALETTE.textSubtle }}
+          >
             Payable Amount:{" "}
-            <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>
+            <span
+              className="font-bold tabular-nums"
+              style={{ color: PALETTE.text }}
+            >
               Rs. {prices.total.toFixed(2)}
             </span>
           </p>
         </div>
       </div>
 
-      {/* Desktop sticky CTA */}
+      {/* Sticky bottom CTA — visible from sm and up (desktop unchanged) */}
       <div
         className="hidden sm:block fixed bottom-0 left-0 right-0 z-40"
         style={{
@@ -1076,7 +1147,10 @@ const ConfirmBooking = () => {
             <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
               Payable Amount
             </p>
-            <p className="text-xl font-extrabold tabular-nums" style={{ color: PALETTE.text }}>
+            <p
+              className="text-xl font-extrabold tabular-nums"
+              style={{ color: PALETTE.text }}
+            >
               Rs. {prices.total.toFixed(2)}
             </p>
           </div>
@@ -1084,9 +1158,8 @@ const ConfirmBooking = () => {
             type="button"
             disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
-              handleSubmit({
-                preventDefault: () => {}
-              });
+              // reuse validation + final hold check
+              handleSubmit({ preventDefault: () => {} });
             }}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: PALETTE.primary }}
