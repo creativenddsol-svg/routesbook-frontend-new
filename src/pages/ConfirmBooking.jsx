@@ -117,23 +117,27 @@ const GenderSeatPill = ({ gender, children }) => {
 async function fetchHoldRemaining({ busId, date, departureTime }) {
   const params = { busId, date, departureTime, t: Date.now() };
   try {
-    const r1 = await apiClient.get("/bookings/lock-remaining", { params });
+    const r1 = await apiClient.get("/bookings/lock-remaining", {
+      params
+    });
     return {
-      ms: r1?.data?.remainingMs ?? r1?.data?.ms ?? null,
-      expiresAt: r1?.data?.expiresAt ?? null,
-      headers: r1?.headers,
+      ms: r1 ? .data ? .remainingMs ?? r1 ? .data ? .ms ?? null,
+      expiresAt: r1 ? .data ? .expiresAt ?? null,
+      headers: r1 ? .headers,
     };
   } catch {
-    const r2 = await apiClient.get("/bookings/lock/remaining", { params });
+    const r2 = await apiClient.get("/bookings/lock/remaining", {
+      params
+    });
     return {
-      ms: r2?.data?.remainingMs ?? r2?.data?.ms ?? null,
-      expiresAt: r2?.data?.expiresAt ?? null,
-      headers: r2?.headers,
+      ms: r2 ? .data ? .remainingMs ?? r2 ? .data ? .ms ?? null,
+      expiresAt: r2 ? .data ? .expiresAt ?? null,
+      headers: r2 ? .headers,
     };
   }
 }
 function serverNowFromHeaders(headers) {
-  const h = headers?.date;
+  const h = headers ? .date;
   const t = h ? Date.parse(h) : NaN;
   return Number.isFinite(t) ? t : Date.now();
 }
@@ -173,11 +177,11 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
           departureTime,
         });
         const nowServer = serverNowFromHeaders(headers);
-        const target = expiresAt
-          ? new Date(expiresAt).getTime()
-          : ms != null
-          ? nowServer + Math.max(0, Number(ms))
-          : nowServer + 15 * 60 * 1000;
+        const target = expiresAt ?
+          new Date(expiresAt).getTime() :
+          ms != null ?
+          nowServer + Math.max(0, Number(ms)) :
+          nowServer + 15 * 60 * 1000;
         if (cancelled) return;
         expiryRef.current = target;
         startTicking();
@@ -329,12 +333,12 @@ const PassengerRow = memo(function PassengerRow({
             label="Name"
             value={p.name}
             onChange={(e) => onName(p.seat, e.target.value)}
-            onBlur={() => onBlurName?.(p.seat)}
+            onBlur={() => onBlurName ? .(p.seat)}
             autoComplete="name"
             enterKeyHint="next"
             placeholder="e.g., Ramesh Perera"
             required
-            error={errorsForSeat?.name}
+            error={errorsForSeat ? .name}
           />
         </div>
         <div className="md:col-span-1">
@@ -345,11 +349,11 @@ const PassengerRow = memo(function PassengerRow({
             type="number"
             value={p.age}
             onChange={(e) => onAge(p.seat, e.target.value)}
-            onBlur={() => onBlurAge?.(p.seat)}
+            onBlur={() => onBlurAge ? .(p.seat)}
             inputMode="numeric"
             enterKeyHint="next"
             placeholder="e.g., 28"
-            error={errorsForSeat?.age}
+            error={errorsForSeat ? .age}
           />
         </div>
         <div className="md:col-span-2">
@@ -361,11 +365,11 @@ const PassengerRow = memo(function PassengerRow({
               className="py-2.5 rounded-full border text-sm font-medium transition"
               style={{
                 borderColor:
-                  p.gender === "M"
-                    ? PALETTE.violet
-                    : errorsForSeat?.gender
-                    ? "#DC2626"
-                    : PALETTE.border,
+                  p.gender === "M" ?
+                  PALETTE.violet :
+                  errorsForSeat ? .gender ?
+                  "#DC2626" :
+                  PALETTE.border,
                 background: p.gender === "M" ? PALETTE.violetBg : "#FFFFFF",
                 color: p.gender === "M" ? PALETTE.violet : PALETTE.text,
               }}
@@ -378,11 +382,11 @@ const PassengerRow = memo(function PassengerRow({
               className="py-2.5 rounded-full border text-sm font-medium transition"
               style={{
                 borderColor:
-                  p.gender === "F"
-                    ? PALETTE.pink
-                    : errorsForSeat?.gender
-                    ? "#DC2626"
-                    : PALETTE.border,
+                  p.gender === "F" ?
+                  PALETTE.pink :
+                  errorsForSeat ? .gender ?
+                  "#DC2626" :
+                  PALETTE.border,
                 background: p.gender === "F" ? PALETTE.pinkBg : "#FFFFFF",
                 color: p.gender === "F" ? PALETTE.pink : PALETTE.text,
               }}
@@ -390,7 +394,7 @@ const PassengerRow = memo(function PassengerRow({
               Female
             </button>
           </div>
-          {errorsForSeat?.gender ? (
+          {errorsForSeat ? .gender ? (
             <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
               {errorsForSeat.gender}
             </p>
@@ -421,10 +425,10 @@ const ConfirmBooking = () => {
 
   const prices = useMemo(() => {
     const base =
-      priceDetails?.basePrice ??
+      priceDetails ? .basePrice ??
       (typeof totalPrice === "number" ? totalPrice : 0);
-    const fee = priceDetails?.convenienceFee ?? 0;
-    const tot = priceDetails?.totalPrice ?? totalPrice ?? base + fee;
+    const fee = priceDetails ? .convenienceFee ?? 0;
+    const tot = priceDetails ? .totalPrice ?? totalPrice ?? base + fee;
     return {
       basePrice: Number(base) || 0,
       convenienceFee: Number(fee) || 0,
@@ -439,7 +443,10 @@ const ConfirmBooking = () => {
     email: "",
   });
   const onChangeForm = useCallback((e) => {
-    const { name, value } = e.target;
+    const {
+      name,
+      value
+    } = e.target;
     setForm((prev) =>
       prev[name] === value ? prev : { ...prev, [name]: value }
     );
@@ -447,13 +454,12 @@ const ConfirmBooking = () => {
 
   const initialPassengers = useMemo(
     () =>
-      (selectedSeats || []).map((seatNo) => ({
-        seat: String(seatNo),
-        name: "",
-        age: "",
-        gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
-      })),
-    [selectedSeats, seatGenders]
+    (selectedSeats || []).map((seatNo) => ({
+      seat: String(seatNo),
+      name: "",
+      age: "",
+      gender: seatGenders ? .[String(seatNo)] === "F" ? "F" : "M",
+    })), [selectedSeats, seatGenders]
   );
   const [passengers, setPassengers] = useState(initialPassengers);
 
@@ -501,12 +507,11 @@ const ConfirmBooking = () => {
   });
 
   const selectedSeatStrings = useMemo(
-    () => (selectedSeats || []).map(String),
-    [selectedSeats]
+    () => (selectedSeats || []).map(String), [selectedSeats]
   );
 
   const { releaseSeats, suppressAutoRelease } = useSeatLockCleanup({
-    busId: bus?._id,
+    busId: bus ? ._id,
     date,
     departureTime,
     seats: selectedSeatStrings,
@@ -516,7 +521,7 @@ const ConfirmBooking = () => {
   const verifyHoldAlive = useCallback(async () => {
     try {
       const { ms, expiresAt, headers } = await fetchHoldRemaining({
-        busId: bus?._id,
+        busId: bus ? ._id,
         date,
         departureTime,
       });
@@ -526,7 +531,7 @@ const ConfirmBooking = () => {
     } catch {
       return true;
     }
-  }, [bus?._id, date, departureTime]);
+  }, [bus ? ._id, date, departureTime]);
 
   /* ---------- Validation helpers ---------- */
   const phoneOk = (v) => /^0\d{9,10}$/.test(String(v || "").trim());
@@ -549,9 +554,9 @@ const ConfirmBooking = () => {
   const validateAll = useCallback(() => {
     const next = {
       name: nonEmpty(form.name) ? "" : "Full name is required",
-      mobile: phoneOk(form.mobile)
-        ? ""
-        : "Enter a valid mobile number (e.g., 07XXXXXXXX)",
+      mobile: phoneOk(form.mobile) ?
+        "" :
+        "Enter a valid mobile number (e.g., 07XXXXXXXX)",
       nic: nonEmpty(form.nic) ? "" : "NIC / Passport is required",
       email: emailOk(form.email) ? "" : "Enter a valid email address",
       terms: termsAccepted ? "" : "You must accept the Terms & Conditions",
@@ -559,23 +564,26 @@ const ConfirmBooking = () => {
     };
     setErrors(next);
 
-    const firstFieldId = next.name
-      ? "name"
-      : next.mobile
-      ? "mobile"
-      : next.nic
-      ? "nic"
-      : next.email
-      ? "email"
-      : Object.keys(next.passengers)[0]
-      ? `p-name-${Object.keys(next.passengers)[0]}`
-      : "";
+    const firstFieldId = next.name ?
+      "name" :
+      next.mobile ?
+      "mobile" :
+      next.nic ?
+      "nic" :
+      next.email ?
+      "email" :
+      Object.keys(next.passengers)[0] ?
+      `p-name-${Object.keys(next.passengers)[0]}` :
+      "";
 
     if (firstFieldId) {
       const el = document.getElementById(firstFieldId);
-      if (el?.scrollIntoView)
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      if (el?.focus) setTimeout(() => el.focus(), 200);
+      if (el ? .scrollIntoView)
+        el.scrollIntoView({
+          behavior: "smooth",
+          block: "center"
+        });
+      if (el ? .focus) setTimeout(() => el.focus(), 200);
       return false;
     }
     return true;
@@ -588,17 +596,16 @@ const ConfirmBooking = () => {
         if (field === "name")
           next.name = nonEmpty(form.name) ? "" : "Full name is required";
         if (field === "mobile")
-          next.mobile = phoneOk(form.mobile)
-            ? ""
-            : "Enter a valid mobile number (e.g., 07XXXXXXXX)";
+          next.mobile = phoneOk(form.mobile) ?
+          "" :
+          "Enter a valid mobile number (e.g., 07XXXXXXXX)";
         if (field === "nic")
           next.nic = nonEmpty(form.nic) ? "" : "NIC / Passport is required";
         if (field === "email")
           next.email = emailOk(form.email) ? "" : "Enter a valid email address";
         return next;
       });
-    },
-    [form]
+    }, [form]
   );
 
   const blurValidatePassenger = useCallback(
@@ -608,16 +615,15 @@ const ConfirmBooking = () => {
         const p = passengers.find((x) => x.seat === String(seat));
         const slot = { ...(next.passengers[seat] || {}) };
         if (field === "name")
-          slot.name = nonEmpty(p?.name) ? "" : "Passenger name is required";
-        if (field === "age" && p?.age && Number(p.age) < 0)
+          slot.name = nonEmpty(p ? .name) ? "" : "Passenger name is required";
+        if (field === "age" && p ? .age && Number(p.age) < 0)
           slot.age = "Age must be positive";
         next.passengers[seat] = slot;
         if (!slot.name && !slot.age && !slot.gender)
           delete next.passengers[seat];
         return next;
       });
-    },
-    [passengers]
+    }, [passengers]
   );
 
   const toggleTerms = () => {
@@ -657,6 +663,9 @@ const ConfirmBooking = () => {
       const seatGendersOut = {};
       (passengers || []).forEach((p) => (seatGendersOut[p.seat] = p.gender));
 
+      // 🆕 Clear the session storage flag to tell SearchResults to NOT auto-release on mount
+      sessionStorage.removeItem("rb_skip_release_on_unmount");
+
       // keep the lock while going to external payment flow
       suppressAutoRelease();
 
@@ -683,8 +692,7 @@ const ConfirmBooking = () => {
           seatGenders: seatGendersOut,
         },
       });
-    },
-    [
+    }, [
       bus,
       date,
       departureTime,
@@ -714,12 +722,11 @@ const ConfirmBooking = () => {
 
   /* --------- Back behavior: go back to Search Results + keep locks --------- */
   const persistAndGoBack = useCallback(() => {
-    // prevent Search Results cleanup from releasing seats
+    // 1. Set flags for SearchResults to restore state and skip cleanup
     sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-    // mark that we are explicitly returning from confirm
     sessionStorage.setItem("rb_returning_from_confirm", "1");
 
-    // persist snapshot so Search Results can rehydrate
+    // 2. Persist snapshot so Search Results can rehydrate
     const busKey = `${bus?._id}-${departureTime}`;
     saveCheckoutState({
       busKey,
@@ -735,25 +742,28 @@ const ConfirmBooking = () => {
       },
     });
 
-    // don't auto-release in our cleanup hook
+    // 3. Don't auto-release in our cleanup hook
     suppressAutoRelease();
 
-    // robustly route back to the SAME search (avoid falling to Home)
-    const fromCity = bus?.from;
-    const toCity = bus?.to;
+    // 4. Robustly route back to the SAME search
+    const fromCity = bus ? .from;
+    const toCity = bus ? .to;
     if (fromCity && toCity && date) {
       const qs = `from=${encodeURIComponent(fromCity)}&to=${encodeURIComponent(
         toCity
       )}&date=${encodeURIComponent(date)}`;
-      navigate(`/search-results?${qs}`);
+      // Use replace to avoid polluting the history stack too much
+      navigate(`/search-results?${qs}`, {
+        replace: true
+      });
     } else {
       // safe fallback if somehow missing metadata
       navigate(-1);
     }
   }, [
-    bus?._id,
-    bus?.from,
-    bus?.to,
+    bus ? ._id,
+    bus ? .from,
+    bus ? .to,
     departureTime,
     date,
     selectedSeats,
@@ -766,8 +776,8 @@ const ConfirmBooking = () => {
   ]);
 
   useSeatLockBackGuard({
-    enabled: !missingData && !holdExpired && (selectedSeatStrings?.length || 0) > 0,
-    busId: bus?._id,
+    enabled: !missingData && !holdExpired && (selectedSeatStrings ? .length || 0) > 0,
+    busId: bus ? ._id,
     date,
     departureTime,
     seats: selectedSeatStrings,
@@ -803,7 +813,7 @@ const ConfirmBooking = () => {
         <div className="max-w-6xl mx-auto px-4 py-3">
           <p className="text-white text-base font-semibold leading-tight">Confirm Booking</p>
           <p className="text-white/90 text-xs">
-            {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
+            {bus ? .from} → {bus ? .to} • {getNiceDate(date, departureTime)}
           </p>
         </div>
       </div>
@@ -815,42 +825,42 @@ const ConfirmBooking = () => {
 
         {/* Error banner */}
         {errors.name ||
-        errors.mobile ||
-        errors.nic ||
-        errors.email ||
-        Object.keys(errors.passengers || {}).length ||
-        errors.terms ||
-        holdExpired ? (
-          <div
-            className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
-            style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid #FECACA" }}
-          >
-            {holdExpired
-              ? "Your seat hold has expired. Please go back and reselect seats."
-              : "Please correct the highlighted fields below."}
-          </div>
-        ) : null}
+          errors.mobile ||
+          errors.nic ||
+          errors.email ||
+          Object.keys(errors.passengers || {}).length ||
+          errors.terms ||
+          holdExpired ? (
+            <div
+              className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
+              style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid #FECACA" }}
+            >
+              {holdExpired ?
+                "Your seat hold has expired. Please go back and reselect seats." :
+                "Please correct the highlighted fields below."}
+            </div>
+          ) : null}
 
         {/* Journey Overview */}
         <SectionCard>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
               <h2 className="text-lg font-bold truncate" style={{ color: PALETTE.text }}>
-                {bus?.name || "Bus"}
+                {bus ? .name || "Bus"}
               </h2>
               <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
-                {bus?.from} → {bus?.to}
+                {bus ? .from} → {bus ? .to}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
               <DatePill>{getNiceDate(date, departureTime)}</DatePill>
-              <AcPill>{bus?.busType || "Seating"}</AcPill>
+              <AcPill>{bus ? .busType || "Seating"}</AcPill>
               <SeatPill>
-                {selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}
+                {selectedSeats ? .length} Seat{selectedSeats ? .length > 1 ? "s" : ""}
               </SeatPill>
               <HoldCountdown
-                busId={bus?._id}
+                busId={bus ? ._id}
                 date={date}
                 departureTime={departureTime}
                 onExpire={() => {
@@ -965,7 +975,7 @@ const ConfirmBooking = () => {
                 onName={setPassengerName}
                 onAge={setPassengerAge}
                 onGender={setPassengerGender}
-                errorsForSeat={errors.passengers?.[p.seat]}
+                errorsForSeat={errors.passengers ? .[p.seat]}
                 onBlurName={(seat) => blurValidatePassenger(seat, "name")}
                 onBlurAge={(seat) => blurValidatePassenger(seat, "age")}
               />
@@ -1002,7 +1012,7 @@ const ConfirmBooking = () => {
               </span>
             </div>
             {holdExpired && (
-              <p className="text-xs mt-2 font-semibold" style={{ color: "#991B1B" }}>
+              <p className="text-xs mt-2 font-semibold" style={{ color: "#991B1C" }}>
                 Your seat hold has expired. Please go back and reselect seats.
               </p>
             )}
@@ -1034,7 +1044,9 @@ const ConfirmBooking = () => {
             type="button"
             disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
-              handleSubmit({ preventDefault: () => {} });
+              handleSubmit({
+                preventDefault: () => {}
+              });
             }}
             className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: PALETTE.primary }}
@@ -1072,7 +1084,9 @@ const ConfirmBooking = () => {
             type="button"
             disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
-              handleSubmit({ preventDefault: () => {} });
+              handleSubmit({
+                preventDefault: () => {}
+              });
             }}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
             style={{ background: PALETTE.primary }}
