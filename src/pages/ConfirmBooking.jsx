@@ -395,10 +395,7 @@ const PassengerRow = memo(function PassengerRow({
             </button>
           </div>
           {errorsForSeat?.gender ? (
-            <p
-              className="mt-1 text-xs font-medium"
-              style={{ color: "#B91C1C" }}
-            >
+            <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
               {errorsForSeat.gender}
             </p>
           ) : null}
@@ -518,6 +515,55 @@ const ConfirmBooking = () => {
     departureTime,
     seats: selectedSeatStrings,
   });
+
+  // ---------- 🆕 Centralized "Back to Results" logic ----------
+  const goBackToResults = useCallback(() => {
+    // Do NOT auto-release on unmount of this page
+    // (we want to keep the same locks)
+    suppressAutoRelease?.();
+
+    // Optional: let Search Results skip any "release on mount" logic (if present)
+    sessionStorage.setItem("rb_restore_from_confirm", "1");
+
+    // Provide a restore payload for Search Results (two channels: state + sessionStorage)
+    const restorePayload = {
+      restoreFromConfirm: true,
+      bus,
+      busId: bus?._id,
+      date,
+      departureTime,
+      selectedSeats: selectedSeatStrings,
+      selectedBoardingPoint,
+      selectedDroppingPoint,
+      seatGenders: seatGenders || {},
+      priceDetails: prices,
+    };
+    // (A) via history state
+    const searchParams = new URLSearchParams({
+      from: bus?.from || "",
+      to: bus?.to || "",
+      date: date || "",
+    }).toString();
+
+    // (B) also stash in sessionStorage so mount code can pick it up
+    try {
+      sessionStorage.setItem("rb_restore_payload", JSON.stringify(restorePayload));
+    } catch {}
+
+    // Hand over to Search Results
+    navigate(`/search-results?${searchParams}`, { state: restorePayload, replace: true });
+  }, [
+    suppressAutoRelease,
+    bus,
+    date,
+    departureTime,
+    selectedSeatStrings,
+    selectedBoardingPoint,
+    selectedDroppingPoint,
+    seatGenders,
+    prices,
+    navigate,
+  ]);
 
   // Final hold verification before navigating to payment
   const verifyHoldAlive = useCallback(async () => {
@@ -673,6 +719,7 @@ const ConfirmBooking = () => {
       passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
 
       // keep the lock while going to external payment flow
+      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
       suppressAutoRelease();
 
       navigate("/payment", {
@@ -727,27 +774,36 @@ const ConfirmBooking = () => {
     !selectedDroppingPoint ||
     prices.total === undefined;
 
+  // 🆕 Use back guard to send user back to Results (NOT Home) and keep locks.
   useSeatLockBackGuard({
     enabled: !missingData && !holdExpired && selectedSeatStrings.length > 0,
     busId: bus?._id,
     date,
     departureTime,
     seats: selectedSeatStrings,
-    onConfirmBack: () => navigate("/"),
+    onConfirmBack: goBackToResults,
   });
 
+  // If details are missing, try to recover by sending user to the Search Results
   if (missingData) {
     return (
       <div className="text-center mt-10">
         <p className="font-semibold" style={{ color: PALETTE.primary }}>
-          Booking details are incomplete. Please start again.
+          Booking details are incomplete. Returning to search results.
         </p>
         <button
-          onClick={() => navigate("/")}
+          onClick={() => {
+            const params = new URLSearchParams({
+              from: bus?.from || "",
+              to: bus?.to || "",
+              date: date || "",
+            }).toString();
+            navigate(`/search-results?${params}`);
+          }}
           className="mt-4 px-4 py-2 rounded-md text-white"
           style={{ background: PALETTE.primary }}
         >
-          Go to Home
+          Go to Search Results
         </button>
       </div>
     );
@@ -768,13 +824,24 @@ const ConfirmBooking = () => {
           paddingTop: "env(safe-area-inset-top)",
         }}
       >
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <p className="text-white text-base font-semibold leading-tight">
-            Confirm Booking
-          </p>
-          <p className="text-white/90 text-xs">
-            {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
-          </p>
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div>
+            <p className="text-white text-base font-semibold leading-tight">
+              Confirm Booking
+            </p>
+            <p className="text-white/90 text-xs">
+              {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
+            </p>
+          </div>
+          {/* 🆕 explicit back to results button (optional UX helper) */}
+          <button
+            type="button"
+            onClick={goBackToResults}
+            className="hidden sm:inline-block px-3 py-1.5 rounded-md text-xs font-semibold"
+            style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
+          >
+            Back to Results
+          </button>
         </div>
       </div>
 
@@ -1025,16 +1092,13 @@ const ConfirmBooking = () => {
             I agree to all Terms &amp; Conditions
           </label>
           {errors.terms ? (
-            <p
-              className="mt-1 text-xs font-medium"
-              style={{ color: "#B91C1C" }}
-            >
+            <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
               {errors.terms}
             </p>
           ) : null}
         </div>
 
-        {/* Inline mobile CTA (shows on small screens where fixed bars can be obscured) */}
+        {/* Inline mobile CTA */}
         <div className="sm:hidden mt-6">
           <button
             type="button"
@@ -1048,22 +1112,16 @@ const ConfirmBooking = () => {
           >
             Proceed to Pay
           </button>
-          <p
-            className="mt-2 text-center text-xs"
-            style={{ color: PALETTE.textSubtle }}
-          >
+          <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
             Payable Amount:{" "}
-            <span
-              className="font-bold tabular-nums"
-              style={{ color: PALETTE.text }}
-            >
+            <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>
               Rs. {prices.total.toFixed(2)}
             </span>
           </p>
         </div>
       </div>
 
-      {/* Sticky bottom CTA — visible from sm and up (desktop unchanged) */}
+      {/* Sticky bottom CTA — desktop */}
       <div
         className="hidden sm:block fixed bottom-0 left-0 right-0 z-40"
         style={{
