@@ -232,27 +232,6 @@ const releaseAllFromRegistry = async () => {
   writeLockReg([]);
 };
 
-/* 🆕 ---------- persist/rehydrate handoff between pages ---------- */
-const CHECKOUT_STATE_KEY = "rb_checkout_state_v1";
-const saveCheckoutState = (payload) => {
-  try {
-    sessionStorage.setItem(CHECKOUT_STATE_KEY, JSON.stringify(payload));
-  } catch {}
-};
-const readCheckoutState = () => {
-  try {
-    const raw = sessionStorage.getItem(CHECKOUT_STATE_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-};
-const clearCheckoutState = () => {
-  try {
-    sessionStorage.removeItem(CHECKOUT_STATE_KEY);
-  } catch {}
-};
-
 /* ---------------- BookingDeadlineTimer (UI micro) ---------------- */
 export const BookingDeadlineTimer = ({
   deadlineTimestamp,
@@ -367,7 +346,7 @@ export const selectStyles = {
 };
 
 /* ======================================================= */
-/* PROVIDER COMPONENT                  */
+/*                     PROVIDER COMPONENT                  */
 /* ======================================================= */
 export function SearchCoreProvider({ children }) {
   const [searchParams] = useSearchParams();
@@ -552,8 +531,73 @@ export function SearchCoreProvider({ children }) {
       }
       // 🆕 also clear the global registry when we bulk-release
       writeLockReg([]);
-      // 🆕 also clear checkout state on bulk-release
-      clearCheckoutState();
+    },
+    [searchDateParam]
+  );
+
+  /* 🆕 Release seats selected on all OTHER buses (not the current one).
+        Used when user selects a seat on a different card. */
+  const releaseOtherSelectedSeats = useCallback(
+    async (exceptKey, clearLocal = true) => {
+      const entries = Object.entries(latestBookingRef.current || {});
+      const tasks = [];
+
+      for (const [key, data] of entries) {
+        if (key === exceptKey) continue;
+        const seats = data?.selectedSeats || [];
+        if (!seats.length) continue;
+
+        const { id, time } = parseBusKey(key);
+        const busObj = (latestBusesRef.current || []).find(
+          (b) => b._id === id && b.departureTime === time
+        );
+        if (!busObj) continue;
+
+        tasks.push(
+          (async () => {
+            try {
+              await apiClient.delete("/bookings/release", {
+                ...buildAuthConfig(getAuthToken()),
+                data: {
+                  busId: busObj._id,
+                  date: searchDateParam,
+                  departureTime: busObj.departureTime,
+                  seats: seats.map(String),
+                  clientId: getClientId(),
+                },
+              });
+            } catch {
+              /* ignore individual release errors */
+            }
+          })()
+        );
+      }
+
+      if (tasks.length) {
+        try {
+          await Promise.allSettled(tasks);
+        } catch {
+          /* no-op */
+        }
+      }
+
+      if (clearLocal) {
+        setBusSpecificBookingData((prev) => {
+          const next = { ...prev };
+          Object.keys(next).forEach((k) => {
+            if (k === exceptKey) return;
+            next[k] = {
+              ...next[k],
+              selectedSeats: [],
+              seatGenders: {},
+              basePrice: 0,
+              convenienceFee: 0,
+              totalPrice: 0,
+            };
+          });
+          return next;
+        });
+      }
     },
     [searchDateParam]
   );
@@ -568,7 +612,6 @@ export function SearchCoreProvider({ children }) {
         setExpandedBusId(null);
         setBusSpecificBookingData({});
         sessionStorage.removeItem("rb_skip_release_on_unmount");
-        clearCheckoutState(); // 🆕 clear checkout state on logout
       }
     };
     const onStorage = (e) => {
@@ -737,77 +780,6 @@ export function SearchCoreProvider({ children }) {
       clearInterval(id);
     };
   }, [buses, visibleForPolling, page, expandedBusId, refreshAvailability]);
-
-  // 🆕 Rehydrate selection if user returns from ConfirmBooking via browser back
-  useEffect(() => {
-    // Flag to check if we restored state this session
-    const restored = sessionStorage.getItem("rb_restored_from_confirm") === "1";
-    if (restored) return; // Prevent multiple restorations in one session
-
-    const saved = readCheckoutState();
-    if (!saved) return;
-
-    const { busKey, date, data } = saved;
-    if (!busKey || !date || !data || data.selectedSeats.length === 0) {
-      clearCheckoutState();
-      return;
-    }
-
-    // Check if the current search matches the restored search
-    if (date !== searchDateParam) {
-      // If the date changed, the selected seats are invalid
-      clearCheckoutState();
-      return;
-    }
-
-    // Restore UI state
-    setExpandedBusId(busKey);
-    setBusSpecificBookingData((prev) => ({ ...prev, [busKey]: data }));
-
-    // Mark for data fetch effect to skip state wipe
-    sessionStorage.setItem("rb_returning_from_confirm", "1");
-    sessionStorage.setItem("rb_restored_from_confirm", "1"); // Only restore once per session
-
-    // Try to re-lock seats quietly (best-effort) so they remain “selected”, not red
-    const lastDash = busKey.lastIndexOf("-");
-    const id = lastDash >= 0 ? busKey.slice(0, lastDash) : busKey;
-    const time = lastDash >= 0 ? busKey.slice(lastDash + 1) : "";
-    const seats = (data.selectedSeats || []).map(String);
-    const busObj = buses.find(b => b._id === id && b.departureTime === time);
-
-    if (busObj && id && time && date && seats.length) {
-      // Add back to registry (in case API call fails or is delayed)
-      addToRegistry(busObj, searchDateParam, seats);
-      
-      apiClient
-        .post("/bookings/lock", {
-          busId: id,
-          date,
-          departureTime: time,
-          seats,
-          clientId: getClientId(),
-        })
-        .then(() => refreshAvailability([busObj], { force: true })) // Force refresh availability
-        .catch(() => {
-           // If re-lock fails, it's safer to just release the selection locally
-           setBusSpecificBookingData(prev => {
-             const next = { ...prev };
-             next[busKey] = {
-                ...data,
-                selectedSeats: [],
-                seatGenders: {}
-             };
-             return next;
-           });
-           removeFromRegistry(busObj, searchDateParam, seats); // Remove from local registry
-           // The polling will naturally update availability for this bus
-        });
-    } else {
-       // If the bus object isn't in the current result list, clear state
-       clearCheckoutState();
-    }
-  }, [buses, searchDateParam, refreshAvailability]);
-
 
   // Release everything on page unmount (back/forward, navigating away)
   useEffect(() => {
@@ -981,16 +953,6 @@ export function SearchCoreProvider({ children }) {
   };
 
   /* ---------------- Fetch data ---------------- */
-
-  // 🆕 detect “returning from confirm” once (skip clearing state)
-  const returningFromConfirmRef = useRef(false);
-  useEffect(() => {
-    if (sessionStorage.getItem("rb_returning_from_confirm") === "1") {
-      returningFromConfirmRef.current = true;
-      sessionStorage.removeItem("rb_returning_from_confirm");
-    }
-  }, []);
-
   const fetchData = useCallback(async () => {
     if (!from || !to || !searchDateParam) {
       setLoading(false);
@@ -1000,12 +962,8 @@ export function SearchCoreProvider({ children }) {
     }
     setLoading(true);
     setFetchError(null);
-
-    // 👉 Do not wipe restored state when coming back from confirm page
-    if (!returningFromConfirmRef.current) {
-      setExpandedBusId(null);
-      setBusSpecificBookingData({});
-    }
+    setExpandedBusId(null);
+    setBusSpecificBookingData({});
 
     try {
       const res = await apiClient.get("/buses", {
@@ -1066,8 +1024,6 @@ export function SearchCoreProvider({ children }) {
       );
     } finally {
       setLoading(false);
-      // only skip clearing once
-      returningFromConfirmRef.current = false;
     }
   }, [from, to, searchDateParam]);
 
@@ -1214,11 +1170,9 @@ export function SearchCoreProvider({ children }) {
         }
       }
       setExpandedBusId(null);
-      // Clear checkout state when card is closed manually
-      clearCheckoutState();
     } else {
-      // switching cards – release any seats selected on other cards
-      await releaseAllSelectedSeats(true);
+      // ✅ Switching cards – do NOT release seats from other cards.
+      // Previously selected seats should remain selected (not booked) until the user selects on another card.
       setExpandedBusId(busKey);
       initializeBusBookingData(bus);
       setMobileSheetStepByBus((prev) => ({
@@ -1246,6 +1200,16 @@ export function SearchCoreProvider({ children }) {
     if (locking[lkKey]) return;
 
     if (!alreadySelected && unavailable.includes(seatStr)) return;
+
+    // 🆕 If we're about to SELECT on this bus, first release any selections on other buses.
+    if (!alreadySelected) {
+      const hasOtherSelections = Object.entries(busSpecificBookingData || {}).some(
+        ([k, data]) => k !== busKey && (data?.selectedSeats?.length || 0) > 0
+      );
+      if (hasOtherSelections) {
+        await releaseOtherSelectedSeats(busKey, true);
+      }
+    }
 
     // UNSELECT (optimistic)
     if (alreadySelected) {
@@ -1451,15 +1415,6 @@ export function SearchCoreProvider({ children }) {
 
     // 👉 tell unmount cleanup not to release seats during handoff
     sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-    // 🆕 clear the restore flag to prepare for next back nav
-    sessionStorage.removeItem("rb_restored_from_confirm");
-
-    /* 🆕 persist exact selection so Back button restores state */
-    saveCheckoutState({
-      busKey,
-      date: searchDateParam,
-      data: busData,
-    });
 
     navigate("/confirm-booking", {
       state: {
@@ -1494,17 +1449,16 @@ export function SearchCoreProvider({ children }) {
     ? availability[expandedBusId] || {}
     : {};
 
-  /* FIX: Using standard && accessors to avoid Syntax Errors in older parsers */
-  const selectedBookingData =
-    (expandedBusId && busSpecificBookingData[expandedBusId]) || {
-      selectedSeats: [],
-      seatGenders: {},
-      selectedBoardingPoint: selectedBus && selectedBus.boardingPoints && selectedBus.boardingPoints[0] || null,
-      selectedDroppingPoint: selectedBus && selectedBus.droppingPoints && selectedBus.droppingPoints[0] || null,
-      basePrice: 0,
-      convenienceFee: 0,
-      totalPrice: 0,
-    };
+  const selectedBookingData = (expandedBusId &&
+    busSpecificBookingData[expandedBusId]) || {
+    selectedSeats: [],
+    seatGenders: {},
+    selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
+    selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+    basePrice: 0,
+    convenienceFee: 0,
+    totalPrice: 0,
+  };
 
   const currentMobileStep =
     (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
