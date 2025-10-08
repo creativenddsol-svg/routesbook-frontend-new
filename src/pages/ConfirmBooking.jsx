@@ -2,7 +2,7 @@
 import { useMemo, useState, useCallback, memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // import BookingSteps from "../components/BookingSteps";
-import apiClient from "../api";
+import apiClient from "../api"; // baseURL configured inside ../api
 import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
@@ -122,43 +122,34 @@ const GenderSeatPill = ({ gender, children }) => {
   );
 };
 
-/* ---------------- persist-to-SearchResults helpers ---------------- */
-// Keep this definition here as it's used by the new persistAndGoBack logic
-const CHECKOUT_STATE_KEY = "rb_checkout_state_v1";
-function saveCheckoutState(payload) {
-  try {
-    sessionStorage.setItem(CHECKOUT_STATE_KEY, JSON.stringify(payload));
-  } catch {}
-}
-
-/* ----- hold remaining helpers (FIXED: removed ?.? and ?? ) ----- */
+/** Query server for remaining hold time (cache-safe), return {ms, expiresAt} */
 async function fetchHoldRemaining({ busId, date, departureTime }) {
-  const params = { busId, date, departureTime, t: Date.now() };
+  const params = { busId, date, departureTime, t: Date.now() }; // cache-buster
   try {
     const r1 = await apiClient.get("/bookings/lock-remaining", { params });
-    const data1 = r1 && r1.data;
     return {
-      ms: (data1 && data1.remainingMs) || (data1 && data1.ms) || null,
-      expiresAt: (data1 && data1.expiresAt) || null,
-      headers: r1 && r1.headers,
+      ms: r1?.data?.remainingMs ?? r1?.data?.ms ?? null,
+      expiresAt: r1?.data?.expiresAt ?? null,
+      headers: r1?.headers,
     };
   } catch {
     const r2 = await apiClient.get("/bookings/lock/remaining", { params });
-    const data2 = r2 && r2.data;
     return {
-      ms: (data2 && data2.remainingMs) || (data2 && data2.ms) || null,
-      expiresAt: (data2 && data2.expiresAt) || null,
-      headers: r2 && r2.headers,
+      ms: r2?.data?.remainingMs ?? r2?.data?.ms ?? null,
+      expiresAt: r2?.data?.expiresAt ?? null,
+      headers: r2?.headers,
     };
   }
 }
+
+/** Get best-effort server time (to reduce local clock drift) */
 function serverNowFromHeaders(headers) {
-  const h = headers && headers.date;
+  const h = headers?.date;
   const t = h ? Date.parse(h) : NaN;
   return Number.isFinite(t) ? t : Date.now();
 }
 
-/* --- Live hold countdown (15 min seat lock) --- */
+// --- Live hold countdown (15 min seat lock) ---
 const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
   const [remainingMs, setRemainingMs] = useState(null);
   const expiryRef = useRef(null);
@@ -172,7 +163,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
       const tick = () => {
         const left = Math.max(
           0,
-          (expiryRef.current || Date.now()) - Date.now() // FIX: Replaced ?? with || in calculation
+          (expiryRef.current ?? Date.now()) - Date.now()
         );
         setRemainingMs(left);
         if (left <= 0) {
@@ -308,7 +299,7 @@ const RowInput = ({
   </div>
 );
 
-/* -------- Passenger row (FIXED: removed ?.) -------- */
+/* -------- Passenger row -------- */
 const PassengerRow = memo(function PassengerRow({
   p,
   index,
@@ -319,7 +310,6 @@ const PassengerRow = memo(function PassengerRow({
   onBlurName,
   onBlurAge,
 }) {
-  const passengerErrors = errorsForSeat || {};
   return (
     <div
       className="p-4 rounded-2xl"
@@ -343,12 +333,12 @@ const PassengerRow = memo(function PassengerRow({
             label="Name"
             value={p.name}
             onChange={(e) => onName(p.seat, e.target.value)}
-            onBlur={() => onBlurName && onBlurName(p.seat)} // FIX: Replaced ?.
+            onBlur={() => onBlurName?.(p.seat)}
             autoComplete="name"
             enterKeyHint="next"
             placeholder="e.g., Ramesh Perera"
             required
-            error={passengerErrors.name} // FIX: Used object from above
+            error={errorsForSeat?.name}
           />
         </div>
         <div className="md:col-span-1">
@@ -359,11 +349,11 @@ const PassengerRow = memo(function PassengerRow({
             type="number"
             value={p.age}
             onChange={(e) => onAge(p.seat, e.target.value)}
-            onBlur={() => onBlurAge && onBlurAge(p.seat)} // FIX: Replaced ?.
+            onBlur={() => onBlurAge?.(p.seat)}
             inputMode="numeric"
             enterKeyHint="next"
             placeholder="e.g., 28"
-            error={passengerErrors.age} // FIX: Used object from above
+            error={errorsForSeat?.age}
           />
         </div>
         <div className="md:col-span-2">
@@ -377,7 +367,7 @@ const PassengerRow = memo(function PassengerRow({
                 borderColor:
                   p.gender === "M"
                     ? PALETTE.violet
-                    : passengerErrors.gender
+                    : errorsForSeat?.gender
                     ? "#DC2626"
                     : PALETTE.border,
                 background: p.gender === "M" ? PALETTE.violetBg : "#FFFFFF",
@@ -394,7 +384,7 @@ const PassengerRow = memo(function PassengerRow({
                 borderColor:
                   p.gender === "F"
                     ? PALETTE.pink
-                    : passengerErrors.gender
+                    : errorsForSeat?.gender
                     ? "#DC2626"
                     : PALETTE.border,
                 background: p.gender === "F" ? PALETTE.pinkBg : "#FFFFFF",
@@ -404,12 +394,12 @@ const PassengerRow = memo(function PassengerRow({
               Female
             </button>
           </div>
-          {passengerErrors.gender ? (
+          {errorsForSeat?.gender ? (
             <p
               className="mt-1 text-xs font-medium"
               style={{ color: "#B91C1C" }}
             >
-              {passengerErrors.gender}
+              {errorsForSeat.gender}
             </p>
           ) : null}
         </div>
@@ -424,7 +414,6 @@ const ConfirmBooking = () => {
   const navigate = useNavigate();
   const pageTopRef = useRef(null);
 
-  const state = location.state || {}; // FIX: Access state via single object
   const {
     bus,
     selectedSeats,
@@ -435,16 +424,14 @@ const ConfirmBooking = () => {
     selectedDroppingPoint,
     departureTime,
     seatGenders,
-  } = state; // FIX: Deconstruct from state object
+  } = location.state || {};
 
   const prices = useMemo(() => {
-    // FIX: Removed ?. usage
     const base =
-      (priceDetails && priceDetails.basePrice) ||
+      priceDetails?.basePrice ??
       (typeof totalPrice === "number" ? totalPrice : 0);
-    const fee = (priceDetails && priceDetails.convenienceFee) || 0;
-    const tot =
-      (priceDetails && priceDetails.totalPrice) || totalPrice || base + fee;
+    const fee = priceDetails?.convenienceFee ?? 0;
+    const tot = priceDetails?.totalPrice ?? totalPrice ?? base + fee;
     return {
       basePrice: Number(base) || 0,
       convenienceFee: Number(fee) || 0,
@@ -471,7 +458,7 @@ const ConfirmBooking = () => {
         seat: String(seatNo),
         name: "",
         age: "",
-        gender: (seatGenders && seatGenders[String(seatNo)]) === "F" ? "F" : "M", // FIX: Replaced ?.
+        gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
       })),
     [selectedSeats, seatGenders]
   );
@@ -526,7 +513,7 @@ const ConfirmBooking = () => {
   );
 
   const { releaseSeats, suppressAutoRelease } = useSeatLockCleanup({
-    busId: bus && bus._id, // FIX: Replaced ?.
+    busId: bus?._id,
     date,
     departureTime,
     seats: selectedSeatStrings,
@@ -536,18 +523,18 @@ const ConfirmBooking = () => {
   const verifyHoldAlive = useCallback(async () => {
     try {
       const { ms, expiresAt, headers } = await fetchHoldRemaining({
-        busId: bus && bus._id, // FIX: Replaced ?.
+        busId: bus?._id,
         date,
         departureTime,
       });
       const now = serverNowFromHeaders(headers);
-      const left = expiresAt ? new Date(expiresAt).getTime() - now : ms || 0; // FIX: Replaced ?? with ||
+      const left = expiresAt ? new Date(expiresAt).getTime() - now : ms ?? 0;
       return left > 0;
     } catch {
       // If API temporarily fails, be conservative: allow proceed
       return true;
     }
-  }, [bus, date, departureTime]);
+  }, [bus?._id, date, departureTime]);
 
   /* ---------- Validation helpers (mobile-first inline errors) ---------- */
   const phoneOk = (v) => /^0\d{9,10}$/.test(String(v || "").trim());
@@ -630,8 +617,8 @@ const ConfirmBooking = () => {
         const p = passengers.find((x) => x.seat === String(seat));
         const slot = { ...(next.passengers[seat] || {}) };
         if (field === "name")
-          slot.name = (p && nonEmpty(p.name)) ? "" : "Passenger name is required"; // FIX: Used &&
-        if (field === "age" && p && p.age && Number(p.age) < 0) // FIX: Used &&
+          slot.name = nonEmpty(p?.name) ? "" : "Passenger name is required";
+        if (field === "age" && p?.age && Number(p.age) < 0)
           slot.age = "Age must be positive";
         next.passengers[seat] = slot;
         // cleanup empty seat error object
@@ -684,10 +671,6 @@ const ConfirmBooking = () => {
 
       const seatGendersOut = {};
       passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
-
-      // 🆕 Clear the session storage flag to tell SearchResults to NOT auto-release on mount
-      sessionStorage.removeItem("rb_skip_release_on_unmount");
-      sessionStorage.removeItem("rb_restored_from_confirm"); // Clear flag used for restoring state
 
       // keep the lock while going to external payment flow
       suppressAutoRelease();
@@ -744,66 +727,13 @@ const ConfirmBooking = () => {
     !selectedDroppingPoint ||
     prices.total === undefined;
 
-  /* --------- Back behavior: go back to Search Results + keep locks (FIXED) --------- */
-  const persistAndGoBack = useCallback(() => {
-    // 1. Set flags for SearchResults to restore state and skip cleanup
-    sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-    sessionStorage.setItem("rb_returning_from_confirm", "1"); // Flag to skip initial state wipe
-
-    // 2. Persist snapshot so Search Results can rehydrate
-    const busKey = `${(bus && bus._id) || ''}-${departureTime || ''}`; // FIX: Added safety check
-    saveCheckoutState({
-      busKey,
-      date,
-      data: {
-        selectedSeats: (selectedSeats || []).map(String),
-        seatGenders: seatGenders || {},
-        selectedBoardingPoint,
-        selectedDroppingPoint,
-        basePrice: prices.basePrice,
-        convenienceFee: prices.convenienceFee,
-        totalPrice: prices.total,
-      },
-    });
-
-    // 3. Don't auto-release in our cleanup hook
-    suppressAutoRelease();
-
-    // 4. Robustly route back to the SAME search
-    const fromCity = bus && bus.from; // FIX: Replaced ?.
-    const toCity = bus && bus.to; // FIX: Replaced ?.
-
-    if (fromCity && toCity && date) {
-      const qs = `from=${encodeURIComponent(fromCity)}&to=${encodeURIComponent(
-        toCity
-      )}&date=${encodeURIComponent(date)}`;
-      // Use replace to avoid polluting the history stack too much, or navigate directly
-      navigate(`/search-results?${qs}`);
-    } else {
-      // If we don't have enough data to reconstruct the search URL, go back one step
-      navigate(-1);
-    }
-  }, [
-    bus,
-    departureTime,
-    date,
-    selectedSeats,
-    seatGenders,
-    selectedBoardingPoint,
-    selectedDroppingPoint,
-    prices,
-    suppressAutoRelease,
-    navigate,
-  ]);
-
   useSeatLockBackGuard({
     enabled: !missingData && !holdExpired && selectedSeatStrings.length > 0,
-    busId: bus && bus._id, // FIX: Replaced ?.
+    busId: bus?._id,
     date,
     departureTime,
     seats: selectedSeatStrings,
-    // ⬇️ Force the correct back destination + preserve locks and state
-    onConfirmBack: persistAndGoBack,
+    onConfirmBack: () => navigate("/"),
   });
 
   if (missingData) {
@@ -843,7 +773,7 @@ const ConfirmBooking = () => {
             Confirm Booking
           </p>
           <p className="text-white/90 text-xs">
-            {bus && bus.from} → {bus && bus.to} • {getNiceDate(date, departureTime)}
+            {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
           </p>
         </div>
       </div>
@@ -883,22 +813,22 @@ const ConfirmBooking = () => {
                 className="text-lg font-bold truncate"
                 style={{ color: PALETTE.text }}
               >
-                {bus && bus.name || "Bus"}
+                {bus?.name || "Bus"}
               </h2>
               <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
-                {bus && bus.from} → {bus && bus.to}
+                {bus?.from} → {bus?.to}
               </p>
             </div>
 
             <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
               <DatePill>{getNiceDate(date, departureTime)}</DatePill>
-              <AcPill>{bus && bus.busType || "Seating"}</AcPill>
+              <AcPill>{bus?.busType || "Seating"}</AcPill>
               <SeatPill>
                 {selectedSeats?.length} Seat
                 {selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
               <HoldCountdown
-                busId={bus && bus._id}
+                busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
                 onExpire={() => {
