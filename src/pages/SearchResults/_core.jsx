@@ -7,8 +7,7 @@ import {
   useNavigate,
   createSearchParams,
   useLocation,
-}
-from "react-router-dom";
+} from "react-router-dom";
 import {
   useEffect,
   useState,
@@ -17,8 +16,7 @@ import {
   useCallback,
   createContext,
   useContext,
-}
-from "react";
+} from "react";
 import apiClient, { getClientId } from "../../api"; // NOTE: path relative to this folder
 import { motion, AnimatePresence } from "framer-motion";
 import Select from "react-select";
@@ -37,8 +35,7 @@ import {
   FaExchangeAlt,
   FaSearch,
   FaChevronDown,
-}
-from "react-icons/fa";
+} from "react-icons/fa";
 import { createPortal } from "react-dom";
 
 /* ---------------- Context ---------------- */
@@ -158,9 +155,9 @@ export const isACType = (t = "") => {
 
 export const stripACWord = (type = "") =>
   type
-  .replace(/\bAC\b/gi, "")
-  .replace(/\s{2,}/g, " ")
-  .replace(/^\s+|\s+$/g, "");
+    .replace(/\bAC\b/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .replace(/^\s+|\s+$/g, "");
 
 /* -------- auth helpers -------- */
 const getAuthToken = () =>
@@ -357,11 +354,11 @@ export const selectStyles = {
   menuPortal: (p) => ({ ...p, zIndex: 9999 }),
   option: (p, state) => ({
     ...p,
-    backgroundColor: state.isSelected ?
-      PALETTE.primaryRed :
-      state.isFocused ?
-      "#FEE2E2" :
-      PALETTE.white,
+    backgroundColor: state.isSelected
+      ? PALETTE.primaryRed
+      : state.isFocused
+      ? "#FEE2E2"
+      : PALETTE.white,
     color: state.isSelected ? PALETTE.white : PALETTE.textDark,
     cursor: "pointer",
     padding: "12px 16px",
@@ -626,7 +623,8 @@ export function SearchCoreProvider({ children }) {
           const p = (async () => {
             try {
               const res = await apiClient.get(
-                `/bookings/availability/${bus._id}`, {
+                `/bookings/availability/${bus._id}`,
+                {
                   params: {
                     date: searchDateParam,
                     departureTime: bus.departureTime,
@@ -637,9 +635,9 @@ export function SearchCoreProvider({ children }) {
               const payload = {
                 available: res.data.availableSeats,
                 window: res.data.availableWindowSeats || null,
-                bookedSeats: Array.isArray(res.data.bookedSeats) ?
-                  res.data.bookedSeats.map(String) :
-                  [],
+                bookedSeats: Array.isArray(res.data.bookedSeats)
+                  ? res.data.bookedSeats.map(String)
+                  : [],
                 seatGenderMap: res.data.seatGenderMap || {},
               };
               lastFetchedAtRef.current.set(key, Date.now());
@@ -650,7 +648,7 @@ export function SearchCoreProvider({ children }) {
                 backoffUntilRef.current = Date.now() + 15000; // 15s
               }
               // keep whatever we had before
-              const prev = availabilityRef.current ? .[key];
+              const prev = availabilityRef.current?.[key];
               return (
                 prev || {
                   available: null,
@@ -863,17 +861,19 @@ export function SearchCoreProvider({ children }) {
 
   const fromOptions = useMemo(
     () =>
-    [...new Set(allBusesForDropdown.map((b) => b.from))].map((val) => ({
-      value: val,
-      label: val,
-    })), [allBusesForDropdown]
+      [...new Set(allBusesForDropdown.map((b) => b.from))].map((val) => ({
+        value: val,
+        label: val,
+      })),
+    [allBusesForDropdown]
   );
   const toOptions = useMemo(
     () =>
-    [...new Set(allBusesForDropdown.map((b) => b.to))].map((val) => ({
-      value: val,
-      label: val,
-    })), [allBusesForDropdown]
+      [...new Set(allBusesForDropdown.map((b) => b.to))].map((val) => ({
+        value: val,
+        label: val,
+      })),
+    [allBusesForDropdown]
   );
 
   const handleModifySearch = async () => {
@@ -913,10 +913,10 @@ export function SearchCoreProvider({ children }) {
   };
 
   const handleDateContainerClick = () => {
-    dateInputRef.current ? .showPicker();
+    dateInputRef.current?.showPicker();
   };
   const handleMobileDateChipClick = () => {
-    mobileDateInputRef.current ? .showPicker();
+    mobileDateInputRef.current?.showPicker();
   };
   const handleMobileDateChange = (e) => {
     const d = e.target.value;
@@ -942,22 +942,17 @@ export function SearchCoreProvider({ children }) {
         buildAuthConfig(token)
       );
       // 🆕 register if actually locked
-      if (res ? .data ? .ok) addToRegistry(bus, searchDateParam, [seat]);
+      if (res?.data?.ok) addToRegistry(bus, searchDateParam, [seat]);
       // quick refresh for this bus so other users' view reflects promptly
-      refreshAvailability([bus], {
-        force: true
-      });
+      refreshAvailability([bus], { force: true });
       return res.data;
     } catch (err) {
-      if (err ? .response ? .status === 400 || err ? .response ? .status === 401) {
+      if (err?.response?.status === 400 || err?.response?.status === 401) {
         console.warn(
           "Seat lock skipped (guest fallback):",
-          err ? .response ? .data || err.message
+          err?.response?.data || err.message
         );
-        return {
-          ok: true,
-          skipped: true
-        };
+        return { ok: true, skipped: true };
       }
       throw err;
     }
@@ -979,11 +974,9 @@ export function SearchCoreProvider({ children }) {
       });
       // 🆕 keep registry in sync + refresh this bus availability
       removeFromRegistry(bus, searchDateParam, seats);
-      refreshAvailability([bus], {
-        force: true
-      });
+      refreshAvailability([bus], { force: true });
     } catch (e) {
-      console.warn("Release seats failed:", e ? .response ? .data || e.message);
+      console.warn("Release seats failed:", e?.response?.data || e.message);
     }
   };
 
@@ -1016,11 +1009,7 @@ export function SearchCoreProvider({ children }) {
 
     try {
       const res = await apiClient.get("/buses", {
-        params: {
-          from,
-          to,
-          date: searchDateParam
-        },
+        params: { from, to, date: searchDateParam },
       });
       setBuses(res.data);
 
@@ -1035,7 +1024,8 @@ export function SearchCoreProvider({ children }) {
             const key = `${bus._id}-${bus.departureTime}`;
             try {
               const availabilityRes = await apiClient.get(
-                `/bookings/availability/${bus._id}`, {
+                `/bookings/availability/${bus._id}`,
+                {
                   params: {
                     date: searchDateParam,
                     departureTime: bus.departureTime,
@@ -1045,9 +1035,9 @@ export function SearchCoreProvider({ children }) {
               seatData[key] = {
                 available: availabilityRes.data.availableSeats,
                 window: availabilityRes.data.availableWindowSeats || null,
-                bookedSeats: Array.isArray(availabilityRes.data.bookedSeats) ?
-                  availabilityRes.data.bookedSeats.map(String) :
-                  [],
+                bookedSeats: Array.isArray(availabilityRes.data.bookedSeats)
+                  ? availabilityRes.data.bookedSeats.map(String)
+                  : [],
                 seatGenderMap: availabilityRes.data.seatGenderMap || {},
               };
               lastFetchedAtRef.current.set(key, Date.now());
@@ -1071,8 +1061,8 @@ export function SearchCoreProvider({ children }) {
       console.error("Error fetching bus results:", err);
       setBuses([]);
       setFetchError(
-        err.response ? .data ? .message ||
-        "Could not load bus data. Please check your connection and try again."
+        err.response?.data?.message ||
+          "Could not load bus data. Please check your connection and try again."
       );
     } finally {
       setLoading(false);
@@ -1122,9 +1112,9 @@ export function SearchCoreProvider({ children }) {
           activeTimeSlots.length === 0 ||
           activeTimeSlots.some((slot) => {
             const [start, end] = TIME_SLOTS[slot];
-            return slot === "Night" ?
-              depHour >= start || depHour < TIME_SLOTS["Morning"][0] :
-              depHour >= start && depHour < end;
+            return slot === "Night"
+              ? depHour >= start || depHour < TIME_SLOTS["Morning"][0]
+              : depHour >= start && depHour < end;
           });
         const matchType = filters.type ? bus.busType === filters.type : true;
         const displayPrice = getDisplayPrice(bus, from, to);
@@ -1154,7 +1144,8 @@ export function SearchCoreProvider({ children }) {
   }, [filteredBuses, sortBy, from, to]);
 
   const totalPages = useMemo(
-    () => Math.ceil(sortedBuses.length / RESULTS_PER_PAGE), [sortedBuses]
+    () => Math.ceil(sortedBuses.length / RESULTS_PER_PAGE),
+    [sortedBuses]
   );
 
   /* ---------------- Infinite scroll ---------------- */
@@ -1162,7 +1153,7 @@ export function SearchCoreProvider({ children }) {
     const handleScroll = () => {
       if (
         window.innerHeight + document.documentElement.scrollTop <
-        document.documentElement.offsetHeight - 200 ||
+          document.documentElement.offsetHeight - 200 ||
         page >= totalPages ||
         loading
       ) {
@@ -1181,15 +1172,12 @@ export function SearchCoreProvider({ children }) {
     (filters.maxPrice < 5000 ? 1 : 0);
 
   const visibleBuses = useMemo(
-    () => sortedBuses.slice(0, page * RESULTS_PER_PAGE), [sortedBuses, page]
+    () => sortedBuses.slice(0, page * RESULTS_PER_PAGE),
+    [sortedBuses, page]
   );
 
   const resetFilters = () => {
-    setFilters({
-      type: "",
-      maxPrice: 5000,
-      timeSlots: {}
-    });
+    setFilters({ type: "", maxPrice: 5000, timeSlots: {} });
     setPage(1);
   };
 
@@ -1203,8 +1191,8 @@ export function SearchCoreProvider({ children }) {
         [busKey]: {
           selectedSeats: [],
           seatGenders: {},
-          selectedBoardingPoint: bus.boardingPoints ? .[0] || null,
-          selectedDroppingPoint: bus.droppingPoints ? .[0] || null,
+          selectedBoardingPoint: bus.boardingPoints?.[0] || null,
+          selectedDroppingPoint: bus.droppingPoints?.[0] || null,
           basePrice: 0,
           convenienceFee: 0,
           totalPrice: 0,
@@ -1217,7 +1205,7 @@ export function SearchCoreProvider({ children }) {
     const busKey = `${bus._id}-${bus.departureTime}`;
     if (expandedBusId === busKey) {
       const seatsToRelease =
-        busSpecificBookingData[busKey] ? .selectedSeats || [];
+        busSpecificBookingData[busKey]?.selectedSeats || [];
       if (seatsToRelease.length) {
         try {
           await releaseSeats(bus, seatsToRelease);
@@ -1247,9 +1235,7 @@ export function SearchCoreProvider({ children }) {
     const currentBusData = busSpecificBookingData[busKey];
     if (!currentBusData) return;
 
-    const {
-      bookedSeats: unavailable = []
-    } = availability[availabilityKey] || {
+    const { bookedSeats: unavailable = [] } = availability[availabilityKey] || {
       bookedSeats: [],
     };
     const seatStr = String(seat);
@@ -1303,7 +1289,7 @@ export function SearchCoreProvider({ children }) {
     setLocking((v) => ({ ...v, [lkKey]: true }));
     try {
       const resp = await lockSeat(bus, seatStr);
-      if (!resp ? .ok) {
+      if (!resp?.ok) {
         // revert on failure
         setBusSpecificBookingData((prev) => ({
           ...prev,
@@ -1380,12 +1366,8 @@ export function SearchCoreProvider({ children }) {
 
     if (!currentBus || !busData) return;
 
-    const {
-      selectedSeats,
-      selectedBoardingPoint,
-      selectedDroppingPoint
-    } =
-    busData;
+    const { selectedSeats, selectedBoardingPoint, selectedDroppingPoint } =
+      busData;
 
     let pricePerSeat = currentBus.price;
     if (
@@ -1396,8 +1378,8 @@ export function SearchCoreProvider({ children }) {
     ) {
       const specificFare = currentBus.fares.find(
         (f) =>
-        f.boardingPoint === selectedBoardingPoint.point &&
-        f.droppingPoint === selectedDroppingPoint.point
+          f.boardingPoint === selectedBoardingPoint.point &&
+          f.droppingPoint === selectedDroppingPoint.point
       );
       if (specificFare) {
         pricePerSeat = specificFare.price;
@@ -1508,16 +1490,17 @@ export function SearchCoreProvider({ children }) {
     return buses.find((b) => b._id === id && b.departureTime === time) || null;
   }, [expandedBusId, buses]);
 
-  const selectedAvailability = expandedBusId ?
-    availability[expandedBusId] || {} :
-    {};
+  const selectedAvailability = expandedBusId
+    ? availability[expandedBusId] || {}
+    : {};
 
+  /* FIX: Using standard && accessors to avoid Syntax Errors in older parsers */
   const selectedBookingData =
     (expandedBusId && busSpecificBookingData[expandedBusId]) || {
       selectedSeats: [],
       seatGenders: {},
-      selectedBoardingPoint: selectedBus ? .boardingPoints ? .[0] || null,
-      selectedDroppingPoint: selectedBus ? .droppingPoints ? .[0] || null,
+      selectedBoardingPoint: selectedBus && selectedBus.boardingPoints && selectedBus.boardingPoints[0] || null,
+      selectedDroppingPoint: selectedBus && selectedBus.droppingPoints && selectedBus.droppingPoints[0] || null,
       basePrice: 0,
       convenienceFee: 0,
       totalPrice: 0,
