@@ -176,8 +176,8 @@ const CalendarPopover = ({
             >
               →
             </button>
+          </div>
         </div>
-      </div>
         <div className="mt-1 text-sm font-medium" style={{ color: PALETTE.textDark }}>
           {viewMonth.toLocaleString("en-GB", { month: "long", year: "numeric" })}
         </div>
@@ -556,6 +556,7 @@ const CustomMenu = (menuKey) => {
                 {c}
               </button>
             ))}
+          </div>
         </div>
 
         <components.MenuList {...props}>{props.children}</components.MenuList>
@@ -634,7 +635,7 @@ const MobileCityPicker = ({
                   key={idx}
                   type="button"
                   className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-50"
-                  onClick={() => onPick(city)}
+                  onClick={() => onPick(c)}
                 >
                   <FaMapMarkerAlt className="text-gray-500" />
                   <span className="text-base font-medium text-gray-800">
@@ -1233,20 +1234,17 @@ const Home = () => {
                 </div>
               </div>
 
-              {/* SEARCH BUTTON - MODIFIED FOR MOBILE (FINAL VERSION) */}
-              <div className="p-4 pt-6 pb-6"> {/* Increased vertical padding to match RedBus/your screenshot spacing */}
+              {/* SEARCH BUTTON */}
+              <div className="p-3 border-t" style={{ borderColor: PALETTE.borderLight }}>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleSearch}
-                  // Shadow removed
-                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-4 rounded-full transition-all"
-                  style={{
-                    backgroundColor: PALETTE.primaryRed,
-                    // Apply rounded-full for the capsule shape, similar to RedBus
-                  }}
+                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-3.5 rounded-xl shadow-lg transition-all"
+                  style={{ backgroundColor: PALETTE.primaryRed }}
                 >
-                  <FaSearch className="text-xl" /> {/* Added text-xl for larger icon */}
+                  {/* ADDED icon (mobile only) */}
+                  <FaSearch />
                   SEARCH BUSES
                 </motion.button>
               </div>
@@ -1354,7 +1352,7 @@ const Home = () => {
 
             <h3 className="font-heading text-2xl font-bold mb-6" style={{ color: PALETTE.textDark }}>
               How to Book Bus Tickets on Routesbook?
-            </h3>
+            </b>
 
             <p className="mb-8 text-base" style={{ color: PALETTE.textLight }}>
               Booking your journey on Routesbook is simple and user-friendly. Just follow these quick steps:
