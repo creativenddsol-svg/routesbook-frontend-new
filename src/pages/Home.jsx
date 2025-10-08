@@ -177,7 +177,7 @@ const CalendarPopover = ({
               →
             </button>
           </div>
-        </div>
+        </b>
         <div className="mt-1 text-sm font-medium" style={{ color: PALETTE.textDark }}>
           {viewMonth.toLocaleString("en-GB", { month: "long", year: "numeric" })}
         </div>
@@ -436,7 +436,7 @@ const MobileCalendarSheet = ({
                 const t = new Date();
                 onChange?.(toLocalYYYYMMDD(t));
                 onClose?.();
-              }}
+            }}
               className="text-sm font-semibold text-[#3A86FF]"
             >
               Today
@@ -452,18 +452,17 @@ const MobileCalendarSheet = ({
             >
               Tomorrow
             </button>
-          </div>
-          <button
-            onClick={onClose}
-            className="text-xs px-3 py-1.5 rounded-lg border text-gray-600"
-          >
-            Close
-          </button>
         </div>
+        <button
+          onClick={onClose}
+          className="text-xs px-3 py-1.5 rounded-lg border text-gray-600"
+        >
+          Close
+        </button>
+      </div>
 
-        {/* Safe area bottom */}
-        <div style={{ height: "env(safe-area-inset-bottom)" }} />
-      </motion.div>
+      {/* Safe area bottom */}
+      <div style={{ height: "env(safe-area-inset-bottom)" }} />
     </>,
     document.body
   );
@@ -979,7 +978,7 @@ const Home = () => {
       <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}>
         {/* CHANGED (mobile only) */}
         Get Your Bus Tickets
-      </h2>
+      </b>
     </div>
 
     <motion.div
@@ -1150,8 +1149,7 @@ const Home = () => {
                           {from || "Matara"}
                         </span>
                       </button>
-                    </div>
-                  </div>
+                    </b>
 
                   {/* TO */}
                   <div className="flex items-center gap-3 pt-3">
@@ -1268,7 +1266,7 @@ const Home = () => {
             style={{ color: PALETTE.textDark }}
           >
             Popular Routes
-          </h2>
+          </b>
 
           {/* ✅ Responsive grid: balanced layout, text handling */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
@@ -1317,7 +1315,7 @@ const Home = () => {
                   <div className="mt-4 flex items-center justify-between">
                     <span className="text-xs sm:text-sm font-medium text-white">
                       View Buses
-                    </span>
+                    </b>
                     <FaArrowRight className="text-xs sm:text-sm transition-transform duration-300 group-hover:translate-x-1" style={{ color: "#fff" }} />
                   </div>
                 </motion.div>
@@ -1334,7 +1332,7 @@ const Home = () => {
           <div className="bg-white p-8 md:p-12 rounded-2xl shadow-lg border border-gray-100">
             <h2 className="font-heading text-3xl font-bold mb-4" style={{ color: PALETTE.textDark }}>
               Online Bus Ticket Booking on Routesbook
-            </h2>
+            </b>
 
             <p className="mb-4 text-base leading-relaxed" style={{ color: PALETTE.textLight }}>
               Routesbook is your new and reliable companion for booking bus tickets online. Designed for simplicity and
@@ -1352,8 +1350,8 @@ const Home = () => {
 
             <h3 className="font-heading text-2xl font-bold mb-6" style={{ color: PALETTE.textDark }}>
               How to Book Bus Tickets on Routesbook?
-            </b>
-
+            </h3>
+            
             <p className="mb-8 text-base" style={{ color: PALETTE.textLight }}>
               Booking your journey on Routesbook is simple and user-friendly. Just follow these quick steps:
             </p>
@@ -1381,7 +1379,7 @@ const Home = () => {
                   <span style={{ color: PALETTE.textLight }}>
                     <strong className="font-semibold" style={{ color: PALETTE.textDark }}>
                       {step.t}
-                    </strong>{" "}
+                    </b>{" "}
                     {step.d}
                   </span>
                 </li>
