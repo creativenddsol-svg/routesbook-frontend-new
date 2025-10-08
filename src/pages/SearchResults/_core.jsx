@@ -782,6 +782,85 @@ export function SearchCoreProvider({ children }) {
     };
   }, [buses, visibleForPolling, page, expandedBusId, refreshAvailability]);
 
+  /* ---------------- 🆕 Keepalive release for refresh/close ---------------- */
+  const releaseAllSelectedSeatsKeepalive = () => {
+    try {
+      const skip = sessionStorage.getItem("rb_skip_release_on_unmount");
+      if (skip === "1") return;
+
+      const token = getAuthToken();
+      const baseURL =
+        (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
+      const url = (path) =>
+        baseURL ? `${baseURL.replace(/\/+$/, "")}${path}` : `${path}`;
+
+      // 1) Release from in-memory selections
+      const entries = Object.entries(latestBookingRef.current || {});
+      for (const [key, data] of entries) {
+        const seats = data?.selectedSeats || [];
+        if (!seats.length) continue;
+
+        const { id, time } = parseBusKey(key);
+        const busObj = (latestBusesRef.current || []).find(
+          (b) => b._id === id && b.departureTime === time
+        );
+        if (!busObj) continue;
+
+        const payload = {
+          busId: busObj._id,
+          date: searchDateParam,
+          departureTime: busObj.departureTime,
+          seats: seats.map(String),
+          clientId: getClientId(),
+        };
+
+        try {
+          fetch(url("/bookings/release"), {
+            method: "DELETE",
+            keepalive: true,
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          /* swallow */
+        }
+      }
+
+      // 2) Release anything still in the registry
+      const reg = readLockReg();
+      for (const r of reg) {
+        const payload = {
+          busId: r.busId,
+          date: r.date,
+          departureTime: r.departureTime,
+          seats: (r.seats || []).map(String),
+          clientId: getClientId(),
+        };
+        try {
+          fetch(url("/bookings/release"), {
+            method: "DELETE",
+            keepalive: true,
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
+        } catch {
+          /* swallow */
+        }
+      }
+
+      // Clear local registry snapshot
+      writeLockReg([]);
+    } catch {
+      /* no-op */
+    }
+  };
+
   // Release everything on page unmount (back/forward, navigating away)
   useEffect(() => {
     return () => {
@@ -791,8 +870,9 @@ export function SearchCoreProvider({ children }) {
         sessionStorage.removeItem("rb_skip_release_on_unmount");
         return;
       }
-      // fire-and-forget; we don't await on unmount
+      // Do both: normal API release (best effort) + keepalive-style backup
       releaseAllSelectedSeats(false);
+      releaseAllSelectedSeatsKeepalive();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -950,85 +1030,6 @@ export function SearchCoreProvider({ children }) {
       refreshAvailability([bus], { force: true });
     } catch (e) {
       console.warn("Release seats failed:", e?.response?.data || e.message);
-    }
-  };
-
-  /* ---------------- 🆕 Keepalive release for refresh/close ---------------- */
-  const releaseAllSelectedSeatsKeepalive = () => {
-    try {
-      const skip = sessionStorage.getItem("rb_skip_release_on_unmount");
-      if (skip === "1") return;
-
-      const token = getAuthToken();
-      const baseURL =
-        (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
-      const url = (path) =>
-        baseURL ? `${baseURL.replace(/\/+$/, "")}${path}` : `${path}`;
-
-      // 1) Release from in-memory selections
-      const entries = Object.entries(latestBookingRef.current || {});
-      for (const [key, data] of entries) {
-        const seats = data?.selectedSeats || [];
-        if (!seats.length) continue;
-
-        const { id, time } = parseBusKey(key);
-        const busObj = (latestBusesRef.current || []).find(
-          (b) => b._id === id && b.departureTime === time
-        );
-        if (!busObj) continue;
-
-        const payload = {
-          busId: busObj._id,
-          date: searchDateParam,
-          departureTime: busObj.departureTime,
-          seats: seats.map(String),
-          clientId: getClientId(),
-        };
-
-        try {
-          fetch(url("/bookings/release"), {
-            method: "DELETE",
-            keepalive: true,
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify(payload),
-          });
-        } catch {
-          /* swallow */
-        }
-      }
-
-      // 2) Release anything still in the registry
-      const reg = readLockReg();
-      for (const r of reg) {
-        const payload = {
-          busId: r.busId,
-          date: r.date,
-          departureTime: r.departureTime,
-          seats: (r.seats || []).map(String),
-          clientId: getClientId(),
-        };
-        try {
-          fetch(url("/bookings/release"), {
-            method: "DELETE",
-            keepalive: true,
-            headers: {
-              "Content-Type": "application/json",
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify(payload),
-          });
-        } catch {
-          /* swallow */
-        }
-      }
-
-      // Clear local registry snapshot
-      writeLockReg([]);
-    } catch {
-      /* no-op */
     }
   };
 
