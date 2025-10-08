@@ -407,7 +407,8 @@ export function SearchCoreProvider({ children }) {
   const mobileDateInputRef = useRef(null);
 
   const stickySearchCardRef = useRef(null);
-  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] = useState(0);
+  const [stickySearchCardOwnHeight, setStickySearchCardOwnHeight] =
+    useState(0);
 
   const todayStr = toLocalYYYYMMDD(new Date());
   const tomorrow = new Date();
@@ -941,6 +942,16 @@ export function SearchCoreProvider({ children }) {
   };
 
   /* ---------------- Fetch data ---------------- */
+
+  // 🆕 detect “returning from confirm” once (skip clearing state)
+  const returningFromConfirmRef = useRef(false);
+  useEffect(() => {
+    if (sessionStorage.getItem("rb_returning_from_confirm") === "1") {
+      returningFromConfirmRef.current = true;
+      sessionStorage.removeItem("rb_returning_from_confirm");
+    }
+  }, []);
+
   const fetchData = useCallback(async () => {
     if (!from || !to || !searchDateParam) {
       setLoading(false);
@@ -950,8 +961,12 @@ export function SearchCoreProvider({ children }) {
     }
     setLoading(true);
     setFetchError(null);
-    setExpandedBusId(null);
-    setBusSpecificBookingData({});
+
+    // 👉 Do not wipe restored state when coming back from confirm page
+    if (!returningFromConfirmRef.current) {
+      setExpandedBusId(null);
+      setBusSpecificBookingData({});
+    }
 
     try {
       const res = await apiClient.get("/buses", {
@@ -1012,6 +1027,8 @@ export function SearchCoreProvider({ children }) {
       );
     } finally {
       setLoading(false);
+      // only skip clearing once
+      returningFromConfirmRef.current = false;
     }
   }, [from, to, searchDateParam]);
 
