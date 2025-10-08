@@ -3,6 +3,7 @@ import { useMemo, useState, useCallback, memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // import BookingSteps from "../components/BookingSteps";
 import apiClient from "../api";
+import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
 // ✅ no-op replacement so existing JSX does not change
@@ -713,38 +714,46 @@ const ConfirmBooking = () => {
 
   /* --------- Back behavior: go back to Search Results + keep locks --------- */
   const persistAndGoBack = useCallback(() => {
-    // prevent Search Results provider from bulk-releasing at mount
+    // prevent Search Results cleanup from releasing seats
     sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+    // mark that we are explicitly returning from confirm
     sessionStorage.setItem("rb_returning_from_confirm", "1");
 
-    // persist for _core.jsx rehydrate (busKey + full mini state snapshot)
+    // persist snapshot so Search Results can rehydrate
     const busKey = `${bus?._id}-${departureTime}`;
-    try {
-      sessionStorage.setItem(
-        "rb_checkout_state_v1",
-        JSON.stringify({
-          busKey,
-          date,
-          data: {
-            selectedSeats: (selectedSeats || []).map(String),
-            seatGenders: seatGenders || {},
-            selectedBoardingPoint,
-            selectedDroppingPoint,
-            basePrice: prices.basePrice,
-            convenienceFee: prices.convenienceFee,
-            totalPrice: prices.total,
-          },
-        })
-      );
-    } catch {}
+    saveCheckoutState({
+      busKey,
+      date,
+      data: {
+        selectedSeats: (selectedSeats || []).map(String),
+        seatGenders: seatGenders || {},
+        selectedBoardingPoint,
+        selectedDroppingPoint,
+        basePrice: prices.basePrice,
+        convenienceFee: prices.convenienceFee,
+        totalPrice: prices.total,
+      },
+    });
 
     // don't auto-release in our cleanup hook
     suppressAutoRelease();
 
-    // finally go back to previous page (Search Results)
-    navigate(-1);
+    // robustly route back to the SAME search (avoid falling to Home)
+    const fromCity = bus?.from;
+    const toCity = bus?.to;
+    if (fromCity && toCity && date) {
+      const qs = `from=${encodeURIComponent(fromCity)}&to=${encodeURIComponent(
+        toCity
+      )}&date=${encodeURIComponent(date)}`;
+      navigate(`/search-results?${qs}`);
+    } else {
+      // safe fallback if somehow missing metadata
+      navigate(-1);
+    }
   }, [
     bus?._id,
+    bus?.from,
+    bus?.to,
     departureTime,
     date,
     selectedSeats,
@@ -756,28 +765,15 @@ const ConfirmBooking = () => {
     navigate,
   ]);
 
-  // 🔒 Own the back button here (single prompt, no duplicate guard)
-  useEffect(() => {
-    if (missingData) return;
-
-    // push a dummy state so immediate back will trigger popstate here
-    window.history.pushState({ rb: "confirm" }, "", window.location.href);
-
-    const onPopState = () => {
-      const ok = window.confirm(
-        "Go back to results and keep your held seats?"
-      );
-      if (ok) {
-        persistAndGoBack();
-      } else {
-        // cancel back: restore the pushed state so we stay on this page
-        window.history.pushState({ rb: "confirm" }, "", window.location.href);
-      }
-    };
-
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, [missingData, persistAndGoBack]);
+  useSeatLockBackGuard({
+    enabled: !missingData && !holdExpired && (selectedSeatStrings?.length || 0) > 0,
+    busId: bus?._id,
+    date,
+    departureTime,
+    seats: selectedSeatStrings,
+    // ⬇️ Force the correct back destination + preserve locks and state
+    onConfirmBack: persistAndGoBack,
+  });
 
   if (missingData) {
     return (
@@ -1068,10 +1064,7 @@ const ConfirmBooking = () => {
             <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
               Payable Amount
             </p>
-            <p
-              className="text-xl font-extrabold tabular-nums"
-              style={{ color: PALETTE.text }}
-            >
+            <p className="text-xl font-extrabold tabular-nums" style={{ color: PALETTE.text }}>
               Rs. {prices.total.toFixed(2)}
             </p>
           </div>
