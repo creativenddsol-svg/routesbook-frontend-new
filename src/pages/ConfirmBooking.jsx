@@ -733,7 +733,12 @@ const ConfirmBooking = () => {
     date,
     departureTime,
     seats: selectedSeatStrings,
-    onConfirmBack: () => navigate("/"),
+    // ⬇️ Important: go back to Search Results (not Home) and keep locks for restore
+    onConfirmBack: () => {
+      // prevent Search Results from auto-releasing on remount
+      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+      navigate(-1);
+    },
   });
 
   if (missingData) {
