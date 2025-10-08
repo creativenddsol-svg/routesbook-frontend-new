@@ -2,7 +2,7 @@
 import { useMemo, useState, useCallback, memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // import BookingSteps from "../components/BookingSteps";
-import apiClient from "../api"; // baseURL configured inside ../api
+import apiClient from "../api";
 import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
@@ -73,15 +73,6 @@ const Label = ({ children }) => (
   </span>
 );
 
-const Pill = ({ children }) => (
-  <span
-    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
-    style={{ background: PALETTE.pillBg, color: PALETTE.text }}
-  >
-    {children}
-  </span>
-);
-
 const SoftPill = ({ children, bg }) => (
   <span
     className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
@@ -122,9 +113,9 @@ const GenderSeatPill = ({ gender, children }) => {
   );
 };
 
-/** Query server for remaining hold time (cache-safe), return {ms, expiresAt} */
+/* ----- hold remaining helpers ----- */
 async function fetchHoldRemaining({ busId, date, departureTime }) {
-  const params = { busId, date, departureTime, t: Date.now() }; // cache-buster
+  const params = { busId, date, departureTime, t: Date.now() };
   try {
     const r1 = await apiClient.get("/bookings/lock-remaining", { params });
     return {
@@ -141,15 +132,13 @@ async function fetchHoldRemaining({ busId, date, departureTime }) {
     };
   }
 }
-
-/** Get best-effort server time (to reduce local clock drift) */
 function serverNowFromHeaders(headers) {
   const h = headers?.date;
   const t = h ? Date.parse(h) : NaN;
   return Number.isFinite(t) ? t : Date.now();
 }
 
-// --- Live hold countdown (15 min seat lock) ---
+/* --- Live hold countdown (15 min seat lock) --- */
 const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
   const [remainingMs, setRemainingMs] = useState(null);
   const expiryRef = useRef(null);
@@ -188,12 +177,11 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
           ? new Date(expiresAt).getTime()
           : ms != null
           ? nowServer + Math.max(0, Number(ms))
-          : nowServer + 15 * 60 * 1000; // conservative fallback
+          : nowServer + 15 * 60 * 1000;
         if (cancelled) return;
         expiryRef.current = target;
         startTicking();
       } catch {
-        // conservative fallback (10 min) if API temporarily unavailable
         expiryRef.current = Date.now() + 10 * 60 * 1000;
         startTicking();
       }
@@ -250,7 +238,15 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
   );
 };
 
-/* RowInput: now supports inline errors & blur validation (desktop unchanged) */
+/* ---------------- persist-to-SearchResults helpers ---------------- */
+const CHECKOUT_STATE_KEY = "rb_checkout_state_v1";
+function saveCheckoutState(payload) {
+  try {
+    sessionStorage.setItem(CHECKOUT_STATE_KEY, JSON.stringify(payload));
+  } catch {}
+}
+
+/* RowInput (unchanged except error/blur passthrough) */
 const RowInput = ({
   id,
   name,
@@ -263,10 +259,10 @@ const RowInput = ({
   enterKeyHint,
   placeholder,
   required,
-  onBlur, // ✅ added
-  error, // ✅ added
-  maxLength, // ✅ passthrough
-  pattern, // ✅ passthrough
+  onBlur,
+  error,
+  maxLength,
+  pattern,
 }) => (
   <div className="w-full">
     <Label>{label}</Label>
@@ -395,10 +391,7 @@ const PassengerRow = memo(function PassengerRow({
             </button>
           </div>
           {errorsForSeat?.gender ? (
-            <p
-              className="mt-1 text-xs font-medium"
-              style={{ color: "#B91C1C" }}
-            >
+            <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
               {errorsForSeat.gender}
             </p>
           ) : null}
@@ -504,7 +497,7 @@ const ConfirmBooking = () => {
     nic: "",
     email: "",
     terms: "",
-    passengers: {}, // { [seat]: { name, age, gender } }
+    passengers: {},
   });
 
   const selectedSeatStrings = useMemo(
@@ -531,12 +524,11 @@ const ConfirmBooking = () => {
       const left = expiresAt ? new Date(expiresAt).getTime() - now : ms ?? 0;
       return left > 0;
     } catch {
-      // If API temporarily fails, be conservative: allow proceed
       return true;
     }
   }, [bus?._id, date, departureTime]);
 
-  /* ---------- Validation helpers (mobile-first inline errors) ---------- */
+  /* ---------- Validation helpers ---------- */
   const phoneOk = (v) => /^0\d{9,10}$/.test(String(v || "").trim());
   const emailOk = (v) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
@@ -567,7 +559,6 @@ const ConfirmBooking = () => {
     };
     setErrors(next);
 
-    // find first error key for scroll/focus
     const firstFieldId = next.name
       ? "name"
       : next.mobile
@@ -621,7 +612,6 @@ const ConfirmBooking = () => {
         if (field === "age" && p?.age && Number(p.age) < 0)
           slot.age = "Age must be positive";
         next.passengers[seat] = slot;
-        // cleanup empty seat error object
         if (!slot.name && !slot.age && !slot.gender)
           delete next.passengers[seat];
         return next;
@@ -641,26 +631,21 @@ const ConfirmBooking = () => {
     });
   };
 
+  /* -------- Proceed to payment -------- */
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
 
-      // ✅ Inline validation first (shows messages + scroll)
-      if (!validateAll()) {
-        return;
-      }
-
+      if (!validateAll()) return;
       if (holdExpired) {
         alert("Your seat hold has expired. Please go back and reselect seats.");
         return;
       }
-
       if (!termsAccepted) {
         alert("Please agree to the Terms & Conditions.");
         return;
       }
 
-      // ✅ Double-check the hold right before payment
       const stillHeld = await verifyHoldAlive();
       if (!stillHeld) {
         setHoldExpired(true);
@@ -670,7 +655,7 @@ const ConfirmBooking = () => {
       }
 
       const seatGendersOut = {};
-      passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
+      (passengers || []).forEach((p) => (seatGendersOut[p.seat] = p.gender));
 
       // keep the lock while going to external payment flow
       suppressAutoRelease();
@@ -727,18 +712,53 @@ const ConfirmBooking = () => {
     !selectedDroppingPoint ||
     prices.total === undefined;
 
+  /* --------- Back behavior: go back to Search Results + keep locks --------- */
+  const persistAndGoBack = useCallback(() => {
+    // prevent Search Results provider from bulk-releasing at mount
+    sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+
+    // persist for _core.jsx rehydrate (busKey + full mini state snapshot)
+    const busKey = `${bus?._id}-${departureTime}`;
+    saveCheckoutState({
+      busKey,
+      date,
+      data: {
+        selectedSeats: (selectedSeats || []).map(String),
+        seatGenders: seatGenders || {},
+        selectedBoardingPoint,
+        selectedDroppingPoint,
+        basePrice: prices.basePrice,
+        convenienceFee: prices.convenienceFee,
+        totalPrice: prices.total,
+      },
+    });
+
+    // don't auto-release in our cleanup hook
+    suppressAutoRelease();
+
+    // finally go back to previous page (Search Results)
+    navigate(-1);
+  }, [
+    bus?._id,
+    departureTime,
+    date,
+    selectedSeats,
+    seatGenders,
+    selectedBoardingPoint,
+    selectedDroppingPoint,
+    prices,
+    suppressAutoRelease,
+    navigate,
+  ]);
+
   useSeatLockBackGuard({
-    enabled: !missingData && !holdExpired && selectedSeatStrings.length > 0,
+    enabled: !missingData && !holdExpired && (selectedSeatStrings?.length || 0) > 0,
     busId: bus?._id,
     date,
     departureTime,
     seats: selectedSeatStrings,
-    // ⬇️ Important: go back to Search Results (not Home) and keep locks for restore
-    onConfirmBack: () => {
-      // prevent Search Results from auto-releasing on remount
-      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-      navigate(-1);
-    },
+    // ⬇️ Force the correct back destination + preserve locks and state
+    onConfirmBack: persistAndGoBack,
   });
 
   if (missingData) {
@@ -760,23 +780,14 @@ const ConfirmBooking = () => {
 
   /* -------------------- UI -------------------- */
   return (
-    <div
-      ref={pageTopRef}
-      className="min-h-screen"
-      style={{ background: PALETTE.bg }}
-    >
+    <div ref={pageTopRef} className="min-h-screen" style={{ background: PALETTE.bg }}>
       {/* Matte top bar */}
       <div
         className="sticky top-0 z-30"
-        style={{
-          background: PALETTE.primary,
-          paddingTop: "env(safe-area-inset-top)",
-        }}
+        style={{ background: PALETTE.primary, paddingTop: "env(safe-area-inset-top)" }}
       >
         <div className="max-w-6xl mx-auto px-4 py-3">
-          <p className="text-white text-base font-semibold leading-tight">
-            Confirm Booking
-          </p>
+          <p className="text-white text-base font-semibold leading-tight">Confirm Booking</p>
           <p className="text-white/90 text-xs">
             {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
           </p>
@@ -788,7 +799,7 @@ const ConfirmBooking = () => {
           <BookingSteps currentStep={3} />
         </div>
 
-        {/* Error banner (mobile-friendly) */}
+        {/* Error banner */}
         {errors.name ||
         errors.mobile ||
         errors.nic ||
@@ -798,11 +809,7 @@ const ConfirmBooking = () => {
         holdExpired ? (
           <div
             className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
-            style={{
-              background: "#FEF2F2",
-              color: "#991B1B",
-              border: "1px solid #FECACA",
-            }}
+            style={{ background: "#FEF2F2", color: "#991B1B", border: "1px solid #FECACA" }}
           >
             {holdExpired
               ? "Your seat hold has expired. Please go back and reselect seats."
@@ -814,10 +821,7 @@ const ConfirmBooking = () => {
         <SectionCard>
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
-              <h2
-                className="text-lg font-bold truncate"
-                style={{ color: PALETTE.text }}
-              >
+              <h2 className="text-lg font-bold truncate" style={{ color: PALETTE.text }}>
                 {bus?.name || "Bus"}
               </h2>
               <p className="text-sm" style={{ color: PALETTE.textSubtle }}>
@@ -829,8 +833,7 @@ const ConfirmBooking = () => {
               <DatePill>{getNiceDate(date, departureTime)}</DatePill>
               <AcPill>{bus?.busType || "Seating"}</AcPill>
               <SeatPill>
-                {selectedSeats?.length} Seat
-                {selectedSeats?.length > 1 ? "s" : ""}
+                {selectedSeats?.length} Seat{selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
               <HoldCountdown
                 busId={bus?._id}
@@ -838,7 +841,7 @@ const ConfirmBooking = () => {
                 departureTime={departureTime}
                 onExpire={() => {
                   setHoldExpired(true);
-                  releaseSeats(); // proactively release if countdown hits zero
+                  releaseSeats();
                 }}
               />
             </div>
@@ -848,19 +851,15 @@ const ConfirmBooking = () => {
             <div>
               <Label>Boarding</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedBoardingPoint.point}{" "}
-                <span className="text-xs">at</span>{" "}
+                {selectedBoardingPoint.point} <span className="text-xs">at</span>{" "}
                 <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
               </p>
             </div>
             <div>
               <Label>Dropping</Label>
               <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedDroppingPoint.point}{" "}
-                <span className="text-xs">at</span>{" "}
-                <span className="tabular-nums">
-                  {selectedDroppingPoint.time}
-                </span>
+                {selectedDroppingPoint.point} <span className="text-xs">at</span>{" "}
+                <span className="tabular-nums">{selectedDroppingPoint.time}</span>
               </p>
             </div>
             <div className="sm:col-span-2">
@@ -964,30 +963,18 @@ const ConfirmBooking = () => {
         <SectionCard title="Fare Summary">
           <div className="space-y-2 text-sm">
             <div className="flex justify-between">
-              <span
-                className="font-medium"
-                style={{ color: PALETTE.textSubtle }}
-              >
+              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
                 Subtotal
               </span>
-              <span
-                className="tabular-nums font-semibold"
-                style={{ color: PALETTE.text }}
-              >
+              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
                 Rs. {prices.basePrice.toFixed(2)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span
-                className="font-medium"
-                style={{ color: PALETTE.textSubtle }}
-              >
+              <span className="font-medium" style={{ color: PALETTE.textSubtle }}>
                 Convenience Fee
               </span>
-              <span
-                className="tabular-nums font-semibold"
-                style={{ color: PALETTE.text }}
-              >
+              <span className="tabular-nums font-semibold" style={{ color: PALETTE.text }}>
                 Rs. {prices.convenienceFee.toFixed(2)}
               </span>
             </div>
@@ -996,18 +983,12 @@ const ConfirmBooking = () => {
               <span className="font-bold" style={{ color: PALETTE.text }}>
                 Total
               </span>
-              <span
-                className="tabular-nums font-extrabold"
-                style={{ color: PALETTE.text }}
-              >
+              <span className="tabular-nums font-extrabold" style={{ color: PALETTE.text }}>
                 Rs. {prices.total.toFixed(2)}
               </span>
             </div>
             {holdExpired && (
-              <p
-                className="text-xs mt-2 font-semibold"
-                style={{ color: "#991B1B" }}
-              >
+              <p className="text-xs mt-2 font-semibold" style={{ color: "#991B1B" }}>
                 Your seat hold has expired. Please go back and reselect seats.
               </p>
             )}
@@ -1016,10 +997,7 @@ const ConfirmBooking = () => {
 
         {/* Terms */}
         <div className="mt-4">
-          <label
-            className="flex items-center text-sm"
-            style={{ color: PALETTE.text }}
-          >
+          <label className="flex items-center text-sm" style={{ color: PALETTE.text }}>
             <input
               type="checkbox"
               className="mr-2"
@@ -1030,22 +1008,18 @@ const ConfirmBooking = () => {
             I agree to all Terms &amp; Conditions
           </label>
           {errors.terms ? (
-            <p
-              className="mt-1 text-xs font-medium"
-              style={{ color: "#B91C1C" }}
-            >
+            <p className="mt-1 text-xs font-medium" style={{ color: "#B91C1C" }}>
               {errors.terms}
             </p>
           ) : null}
         </div>
 
-        {/* Inline mobile CTA (shows on small screens where fixed bars can be obscured) */}
+        {/* Mobile CTA */}
         <div className="sm:hidden mt-6">
           <button
             type="button"
             disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
-              // reuse validation + final hold check
               handleSubmit({ preventDefault: () => {} });
             }}
             className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1053,22 +1027,16 @@ const ConfirmBooking = () => {
           >
             Proceed to Pay
           </button>
-          <p
-            className="mt-2 text-center text-xs"
-            style={{ color: PALETTE.textSubtle }}
-          >
+          <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
             Payable Amount:{" "}
-            <span
-              className="font-bold tabular-nums"
-              style={{ color: PALETTE.text }}
-            >
+            <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>
               Rs. {prices.total.toFixed(2)}
             </span>
           </p>
         </div>
       </div>
 
-      {/* Sticky bottom CTA — visible from sm and up (desktop unchanged) */}
+      {/* Desktop sticky CTA */}
       <div
         className="hidden sm:block fixed bottom-0 left-0 right-0 z-40"
         style={{
@@ -1082,10 +1050,7 @@ const ConfirmBooking = () => {
             <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
               Payable Amount
             </p>
-            <p
-              className="text-xl font-extrabold tabular-nums"
-              style={{ color: PALETTE.text }}
-            >
+            <p className="text-xl font-extrabold tabular-nums" style={{ color: PALETTE.text }}>
               Rs. {prices.total.toFixed(2)}
             </p>
           </div>
@@ -1093,7 +1058,6 @@ const ConfirmBooking = () => {
             type="button"
             disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
-              // reuse validation + final hold check
               handleSubmit({ preventDefault: () => {} });
             }}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
