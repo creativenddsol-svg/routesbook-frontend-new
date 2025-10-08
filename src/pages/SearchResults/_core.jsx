@@ -474,6 +474,37 @@ export function SearchCoreProvider({ children }) {
     };
   };
 
+  // 🆕 Were we asked to restore from ConfirmBooking?
+  const restoringRef = useRef(false);
+  const restorePayloadRef = useRef(null);
+
+  useEffect(() => {
+    const restore = location.state && location.state.restoreBooking;
+    if (restore && !restoringRef.current) {
+      restoringRef.current = true;
+      restorePayloadRef.current = restore;
+
+      // ensure URL params match restore (if they differ)
+      const nextFrom = restore.from || from;
+      const nextTo = restore.to || to;
+      const nextDate = restore.date || searchDateParam;
+
+      // Replace state so refresh doesn't re-run restore
+      navigate(
+        {
+          pathname: location.pathname,
+          search: `?${createSearchParams({
+            from: nextFrom,
+            to: nextTo,
+            date: nextDate,
+          })}`,
+        },
+        { replace: true, state: null }
+      );
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Release all selected seats across cards (and optionally clear local selections)
   const releaseAllSelectedSeats = useCallback(
     async (clearLocal = true) => {
@@ -1043,8 +1074,12 @@ export function SearchCoreProvider({ children }) {
     }
     setLoading(true);
     setFetchError(null);
-    setExpandedBusId(null);
-    setBusSpecificBookingData({});
+
+    // ⚠️ Do NOT clear selections if we're restoring from ConfirmBooking
+    if (!restoringRef.current) {
+      setExpandedBusId(null);
+      setBusSpecificBookingData({});
+    }
 
     try {
       const res = await apiClient.get("/buses", {
@@ -1096,6 +1131,40 @@ export function SearchCoreProvider({ children }) {
         );
       }
       setAvailability(seatData);
+
+      // 🆕 If returning from ConfirmBooking, rehydrate the selection now
+      if (restoringRef.current && restorePayloadRef.current) {
+        const r = restorePayloadRef.current;
+        const busKey = `${r.busId}-${r.departureTime}`;
+
+        // Pre-create the bucket if not present
+        setBusSpecificBookingData((prev) => ({
+          ...prev,
+          [busKey]: {
+            ...(prev[busKey] || {}),
+            selectedSeats: (r.selectedSeats || []).map(String),
+            seatGenders: r.seatGenders || {},
+            selectedBoardingPoint: r.selectedBoardingPoint || null,
+            selectedDroppingPoint: r.selectedDroppingPoint || null,
+            basePrice: 0,
+            convenienceFee: 0,
+            totalPrice: 0,
+          },
+        }));
+        setExpandedBusId(busKey);
+
+        // Force-refresh availability for this bus so UI reflects current locks promptly
+        const theBus = (res.data || []).find(
+          (b) => b._id === r.busId && b.departureTime === r.departureTime
+        );
+        if (theBus) {
+          refreshAvailability([theBus], { force: true });
+        }
+
+        // done restoring for this session
+        restoringRef.current = false;
+        restorePayloadRef.current = null;
+      }
     } catch (err) {
       console.error("Error fetching bus results:", err);
       setBuses([]);
@@ -1106,7 +1175,7 @@ export function SearchCoreProvider({ children }) {
     } finally {
       setLoading(false);
     }
-  }, [from, to, searchDateParam]);
+  }, [from, to, searchDateParam, refreshAvailability]);
 
   useEffect(() => {
     fetchData();
@@ -1519,6 +1588,8 @@ export function SearchCoreProvider({ children }) {
 
   /* -------- Defensive cleanup on fresh mount -------- */
   useEffect(() => {
+    // Skip releasing registry if we're restoring from ConfirmBooking
+    if (restoringRef.current) return;
     (async () => {
       try {
         await releaseAllFromRegistry();
