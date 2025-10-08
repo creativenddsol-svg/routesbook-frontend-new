@@ -3,7 +3,6 @@ import { useMemo, useState, useCallback, memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // import BookingSteps from "../components/BookingSteps";
 import apiClient from "../api";
-import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
 // ✅ no-op replacement so existing JSX does not change
@@ -716,22 +715,28 @@ const ConfirmBooking = () => {
   const persistAndGoBack = useCallback(() => {
     // prevent Search Results provider from bulk-releasing at mount
     sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+    sessionStorage.setItem("rb_returning_from_confirm", "1");
 
     // persist for _core.jsx rehydrate (busKey + full mini state snapshot)
     const busKey = `${bus?._id}-${departureTime}`;
-    saveCheckoutState({
-      busKey,
-      date,
-      data: {
-        selectedSeats: (selectedSeats || []).map(String),
-        seatGenders: seatGenders || {},
-        selectedBoardingPoint,
-        selectedDroppingPoint,
-        basePrice: prices.basePrice,
-        convenienceFee: prices.convenienceFee,
-        totalPrice: prices.total,
-      },
-    });
+    try {
+      sessionStorage.setItem(
+        "rb_checkout_state_v1",
+        JSON.stringify({
+          busKey,
+          date,
+          data: {
+            selectedSeats: (selectedSeats || []).map(String),
+            seatGenders: seatGenders || {},
+            selectedBoardingPoint,
+            selectedDroppingPoint,
+            basePrice: prices.basePrice,
+            convenienceFee: prices.convenienceFee,
+            totalPrice: prices.total,
+          },
+        })
+      );
+    } catch {}
 
     // don't auto-release in our cleanup hook
     suppressAutoRelease();
@@ -751,15 +756,28 @@ const ConfirmBooking = () => {
     navigate,
   ]);
 
-  useSeatLockBackGuard({
-    enabled: !missingData && !holdExpired && (selectedSeatStrings?.length || 0) > 0,
-    busId: bus?._id,
-    date,
-    departureTime,
-    seats: selectedSeatStrings,
-    // ⬇️ Force the correct back destination + preserve locks and state
-    onConfirmBack: persistAndGoBack,
-  });
+  // 🔒 Own the back button here (single prompt, no duplicate guard)
+  useEffect(() => {
+    if (missingData) return;
+
+    // push a dummy state so immediate back will trigger popstate here
+    window.history.pushState({ rb: "confirm" }, "", window.location.href);
+
+    const onPopState = () => {
+      const ok = window.confirm(
+        "Go back to results and keep your held seats?"
+      );
+      if (ok) {
+        persistAndGoBack();
+      } else {
+        // cancel back: restore the pushed state so we stay on this page
+        window.history.pushState({ rb: "confirm" }, "", window.location.href);
+      }
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [missingData, persistAndGoBack]);
 
   if (missingData) {
     return (
@@ -1050,7 +1068,10 @@ const ConfirmBooking = () => {
             <p className="text-xs" style={{ color: PALETTE.textSubtle }}>
               Payable Amount
             </p>
-            <p className="text-xl font-extrabold tabular-nums" style={{ color: PALETTE.text }}>
+            <p
+              className="text-xl font-extrabold tabular-nums"
+              style={{ color: PALETTE.text }}
+            >
               Rs. {prices.total.toFixed(2)}
             </p>
           </div>
