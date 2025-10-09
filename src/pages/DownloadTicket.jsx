@@ -1,31 +1,150 @@
 // src/pages/DownloadTicket.jsx
-import React, { useRef } from "react";
+import React, { useRef, useEffect, useState, useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-// import BookingSteps from "../components/BookingSteps"; // removed step guide bar
+import apiClient from "../api"; // 🔌 we'll try to fetch by bookingNo if needed
+
+// removed step guide bar
 const BookingSteps = () => null; // no-op so existing JSX stays unchanged
 
+const Banner = ({ kind = "success", title, children }) => {
+  const isSuccess = kind === "success";
+  const bg = isSuccess ? "bg-green-50" : "bg-red-50";
+  const border = isSuccess ? "border-green-200" : "border-red-200";
+  const text = isSuccess ? "text-green-800" : "text-red-800";
+  return (
+    <div className={`rounded-lg border ${bg} ${border} p-3 mb-4`}>
+      <p className={`font-semibold ${text}`}>{title}</p>
+      {children ? <p className="text-sm mt-1">{children}</p> : null}
+    </div>
+  );
+};
+
 const DownloadTicket = () => {
-  const { state } = useLocation();
-  const ticketRef = useRef();
+  const { state, search } = useLocation();
   const navigate = useNavigate();
+  const ticketRef = useRef();
 
-  const bookingDetails = state?.bookingDetails;
+  // ── PayHere return params (when coming from return_url)
+  const params = useMemo(() => new URLSearchParams(search), [search]);
+  const orderId = params.get("order_id") || params.get("bookingNo") || "";
+  const statusCode = params.get("status_code") || params.get("status") || "";
+  const paymentId = params.get("payment_id") || "";
+  const method = params.get("method") || "";
 
-  // Handle missing booking details
-  if (!bookingDetails) {
+  const isSuccess = statusCode === "2" || /^success$/i.test(statusCode || "");
+  const isFailed =
+    statusCode && !isSuccess && !/^pending$/i.test(statusCode || "");
+
+  // If we navigated here with state (from app) use it first.
+  const [bookingDetails, setBookingDetails] = useState(
+    state?.bookingDetails || null
+  );
+  const [loading, setLoading] = useState(false);
+
+  // Try to fetch booking by order_id (bookingNo) if we don't already have it.
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchByBookingNo = async (no) => {
+      const tryEndpoints = [
+        // Add or keep the ones your backend actually supports; failures are ignored.
+        `/payhere/booking/${encodeURIComponent(no)}`,
+        `/bookings/by-no/${encodeURIComponent(no)}`,
+        `/bookings/lookup?bookingNo=${encodeURIComponent(no)}`,
+      ];
+      for (const url of tryEndpoints) {
+        try {
+          const { data } = await apiClient.get(url);
+          const bk =
+            data?.booking || data?.data?.booking || data?.result || data;
+          if (bk && typeof bk === "object") return bk;
+        } catch {
+          // move on to the next endpoint
+        }
+      }
+      return null;
+    };
+
+    (async () => {
+      if (bookingDetails) return;
+      if (!orderId) return;
+      setLoading(true);
+      const bk = await fetchByBookingNo(orderId);
+      if (!ignore && bk) {
+        // normalize into the shape this page expects
+        setBookingDetails({
+          bus: bk.bus || {},
+          passenger:
+            bk.passengerInfo || {
+              name: bk?.passenger?.name,
+              email: bk?.passenger?.email,
+              mobile: bk?.passenger?.mobile,
+              nic: bk?.passenger?.nic,
+            },
+          passengers: bk.passengers || [],
+          date: bk.date,
+          selectedSeats: bk.selectedSeats || [],
+          priceDetails: {
+            totalPrice: bk.totalAmount,
+            basePrice: bk.totalAmount - (bk.convenienceFee || 0),
+            convenienceFee: bk.convenienceFee || 0,
+          },
+          boardingPoint: { point: bk.from, time: "" },
+          droppingPoint: { point: bk.to, time: "" },
+          departureTime: bk.departureTime || "",
+          bookingId: bk._id,
+          bookingNo: bk.bookingNo || no,
+          bookingNoShort: bk.bookingNoShort,
+          booking: bk,
+        });
+      }
+      if (!ignore) setLoading(false);
+    })();
+
+    return () => {
+      ignore = true;
+    };
+  }, [bookingDetails, orderId]);
+
+  // Handle missing booking details (after optional fetch)
+  if (!bookingDetails && !loading) {
     return (
       <div className="text-center p-6">
-        <h1 className="text-xl font-bold text-red-600">Error</h1>
-        <p className="text-gray-700 mt-2">No ticket data found.</p>
-        <button
-          onClick={() => navigate("/")}
-          className="mt-4 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-        >
-          Go to Home
-        </button>
+        {isFailed ? (
+          <Banner kind="error" title="Payment Failed">
+            Your payment could not be completed. Please try again or contact
+            support.
+          </Banner>
+        ) : null}
+        <h1 className="text-xl font-bold text-red-600">No ticket data found</h1>
+        <p className="text-gray-700 mt-2">
+          We couldn’t find details for this ticket.
+        </p>
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <button
+            onClick={() => navigate("/")}
+            className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Go to Home
+          </button>
+          <button
+            onClick={() => navigate("/my-bookings")}
+            className="px-5 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
+          >
+            My Bookings
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="text-center p-6">
+        <p className="text-gray-700">Fetching your booking…</p>
       </div>
     );
   }
@@ -42,11 +161,11 @@ const DownloadTicket = () => {
     droppingPoint = {},
     departureTime = "",
     bookingId = "",
-    // NEW: support booking numbers if the Payment page passed them through state
+    // support booking numbers passed through state or fetched
     bookingNo: bookingNoFromState,
     bookingNoShort: bookingNoShortFromState,
     booking, // sometimes we may get the whole booking object
-  } = bookingDetails;
+  } = bookingDetails || {};
 
   // ---------- Prefer full booking number for display / QR / filenames ----------
   const bookingNo =
@@ -54,9 +173,10 @@ const DownloadTicket = () => {
     bookingNoShortFromState ||
     booking?.bookingNo ||
     booking?.bookingNoShort ||
+    orderId || // fall back to orderId from query
     ""; // keep empty string if not available
 
-  const totalPrice = priceDetails?.totalPrice || 0;
+  const totalPrice = Number(priceDetails?.totalPrice || 0);
 
   const handleDownloadPDF = async () => {
     const element = ticketRef.current;
@@ -106,6 +226,25 @@ const DownloadTicket = () => {
       <BookingSteps currentStep={5} />
 
       <div className="max-w-3xl mx-auto mt-2 sm:mt-4">
+        {/* 🎉 Payment banners when arriving from PayHere */}
+        {isSuccess ? (
+          <Banner kind="success" title="Payment Successful 🎉">
+            {paymentId ? (
+              <>
+                Payment ID: <span className="font-semibold">{paymentId}</span>
+                {method ? ` • Method: ${method}` : ""}
+              </>
+            ) : (
+              "Your booking has been confirmed."
+            )}
+          </Banner>
+        ) : isFailed ? (
+          <Banner kind="error" title="Payment Failed">
+            Your payment could not be completed. If money was deducted, it will
+            be auto-reversed by the bank. You can try again from My Bookings.
+          </Banner>
+        ) : null}
+
         <div
           ref={ticketRef}
           className="bg-white border-2 border-dashed border-gray-300 shadow-sm p-4 sm:p-6 rounded-lg overflow-hidden"
@@ -145,10 +284,18 @@ const DownloadTicket = () => {
             <div className="md:col-span-2 space-y-4">
               {/* Contact / Owner */}
               <div>
-                <h3 className="font-bold text-gray-700">Contact (Booking Owner)</h3>
-                <p className="text-gray-800 break-words">{passenger.name || "N/A"}</p>
-                <p className="text-gray-600 break-words">{passenger.mobile || "N/A"}</p>
-                <p className="text-gray-600 break-words">{passenger.email || "N/A"}</p>
+                <h3 className="font-bold text-gray-700">
+                  Contact (Booking Owner)
+                </h3>
+                <p className="text-gray-800 break-words">
+                  {passenger.name || "N/A"}
+                </p>
+                <p className="text-gray-600 break-words">
+                  {passenger.mobile || "N/A"}
+                </p>
+                <p className="text-gray-600 break-words">
+                  {passenger.email || "N/A"}
+                </p>
                 {passenger.nic && (
                   <p className="text-gray-600 break-words">{passenger.nic}</p>
                 )}
@@ -156,7 +303,9 @@ const DownloadTicket = () => {
 
               {/* Per-seat passengers */}
               <div>
-                <h3 className="font-bold text-gray-700">Passenger Details (Per Seat)</h3>
+                <h3 className="font-bold text-gray-700">
+                  Passenger Details (Per Seat)
+                </h3>
                 {passengers.length > 0 ? (
                   <div className="mt-2 space-y-2">
                     {passengers.map((p) => (
@@ -171,7 +320,8 @@ const DownloadTicket = () => {
                           <strong>Name:</strong> {p.name || "-"}
                         </span>
                         <span>
-                          <strong>Gender:</strong> {p.gender === "F" ? "Female" : "Male"}
+                          <strong>Gender:</strong>{" "}
+                          {p.gender === "F" ? "Female" : "Male"}
                         </span>
                         <span>
                           <strong>Age:</strong>{" "}
@@ -245,18 +395,25 @@ const DownloadTicket = () => {
           <div className="text-center border-t-2 border-dashed pt-4 mt-6">
             <p className="text-xs sm:text-sm text-gray-500">Total Fare</p>
             <p className="text-xl sm:text-2xl font-bold text-green-700">
-              Rs. {Number(totalPrice).toFixed(2)}
+              Rs. {totalPrice.toFixed(2)}
             </p>
           </div>
         </div>
 
-        {/* Download button */}
-        <div className="mt-6 mb-4 sm:mb-0">
+        {/* Actions */}
+        <div className="mt-6 mb-4 sm:mb-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             onClick={handleDownloadPDF}
             className="w-full py-3 rounded-lg text-white font-bold text-base sm:text-lg transition-all duration-300 tracking-wide shadow-lg bg-gradient-to-r from-green-500 to-teal-500 hover:scale-[1.02] hover:shadow-xl"
           >
             📄 Download Ticket (PDF)
+          </button>
+
+          <button
+            onClick={() => navigate("/my-bookings")}
+            className="w-full py-3 rounded-lg font-semibold bg-white border hover:bg-gray-50"
+          >
+            View My Bookings
           </button>
         </div>
       </div>
