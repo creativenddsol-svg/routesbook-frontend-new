@@ -715,54 +715,103 @@ const ConfirmBooking = () => {
         return;
       }
 
-      const seatGendersOut = {};
-      passengers.forEach((p) => (seatGendersOut[p.seat] = p.gender));
-
-      // keep the lock while going to external payment flow
+      // Keep the locks while we go to external gateway
       sessionStorage.setItem("rb_skip_release_on_unmount", "1");
       suppressAutoRelease();
 
-      navigate("/payment", {
-        state: {
-          bus,
-          selectedSeats,
+      try {
+        // ---- 1) Create booking (Pending) ----
+        const payloadPassengers = passengers.map(({ seat, name, age, gender }) => ({
+          seat,
+          name,
+          age: age === "" ? undefined : Number(age),
+          gender,
+        }));
+
+        const { data: createRes } = await apiClient.post("/bookings", {
+          busId: bus?._id,
           date,
           departureTime,
-          passenger: form,
-          priceDetails: {
-            basePrice: prices.basePrice,
-            convenienceFee: prices.convenienceFee,
-            totalPrice: prices.total,
+          passenger: {
+            name: form?.name,
+            email: form?.email,
+            mobile: form?.mobile,
+            nic: form?.nic,
           },
-          selectedBoardingPoint,
-          selectedDroppingPoint,
-          passengers: passengers.map(({ seat, name, age, gender }) => ({
-            seat,
-            name,
-            age: age === "" ? undefined : Number(age),
-            gender,
+          boardingPoint: selectedBoardingPoint,
+          droppingPoint: selectedDroppingPoint,
+          passengers: payloadPassengers,
+          seatAllocations: payloadPassengers.map((p) => ({
+            seat: p.seat,
+            gender: p.gender,
           })),
-          seatGenders: seatGendersOut,
-        },
-      });
+        });
+
+        const booking = createRes?.booking;
+        if (!booking?.bookingNo) {
+          alert("Could not create booking. Please try again.");
+          return;
+        }
+
+        // ---- 2) Get PayHere redirect payload ----
+        const firstName = (form?.name || "Customer").trim().split(" ")[0] || "Customer";
+        const lastName = (form?.name || "").trim().split(" ").slice(1).join(" ") || "";
+
+        const { data: ph } = await apiClient.post("/payhere/create", {
+          bookingNo: booking.bookingNo, // our order_id
+          amount: Number(prices.total || 0).toFixed(2),
+          items: "Bus Ticket Booking",
+          firstName,
+          lastName,
+          email: form?.email || "",
+          phone: form?.mobile || "",
+        });
+
+        if (!ph?.payHereUrl || !ph?.payload) {
+          alert("Payment gateway is unavailable. Please try again.");
+          return;
+        }
+
+        // ---- 3) Redirect to PayHere (auto-submit hidden form) ----
+        const formEl = document.createElement("form");
+        formEl.method = "POST";
+        formEl.action = ph.payHereUrl;
+
+        Object.entries(ph.payload).forEach(([key, value]) => {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = key;
+          input.value = value ?? "";
+          formEl.appendChild(input);
+        });
+
+        document.body.appendChild(formEl);
+        formEl.submit();
+      } catch (err) {
+        console.error("Proceed to Pay error:", err);
+        alert(
+          err?.response?.data?.message ||
+            err?.message ||
+            "Payment failed to initialize. Please try again."
+        );
+      }
     },
     [
       bus,
       date,
       departureTime,
       form,
-      navigate,
       passengers,
-      selectedSeats,
-      selectedDroppingPoint,
       selectedBoardingPoint,
+      selectedDroppingPoint,
       prices,
-      termsAccepted,
+      validateAll,
       holdExpired,
-      suppressAutoRelease,
+      termsAccepted,
       verifyHoldAlive,
       releaseSeats,
-      validateAll,
+      suppressAutoRelease,
+      setHoldExpired,
     ]
   );
 
