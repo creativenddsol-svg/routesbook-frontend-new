@@ -29,7 +29,7 @@ const DownloadTicket = () => {
 
   // ── PayHere return params (when coming from return_url)
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const orderId = params.get("order_id") || params.get("bookingNo") || ""; // your bookingNo
+  const orderId = (params.get("order_id") || params.get("bookingNo") || "").trim(); // your bookingNo
   const statusCode = params.get("status_code") || params.get("status") || "";
   const paymentId = params.get("payment_id") || "";
   const method = params.get("method") || "";
@@ -53,7 +53,7 @@ const DownloadTicket = () => {
       const parsed = JSON.parse(raw);
       if (parsed?.bookingDetails) {
         setBookingDetails(parsed.bookingDetails);
-        // optional: keep it for reloads; comment next line to preserve
+        // optional: keep it so reload still works; remove if you prefer one-time
         // sessionStorage.removeItem("rb_ticket_payload");
       }
     } catch {}
