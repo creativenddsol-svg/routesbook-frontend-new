@@ -4,10 +4,10 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import apiClient from "../api"; // 🔌 we'll try to fetch by bookingNo if needed
+import apiClient from "../api"; // 🔌 used to fetch by bookingNo if needed
 
-// removed step guide bar
-const BookingSteps = () => null; // no-op so existing JSX stays unchanged
+// no step guide bar
+const BookingSteps = () => null;
 
 const Banner = ({ kind = "success", title, children }) => {
   const isSuccess = kind === "success";
@@ -29,7 +29,7 @@ const DownloadTicket = () => {
 
   // ── PayHere return params (when coming from return_url)
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const orderId = params.get("order_id") || params.get("bookingNo") || "";
+  const orderId = params.get("order_id") || params.get("bookingNo") || ""; // your bookingNo
   const statusCode = params.get("status_code") || params.get("status") || "";
   const paymentId = params.get("payment_id") || "";
   const method = params.get("method") || "";
@@ -38,22 +38,36 @@ const DownloadTicket = () => {
   const isFailed =
     statusCode && !isSuccess && !/^pending$/i.test(statusCode || "");
 
-  // If we navigated here with state (from app) use it first.
+  // Seed from state first
   const [bookingDetails, setBookingDetails] = useState(
     state?.bookingDetails || null
   );
   const [loading, setLoading] = useState(false);
 
-  // Try to fetch booking by order_id (bookingNo) if we don't already have it.
+  // 1) Pull from sessionStorage if we don't have state
+  useEffect(() => {
+    if (bookingDetails) return;
+    try {
+      const raw = sessionStorage.getItem("rb_ticket_payload");
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      if (parsed?.bookingDetails) {
+        setBookingDetails(parsed.bookingDetails);
+        // optional: keep it for reloads; comment next line to preserve
+        // sessionStorage.removeItem("rb_ticket_payload");
+      }
+    } catch {}
+  }, [bookingDetails]);
+
+  // 2) Try fetching by bookingNo (order_id) if still missing
   useEffect(() => {
     let ignore = false;
 
     const fetchByBookingNo = async (no) => {
       const tryEndpoints = [
-        // Add or keep the ones your backend actually supports; failures are ignored.
-        `/payhere/booking/${encodeURIComponent(no)}`,
         `/bookings/by-no/${encodeURIComponent(no)}`,
         `/bookings/lookup?bookingNo=${encodeURIComponent(no)}`,
+        `/payhere/booking/${encodeURIComponent(no)}`,
       ];
       for (const url of tryEndpoints) {
         try {
@@ -62,7 +76,7 @@ const DownloadTicket = () => {
             data?.booking || data?.data?.booking || data?.result || data;
           if (bk && typeof bk === "object") return bk;
         } catch {
-          // move on to the next endpoint
+          // try next endpoint
         }
       }
       return null;
@@ -74,7 +88,6 @@ const DownloadTicket = () => {
       setLoading(true);
       const bk = await fetchByBookingNo(orderId);
       if (!ignore && bk) {
-        // normalize into the shape this page expects
         setBookingDetails({
           bus: bk.bus || {},
           passenger:
@@ -89,14 +102,14 @@ const DownloadTicket = () => {
           selectedSeats: bk.selectedSeats || [],
           priceDetails: {
             totalPrice: bk.totalAmount,
-            basePrice: bk.totalAmount - (bk.convenienceFee || 0),
+            basePrice: (bk.totalAmount || 0) - (bk.convenienceFee || 0),
             convenienceFee: bk.convenienceFee || 0,
           },
           boardingPoint: { point: bk.from, time: "" },
           droppingPoint: { point: bk.to, time: "" },
           departureTime: bk.departureTime || "",
           bookingId: bk._id,
-          bookingNo: bk.bookingNo || no,
+          bookingNo: bk.bookingNo || orderId,
           bookingNoShort: bk.bookingNoShort,
           booking: bk,
         });
@@ -149,11 +162,11 @@ const DownloadTicket = () => {
     );
   }
 
-  // ✅ Safe destructuring with defaults to prevent crashes
+  // ✅ Safe destructuring
   const {
     bus = {},
-    passenger = {}, // booking owner (contact)
-    passengers = [], // per-seat passengers [{ seat, name, age, gender }]
+    passenger = {},
+    passengers = [],
     date = "",
     selectedSeats = [],
     priceDetails = {},
@@ -161,20 +174,19 @@ const DownloadTicket = () => {
     droppingPoint = {},
     departureTime = "",
     bookingId = "",
-    // support booking numbers passed through state or fetched
     bookingNo: bookingNoFromState,
     bookingNoShort: bookingNoShortFromState,
-    booking, // sometimes we may get the whole booking object
+    booking, // full doc if available
   } = bookingDetails || {};
 
-  // ---------- Prefer full booking number for display / QR / filenames ----------
+  // Prefer full booking number
   const bookingNo =
     bookingNoFromState ||
     bookingNoShortFromState ||
     booking?.bookingNo ||
     booking?.bookingNoShort ||
-    orderId || // fall back to orderId from query
-    ""; // keep empty string if not available
+    orderId ||
+    "";
 
   const totalPrice = Number(priceDetails?.totalPrice || 0);
 
@@ -191,7 +203,6 @@ const DownloadTicket = () => {
 
     const pageHeight = pdf.internal.pageSize.getHeight();
     let finalHeight = pdfHeight;
-
     if (pdfHeight > pageHeight - 20) {
       finalHeight = pageHeight - 20;
     }
@@ -204,7 +215,7 @@ const DownloadTicket = () => {
     );
   };
 
-  // Compact QR text: includes booking number/id, route, date/time, seats, and the first passenger names
+  // Compact QR text
   const firstNames = passengers
     .map((p) => p.name)
     .filter(Boolean)
@@ -258,7 +269,6 @@ const DownloadTicket = () => {
               Thank you for booking with us!
             </p>
 
-            {/* Booking No prominently (preferred over ID) */}
             {(bookingNo || bookingId) && (
               <div className="flex flex-col items-center gap-1 mt-2">
                 {bookingNo && (
@@ -371,7 +381,6 @@ const DownloadTicket = () => {
               <div>
                 <h3 className="font-bold text-gray-700">Scan QR Code</h3>
                 <div className="inline-block p-2 bg-white border rounded-lg mt-2">
-                  {/* Base size works well; wrapper ensures centering on small screens */}
                   <QRCodeCanvas value={qrText} size={128} />
                 </div>
                 {bookingNo && (
