@@ -2,7 +2,7 @@
 import { useMemo, useState, useCallback, memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // import BookingSteps from "../components/BookingSteps";
-import apiClient, { API_ORIGIN } from "../api"; // ⬅️ bring API_ORIGIN for backend redirect
+import apiClient from "../api"; // ⬅️ direct API client only (no API_ORIGIN)
 import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
@@ -518,14 +518,9 @@ const ConfirmBooking = () => {
 
   // ---------- 🆕 Centralized "Back to Results" logic ----------
   const goBackToResults = useCallback(() => {
-    // Do NOT auto-release on unmount of this page
-    // (we want to keep the same locks)
     suppressAutoRelease?.();
-
-    // Optional: let Search Results skip any "release on mount" logic (if present)
     sessionStorage.setItem("rb_restore_from_confirm", "1");
 
-    // Provide a restore payload for Search Results (two channels: state + sessionStorage)
     const restorePayload = {
       restoreFromConfirm: true,
       bus,
@@ -538,19 +533,17 @@ const ConfirmBooking = () => {
       seatGenders: seatGenders || {},
       priceDetails: prices,
     };
-    // (A) via history state
+
     const searchParams = new URLSearchParams({
       from: bus?.from || "",
       to: bus?.to || "",
       date: date || "",
     }).toString();
 
-    // (B) also stash in sessionStorage so mount code can pick it up
     try {
       sessionStorage.setItem("rb_restore_payload", JSON.stringify(restorePayload));
     } catch {}
 
-    // Hand over to Search Results
     navigate(`/search-results?${searchParams}`, { state: restorePayload, replace: true });
   }, [
     suppressAutoRelease,
@@ -577,12 +570,11 @@ const ConfirmBooking = () => {
       const left = expiresAt ? new Date(expiresAt).getTime() - now : ms ?? 0;
       return left > 0;
     } catch {
-      // If API temporarily fails, be conservative: allow proceed
       return true;
     }
   }, [bus?._id, date, departureTime]);
 
-  /* ---------- Validation helpers (mobile-first inline errors) ---------- */
+  /* ---------- Validation helpers ---------- */
   const phoneOk = (v) => /^0\d{9,10}$/.test(String(v || "").trim());
   const emailOk = (v) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
@@ -613,7 +605,6 @@ const ConfirmBooking = () => {
     };
     setErrors(next);
 
-    // find first error key for scroll/focus
     const firstFieldId = next.name
       ? "name"
       : next.mobile
@@ -667,7 +658,6 @@ const ConfirmBooking = () => {
         if (field === "age" && p?.age && Number(p.age) < 0)
           slot.age = "Age must be positive";
         next.passengers[seat] = slot;
-        // cleanup empty seat error object
         if (!slot.name && !slot.age && !slot.gender)
           delete next.passengers[seat];
         return next;
@@ -784,10 +774,40 @@ const ConfirmBooking = () => {
           );
         } catch {}
 
-        // ---- 3) Redirect browser to backend auto-submit page (Option B) ----
-        window.location.href = `${API_ORIGIN}/api/payhere/redirect?bookingNo=${encodeURIComponent(
-          booking.bookingNo
-        )}`;
+        // ---- 3) Ask backend for PayHere payload (Option A) ----
+        const firstName = (form?.name || "Customer").trim().split(" ")[0] || "Customer";
+        const lastName = (form?.name || "").trim().split(" ").slice(1).join(" ") || "";
+
+        const { data: ph } = await apiClient.post("/payhere/create", {
+          bookingNo: booking.bookingNo,
+          amount: Number(prices.total || 0).toFixed(2),
+          items: "Bus Ticket Booking",
+          firstName,
+          lastName,
+          email: form?.email || "",
+          phone: form?.mobile || "",
+        });
+
+        if (!ph?.payHereUrl || !ph?.payload) {
+          alert("Payment gateway is unavailable. Please try again.");
+          return;
+        }
+
+        // ---- 4) Redirect to PayHere by posting the hidden form ----
+        const formEl = document.createElement("form");
+        formEl.method = "POST";
+        formEl.action = ph.payHereUrl;
+
+        Object.entries(ph.payload).forEach(([key, value]) => {
+          const input = document.createElement("input");
+          input.type = "hidden";
+          input.name = key;
+          input.value = value ?? "";
+          formEl.appendChild(input);
+        });
+
+        document.body.appendChild(formEl);
+        formEl.submit();
       } catch (err) {
         console.error("Proceed to Pay error:", err);
         alert(
@@ -1155,7 +1175,6 @@ const ConfirmBooking = () => {
             type="button"
             disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
-              // reuse validation + final hold check
               handleSubmit({ preventDefault: () => {} });
             }}
             className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
@@ -1197,7 +1216,6 @@ const ConfirmBooking = () => {
             type="button"
             disabled={!termsAccepted || holdExpired}
             onClick={(e) => {
-              // reuse validation + final hold check
               handleSubmit({ preventDefault: () => {} });
             }}
             className="px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
