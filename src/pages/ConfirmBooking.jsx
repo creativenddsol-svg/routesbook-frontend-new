@@ -2,7 +2,7 @@
 import { useMemo, useState, useCallback, memo, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 // import BookingSteps from "../components/BookingSteps";
-import apiClient from "../api"; // baseURL configured inside ../api
+import apiClient, { API_ORIGIN } from "../api"; // ⬅️ bring API_ORIGIN for backend redirect
 import useSeatLockBackGuard from "../hooks/useSeatLockBackGuard";
 import useSeatLockCleanup from "../hooks/useSeatLockCleanup";
 
@@ -753,40 +753,41 @@ const ConfirmBooking = () => {
           return;
         }
 
-        // ---- 2) Get PayHere redirect payload ----
-        const firstName = (form?.name || "Customer").trim().split(" ")[0] || "Customer";
-        const lastName = (form?.name || "").trim().split(" ").slice(1).join(" ") || "";
+        // ---- 2) Stash data for /download-ticket fallback after PayHere returns ----
+        try {
+          sessionStorage.setItem(
+            "rb_ticket_payload",
+            JSON.stringify({
+              bookingDetails: {
+                bookingNo: booking.bookingNo,
+                bookingId: booking._id,
+                bus,
+                passengers: payloadPassengers,
+                passenger: {
+                  name: form?.name,
+                  email: form?.email,
+                  mobile: form?.mobile,
+                  nic: form?.nic,
+                },
+                date,
+                departureTime,
+                selectedSeats,
+                priceDetails: {
+                  basePrice: prices.basePrice,
+                  convenienceFee: prices.convenienceFee,
+                  totalPrice: prices.total,
+                },
+                boardingPoint: selectedBoardingPoint,
+                droppingPoint: selectedDroppingPoint,
+              },
+            })
+          );
+        } catch {}
 
-        const { data: ph } = await apiClient.post("/payhere/create", {
-          bookingNo: booking.bookingNo, // our order_id
-          amount: Number(prices.total || 0).toFixed(2),
-          items: "Bus Ticket Booking",
-          firstName,
-          lastName,
-          email: form?.email || "",
-          phone: form?.mobile || "",
-        });
-
-        if (!ph?.payHereUrl || !ph?.payload) {
-          alert("Payment gateway is unavailable. Please try again.");
-          return;
-        }
-
-        // ---- 3) Redirect to PayHere (auto-submit hidden form) ----
-        const formEl = document.createElement("form");
-        formEl.method = "POST";
-        formEl.action = ph.payHereUrl;
-
-        Object.entries(ph.payload).forEach(([key, value]) => {
-          const input = document.createElement("input");
-          input.type = "hidden";
-          input.name = key;
-          input.value = value ?? "";
-          formEl.appendChild(input);
-        });
-
-        document.body.appendChild(formEl);
-        formEl.submit();
+        // ---- 3) Redirect browser to backend auto-submit page (Option B) ----
+        window.location.href = `${API_ORIGIN}/api/payhere/redirect?bookingNo=${encodeURIComponent(
+          booking.bookingNo
+        )}`;
       } catch (err) {
         console.error("Proceed to Pay error:", err);
         alert(
@@ -804,6 +805,7 @@ const ConfirmBooking = () => {
       passengers,
       selectedBoardingPoint,
       selectedDroppingPoint,
+      selectedSeats,
       prices,
       validateAll,
       holdExpired,
