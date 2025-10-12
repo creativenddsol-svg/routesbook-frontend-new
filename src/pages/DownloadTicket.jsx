@@ -5,6 +5,20 @@ import { QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
+// Your defined color palette
+const PALETTE = {
+  primary: "#C74A50",
+  bg: "#F5F6F8",
+  surface: "#FFFFFF",
+  surfaceAlt: "#FAFBFC",
+  border: "#E5E7EB",
+  text: "#1A1A1A",
+  textSubtle: "#6B7280",
+  pink: "#E05B88",
+  seatPillBg: "#FFE9EC",
+  // Note: Only primary colors used are defined here for simplicity
+};
+
 // no step guide bar
 const BookingSteps = () => null;
 
@@ -134,12 +148,17 @@ const DownloadTicket = () => {
 
   const totalPrice = Number(priceDetails?.totalPrice || 0);
 
+  // ----------------------------------------------------------------------
+  // 💾 PDF SIZE REDUCTION IMPLEMENTATION (Using JPEG and lower scale)
+  // ----------------------------------------------------------------------
   const handleDownloadPDF = async () => {
     const element = ticketRef.current;
     if (!element) return;
 
-    const canvas = await html2canvas(element, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
+    // Use scale 1.5 (instead of 2) for smaller image size, but good quality
+    const canvas = await html2canvas(element, { scale: 1.5 });
+    // Use JPEG compression (0.9 quality) instead of lossless PNG for size reduction
+    const imgData = canvas.toDataURL("image/jpeg", 0.9);
 
     const pdf = new jsPDF("p", "mm", "a4");
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -151,13 +170,15 @@ const DownloadTicket = () => {
       finalHeight = pageHeight - 20;
     }
 
-    pdf.addImage(imgData, "PNG", 10, 10, pdfWidth - 20, finalHeight);
+    // Pass 'JPEG' as the format
+    pdf.addImage(imgData, "JPEG", 10, 10, pdfWidth - 20, finalHeight);
     pdf.save(
       `ticket-${(bookingNo || bookingId || passenger.name || "guest")
         .toString()
         .replace(/\s/g, "_")}-${date}.pdf`
     );
   };
+  // ----------------------------------------------------------------------
 
   // Compact QR text
   const firstNames = passengers
@@ -176,8 +197,13 @@ const DownloadTicket = () => {
     Passengers: ${firstNames || "N/A"}${passengers.length > 3 ? "…" : ""}
   `.trim();
 
+  // Tailwind classes with your custom color palette (using inline styles for non-default colors)
+  const subtleText = `text-[${PALETTE.textSubtle}]`;
+  const mainText = `text-[${PALETTE.text}]`;
+  const seatBg = `bg-[${PALETTE.seatPillBg}]`;
+
   return (
-    <div className="p-4 sm:p-6 max-w-7xl mx-auto bg-gray-50 min-h-screen">
+    <div className={`p-4 sm:p-6 max-w-7xl mx-auto min-h-screen`} style={{ backgroundColor: PALETTE.bg }}>
       <BookingSteps currentStep={5} />
 
       <div className="max-w-3xl mx-auto mt-2 sm:mt-4">
@@ -202,158 +228,165 @@ const DownloadTicket = () => {
 
         <div
           ref={ticketRef}
-          className="bg-white border-2 border-dashed border-gray-300 shadow-sm p-4 sm:p-6 rounded-lg overflow-hidden"
+          className="bg-white border border-gray-200 shadow-xl rounded-xl overflow-hidden"
+          style={{ backgroundColor: PALETTE.surface }}
         >
-          {/* Header */}
-          <div className="text-center border-b-2 border-dashed pb-3 sm:pb-4 mb-4">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 leading-snug break-words">
-              Your Ticket
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-500">
-              Thank you for booking with us!
-            </p>
-
-            {(bookingNo || bookingId) && (
-              <div className="flex flex-col items-center gap-1 mt-2">
-                {bookingNo && (
-                  <p className="text-xs sm:text-sm font-semibold text-gray-700 break-all">
-                    Booking No:&nbsp;
-                    <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-900">
-                      {bookingNo}
-                    </span>
-                  </p>
-                )}
-                {bookingId && (
-                  <p className="text-[11px] sm:text-xs text-gray-400 break-all">
-                    Booking ID: {bookingId}
-                  </p>
-                )}
+          {/* PROFESSIONAL HEADER: Logo, Title, and Booking No */}
+          <div className={`p-5 sm:p-6`} style={{ backgroundColor: PALETTE.surfaceAlt }}>
+            <div className="flex justify-between items-start mb-4 border-b pb-4" style={{ borderColor: PALETTE.border }}>
+              {/* BRANDING */}
+              <div className="text-xl font-bold" style={{ color: PALETTE.primary }}>
+                [Your Bus Booking Platform]
               </div>
-            )}
+              
+              {/* PRIMARY INFO BLOCK: BOOKING NO */}
+              <div className="text-right">
+                <p className={`text-sm font-medium ${subtleText}`}>Booking Number</p>
+                <p className="text-2xl font-extrabold" style={{ color: PALETTE.primary }}>
+                  {bookingNo}
+                </p>
+              </div>
+            </div>
+
+            {/* KEY JOURNEY DETAILS STRIP */}
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className={`text-xs font-medium uppercase ${subtleText}`}>Route</p>
+                <p className={`text-lg font-semibold ${mainText}`}>{bus.from || "N/A"}</p>
+                <p className={`text-sm ${subtleText}`}>to</p>
+                <p className={`text-lg font-semibold ${mainText}`}>{bus.to || "N/A"}</p>
+              </div>
+              <div className="border-l border-r px-2" style={{ borderColor: PALETTE.border }}>
+                <p className={`text-xs font-medium uppercase ${subtleText}`}>Departure Date</p>
+                <p className="text-3xl font-extrabold" style={{ color: PALETTE.primary }}>
+                  {date.split("-").pop() || "N/A"}
+                </p>
+                <p className={`text-sm font-semibold ${mainText}`}>{date.slice(0, 7) || "N/A"}</p>
+              </div>
+              <div>
+                <p className={`text-xs font-medium uppercase ${subtleText}`}>Departure Time</p>
+                <p className="text-2xl font-bold" style={{ color: PALETTE.primary }}>
+                  {departureTime || "N/A"}
+                </p>
+                <p className={`text-sm ${subtleText}`}>
+                  Bus: {bus.name || "N/A"}
+                </p>
+              </div>
+            </div>
           </div>
 
-          {/* Main grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6 text-sm sm:text-base">
-            {/* Left 2/3 */}
-            <div className="md:col-span-2 space-y-4">
-              {/* Contact / Owner */}
-              <div>
-                <h3 className="font-bold text-gray-700">Contact (Booking Owner)</h3>
-                <p className="text-gray-800 break-words">{passenger.name || "N/A"}</p>
-                <p className="text-gray-600 break-words">{passenger.mobile || "N/A"}</p>
-                <p className="text-gray-600 break-words">{passenger.email || "N/A"}</p>
-                {passenger.nic && (
-                  <p className="text-gray-600 break-words">{passenger.nic}</p>
-                )}
-              </div>
 
-              {/* Per-seat passengers */}
+          {/* MAIN CONTENT GRID & QR CODE */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-5 sm:p-6">
+            {/* LEFT 2/3: Details */}
+            <div className="md:col-span-2 space-y-6">
+
+              {/* SEATS & PASSENGERS */}
               <div>
-                <h3 className="font-bold text-gray-700">Passenger Details (Per Seat)</h3>
-                {passengers.length > 0 ? (
-                  <div className="mt-2 space-y-2">
-                    {passengers.map((p) => (
+                <h3 className={`font-bold uppercase mb-3 text-sm ${subtleText}`}>
+                  Seats & Passenger Details
+                </h3>
+                <div className="mt-2 space-y-3">
+                  {passengers.length > 0 ? (
+                    passengers.map((p) => (
                       <div
                         key={p.seat}
-                        className="flex flex-wrap items-center gap-2 bg-gray-50 border rounded-lg px-3 py-2"
+                        className={`flex flex-wrap items-center gap-4 border rounded-lg p-3`}
+                        style={{ backgroundColor: PALETTE.surface, borderColor: PALETTE.border }}
                       >
-                        <span className="bg-blue-100 text-blue-800 font-bold px-3 py-1 rounded-full">
+                        <span
+                          className={`font-bold px-3 py-1 rounded-full text-lg`}
+                          style={{ backgroundColor: seatBg, color: PALETTE.primary }}
+                        >
                           Seat {p.seat}
                         </span>
-                        <span className="break-words">
-                          <strong>Name:</strong> {p.name || "-"}
+                        <span className={`text-base font-semibold ${mainText}`}>
+                          {p.name || "N/A"}
                         </span>
-                        <span>
-                          <strong>Gender:</strong>{" "}
-                          {p.gender === "F" ? "Female" : "Male"}
-                        </span>
-                        <span>
-                          <strong>Age:</strong>{" "}
-                          {p.age === "" || p.age == null ? "-" : p.age}
+                        <span className={`text-sm ${subtleText}`}>
+                          | {p.gender === "F" ? "Female" : "Male"} | Age: {p.age || "-"}
                         </span>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-500">No passenger details provided.</p>
-                )}
+                    ))
+                  ) : (
+                    <p className={`${subtleText}`}>No passenger details provided.</p>
+                  )}
+                </div>
               </div>
 
-              {/* Journey */}
-              <div>
-                <h3 className="font-bold text-gray-700">Journey Details</h3>
-                <p className="text-gray-800">
-                  {bus.name || "N/A"} {bus.busType ? `(${bus.busType})` : ""}
-                </p>
-                <p className="break-words">
-                  <strong>Route:</strong> {bus.from || "N/A"} → {bus.to || "N/A"}
-                </p>
-                <p>
-                  <strong>Date:</strong> {date || "N/A"}
-                </p>
-                <p>
-                  <strong>Departure Time:</strong> {departureTime || "N/A"}
-                </p>
+              {/* BOARDING & DROPPING POINTS */}
+              <div className="grid grid-cols-2 gap-4 pt-4 border-t" style={{ borderColor: PALETTE.border }}>
+                <div>
+                  <h3 className={`font-bold uppercase mb-1 text-sm ${subtleText}`}>Boarding Point</h3>
+                  <p className={`text-base font-semibold ${mainText}`}>{boardingPoint.point || "N/A"}</p>
+                  <p className={`text-sm ${subtleText}`}>Time: {boardingPoint.time || "N/A"}</p>
+                </div>
+                <div>
+                  <h3 className={`font-bold uppercase mb-1 text-sm ${subtleText}`}>Dropping Point</h3>
+                  <p className={`text-base font-semibold ${mainText}`}>{droppingPoint.point || "N/A"}</p>
+                  <p className={`text-sm ${subtleText}`}>Time: {droppingPoint.time || "N/A"}</p>
+                </div>
               </div>
 
-              {/* Boarding / Dropping */}
-              <div>
-                <h3 className="font-bold text-gray-700">Boarding & Dropping</h3>
-                <p className="break-words">
-                  <strong>From:</strong> {boardingPoint.point || "N/A"} (
-                  {boardingPoint.time || "N/A"})
-                </p>
-                <p className="break-words">
-                  <strong>To:</strong> {droppingPoint.point || "N/A"} (
-                  {droppingPoint.time || "N/A"})
-                </p>
+              {/* CONTACT/OWNER */}
+              <div className="pt-4 border-t" style={{ borderColor: PALETTE.border }}>
+                <h3 className={`font-bold uppercase mb-1 text-sm ${subtleText}`}>Booking Contact (Owner)</h3>
+                <p className={`text-base ${mainText}`}>{passenger.name || "N/A"}</p>
+                <p className={`text-sm ${subtleText}`}>Mobile: {passenger.mobile || "N/A"}</p>
+                <p className={`text-sm ${subtleText}`}>Email: {passenger.email || "N/A"}</p>
               </div>
             </div>
 
-            {/* Right 1/3 */}
-            <div className="flex flex-col items-center justify-between text-center gap-6">
-              <div>
-                <h3 className="font-bold text-gray-700">Scan QR Code</h3>
-                <div className="inline-block p-2 bg-white border rounded-lg mt-2">
-                  <QRCodeCanvas value={qrText} size={128} />
+            {/* RIGHT 1/3: QR Code & Fare */}
+            <div className="md:col-span-1 flex flex-col items-center justify-start gap-8 p-4 rounded-lg"
+                 style={{ backgroundColor: PALETTE.surfaceAlt, border: `1px solid ${PALETTE.border}` }}>
+              
+              {/* QR CODE */}
+              <div className="text-center w-full">
+                <h3 className={`font-bold text-sm ${subtleText} mb-2`}>Scan for Validation</h3>
+                <div className="inline-block p-2 rounded-lg border bg-white shadow-md">
+                  <QRCodeCanvas value={qrText} size={110} />
                 </div>
-                {bookingNo && (
-                  <p className="text-xs text-gray-500 mt-1 break-all">
-                    Encodes Booking No: <span className="font-semibold">{bookingNo}</span>
-                  </p>
-                )}
+                <p className={`text-xs mt-2 ${subtleText} break-all`}>
+                  ID: <span className="font-semibold" style={{ color: PALETTE.primary }}>{bookingNo}</span>
+                </p>
               </div>
-
-              <div>
-                <h3 className="font-bold text-gray-700">Selected Seats</h3>
-                <p className="text-xl sm:text-2xl font-bold text-pink-600 break-words">
-                  {selectedSeats.length > 0 ? selectedSeats.join(", ") : "None"}
+              
+              {/* TOTAL FARE */}
+              <div className="text-center w-full mt-auto">
+                <h3 className={`font-bold text-sm ${subtleText} mb-1`}>Total Fare Paid</h3>
+                <p className="text-3xl font-extrabold" style={{ color: PALETTE.primary }}>
+                  Rs. {totalPrice.toFixed(2)}
                 </p>
               </div>
             </div>
           </div>
 
-          {/* Total */}
-          <div className="text-center border-t-2 border-dashed pt-4 mt-6">
-            <p className="text-xs sm:text-sm text-gray-500">Total Fare</p>
-            <p className="text-xl sm:text-2xl font-bold text-green-700">
-              Rs. {totalPrice.toFixed(2)}
+          {/* FOOTER: Important Note */}
+          <div className="text-center border-t pt-4 p-5 sm:p-6" style={{ borderColor: PALETTE.border }}>
+            <p className={`text-xs ${subtleText}`}>
+              * Please carry a valid National ID or Passport. The driver may require this for verification.
+              <br />
+              For support, please check your confirmation email or visit the 'My Bookings' section.
             </p>
           </div>
+
         </div>
 
         {/* Actions */}
         <div className="mt-6 mb-4 sm:mb-0 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <button
             onClick={handleDownloadPDF}
-            className="w-full py-3 rounded-lg text-white font-bold text-base sm:text-lg transition-all duration-300 tracking-wide shadow-lg bg-gradient-to-r from-green-500 to-teal-500 hover:scale-[1.02] hover:shadow-xl"
+            className="w-full py-3 rounded-lg text-white font-bold text-base sm:text-lg transition-all duration-300 tracking-wide shadow-lg hover:scale-[1.02] hover:shadow-xl"
+            style={{ backgroundColor: PALETTE.primary }}
           >
             📄 Download Ticket (PDF)
           </button>
 
-        <button
+          <button
             onClick={() => navigate("/my-bookings")}
-            className="w-full py-3 rounded-lg font-semibold bg-white border hover:bg-gray-50"
+            className="w-full py-3 rounded-lg font-semibold border hover:bg-gray-50"
+            style={{ backgroundColor: PALETTE.surface, borderColor: PALETTE.border, color: PALETTE.text }}
           >
             View My Bookings
           </button>
