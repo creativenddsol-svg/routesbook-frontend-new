@@ -189,12 +189,26 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
           : ms != null
           ? nowServer + Math.max(0, Number(ms))
           : nowServer + 15 * 60 * 1000; // conservative fallback
+
         if (cancelled) return;
         expiryRef.current = target;
+
+        // 🆕 persist so we can reconstruct the timer after gateway hops
+        try {
+          const meta = JSON.stringify({ busId, date, departureTime });
+          sessionStorage.setItem("rb_last_hold_target_meta", meta);
+          sessionStorage.setItem("rb_last_hold_target", String(target));
+        } catch {}
+
         startTicking();
       } catch {
         // conservative fallback (10 min) if API temporarily unavailable
         expiryRef.current = Date.now() + 10 * 60 * 1000;
+        try {
+          const meta = JSON.stringify({ busId, date, departureTime });
+          sessionStorage.setItem("rb_last_hold_target_meta", meta);
+          sessionStorage.setItem("rb_last_hold_target", String(expiryRef.current));
+        } catch {}
         startTicking();
       }
     };
@@ -730,7 +744,7 @@ const ConfirmBooking = () => {
     });
   };
 
-  // 🆕 Ensure/reacquire lock when user resumes — but DO NOT reset the 15 min window
+  // 🆕 Ensure/reacquire lock when user resumes — do NOT create a new lock.
   const [lockVersion, setLockVersion] = useState(0);
   const acquireOrRefreshSeatLock = useCallback(async () => {
     if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0) return;
@@ -741,14 +755,31 @@ const ConfirmBooking = () => {
         departureTime,
       });
       const now = serverNowFromHeaders(headers);
-      const left = expiresAt ? new Date(expiresAt).getTime() - now : (ms ?? 0);
+      let left = expiresAt ? new Date(expiresAt).getTime() - now : (ms ?? 0);
+
+      // 🆕 Fallback to last known expiry saved by HoldCountdown (if server returns 0/null)
+      if (!(left > 0)) {
+        try {
+          const meta = JSON.parse(sessionStorage.getItem("rb_last_hold_target_meta") || "null");
+          const saved = Number(sessionStorage.getItem("rb_last_hold_target") || "0");
+          if (
+            meta &&
+            meta.busId === bus._id &&
+            meta.date === date &&
+            meta.departureTime === departureTime &&
+            Number.isFinite(saved)
+          ) {
+            left = saved - Date.now();
+          }
+        } catch {}
+      }
+
       const stillHeld = left > 0;
       setHoldExpired(!stillHeld);
       if (stillHeld) {
-        // keep locks across navigations (no new lock created)
         sessionStorage.setItem("rb_skip_release_on_unmount", "1");
         suppressAutoRelease?.();
-        setLockVersion((v) => v + 1); // remount countdown with real remaining
+        setLockVersion((v) => v + 1); // re-mount countdown with accurate remaining
       }
     } catch (e) {
       console.warn("Check lock remaining failed:", e?.response?.data || e?.message);
