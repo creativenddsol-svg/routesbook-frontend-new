@@ -730,27 +730,28 @@ const ConfirmBooking = () => {
     });
   };
 
-  // 🆕 Ensure/reacquire lock when user resumes from payment or draft restore
-  const [lockVersion, setLockVersion] = useState(0); // 👈 added
+  // 🆕 Ensure/reacquire lock when user resumes — but DO NOT reset the 15 min window
+  const [lockVersion, setLockVersion] = useState(0);
   const acquireOrRefreshSeatLock = useCallback(async () => {
-    if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0)
-      return;
+    if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0) return;
     try {
-      await apiClient.post("/bookings/lock", {
+      const { ms, expiresAt, headers } = await fetchHoldRemaining({
         busId: bus._id,
         date,
         departureTime,
-        seats: selectedSeatStrings,
       });
-      setHoldExpired(false);
-      // keep locks across navigations
-      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-      suppressAutoRelease?.();
-      // 👇 force countdown to remount & refetch
-      setLockVersion((v) => v + 1);
+      const now = serverNowFromHeaders(headers);
+      const left = expiresAt ? new Date(expiresAt).getTime() - now : (ms ?? 0);
+      const stillHeld = left > 0;
+      setHoldExpired(!stillHeld);
+      if (stillHeld) {
+        // keep locks across navigations (no new lock created)
+        sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+        suppressAutoRelease?.();
+        setLockVersion((v) => v + 1); // remount countdown with real remaining
+      }
     } catch (e) {
-      // If re-lock fails, keep the expired banner; user can go back to results.
-      console.warn("Re-lock seats failed:", e?.response?.data || e?.message);
+      console.warn("Check lock remaining failed:", e?.response?.data || e?.message);
     }
   }, [bus, date, departureTime, selectedSeatStrings, suppressAutoRelease]);
 
@@ -782,12 +783,9 @@ const ConfirmBooking = () => {
       }
 
       if (holdExpired) {
-        // Try a quick re-lock attempt before blocking user
-        await acquireOrRefreshSeatLock();
-        if (holdExpired) {
-          alert("Your seat hold has expired. Please go back and reselect seats.");
-          return;
-        }
+        // Do not give new time; user must reselect seats
+        alert("Your seat hold has expired. Please go back and reselect seats.");
+        return;
       }
 
       if (!termsAccepted) {
@@ -953,7 +951,6 @@ const ConfirmBooking = () => {
       releaseSeats,
       suppressAutoRelease,
       setHoldExpired,
-      acquireOrRefreshSeatLock,
     ]
   );
 
@@ -1100,7 +1097,7 @@ const ConfirmBooking = () => {
                 {selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
               <HoldCountdown
-                key={`hold-${lockVersion}`}   // 👈 remounts after re-lock to reset timer
+                key={`hold-${lockVersion}`}
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
