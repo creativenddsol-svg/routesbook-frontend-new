@@ -702,6 +702,33 @@ const ConfirmBooking = () => {
     });
   };
 
+  // 🆕 Ensure/reacquire lock when user resumes from payment or draft restore
+  const acquireOrRefreshSeatLock = useCallback(async () => {
+    if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0)
+      return;
+    try {
+      await apiClient.post("/bookings/lock", {
+        busId: bus._id,
+        date,
+        departureTime,
+        seats: selectedSeatStrings,
+      });
+      setHoldExpired(false);
+      // keep locks across navigations
+      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+      suppressAutoRelease?.();
+    } catch (e) {
+      // If re-lock fails, keep the expired banner; user can go back to results.
+      console.warn("Re-lock seats failed:", e?.response?.data || e?.message);
+    }
+  }, [bus, date, departureTime, selectedSeatStrings, suppressAutoRelease]);
+
+  useEffect(() => {
+    if (cameBackFromGateway) {
+      acquireOrRefreshSeatLock();
+    }
+  }, [cameBackFromGateway, acquireOrRefreshSeatLock]);
+
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
@@ -712,8 +739,12 @@ const ConfirmBooking = () => {
       }
 
       if (holdExpired) {
-        alert("Your seat hold has expired. Please go back and reselect seats.");
-        return;
+        // Try a quick re-lock attempt before blocking user
+        await acquireOrRefreshSeatLock();
+        if (holdExpired) {
+          alert("Your seat hold has expired. Please go back and reselect seats.");
+          return;
+        }
       }
 
       if (!termsAccepted) {
@@ -879,6 +910,7 @@ const ConfirmBooking = () => {
       releaseSeats,
       suppressAutoRelease,
       setHoldExpired,
+      acquireOrRefreshSeatLock,
     ]
   );
 
