@@ -731,6 +731,7 @@ const ConfirmBooking = () => {
   };
 
   // 🆕 Ensure/reacquire lock when user resumes from payment or draft restore
+  const [lockVersion, setLockVersion] = useState(0); // 👈 added
   const acquireOrRefreshSeatLock = useCallback(async () => {
     if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0)
       return;
@@ -745,17 +746,31 @@ const ConfirmBooking = () => {
       // keep locks across navigations
       sessionStorage.setItem("rb_skip_release_on_unmount", "1");
       suppressAutoRelease?.();
+      // 👇 force countdown to remount & refetch
+      setLockVersion((v) => v + 1);
     } catch (e) {
       // If re-lock fails, keep the expired banner; user can go back to results.
       console.warn("Re-lock seats failed:", e?.response?.data || e?.message);
     }
   }, [bus, date, departureTime, selectedSeatStrings, suppressAutoRelease]);
 
-  useEffect(() => {
-    if (cameBackFromGateway) {
-      acquireOrRefreshSeatLock();
+  // detect explicit "back from gateway" flag set by PaymentFailed.jsx
+  const cameFromGatewayFlag = (() => {
+    try {
+      return sessionStorage.getItem("rb_back_from_gateway") === "1";
+    } catch {
+      return false;
     }
-  }, [cameBackFromGateway, acquireOrRefreshSeatLock]);
+  })();
+
+  useEffect(() => {
+    if (cameBackFromGateway || cameFromGatewayFlag || location.state?.restoreFromConfirm) {
+      acquireOrRefreshSeatLock();
+      try {
+        sessionStorage.removeItem("rb_back_from_gateway");
+      } catch {}
+    }
+  }, [cameBackFromGateway, cameFromGatewayFlag, location.state?.restoreFromConfirm, acquireOrRefreshSeatLock]);
 
   const handleSubmit = useCallback(
     async (e) => {
@@ -1085,6 +1100,7 @@ const ConfirmBooking = () => {
                 {selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
               <HoldCountdown
+                key={`hold-${lockVersion}`}   // 👈 remounts after re-lock to reset timer
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
