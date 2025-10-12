@@ -19,6 +19,7 @@ import MyBookings from "./pages/MyBookings";
 import Profile from "./pages/Profiles";
 import AllOperators from "./pages/AllOperators";
 import WhatsNew from "./pages/WhatsNew"; // ✅ ADDED
+import PaymentFailed from "./pages/PaymentFailed"; // ✅ NEW
 
 /* ───── Admin Pages ──── */
 import AdminDashboard from "./pages/AdminDashboard";
@@ -63,6 +64,7 @@ const App = () => (
           <Route path="/search-results" element={<SearchResults />} />
           <Route path="/download-ticket" element={<DownloadTicket />} />
           <Route path="/payment" element={<Payment />} />
+          <Route path="/payment-failed" element={<PaymentFailed />} /> {/* ✅ NEW */}
           <Route path="/operators" element={<AllOperators />} />
           <Route path="/operators/:id" element={<OperatorProfile />} />
           <Route path="/whats-new" element={<WhatsNew />} /> {/* ✅ ADDED */}
