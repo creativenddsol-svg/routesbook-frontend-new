@@ -411,6 +411,26 @@ const ConfirmBooking = () => {
   const navigate = useNavigate();
   const pageTopRef = useRef(null);
 
+  // 🆕 Detect PayHere "back to the site" with non-success status and restore draft
+  const phParams = new URLSearchParams(location.search || "");
+  const phStatus = phParams.get("status_code") || phParams.get("status") || "";
+  const cameBackFromGateway =
+    !!phStatus && phStatus !== "2" && !/^success$/i.test(phStatus || "");
+
+  useEffect(() => {
+    // If user returns from PayHere without success and this page has no state, restore from draft
+    if (!location.state && cameBackFromGateway) {
+      try {
+        const raw = sessionStorage.getItem("rb_confirm_draft");
+        if (raw) {
+          const draft = JSON.parse(raw);
+          navigate(location.pathname, { replace: true, state: draft });
+        }
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cameBackFromGateway]); // keep minimal to avoid loops
+
   const {
     bus,
     selectedSeats,
@@ -421,6 +441,9 @@ const ConfirmBooking = () => {
     selectedDroppingPoint,
     departureTime,
     seatGenders,
+    // 🆕 restored form & passengers if present in draft
+    formDraft,
+    passengersDraft,
   } = location.state || {};
 
   const prices = useMemo(() => {
@@ -437,10 +460,10 @@ const ConfirmBooking = () => {
   }, [priceDetails, totalPrice]);
 
   const [form, setForm] = useState({
-    name: "",
-    mobile: "",
-    nic: "",
-    email: "",
+    name: formDraft?.name || "",
+    mobile: formDraft?.mobile || "",
+    nic: formDraft?.nic || "",
+    email: formDraft?.email || "",
   });
   const onChangeForm = useCallback((e) => {
     const { name, value } = e.target;
@@ -451,13 +474,15 @@ const ConfirmBooking = () => {
 
   const initialPassengers = useMemo(
     () =>
-      (selectedSeats || []).map((seatNo) => ({
-        seat: String(seatNo),
-        name: "",
-        age: "",
-        gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
-      })),
-    [selectedSeats, seatGenders]
+      (passengersDraft && Array.isArray(passengersDraft)
+        ? passengersDraft
+        : (selectedSeats || []).map((seatNo) => ({
+            seat: String(seatNo),
+            name: "",
+            age: "",
+            gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
+          }))),
+    [selectedSeats, seatGenders, passengersDraft]
   );
   const [passengers, setPassengers] = useState(initialPassengers);
 
@@ -709,6 +734,25 @@ const ConfirmBooking = () => {
       sessionStorage.setItem("rb_skip_release_on_unmount", "1");
       suppressAutoRelease();
 
+      // 🆕 Save a draft so "Back to the site" can restore this page cleanly
+      try {
+        sessionStorage.setItem(
+          "rb_confirm_draft",
+          JSON.stringify({
+            bus,
+            selectedSeats,
+            date,
+            priceDetails,
+            selectedBoardingPoint,
+            selectedDroppingPoint,
+            departureTime,
+            seatGenders,
+            formDraft: { ...form },
+            passengersDraft: passengers,
+          })
+        );
+      } catch {}
+
       try {
         // ---- 1) Create booking (Pending) ----
         const payloadPassengers = passengers.map(({ seat, name, age, gender }) => ({
@@ -826,6 +870,7 @@ const ConfirmBooking = () => {
       selectedBoardingPoint,
       selectedDroppingPoint,
       selectedSeats,
+      priceDetails,
       prices,
       validateAll,
       holdExpired,
@@ -920,6 +965,20 @@ const ConfirmBooking = () => {
         <div className="pt-4">
           <BookingSteps currentStep={3} />
         </div>
+
+        {/* 🆕 Show a small banner if user returned from payment with an error/cancel */}
+        {cameBackFromGateway ? (
+          <div
+            className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
+            style={{
+              background: "#FEF2F2",
+              color: "#991B1B",
+              border: "1px solid #FECACA",
+            }}
+          >
+            Payment was cancelled or failed. You can review your details and try again.
+          </div>
+        ) : null}
 
         {/* Error banner (mobile-friendly) */}
         {errors.name ||
@@ -1230,3 +1289,4 @@ const ConfirmBooking = () => {
 };
 
 export default ConfirmBooking;
+
