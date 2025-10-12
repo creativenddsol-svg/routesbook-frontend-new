@@ -431,6 +431,34 @@ const ConfirmBooking = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameBackFromGateway]); // keep minimal to avoid loops
 
+  // 🆕 If we DO have state (e.g., from PaymentFailed → Resume Booking) but it's
+  // missing form/passenger drafts, merge them from session without losing the rest.
+  useEffect(() => {
+    if (location.state && !(location.state.formDraft && location.state.passengersDraft)) {
+      try {
+        const raw = sessionStorage.getItem("rb_confirm_draft");
+        if (raw) {
+          const draft = JSON.parse(raw);
+          const merged = {
+            ...location.state,
+            formDraft: location.state.formDraft || draft.formDraft,
+            passengersDraft: location.state.passengersDraft || draft.passengersDraft,
+            seatGenders: location.state.seatGenders || draft.seatGenders,
+          };
+          // Only replace if something actually changed
+          const changed =
+            merged.formDraft !== location.state.formDraft ||
+            merged.passengersDraft !== location.state.passengersDraft ||
+            merged.seatGenders !== location.state.seatGenders;
+          if (changed) {
+            navigate(location.pathname, { replace: true, state: merged });
+          }
+        }
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
+
   const {
     bus,
     selectedSeats,
