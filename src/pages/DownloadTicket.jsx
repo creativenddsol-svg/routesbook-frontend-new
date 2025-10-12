@@ -29,7 +29,16 @@ const DownloadTicket = () => {
 
   // ── PayHere return params (when coming from return_url)
   const params = useMemo(() => new URLSearchParams(search), [search]);
-  const orderId = (params.get("order_id") || params.get("bookingNo") || "").trim(); // your bookingNo
+
+  // Accept a few common aliases just in case
+  const orderId = (
+    params.get("order_id") ||
+    params.get("orderId") ||
+    params.get("bookingNo") ||
+    params.get("order-no") ||
+    ""
+  ).trim();
+
   const statusCode = params.get("status_code") || params.get("status") || "";
   const paymentId = params.get("payment_id") || "";
   const method = params.get("method") || "";
@@ -53,10 +62,12 @@ const DownloadTicket = () => {
       const parsed = JSON.parse(raw);
       if (parsed?.bookingDetails) {
         setBookingDetails(parsed.bookingDetails);
-        // optional: keep it so reload still works; remove if you prefer one-time
+        // Optional: keep it for reloads; remove if you prefer one-time use
         // sessionStorage.removeItem("rb_ticket_payload");
       }
-    } catch {}
+    } catch {
+      /* ignore */
+    }
   }, [bookingDetails]);
 
   // 2) Try fetching by bookingNo (order_id) if still missing
@@ -65,9 +76,11 @@ const DownloadTicket = () => {
 
     const fetchByBookingNo = async (no) => {
       const tryEndpoints = [
+        // ✅ canonical working endpoint you added on the backend
+        `/payhere/booking/${encodeURIComponent(no)}`,
+        // optional fallbacks if you later add them:
         `/bookings/by-no/${encodeURIComponent(no)}`,
         `/bookings/lookup?bookingNo=${encodeURIComponent(no)}`,
-        `/payhere/booking/${encodeURIComponent(no)}`,
       ];
       for (const url of tryEndpoints) {
         try {
