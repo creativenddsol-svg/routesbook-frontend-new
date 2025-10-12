@@ -189,26 +189,12 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
           : ms != null
           ? nowServer + Math.max(0, Number(ms))
           : nowServer + 15 * 60 * 1000; // conservative fallback
-
         if (cancelled) return;
         expiryRef.current = target;
-
-        // 🆕 persist so we can reconstruct the timer after gateway hops
-        try {
-          const meta = JSON.stringify({ busId, date, departureTime });
-          sessionStorage.setItem("rb_last_hold_target_meta", meta);
-          sessionStorage.setItem("rb_last_hold_target", String(target));
-        } catch {}
-
         startTicking();
       } catch {
         // conservative fallback (10 min) if API temporarily unavailable
         expiryRef.current = Date.now() + 10 * 60 * 1000;
-        try {
-          const meta = JSON.stringify({ busId, date, departureTime });
-          sessionStorage.setItem("rb_last_hold_target_meta", meta);
-          sessionStorage.setItem("rb_last_hold_target", String(expiryRef.current));
-        } catch {}
         startTicking();
       }
     };
@@ -744,45 +730,27 @@ const ConfirmBooking = () => {
     });
   };
 
-  // 🆕 Ensure/reacquire lock when user resumes — do NOT create a new lock.
-  const [lockVersion, setLockVersion] = useState(0);
+  // 🆕 Ensure/reacquire lock when user resumes from payment or draft restore
+  const [lockVersion, setLockVersion] = useState(0); // 👈 added
   const acquireOrRefreshSeatLock = useCallback(async () => {
-    if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0) return;
+    if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0)
+      return;
     try {
-      const { ms, expiresAt, headers } = await fetchHoldRemaining({
+      await apiClient.post("/bookings/lock", {
         busId: bus._id,
         date,
         departureTime,
+        seats: selectedSeatStrings,
       });
-      const now = serverNowFromHeaders(headers);
-      let left = expiresAt ? new Date(expiresAt).getTime() - now : (ms ?? 0);
-
-      // 🆕 Fallback to last known expiry saved by HoldCountdown (if server returns 0/null)
-      if (!(left > 0)) {
-        try {
-          const meta = JSON.parse(sessionStorage.getItem("rb_last_hold_target_meta") || "null");
-          const saved = Number(sessionStorage.getItem("rb_last_hold_target") || "0");
-          if (
-            meta &&
-            meta.busId === bus._id &&
-            meta.date === date &&
-            meta.departureTime === departureTime &&
-            Number.isFinite(saved)
-          ) {
-            left = saved - Date.now();
-          }
-        } catch {}
-      }
-
-      const stillHeld = left > 0;
-      setHoldExpired(!stillHeld);
-      if (stillHeld) {
-        sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-        suppressAutoRelease?.();
-        setLockVersion((v) => v + 1); // re-mount countdown with accurate remaining
-      }
+      setHoldExpired(false);
+      // keep locks across navigations
+      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+      suppressAutoRelease?.();
+      // 👇 force countdown to remount & refetch
+      setLockVersion((v) => v + 1);
     } catch (e) {
-      console.warn("Check lock remaining failed:", e?.response?.data || e?.message);
+      // If re-lock fails, keep the expired banner; user can go back to results.
+      console.warn("Re-lock seats failed:", e?.response?.data || e?.message);
     }
   }, [bus, date, departureTime, selectedSeatStrings, suppressAutoRelease]);
 
@@ -814,9 +782,12 @@ const ConfirmBooking = () => {
       }
 
       if (holdExpired) {
-        // Do not give new time; user must reselect seats
-        alert("Your seat hold has expired. Please go back and reselect seats.");
-        return;
+        // Try a quick re-lock attempt before blocking user
+        await acquireOrRefreshSeatLock();
+        if (holdExpired) {
+          alert("Your seat hold has expired. Please go back and reselect seats.");
+          return;
+        }
       }
 
       if (!termsAccepted) {
@@ -982,6 +953,7 @@ const ConfirmBooking = () => {
       releaseSeats,
       suppressAutoRelease,
       setHoldExpired,
+      acquireOrRefreshSeatLock,
     ]
   );
 
@@ -1128,7 +1100,7 @@ const ConfirmBooking = () => {
                 {selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
               <HoldCountdown
-                key={`hold-${lockVersion}`}
+                key={`hold-${lockVersion}`}   // 👈 remounts after re-lock to reset timer
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
