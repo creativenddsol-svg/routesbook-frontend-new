@@ -24,30 +24,73 @@ export default function PaymentFailed() {
 
   // Try to rebuild the payload we saved before redirecting to the gateway
   const restore = (() => {
+    let base = null;
+
+    // 1) Primary restore payload saved when leaving ConfirmBooking
     try {
       const raw = sessionStorage.getItem("rb_restore_payload");
-      if (raw) return JSON.parse(raw);
+      if (raw) base = JSON.parse(raw);
     } catch {}
+
+    // 2) Fallback to minimal info from the ticket payload (if any)
+    if (!base) {
+      try {
+        const raw = sessionStorage.getItem("rb_ticket_payload");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed?.bookingDetails) {
+            const b = parsed.bookingDetails;
+            base = {
+              bus: b.bus,
+              date: b.date,
+              departureTime: b.departureTime,
+              selectedSeats: b.selectedSeats,
+              selectedBoardingPoint: b.boardingPoint,
+              selectedDroppingPoint: b.droppingPoint,
+              priceDetails: b.priceDetails,
+            };
+          }
+        }
+      } catch {}
+    }
+
+    // 3) Merge in the user's in-page inputs saved as a draft
     try {
-      // fallback: minimal info from the ticket payload
-      const raw = sessionStorage.getItem("rb_ticket_payload");
-      if (raw) {
-        const parsed = JSON.parse(raw);
-        if (parsed?.bookingDetails) {
-          const b = parsed.bookingDetails;
-          return {
-            bus: b.bus,
-            date: b.date,
-            departureTime: b.departureTime,
-            selectedSeats: b.selectedSeats,
-            selectedBoardingPoint: b.boardingPoint,
-            selectedDroppingPoint: b.droppingPoint,
-            priceDetails: b.priceDetails,
+      const draftRaw = sessionStorage.getItem("rb_confirm_draft");
+      if (draftRaw) {
+        const draft = JSON.parse(draftRaw);
+        // If we only have the draft, use it as the base;
+        // otherwise, merge form/passenger inputs into the base payload.
+        if (!base) {
+          base = {
+            bus: draft.bus,
+            selectedSeats: draft.selectedSeats,
+            date: draft.date,
+            priceDetails: draft.priceDetails,
+            selectedBoardingPoint: draft.selectedBoardingPoint,
+            selectedDroppingPoint: draft.selectedDroppingPoint,
+            departureTime: draft.departureTime,
+            seatGenders: draft.seatGenders,
+            formDraft: draft.formDraft,
+            passengersDraft: draft.passengersDraft,
+          };
+        } else {
+          base = {
+            ...base,
+            seatGenders: base.seatGenders || draft.seatGenders,
+            formDraft: draft.formDraft || base.formDraft,
+            passengersDraft: draft.passengersDraft || base.passengersDraft,
           };
         }
       }
     } catch {}
-    return null;
+
+    // Persist the merged payload so a later resume still has everything.
+    try {
+      if (base) sessionStorage.setItem("rb_restore_payload", JSON.stringify(base));
+    } catch {}
+
+    return base;
   })();
 
   const goResume = () => {
@@ -75,9 +118,7 @@ export default function PaymentFailed() {
         </Banner>
 
         <div className="bg-white border rounded-lg p-4">
-          <p className="text-gray-700 mb-4">
-            What would you like to do next?
-          </p>
+          <p className="text-gray-700 mb-4">What would you like to do next?</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <button
               onClick={goResume}
@@ -104,9 +145,7 @@ export default function PaymentFailed() {
         </div>
 
         {orderId ? (
-          <p className="text-xs text-gray-400 mt-4 text-center">
-            Ref: {orderId}
-          </p>
+          <p className="text-xs text-gray-400 mt-4 text-center">Ref: {orderId}</p>
         ) : null}
       </div>
     </div>
