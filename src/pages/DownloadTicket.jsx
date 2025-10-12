@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
-import apiClient from "../api"; // 🔌 used to fetch by bookingNo if needed
 
 // no step guide bar
 const BookingSteps = () => null;
@@ -47,13 +46,12 @@ const DownloadTicket = () => {
   const isFailed =
     statusCode && !isSuccess && !/^pending$/i.test(statusCode || "");
 
-  // Seed from state first
+  // 1) Prefer history.state pushed by your app
   const [bookingDetails, setBookingDetails] = useState(
     state?.bookingDetails || null
   );
-  const [loading, setLoading] = useState(false);
 
-  // 1) Pull from sessionStorage if we don't have state
+  // 2) Fallback to sessionStorage payload saved in ConfirmBooking
   useEffect(() => {
     if (bookingDetails) return;
     try {
@@ -62,7 +60,7 @@ const DownloadTicket = () => {
       const parsed = JSON.parse(raw);
       if (parsed?.bookingDetails) {
         setBookingDetails(parsed.bookingDetails);
-        // Optional: keep it for reloads; remove if you prefer one-time use
+        // Keep it for reloads. If you want one-time, uncomment below:
         // sessionStorage.removeItem("rb_ticket_payload");
       }
     } catch {
@@ -70,107 +68,42 @@ const DownloadTicket = () => {
     }
   }, [bookingDetails]);
 
-  // 2) Try fetching by bookingNo (order_id) if still missing
-  useEffect(() => {
-    let ignore = false;
-
-    const fetchByBookingNo = async (no) => {
-      const tryEndpoints = [
-        // ✅ canonical working endpoint you added on the backend
-        `/payhere/booking/${encodeURIComponent(no)}`,
-        // optional fallbacks if you later add them:
-        `/bookings/by-no/${encodeURIComponent(no)}`,
-        `/bookings/lookup?bookingNo=${encodeURIComponent(no)}`,
-      ];
-      for (const url of tryEndpoints) {
-        try {
-          const { data } = await apiClient.get(url);
-          const bk =
-            data?.booking || data?.data?.booking || data?.result || data;
-          if (bk && typeof bk === "object") return bk;
-        } catch {
-          // try next endpoint
-        }
-      }
-      return null;
-    };
-
-    (async () => {
-      if (bookingDetails) return;
-      if (!orderId) return;
-      setLoading(true);
-      const bk = await fetchByBookingNo(orderId);
-      if (!ignore && bk) {
-        setBookingDetails({
-          bus: bk.bus || {},
-          passenger:
-            bk.passengerInfo || {
-              name: bk?.passenger?.name,
-              email: bk?.passenger?.email,
-              mobile: bk?.passenger?.mobile,
-              nic: bk?.passenger?.nic,
-            },
-          passengers: bk.passengers || [],
-          date: bk.date,
-          selectedSeats: bk.selectedSeats || [],
-          priceDetails: {
-            totalPrice: bk.totalAmount,
-            basePrice: (bk.totalAmount || 0) - (bk.convenienceFee || 0),
-            convenienceFee: bk.convenienceFee || 0,
-          },
-          boardingPoint: { point: bk.from, time: "" },
-          droppingPoint: { point: bk.to, time: "" },
-          departureTime: bk.departureTime || "",
-          bookingId: bk._id,
-          bookingNo: bk.bookingNo || orderId,
-          bookingNoShort: bk.bookingNoShort,
-          booking: bk,
-        });
-      }
-      if (!ignore) setLoading(false);
-    })();
-
-    return () => {
-      ignore = true;
-    };
-  }, [bookingDetails, orderId]);
-
-  // Handle missing booking details (after optional fetch)
-  if (!bookingDetails && !loading) {
+  // If we still couldn't find data, show a friendly screen with CTAs
+  if (!bookingDetails) {
     return (
-      <div className="text-center p-6">
+      <div className="p-6 max-w-3xl mx-auto">
         {isFailed ? (
           <Banner kind="error" title="Payment Failed">
-            Your payment could not be completed. Please try again or contact
-            support.
+            Your payment couldn’t be completed. If money was deducted, it will
+            be auto-reversed by the bank. You can try again from My Bookings.
           </Banner>
         ) : null}
-        <h1 className="text-xl font-bold text-red-600">No ticket data found</h1>
-        <p className="text-gray-700 mt-2">
-          We couldn’t find details for this ticket.
+        <h1 className="text-xl font-bold text-red-600 mb-2">
+          No ticket data found
+        </h1>
+        <p className="text-gray-700">
+          We couldn’t load the ticket locally. This can happen if the return
+          page opened in a new browser/window (no session data).
         </p>
+        {orderId ? (
+          <p className="mt-2 text-sm text-gray-600">
+            Reference:&nbsp;<span className="font-semibold">{orderId}</span>
+          </p>
+        ) : null}
         <div className="mt-4 flex items-center justify-center gap-3">
           <button
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/my-bookings")}
             className="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
-            Go to Home
+            Go to My Bookings
           </button>
           <button
-            onClick={() => navigate("/my-bookings")}
+            onClick={() => navigate("/")}
             className="px-5 py-2 bg-gray-100 rounded-lg hover:bg-gray-200"
           >
-            My Bookings
+            Home
           </button>
         </div>
-      </div>
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="text-center p-6">
-        <p className="text-gray-700">Fetching your booking…</p>
       </div>
     );
   }
@@ -189,16 +122,14 @@ const DownloadTicket = () => {
     bookingId = "",
     bookingNo: bookingNoFromState,
     bookingNoShort: bookingNoShortFromState,
-    booking, // full doc if available
   } = bookingDetails || {};
 
   // Prefer full booking number
   const bookingNo =
     bookingNoFromState ||
     bookingNoShortFromState ||
-    booking?.bookingNo ||
-    booking?.bookingNoShort ||
     orderId ||
+    bookingId ||
     "";
 
   const totalPrice = Number(priceDetails?.totalPrice || 0);
@@ -307,18 +238,10 @@ const DownloadTicket = () => {
             <div className="md:col-span-2 space-y-4">
               {/* Contact / Owner */}
               <div>
-                <h3 className="font-bold text-gray-700">
-                  Contact (Booking Owner)
-                </h3>
-                <p className="text-gray-800 break-words">
-                  {passenger.name || "N/A"}
-                </p>
-                <p className="text-gray-600 break-words">
-                  {passenger.mobile || "N/A"}
-                </p>
-                <p className="text-gray-600 break-words">
-                  {passenger.email || "N/A"}
-                </p>
+                <h3 className="font-bold text-gray-700">Contact (Booking Owner)</h3>
+                <p className="text-gray-800 break-words">{passenger.name || "N/A"}</p>
+                <p className="text-gray-600 break-words">{passenger.mobile || "N/A"}</p>
+                <p className="text-gray-600 break-words">{passenger.email || "N/A"}</p>
                 {passenger.nic && (
                   <p className="text-gray-600 break-words">{passenger.nic}</p>
                 )}
@@ -326,9 +249,7 @@ const DownloadTicket = () => {
 
               {/* Per-seat passengers */}
               <div>
-                <h3 className="font-bold text-gray-700">
-                  Passenger Details (Per Seat)
-                </h3>
+                <h3 className="font-bold text-gray-700">Passenger Details (Per Seat)</h3>
                 {passengers.length > 0 ? (
                   <div className="mt-2 space-y-2">
                     {passengers.map((p) => (
@@ -398,8 +319,7 @@ const DownloadTicket = () => {
                 </div>
                 {bookingNo && (
                   <p className="text-xs text-gray-500 mt-1 break-all">
-                    Encodes Booking No:{" "}
-                    <span className="font-semibold">{bookingNo}</span>
+                    Encodes Booking No: <span className="font-semibold">{bookingNo}</span>
                   </p>
                 )}
               </div>
@@ -431,7 +351,7 @@ const DownloadTicket = () => {
             📄 Download Ticket (PDF)
           </button>
 
-          <button
+        <button
             onClick={() => navigate("/my-bookings")}
             className="w-full py-3 rounded-lg font-semibold bg-white border hover:bg-gray-50"
           >
