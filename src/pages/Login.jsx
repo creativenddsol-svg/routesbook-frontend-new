@@ -1,67 +1,91 @@
 // src/pages/Login.jsx
-import { useState } from "react";
-import { useNavigate, Link, useSearchParams, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import {
+  useNavigate,
+  Link,
+  useSearchParams,
+  useLocation,
+} from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import toast, { Toaster } from "react-hot-toast";
-// Use the shared API client (has baseURL + withCredentials)
+// shared API client (baseURL=/api, withCredentials=true)
 import apiClient from "../api";
 
-/* ---- Shared UI (matches ConfirmBooking look & feel) ---- */
+/* ---- Shared UI (matches your current components) ---- */
 import TopBar from "../components/ui/TopBar";
 import SectionCard from "../components/ui/SectionCard";
 import { RowInput } from "../components/ui/FormAtoms";
 
-/* ---- Page palette (fallbacks to CSS vars, matches CB) ---- */
+/* ---- Page palette ---- */
 const PALETTE = {
   primary: "var(--rb-primary, #D84E55)",
   bg: "var(--rb-bg, #F5F6F8)",
   subtle: "var(--rb-subtle, #6B7280)",
 };
 
-const Login = () => {
+const isValidLKMobile = (raw = "") => {
+  const s = String(raw).replace(/[^\d+]/g, "");
+  return (/^\+94\d{9}$/).test(s) || (/^0\d{9}$/).test(s);
+};
+
+export default function Login() {
+  // —— page mode
+  const [mode, setMode] = useState("email"); // "email" | "phone"
+
+  // —— email login state (existing)
   const [formData, setFormData] = useState({ email: "", password: "" });
-  const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  // —— phone login state (new)
+  const [mobile, setMobile] = useState("");
+  const [step, setStep] = useState("request"); // "request" | "verify"
+  const [code, setCode] = useState("");
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [resendIn, setResendIn] = useState(0); // 45s cooldown
+
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const { login } = useAuth();
 
-  // Support both styles of redirect: ?redirect=/path and state.from from guards
+  // redirect policy (kept as before)
   const redirectQuery = searchParams.get("redirect");
   const stateFrom = location.state?.from?.pathname || null;
-  const redirect = redirectQuery || stateFrom || "/";
+  const redirect = useMemo(() => redirectQuery || stateFrom || "/", [redirectQuery, stateFrom]);
 
+  // resend timer
+  useEffect(() => {
+    if (!resendIn) return;
+    const id = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
+    return () => clearInterval(id);
+  }, [resendIn]);
+
+  // ====== EMAIL LOGIN (unchanged behavior) ======
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e) => {
+  const handleEmailLogin = async (e) => {
     e.preventDefault();
     setError("");
     setSubmitting(true);
-
     try {
-      // This uses your apiClient (withCredentials: true)
       const res = await apiClient.post("/auth/login", formData);
-
-      // Support both token-in-body and cookie-only flows:
       const token = res?.data?.token || null;
       const user = res?.data?.user;
 
       if (token) {
         localStorage.setItem("token", token);
       } else {
-        // If you previously stored a token, clear it to avoid stale auth
         localStorage.removeItem("token");
       }
 
-      // Update your auth context (pass token or null)
+      // your AuthContext signature is login(user, token)
       login(user, token);
-
       toast.success("Login successful!");
 
-      // If user had a pending booking, send them back to it
+      // pending booking resume
       const pending = localStorage.getItem("pendingBooking");
       if (pending) {
         const { busId, date } = JSON.parse(pending);
@@ -70,24 +94,17 @@ const Login = () => {
         return;
       }
 
-      // ✅ ALWAYS land admins on Home, even if a redirect exists
+      // admins always land on Home
       const role = user?.role?.toString?.().toLowerCase?.() || "";
       if (role === "admin") {
         navigate("/", { replace: true });
         return;
       }
 
-      // For non-admins: honor redirect (from guards), else go Home
-      if (redirect && redirect !== "/login") {
-        navigate(redirect, { replace: true });
-      } else {
-        navigate("/", { replace: true });
-      }
+      // otherwise follow redirect
+      navigate(redirect, { replace: true });
     } catch (err) {
-      const msg =
-        err?.response?.data?.message ||
-        err?.message ||
-        "Login failed. Please try again.";
+      const msg = err?.response?.data?.message || err?.message || "Login failed";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -95,86 +112,269 @@ const Login = () => {
     }
   };
 
+  // ====== PHONE LOGIN (new) ======
+  const sendOtp = async (e) => {
+    e?.preventDefault?.();
+    setError("");
+    if (!isValidLKMobile(mobile)) {
+      setError("Enter a valid Sri Lanka mobile (e.g., 077xxxxxxx or +9477xxxxxxx)");
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      const { data } = await apiClient.post("/auth/otp/request", { mobile });
+      toast.success(data?.message || "OTP sent");
+      setStep("verify");
+      setResendIn(45);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Failed to send OTP";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const verifyOtp = async (e) => {
+    e?.preventDefault?.();
+    setError("");
+    const numeric = code.replace(/[^\d]/g, "");
+    if (numeric.length !== 6) {
+      setError("Enter the 6-digit code");
+      return;
+    }
+    setOtpLoading(true);
+    try {
+      const { data } = await apiClient.post(
+        "/auth/otp/verify",
+        { mobile, code: numeric }, // refresh cookie set via withCredentials
+      );
+      // keep the same auth shape as email login
+      login(data.user, data.token);
+      toast.success("Logged in!");
+
+      // pending booking resume
+      const pending = localStorage.getItem("pendingBooking");
+      if (pending) {
+        const { busId, date } = JSON.parse(pending);
+        localStorage.removeItem("pendingBooking");
+        navigate(`/book/${busId}?date=${date}`, { replace: true });
+        return;
+      }
+
+      const role = data?.user?.role?.toString?.().toLowerCase?.() || "";
+      if (role === "admin") {
+        navigate("/", { replace: true });
+        return;
+      }
+      navigate(redirect, { replace: true });
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || "Verification failed";
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const resend = async () => {
+    if (resendIn > 0) return;
+    await sendOtp();
+  };
+
   return (
     <div className="min-h-screen" style={{ background: PALETTE.bg }}>
       <Toaster position="top-right" />
+      <TopBar />
 
-      {/* Matte top bar identical to ConfirmBooking */}
-      <TopBar title="Login" subtitle="Sign in to continue your booking" />
-
-      {/* Content */}
-      <div className="max-w-md mx-auto px-4 pb-20">
-        <div className="pt-6">
-          <SectionCard title="Welcome back">
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <RowInput
-                id="email"
-                name="email"
-                label="Email Address"
-                type="email"
-                value={formData.email}
-                onChange={handleChange}
-                autoComplete="email"
-                inputMode="email"
-                enterKeyHint="next"
-                placeholder="you@email.com"
-                required
-              />
-
-              <RowInput
-                id="password"
-                name="password"
-                label="Password"
-                type="password"
-                value={formData.password}
-                onChange={handleChange}
-                autoComplete="current-password"
-                enterKeyHint="done"
-                placeholder="Enter your password"
-                required
-              />
-
-              <div className="text-right">
-                <Link
-                  to="/forgot-password"
-                  className="text-sm font-medium hover:underline"
-                  style={{ color: PALETTE.primary }}
-                >
-                  Forgot Password?
-                </Link>
-              </div>
-
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="grid md:grid-cols-2 gap-6">
+          <SectionCard title="Sign in to Routesbook">
+            {/* Toggle */}
+            <div className="flex gap-2 mb-4">
               <button
-                type="submit"
-                disabled={submitting}
-                className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-                style={{ background: PALETTE.primary }}
+                onClick={() => setMode("email")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "email" ? "text-white" : ""}`}
+                style={{ background: mode === "email" ? PALETTE.primary : "#E5E7EB" }}
               >
-                {submitting ? "Logging in..." : "Log In"}
+                Email
               </button>
-
-              {error && (
-                <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
-                  {error}
-                </p>
-              )}
-            </form>
-
-            <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
-              Not a user?{" "}
-              <Link
-                to="/signup"
-                className="font-semibold hover:underline"
-                style={{ color: PALETTE.primary }}
+              <button
+                onClick={() => setMode("phone")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "phone" ? "text-white" : ""}`}
+                style={{ background: mode === "phone" ? PALETTE.primary : "#E5E7EB" }}
               >
-                Create an account
-              </Link>
-            </p>
+                Phone
+              </button>
+            </div>
+
+            {/* EMAIL LOGIN FORM (existing) */}
+            {mode === "email" && (
+              <form onSubmit={handleEmailLogin} className="space-y-4">
+                <RowInput
+                  id="email"
+                  name="email"
+                  label="Email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  autoComplete="email"
+                  inputMode="email"
+                  enterKeyHint="next"
+                  placeholder="you@email.com"
+                  required
+                />
+
+                <RowInput
+                  id="password"
+                  name="password"
+                  label="Password"
+                  type="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  autoComplete="current-password"
+                  enterKeyHint="done"
+                  placeholder="••••••••"
+                  required
+                />
+
+                <div className="flex items-center justify-between">
+                  <div />
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm font-semibold hover:underline"
+                    style={{ color: PALETTE.primary }}
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ background: PALETTE.primary }}
+                >
+                  {submitting ? "Logging in..." : "Log In"}
+                </button>
+
+                {error && (
+                  <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
+                    {error}
+                  </p>
+                )}
+
+                <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
+                  Don’t have an account?{" "}
+                  <Link
+                    to="/signup"
+                    className="font-semibold hover:underline"
+                    style={{ color: PALETTE.primary }}
+                  >
+                    Create an account
+                  </Link>
+                </p>
+              </form>
+            )}
+
+            {/* PHONE LOGIN FORM (new) */}
+            {mode === "phone" && (
+              <div className="space-y-4">
+                {step === "request" && (
+                  <form onSubmit={sendOtp} className="space-y-4">
+                    <RowInput
+                      id="mobile"
+                      name="mobile"
+                      label="Mobile number"
+                      type="tel"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                      placeholder="077xxxxxxx or +9477xxxxxxx"
+                      required
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={otpLoading}
+                      className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ background: PALETTE.primary }}
+                    >
+                      {otpLoading ? "Sending…" : "Send OTP"}
+                    </button>
+                  </form>
+                )}
+
+                {step === "verify" && (
+                  <form onSubmit={verifyOtp} className="space-y-4">
+                    <RowInput
+                      id="code"
+                      name="code"
+                      label="Enter 6-digit code"
+                      type="text"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
+                      maxLength={6}
+                      inputMode="numeric"
+                      placeholder="••••••"
+                      required
+                    />
+
+                    <div className="text-sm" style={{ color: PALETTE.subtle }}>
+                      Didn’t get it?{" "}
+                      <button
+                        type="button"
+                        onClick={resend}
+                        disabled={otpLoading || resendIn > 0}
+                        className="font-semibold hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+                        style={{ color: PALETTE.primary }}
+                      >
+                        {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend now"}
+                      </button>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={otpLoading}
+                      className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ background: PALETTE.primary }}
+                    >
+                      {otpLoading ? "Verifying…" : "Verify & Login"}
+                    </button>
+                  </form>
+                )}
+
+                {error && (
+                  <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
+                    {error}
+                  </p>
+                )}
+
+                <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
+                  Prefer email?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMode("email")}
+                    className="font-semibold hover:underline"
+                    style={{ color: PALETTE.primary }}
+                  >
+                    Login with email
+                  </button>
+                </p>
+              </div>
+            )}
           </SectionCard>
+
+          {/* Right column: optional helper / marketing block */}
+          <div className="hidden md:block">
+            <SectionCard title="Welcome back 👋">
+              <p className="text-sm" style={{ color: PALETTE.subtle }}>
+                Use your email & password, or log in with your mobile number.
+                We’ll send a 6-digit code that expires in 5 minutes.
+              </p>
+            </SectionCard>
+          </div>
         </div>
       </div>
     </div>
   );
-};
-
-export default Login;
+}
