@@ -4,10 +4,11 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import toast, { Toaster } from "react-hot-toast";
 import apiClient from "../api";
+import GoogleSignInButton from "../components/GoogleSignInButton"; // 👈 add this
 
 const isValidLKMobile = (raw = "") => {
   const s = String(raw).replace(/[^\d+]/g, "");
-  return (/^\+94\d{9}$/).test(s) || (/^0\d{9}$/).test(s);
+  return /^\+94\d{9}$/.test(s) || /^0\d{9}$/.test(s);
 };
 
 export default function Signup() {
@@ -188,45 +189,63 @@ export default function Signup() {
 
         {/* EMAIL SIGNUP */}
         {mode === "email" && (
-          <form onSubmit={handleEmailSubmit} className="space-y-4">
-            <input
-              type="text"
-              name="fullName"
-              placeholder="Full Name"
-              value={formData.fullName}
-              onChange={handleChange}
-              className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            <input
-              type="email"
-              name="email"
-              placeholder="Email Address"
-              value={formData.email}
-              onChange={handleChange}
-              className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
-            <input
-              type="password"
-              name="password"
-              placeholder="Password (min 6 characters)"
-              value={formData.password}
-              onChange={handleChange}
-              className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              required
-            />
+          <>
+            <form onSubmit={handleEmailSubmit} className="space-y-4">
+              <input
+                type="text"
+                name="fullName"
+                placeholder="Full Name"
+                value={formData.fullName}
+                onChange={handleChange}
+                className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <input
+                type="email"
+                name="email"
+                placeholder="Email Address"
+                value={formData.email}
+                onChange={handleChange}
+                className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
+              <input
+                type="password"
+                name="password"
+                placeholder="Password (min 6 characters)"
+                value={formData.password}
+                onChange={handleChange}
+                className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                required
+              />
 
-            <button
-              type="submit"
-              disabled={loadingEmail}
-              className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:brightness-110 text-white py-2 rounded-lg font-semibold transition-all disabled:opacity-60"
-            >
-              {loadingEmail ? "Creating account…" : "Sign Up"}
-            </button>
+              <button
+                type="submit"
+                disabled={loadingEmail}
+                className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:brightness-110 text-white py-2 rounded-lg font-semibold transition-all disabled:opacity-60"
+              >
+                {loadingEmail ? "Creating account…" : "Sign Up"}
+              </button>
 
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-          </form>
+              {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+            </form>
+
+            {/* Divider */}
+            <div className="flex items-center my-6">
+              <div className="h-px bg-gray-200 flex-1" />
+              <span className="px-3 text-xs uppercase tracking-wide text-gray-400">or</span>
+              <div className="h-px bg-gray-200 flex-1" />
+            </div>
+
+            {/* Google Sign-Up (GIS) */}
+            <GoogleSignInButton
+              text="signup_with"
+              size="large"
+              shape="pill"
+              theme="outline"
+              onSuccess={() => navigate("/", { replace: true })}
+            />
+          </>
         )}
 
         {/* PHONE SIGNUP (OTP) */}
