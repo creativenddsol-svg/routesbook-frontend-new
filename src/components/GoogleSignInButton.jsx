@@ -1,77 +1,112 @@
 // src/components/GoogleSignInButton.jsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef } from "react";
 import apiClient from "../api";
 import { useAuth } from "../AuthContext";
 import toast from "react-hot-toast";
 
-const GOOGLE_CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID;
+const CLIENT_ID = process.env.REACT_APP_GOOGLE_CLIENT_ID; // CRA env name
+
+function loadGsiScript() {
+  return new Promise((resolve, reject) => {
+    if (window.google?.accounts?.id) return resolve();
+    const id = "google-gsi-script";
+    if (document.getElementById(id)) {
+      // already injected; wait a tick
+      const iv = setInterval(() => {
+        if (window.google?.accounts?.id) {
+          clearInterval(iv);
+          resolve();
+        }
+      }, 50);
+      setTimeout(() => {
+        clearInterval(iv);
+        if (window.google?.accounts?.id) resolve();
+        else reject(new Error("GIS not ready"));
+      }, 3000);
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = "https://accounts.google.com/gsi/client";
+    s.async = true;
+    s.defer = true;
+    s.id = id;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("Failed to load GIS script"));
+    document.head.appendChild(s);
+  });
+}
 
 export default function GoogleSignInButton({
-  text = "signin_with",      // "signin_with" | "signup_with" | "continue_with"
-  shape = "pill",            // "pill" | "rectangular" | "circle"
-  theme = "outline",         // "outline" | "filled_blue" | "filled_black"
-  size = "large",            // "large" | "medium" | "small"
-  width = 320,               // px
-  className = "",
+  text = "signup_with", // "signin_with" | "signup_with" | "continue_with"
+  shape = "pill",
+  theme = "outline",
+  size = "large",
   onSuccess,
   onError,
 }) {
-  const ref = useRef(null);
+  const btnRef = useRef(null);
   const { login } = useAuth();
-  const [gisReady, setGisReady] = useState(false);
 
   useEffect(() => {
-    // Basic readiness checks
-    if (!GOOGLE_CLIENT_ID) {
-      console.warn("[GIS] Missing REACT_APP_GOOGLE_CLIENT_ID");
-      return;
+    let cancelled = false;
+
+    async function mount() {
+      try {
+        if (!CLIENT_ID) {
+          console.warn(
+            "REACT_APP_GOOGLE_CLIENT_ID is missing. Set it in your env and redeploy."
+          );
+          return;
+        }
+        await loadGsiScript();
+        if (cancelled || !btnRef.current) return;
+
+        // Initialize
+        window.google.accounts.id.initialize({
+          client_id: CLIENT_ID,
+          callback: async (response) => {
+            try {
+              const { data } = await apiClient.post("/auth/google", {
+                credential: response.credential,
+              });
+              localStorage.setItem("token", data.token);
+              login(data.user, data.token);
+              toast.success("Signed in with Google");
+              onSuccess?.(data);
+            } catch (err) {
+              const msg =
+                err?.response?.data?.message ||
+                err?.message ||
+                "Google sign-in failed";
+              toast.error(msg);
+              onError?.(msg);
+            }
+          },
+          ux_mode: "popup",
+        });
+
+        // Render button
+        window.google.accounts.id.renderButton(btnRef.current, {
+          type: "standard",
+          text,
+          theme,
+          size,
+          shape,
+          logo_alignment: "left",
+          width: 320,
+        });
+      } catch (e) {
+        console.error(e);
+        onError?.(String(e?.message || e));
+      }
     }
-    if (typeof window !== "undefined" && window.google && ref.current) {
-      setGisReady(true);
 
-      window.google.accounts.id.initialize({
-        client_id: GOOGLE_CLIENT_ID,
-        callback: async ({ credential }) => {
-          try {
-            const { data } = await apiClient.post("/auth/google", { credential });
-            localStorage.setItem("token", data.token);
-            login(data.user, data.token);
-            toast.success("Signed in with Google");
-            onSuccess?.(data);
-          } catch (err) {
-            const msg =
-              err?.response?.data?.message || err?.message || "Google sign-in failed";
-            toast.error(msg);
-            onError?.(msg);
-          }
-        },
-        ux_mode: "popup",
-      });
+    mount();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSuccess, onError]);
 
-      window.google.accounts.id.renderButton(ref.current, {
-        type: "standard",
-        text,
-        theme,
-        size,
-        shape,
-        logo_alignment: "left",
-        width,
-      });
-    }
-  }, [login, onSuccess, onError]);
-
-  // Fallback: show a disabled button if the GIS script hasn't loaded yet
-  return gisReady ? (
-    <div ref={ref} className={`w-full flex justify-center ${className}`} />
-  ) : (
-    <button
-      type="button"
-      disabled
-      className={`w-full flex items-center justify-center rounded-md border border-gray-300 px-4 py-2 text-gray-500 bg-white ${className}`}
-      title="Loading Google..."
-    >
-      Continue with Google
-    </button>
-  );
+  return <div ref={btnRef} className="w-full flex justify-center" />;
 }
-
