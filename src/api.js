@@ -1,14 +1,24 @@
 // src/api.js
 import axios from "axios";
 
-/** Resolve API base URL */
+/** Resolve API base URL (Vite → CRA → fallback) */
+const fromVite = (() => {
+  try {
+    // Works only when bundled by Vite
+    return import.meta?.env?.VITE_API_BASE_URL || null;
+  } catch {
+    return null;
+  }
+})();
+
 const API_BASE_URL =
+  fromVite ||
   (typeof process !== "undefined" &&
     process.env &&
     process.env.REACT_APP_API_URL) ||
   "https://routesbook-backend-api.onrender.com/api"; // fallback
 
-/* === ADD: derive absolute origin (no /api) + image URL normalizer === */
+/* === Derive absolute origin (no /api) + image URL normalizer === */
 export const API_ORIGIN = (() => {
   try {
     const u = new URL(API_BASE_URL);
@@ -33,12 +43,12 @@ export const toImgURL = (p) => {
   }
   return `${API_ORIGIN}${p.startsWith("/") ? p : "/" + p}`;
 };
-/* === END ADD === */
 
 /** Axios instance */
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
+  timeout: 20000, // 20s safety
 });
 
 /** Persistent anonymous client id (no globalThis usage) */
@@ -123,7 +133,7 @@ apiClient.interceptors.request.use(
       addToParams();
     }
 
-    // NEW: ensure clientId is also sent when creating the booking
+    // Ensure clientId is also sent when creating the booking
     // Matches POST /bookings and POST /bookings/... (but not the lock/release endpoints already handled)
     if (
       method === "post" &&
@@ -138,13 +148,6 @@ apiClient.interceptors.request.use(
   },
   (error) => Promise.reject(error)
 );
-
-apiClient.interceptors.response.use(
-  (res) => res,
-  (err) => Promise.reject(err)
-);
-
-/* ---------------- Additional, non-breaking enhancements below ---------------- */
 
 /* 2nd request interceptor: CORS-safe guard — never send x-client-id as a header; keep Accept */
 apiClient.interceptors.request.use(
