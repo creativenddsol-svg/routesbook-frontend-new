@@ -96,6 +96,15 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
+    // Ensure JSON content-type on non-GET if missing
+    const method = (config.method || "get").toLowerCase();
+    if (method !== "get") {
+      config.headers = config.headers || {};
+      if (!config.headers["Content-Type"]) {
+        config.headers["Content-Type"] = "application/json";
+      }
+    }
+
     // Add clientId ONLY in payload/params for the lock & booking APIs (no custom header)
     const clientId = getClientId();
 
@@ -106,8 +115,6 @@ apiClient.interceptors.request.use(
       ? rawUrl.slice(baseLower.length)
       : rawUrl;
     if (!path.startsWith("/")) path = `/${path}`;
-
-    const method = (config.method || "get").toLowerCase();
 
     const addToData = () => {
       if (config.data && typeof config.data === "object") {
@@ -197,9 +204,21 @@ apiClient.interceptors.response.use(
     const status = error?.response?.status;
     const original = error?.config;
 
+    // Only handle refresh for our own API URLs
+    const isOurApiCall = (() => {
+      try {
+        const full = new URL(original?.url || "", API_BASE_URL).toString();
+        return full.startsWith(API_BASE_URL);
+      } catch {
+        // Fallback if URL parsing fails: best-effort string check
+        return String(original?.url || "").startsWith(API_BASE_URL);
+      }
+    })();
+
     if (
       status === 401 &&
       original &&
+      isOurApiCall &&
       !original._retry &&
       !String(original?.url || "").includes("/auth/login") &&
       !String(original?.url || "").includes("/auth/refresh")
