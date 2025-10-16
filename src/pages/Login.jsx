@@ -16,6 +16,9 @@ import TopBar from "../components/ui/TopBar";
 import SectionCard from "../components/ui/SectionCard";
 import { RowInput } from "../components/ui/FormAtoms";
 
+// ✅ Add Google button
+import GoogleSignInButton from "../components/GoogleSignInButton";
+
 /* ---- Page palette ---- */
 const PALETTE = {
   primary: "var(--rb-primary, #D84E55)",
@@ -208,73 +211,101 @@ export default function Login() {
               </button>
             </div>
 
-            {/* EMAIL LOGIN FORM (existing) */}
+            {/* EMAIL LOGIN FORM (existing) + Google Sign-In */}
             {mode === "email" && (
-              <form onSubmit={handleEmailLogin} className="space-y-4">
-                <RowInput
-                  id="email"
-                  name="email"
-                  label="Email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  autoComplete="email"
-                  inputMode="email"
-                  enterKeyHint="next"
-                  placeholder="you@email.com"
-                  required
-                />
+              <>
+                <form onSubmit={handleEmailLogin} className="space-y-4">
+                  <RowInput
+                    id="email"
+                    name="email"
+                    label="Email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    autoComplete="email"
+                    inputMode="email"
+                    enterKeyHint="next"
+                    placeholder="you@email.com"
+                    required
+                  />
 
-                <RowInput
-                  id="password"
-                  name="password"
-                  label="Password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  autoComplete="current-password"
-                  enterKeyHint="done"
-                  placeholder="••••••••"
-                  required
-                />
+                  <RowInput
+                    id="password"
+                    name="password"
+                    label="Password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    autoComplete="current-password"
+                    enterKeyHint="done"
+                    placeholder="••••••••"
+                    required
+                  />
 
-                <div className="flex items-center justify-between">
-                  <div />
-                  <Link
-                    to="/forgot-password"
-                    className="text-sm font-semibold hover:underline"
-                    style={{ color: PALETTE.primary }}
+                  <div className="flex items-center justify-between">
+                    <div />
+                    <Link
+                      to="/forgot-password"
+                      className="text-sm font-semibold hover:underline"
+                      style={{ color: PALETTE.primary }}
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{ background: PALETTE.primary }}
                   >
-                    Forgot password?
-                  </Link>
+                    {submitting ? "Logging in..." : "Log In"}
+                  </button>
+
+                  {error && (
+                    <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
+                      {error}
+                    </p>
+                  )}
+
+                  <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
+                    Don’t have an account?{" "}
+                    <Link
+                      to="/signup"
+                      className="font-semibold hover:underline"
+                      style={{ color: PALETTE.primary }}
+                    >
+                      Create an account
+                    </Link>
+                  </p>
+                </form>
+
+                {/* Divider */}
+                <div className="flex items-center my-6">
+                  <div className="h-px bg-gray-200 flex-1" />
+                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">or</span>
+                  <div className="h-px bg-gray-200 flex-1" />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={submitting}
-                  className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-                  style={{ background: PALETTE.primary }}
-                >
-                  {submitting ? "Logging in..." : "Log In"}
-                </button>
-
-                {error && (
-                  <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
-                    {error}
-                  </p>
-                )}
-
-                <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
-                  Don’t have an account?{" "}
-                  <Link
-                    to="/signup"
-                    className="font-semibold hover:underline"
-                    style={{ color: PALETTE.primary }}
-                  >
-                    Create an account
-                  </Link>
-                </p>
-              </form>
+                {/* Google Sign-In */}
+                <GoogleSignInButton
+                  text="signin_with"
+                  size="large"
+                  shape="pill"
+                  theme="outline"
+                  onSuccess={() => {
+                    // After GIS success, follow same redirect logic
+                    const pending = localStorage.getItem("pendingBooking");
+                    if (pending) {
+                      const { busId, date } = JSON.parse(pending);
+                      localStorage.removeItem("pendingBooking");
+                      navigate(`/book/${busId}?date=${date}`, { replace: true });
+                      return;
+                    }
+                    navigate(redirect, { replace: true });
+                  }}
+                />
+              </>
             )}
 
             {/* PHONE LOGIN FORM (new) */}
@@ -368,8 +399,7 @@ export default function Login() {
           <div className="hidden md:block">
             <SectionCard title="Welcome back 👋">
               <p className="text-sm" style={{ color: PALETTE.subtle }}>
-                Use your email & password, or log in with your mobile number.
-                We’ll send a 6-digit code that expires in 5 minutes.
+                Use your email & password, log in with Google, or use your mobile number and a 6-digit OTP.
               </p>
             </SectionCard>
           </div>
