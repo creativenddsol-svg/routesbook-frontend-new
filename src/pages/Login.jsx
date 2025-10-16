@@ -28,7 +28,22 @@ const PALETTE = {
 
 const isValidLKMobile = (raw = "") => {
   const s = String(raw).replace(/[^\d+]/g, "");
-  return (/^\+94\d{9}$/).test(s) || (/^0\d{9}$/).test(s);
+  return /^\+94\d{9}$/.test(s) || /^0\d{9}$/.test(s);
+};
+
+// ✅ Normalize to a single canonical format before sending to backend
+const normalizeLkMobile = (raw = "") => {
+  const s = String(raw).replace(/[^\d+]/g, "");
+  if (/^\+94\d{9}$/.test(s)) return s;
+  if (/^0\d{9}$/.test(s)) return "+94" + s.slice(1);
+  return s; // fallback unchanged
+};
+
+// ✅ Persist resend cooldown so it doesn't reset on rerender
+const startResendTimer = (key, seconds, setResendIn) => {
+  const target = Date.now() + seconds * 1000;
+  sessionStorage.setItem(key, String(target));
+  setResendIn(seconds);
 };
 
 export default function Login() {
@@ -57,12 +72,25 @@ export default function Login() {
   const stateFrom = location.state?.from?.pathname || null;
   const redirect = useMemo(() => redirectQuery || stateFrom || "/", [redirectQuery, stateFrom]);
 
-  // resend timer
+  // resend timer tick
   useEffect(() => {
     if (!resendIn) return;
     const id = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(id);
   }, [resendIn]);
+
+  // restore resend cooldown on mount (so it won't reset)
+  useEffect(() => {
+    const t = parseInt(sessionStorage.getItem("rb-login-otp-resend") || "0", 10);
+    if (t > Date.now()) {
+      setResendIn(Math.ceil((t - Date.now()) / 1000));
+    }
+  }, []);
+
+  // clear errors when switching modes
+  useEffect(() => {
+    setError("");
+  }, [mode]);
 
   // ====== EMAIL LOGIN (unchanged behavior) ======
   const handleChange = (e) => {
@@ -125,10 +153,13 @@ export default function Login() {
     }
     setOtpLoading(true);
     try {
-      const { data } = await apiClient.post("/auth/otp/request", { mobile });
+      const mobileNorm = normalizeLkMobile(mobile);
+      const { data } = await apiClient.post("/auth/otp/request", { mobile: mobileNorm });
       toast.success(data?.message || "OTP sent");
       setStep("verify");
-      setResendIn(45);
+      // use server-provided cooldown if available; fallback to 45s
+      const serverCooldownMs = data?.resendAvailableAt ? Math.max(0, Math.floor((data.resendAvailableAt - Date.now()) / 1000)) : 45;
+      startResendTimer("rb-login-otp-resend", serverCooldownMs, setResendIn);
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || "Failed to send OTP";
       setError(msg);
@@ -148,9 +179,10 @@ export default function Login() {
     }
     setOtpLoading(true);
     try {
+      const mobileNorm = normalizeLkMobile(mobile);
       const { data } = await apiClient.post(
         "/auth/otp/verify",
-        { mobile, code: numeric }, // refresh cookie set via withCredentials
+        { mobile: mobileNorm, code: numeric }, // refresh cookie set via withCredentials
       );
       // keep the same auth shape as email login
       login(data.user, data.token);
@@ -326,7 +358,7 @@ export default function Login() {
 
                     <button
                       type="submit"
-                      disabled={otpLoading}
+                      disabled={otpLoading || !isValidLKMobile(mobile)}
                       className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
                       style={{ background: PALETTE.primary }}
                     >
