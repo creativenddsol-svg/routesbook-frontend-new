@@ -130,6 +130,8 @@ const CalendarPopover = ({
   if (!open || !anchorRef.current) return null;
 
   const rect = anchorRef.current.getBoundingClientRect();
+  theTop: {
+  }
   const top = rect.bottom + 8;
   const width = 360;
   const maxLeft = Math.max(8, window.innerWidth - width - 8);
@@ -1356,18 +1358,48 @@ const Home = () => {
                 </div>
               </div>
 
-              {/* SEARCH BUTTON */}
+              {/* SEARCH BUTTON (MOBILE • same size, vector skin only) */}
               <div className="p-3 border-t" style={{ borderColor: PALETTE.borderLight }}>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleSearch}
-                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-3.5 rounded-xl shadow-lg transition-all"
-                  style={{ backgroundColor: PALETTE.primaryRed }}
+                  type="button"
+                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-3.5 rounded-xl shadow-lg transition-all relative overflow-hidden"
+                  style={{
+                    background:
+                      "linear-gradient(135deg,#FF6D73 0%,#D84E55 50%,#C43C43 100%)",
+                    boxShadow: "0 12px 24px rgba(216,78,85,0.32)",
+                  }}
                 >
-                  {/* ADDED icon (mobile only) */}
-                  <FaSearch />
-                  SEARCH BUSES
+                  {/* soft top highlight */}
+                  <span
+                    aria-hidden
+                    className="pointer-events-none absolute inset-x-2 -top-1 h-8 rounded-b-full"
+                    style={{
+                      background:
+                        "linear-gradient(180deg,rgba(255,255,255,0.35),rgba(255,255,255,0))",
+                      filter: "blur(1.5px)",
+                    }}
+                  />
+                  {/* faint vector blobs */}
+                  <svg
+                    aria-hidden
+                    className="pointer-events-none absolute -left-8 -top-6 opacity-15"
+                    width="160"
+                    height="160"
+                    viewBox="0 0 160 160"
+                    fill="none"
+                  >
+                    <circle cx="55" cy="55" r="55" fill="white" />
+                    <circle cx="115" cy="110" r="35" fill="white" />
+                  </svg>
+
+                  {/* content unchanged */}
+                  <span className="relative z-[1] flex items-center gap-2">
+                    <FaSearch />
+                    <span>SEARCH BUSES</span>
+                  </span>
                 </motion.button>
               </div>
             </div>
@@ -1378,10 +1410,11 @@ const Home = () => {
       {/* ===== Offers / Notices ===== */}
       <NoticesSection />
 
-      {/* ===== What's New ===== */}
+  
+
+           {/* ===== What's New ===== */}
       <WhatsNewSection />
 
-      {/* ===== Popular Routes ===== */}
       {/* ===== Popular Routes ===== */}
       <div className={`${SECTION_WRAP}`}>
         <section className={`${SECTION_INNER} py-16`}>
