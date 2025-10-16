@@ -772,9 +772,6 @@ const ConfirmBooking = () => {
     }
   }, [cameBackFromGateway, cameFromGatewayFlag, location.state?.restoreFromConfirm, acquireOrRefreshSeatLock]);
 
-  // 🆕 NEW: SMS opt-in
-  const [wantsSms, setWantsSms] = useState(true);
-
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
@@ -856,7 +853,6 @@ const ConfirmBooking = () => {
             seat: p.seat,
             gender: p.gender,
           })),
-          wantsSms, // 👈 added
         });
 
         const booking = createRes?.booking;
@@ -958,7 +954,6 @@ const ConfirmBooking = () => {
       suppressAutoRelease,
       setHoldExpired,
       acquireOrRefreshSeatLock,
-      wantsSms, // 👈 added to keep handler in sync with checkbox
     ]
   );
 
@@ -1286,25 +1281,6 @@ const ConfirmBooking = () => {
             )}
           </div>
         </SectionCard>
-
-        {/* 🆕 SMS Opt-in (added without changing other blocks) */}
-        <div className="mt-4">
-          <label
-            className="flex items-center text-sm"
-            style={{ color: PALETTE.text }}
-          >
-            <input
-              type="checkbox"
-              className="mr-2"
-              checked={wantsSms}
-              onChange={(e) => setWantsSms(e.target.checked)}
-            />
-            Text me ticket details to my mobile number
-          </label>
-          <p className="mt-1 text-[11px]" style={{ color: PALETTE.textSubtle }}>
-            We’ll send your booking no., seats, date/time and a ticket link by SMS.
-          </p>
-        </div>
 
         {/* Terms */}
         <div className="mt-4">
