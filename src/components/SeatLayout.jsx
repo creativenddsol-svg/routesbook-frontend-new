@@ -57,7 +57,7 @@ const Seat = ({
       aria-label={`Seat ${seat}`}
       aria-pressed={isSelected}
       disabled={disabled}
-      className={`
+      className="
         relative group select-none
         w-12 h-12 sm:w-10 sm:h-10
         rounded-xl flex items-center justify-center
@@ -65,10 +65,9 @@ const Seat = ({
         active:scale-95 focus-visible:outline-none
         focus-visible:ring-2 focus-visible:ring-[#4C6EF5]/60
         disabled:opacity-90
-      `}
+      "
       style={{ WebkitTapHighlightColor: "transparent" }}
     >
-      {/* Seat box with inner bottom bar */}
       <span
         className={`
           absolute inset-1 sm:inset-[3px]
@@ -79,12 +78,9 @@ const Seat = ({
           ${innerSeatClasses}
         `}
       >
-        {/* Seat label or gender icon */}
         <span className="flex-1 flex items-center justify-center">
-          {isBooked ? gender === "F" ? <FaFemale /> : <FaMale /> : seat}
+          {isBooked ? (gender === "F" ? <FaFemale /> : <FaMale />) : seat}
         </span>
-
-        {/* Bottom bar touching the seat edge */}
         <span
           aria-hidden="true"
           className={`w-5 sm:w-4 h-1 rounded-t-sm self-center ${bottomBarColor}`}
@@ -110,7 +106,7 @@ const SeatLayout = ({
   bookedSeats,
   selectedSeats,
   onSeatClick,
-  bookedSeatGenders,
+  bookedSeatGenders = {}, // ✅ default to safe empty object
 }) => {
   const layoutAsStrings = Array.isArray(seatLayout)
     ? seatLayout.map(String)
@@ -132,13 +128,11 @@ const SeatLayout = ({
       if (idx !== -1) {
         if (idx > 0 && row[idx - 1] !== null) {
           const neighborSeat = String(row[idx - 1]);
-          if (bookedSeatGenders[neighborSeat])
-            return bookedSeatGenders[neighborSeat];
+          if (bookedSeatGenders?.[neighborSeat]) return bookedSeatGenders[neighborSeat];
         }
         if (idx < row.length - 1 && row[idx + 1] !== null) {
           const neighborSeat = String(row[idx + 1]);
-          if (bookedSeatGenders[neighborSeat])
-            return bookedSeatGenders[neighborSeat];
+          if (bookedSeatGenders?.[neighborSeat]) return bookedSeatGenders[neighborSeat];
         }
         return null;
       }
@@ -148,17 +142,17 @@ const SeatLayout = ({
 
   const getSeatStatus = (seat) => {
     const seatStr = String(seat);
-    const isBooked = !!bookedSeatGenders[seatStr];
+    const isBooked = !!bookedSeatGenders?.[seatStr];
     const isLocked =
       bookedSet.has(seatStr) &&
-      !bookedSeatGenders[seatStr] &&
+      !bookedSeatGenders?.[seatStr] &&
       !selectedSet.has(seatStr);
 
     return {
       isBooked,
       isLocked,
       isSelected: selectedSet.has(seatStr),
-      gender: isBooked ? bookedSeatGenders[seatStr] : null,
+      gender: isBooked ? bookedSeatGenders?.[seatStr] : null,
     };
   };
 
@@ -309,7 +303,12 @@ SeatLayout.propTypes = {
     PropTypes.oneOfType([PropTypes.string, PropTypes.number])
   ).isRequired,
   onSeatClick: PropTypes.func.isRequired,
-  bookedSeatGenders: PropTypes.object.isRequired,
+  // was required before; now optional because page may not pass it
+  bookedSeatGenders: PropTypes.object,
+};
+
+SeatLayout.defaultProps = {
+  bookedSeatGenders: {}, // ✅ ensure safe access like bookedSeatGenders['1']
 };
 
 export default SeatLayout;
