@@ -411,6 +411,8 @@ const OperatorBusSeatView = () => {
             bookedSeats,
             selectedSeats,
             onSeatClick: toggleSeat,
+            // ✅ important: prevent "Cannot read properties of undefined ('1')" when no gender map present
+            bookedSeatGenders: {}, 
           }}
         />
       </div>
