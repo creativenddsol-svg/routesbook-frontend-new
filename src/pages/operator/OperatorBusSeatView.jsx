@@ -1,6 +1,9 @@
+// src/pages/operator/OperatorBusSeatView.jsx
 import React, { useEffect, useState, useMemo } from "react";
-import { useParams } from "react-router-dom";
-import axios from "../../utils/axiosInstance";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
+
+// ✅ use the shared API client (baseURL + withCredentials)
+import apiClient from "../../api";
 
 // Component Imports
 import PointSelection from "../../components/PointSelection";
@@ -167,6 +170,9 @@ const DateSelection = ({ selectedDate, onDateChange }) => {
 // --- Main Page Component ---
 const OperatorBusSeatView = () => {
   const { busId } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [bus, setBus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [bookedSeats, setBookedSeats] = useState([]);
@@ -191,51 +197,88 @@ const OperatorBusSeatView = () => {
     setSelectedSeats([]);
   }, [date, bus]);
 
+  // Price preview using same fare logic as submission
+  const previewTotalPrice = useMemo(() => {
+    if (!bus) return 0;
+    const count = selectedSeats.length;
+    if (count === 0) return 0;
+
+    if (
+      selectedBoardingPoint &&
+      selectedDroppingPoint &&
+      Array.isArray(bus.fares) &&
+      bus.fares.length > 0
+    ) {
+      const specificFare = bus.fares.find(
+        (f) =>
+          f.boardingPoint === selectedBoardingPoint.point &&
+          f.droppingPoint === selectedDroppingPoint.point
+      );
+      if (specificFare?.price) return Number(specificFare.price) * count;
+    }
+    return Number(bus.price || 0) * count;
+  }, [bus, selectedSeats, selectedBoardingPoint, selectedDroppingPoint]);
+
+  // Fetch bus details
   useEffect(() => {
     const fetchBusDetails = async () => {
       try {
         setLoading(true);
-        const res = await axios.get(`/operator/buses/${busId}`);
+        const res = await apiClient.get(`/operator/buses/${busId}`);
         const fetchedBus = res.data;
         setBus(fetchedBus);
-        if (fetchedBus.boardingPoints?.length)
+        if (fetchedBus?.boardingPoints?.length)
           setSelectedBoardingPoint(fetchedBus.boardingPoints[0]);
-        if (fetchedBus.droppingPoints?.length)
+        if (fetchedBus?.droppingPoints?.length)
           setSelectedDroppingPoint(fetchedBus.droppingPoints[0]);
       } catch (err) {
+        if (err?.response?.status === 401) {
+          navigate(
+            "/login?redirect=" + encodeURIComponent(location.pathname),
+            { replace: true, state: { from: location } }
+          );
+          return;
+        }
         alert("Failed to load bus information.");
       } finally {
         setLoading(false);
       }
     };
     fetchBusDetails();
-  }, [busId]);
+  }, [busId, navigate, location]);
 
+  // Fetch booked seats for the selected date + turn
   useEffect(() => {
     const selectedTurn = scheduledTurns[selectedTurnIndex];
-    if (date && busId && selectedTurn) {
-      setBookedSeats([]);
-      axios
-        .get(`/operator/bookings/booked-seats`, {
+    if (!(date && busId && selectedTurn)) return;
+
+    setBookedSeats([]);
+    (async () => {
+      try {
+        const res = await apiClient.get(`/operator/bookings/booked-seats`, {
           params: {
-            busId: busId,
-            date: date,
+            busId,
+            date,
             departureTime: selectedTurn.departureTime,
           },
-        })
-        .then((res) =>
-          setBookedSeats(
-            Array.isArray(res.data.bookedSeats)
-              ? res.data.bookedSeats.map(String)
-              : []
-          )
-        )
-        .catch(() => {
-          setBookedSeats([]);
-          alert("Failed to load booked seats for the selected trip.");
         });
-    }
-  }, [busId, date, selectedTurnIndex, scheduledTurns]);
+        const arr = Array.isArray(res.data?.bookedSeats)
+          ? res.data.bookedSeats.map(String)
+          : [];
+        setBookedSeats(arr);
+      } catch (err) {
+        if (err?.response?.status === 401) {
+          navigate(
+            "/login?redirect=" + encodeURIComponent(location.pathname),
+            { replace: true, state: { from: location } }
+          );
+          return;
+        }
+        setBookedSeats([]);
+        alert("Failed to load booked seats for the selected trip.");
+      }
+    })();
+  }, [busId, date, selectedTurnIndex, scheduledTurns, navigate, location]);
 
   const toggleSeat = (seat) => {
     const seatStr = String(seat);
@@ -261,22 +304,10 @@ const OperatorBusSeatView = () => {
     }
 
     try {
-      let totalPrice = bus.price * selectedSeats.length;
-      if (
-        selectedBoardingPoint &&
-        selectedDroppingPoint &&
-        Array.isArray(bus.fares)
-      ) {
-        const specificFare = bus.fares.find(
-          (f) =>
-            f.boardingPoint === selectedBoardingPoint.point &&
-            f.droppingPoint === selectedDroppingPoint.point
-        );
-        if (specificFare)
-          totalPrice = specificFare.price * selectedSeats.length;
-      }
+      // compute price using the same logic as preview
+      const totalPrice = previewTotalPrice;
 
-      await axios.post("/operator/bookings/manual", {
+      await apiClient.post(`/operator/bookings/manual`, {
         busId,
         date,
         selectedSeats,
@@ -295,9 +326,16 @@ const OperatorBusSeatView = () => {
       const updatedBookedSeats = [...bookedSeats, ...selectedSeats];
       setBookedSeats(updatedBookedSeats);
     } catch (err) {
+      if (err?.response?.status === 401) {
+        navigate(
+          "/login?redirect=" + encodeURIComponent(location.pathname),
+          { replace: true, state: { from: location } }
+        );
+        return;
+      }
       console.error("Manual booking failed:", err);
       alert(
-        err.response?.data?.message ||
+        err?.response?.data?.message ||
           "An unknown error occurred during booking."
       );
     }
@@ -364,6 +402,7 @@ const OperatorBusSeatView = () => {
           }}
         />
       </div>
+
       <div className="mb-6 bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200">
         <SeatLegend />
         <SeatLayout
@@ -380,10 +419,9 @@ const OperatorBusSeatView = () => {
         <p className="text-lg font-medium">
           Selected Seats: {selectedSeats.join(", ") || "None"}
         </p>
-        <p className="text-lg font-medium">
-          Total Price: LKR {bus.price * selectedSeats.length}.00
-        </p>
+        <p className="text-lg font-medium">Total Price: LKR {previewTotalPrice}.00</p>
       </div>
+
       <div className="mb-6 space-y-4">
         <h3 className="text-xl font-semibold text-gray-800">
           Passenger Details
