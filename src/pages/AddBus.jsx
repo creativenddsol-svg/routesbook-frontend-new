@@ -194,12 +194,24 @@ const AddBus = () => {
       if (dayEntry) {
         dayEntry.turns = [
           ...(dayEntry.turns || []),
-          { departureTime: "", arrivalTime: "", boardingPoints: [], droppingPoints: [] }, // ✅ NEW arrays
+          {
+            departureTime: "",
+            arrivalTime: "",
+            boardingPoints: [],
+            droppingPoints: [],
+          }, // ✅ NEW arrays
         ];
       } else {
         intervals.push({
           dayOffset,
-          turns: [{ departureTime: "", arrivalTime: "", boardingPoints: [], droppingPoints: [] }], // ✅ NEW arrays
+          turns: [
+            {
+              departureTime: "",
+              arrivalTime: "",
+              boardingPoints: [],
+              droppingPoints: [],
+            },
+          ], // ✅ NEW arrays
         });
         intervals.sort((a, b) => a.dayOffset - b.dayOffset);
       }
@@ -352,7 +364,7 @@ const AddBus = () => {
         ? `Rs. ${Number(form.price).toLocaleString()}`
         : "Price not set",
       available: form.isAvailable,
-    })),
+    }),
     [form]
   );
 
