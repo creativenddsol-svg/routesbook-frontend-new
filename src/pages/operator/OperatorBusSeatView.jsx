@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 
-// ✅ use the shared API client (baseURL + withCredentials)
+// ✅ shared API client
 import apiClient from "../../api";
 
 // Component Imports
@@ -13,7 +13,7 @@ import SeatLegend from "../../components/SeatLegend";
 // Datepicker Imports
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import "../../components/CalendarStyles.css"; // Correct path
+import "../../components/CalendarStyles.css";
 
 // Icon Import
 import { Calendar as CalendarIcon } from "lucide-react";
@@ -21,13 +21,9 @@ import { Calendar as CalendarIcon } from "lucide-react";
 // --- Reusable Modal Component ---
 const Modal = ({ isOpen, onClose, children }) => {
   if (!isOpen) return null;
-
   return (
     <div className="calendar-modal-overlay" onClick={onClose}>
-      <div
-        className="calendar-modal-content"
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div className="calendar-modal-content" onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>
@@ -45,35 +41,27 @@ const toLocalYYYYMMDD = (dateObj) => {
 const getScheduledTurnsForDate = (bus, date) => {
   if (!bus || !date)
     return bus
-      ? [
-          {
-            departureTime: bus.departureTime,
-            arrivalTime: bus.arrivalTime,
-            isRotating: false,
-          },
-        ]
+      ? [{ departureTime: bus.departureTime, arrivalTime: bus.arrivalTime, isRotating: false }]
       : [];
   const { rotationSchedule, departureTime, arrivalTime } = bus;
   if (!rotationSchedule || !rotationSchedule.isRotating)
     return [{ departureTime, arrivalTime, isRotating: false }];
+
   const { startDate, rotationLength, intervals } = rotationSchedule;
   const bookingDate = new Date(date);
   const rotationStartDate = new Date(startDate);
-  if (
-    !startDate ||
-    !rotationLength ||
-    isNaN(bookingDate.getTime()) ||
-    isNaN(rotationStartDate.getTime())
-  )
+  if (!startDate || !rotationLength || isNaN(bookingDate.getTime()) || isNaN(rotationStartDate.getTime()))
     return [{ departureTime, arrivalTime, isRotating: false }];
-  const timeDiff =
-    bookingDate.setHours(0, 0, 0, 0) - rotationStartDate.setHours(0, 0, 0, 0);
+
+  const timeDiff = bookingDate.setHours(0, 0, 0, 0) - rotationStartDate.setHours(0, 0, 0, 0);
   const dayDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24));
   if (dayDiff < 0) return [{ departureTime, arrivalTime, isRotating: false }];
+
   const dayOffset = dayDiff % rotationLength;
   const daySchedule = intervals.find((i) => i.dayOffset === dayOffset);
   if (daySchedule && daySchedule.turns && daySchedule.turns.length > 0)
     return daySchedule.turns.map((turn) => ({ ...turn, isRotating: true }));
+
   return [{ departureTime, arrivalTime, isRotating: false }];
 };
 
@@ -82,49 +70,34 @@ const DateSelection = ({ selectedDate, onDateChange }) => {
   const [isCalendarOpen, setCalendarOpen] = useState(false);
   const selectedDateObj = new Date(selectedDate + "T00:00:00");
 
-  const handleDateClick = (date) => {
-    onDateChange(toLocalYYYYMMDD(date));
-  };
-
+  const handleDateClick = (date) => onDateChange(toLocalYYYYMMDD(date));
   const handleCalendarChange = (date) => {
     onDateChange(toLocalYYYYMMDD(date));
-    setCalendarOpen(false); // Close modal after selection
+    setCalendarOpen(false);
   };
 
-  const generateDateRange = () => {
-    const dates = [];
+  const dates = useMemo(() => {
+    const arr = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     for (let i = 0; i < 10; i++) {
-      const newDate = new Date(today);
-      newDate.setDate(today.getDate() + i);
-      dates.push(newDate);
+      const d = new Date(today);
+      d.setDate(today.getDate() + i);
+      arr.push(d);
     }
-    return dates;
-  };
-
-  const dates = useMemo(generateDateRange, []);
+    return arr;
+  }, []);
 
   return (
     <>
       <Modal isOpen={isCalendarOpen} onClose={() => setCalendarOpen(false)}>
-        <DatePicker
-          selected={selectedDateObj}
-          onChange={handleCalendarChange}
-          minDate={new Date()}
-          inline
-        />
+        <DatePicker selected={selectedDateObj} onChange={handleCalendarChange} minDate={new Date()} inline />
       </Modal>
 
       <div className="bg-gray-100 p-4 rounded-lg shadow-inner mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-gray-800">
-            Select Departure Date
-          </h3>
-          <button
-            onClick={() => setCalendarOpen(true)}
-            className="p-2 rounded-full hover:bg-gray-200 transition-colors"
-          >
+          <h3 className="text-lg font-semibold text-gray-800">Select Departure Date</h3>
+          <button onClick={() => setCalendarOpen(true)} className="p-2 rounded-full hover:bg-gray-200 transition-colors">
             <CalendarIcon size={24} className="text-gray-600" />
           </button>
         </div>
@@ -139,25 +112,11 @@ const DateSelection = ({ selectedDate, onDateChange }) => {
                 key={index}
                 onClick={() => handleDateClick(date)}
                 className={`flex flex-col items-center justify-center p-3 rounded-lg cursor-pointer transition-all duration-200 min-w-[60px] ${
-                  isSelected
-                    ? "bg-red-500 text-white shadow-md"
-                    : "bg-white hover:bg-blue-50 border border-gray-200"
+                  isSelected ? "bg-red-500 text-white shadow-md" : "bg-white hover:bg-blue-50 border border-gray-200"
                 }`}
               >
-                <span
-                  className={`text-sm font-medium ${
-                    isSelected ? "text-red-100" : "text-gray-500"
-                  }`}
-                >
-                  {day}
-                </span>
-                <span
-                  className={`text-xl font-bold ${
-                    isSelected ? "text-white" : "text-gray-800"
-                  }`}
-                >
-                  {dayOfMonth}
-                </span>
+                <span className={`text-sm font-medium ${isSelected ? "text-red-100" : "text-gray-500"}`}>{day}</span>
+                <span className={`text-xl font-bold ${isSelected ? "text-white" : "text-gray-800"}`}>{dayOfMonth}</span>
               </div>
             );
           })}
@@ -178,18 +137,12 @@ const OperatorBusSeatView = () => {
   const [bookedSeats, setBookedSeats] = useState([]);
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [date, setDate] = useState(() => toLocalYYYYMMDD(new Date()));
-  const [passengerInfo, setPassengerInfo] = useState({
-    fullName: "",
-    phone: "",
-    nic: "",
-  });
+  const [passengerInfo, setPassengerInfo] = useState({ fullName: "", phone: "", nic: "" });
   const [selectedBoardingPoint, setSelectedBoardingPoint] = useState(null);
   const [selectedDroppingPoint, setSelectedDroppingPoint] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const scheduledTurns = useMemo(
-    () => getScheduledTurnsForDate(bus, date),
-    [bus, date]
-  );
+  const scheduledTurns = useMemo(() => getScheduledTurnsForDate(bus, date), [bus, date]);
   const [selectedTurnIndex, setSelectedTurnIndex] = useState(0);
 
   useEffect(() => {
@@ -197,7 +150,7 @@ const OperatorBusSeatView = () => {
     setSelectedSeats([]);
   }, [date, bus]);
 
-  // Price preview using same fare logic as submission
+  // Price preview using same fare logic as submission (UI-only)
   const previewTotalPrice = useMemo(() => {
     if (!bus) return 0;
     const count = selectedSeats.length;
@@ -210,9 +163,7 @@ const OperatorBusSeatView = () => {
       bus.fares.length > 0
     ) {
       const specificFare = bus.fares.find(
-        (f) =>
-          f.boardingPoint === selectedBoardingPoint.point &&
-          f.droppingPoint === selectedDroppingPoint.point
+        (f) => f.boardingPoint === selectedBoardingPoint.point && f.droppingPoint === selectedDroppingPoint.point
       );
       if (specificFare?.price) return Number(specificFare.price) * count;
     }
@@ -227,16 +178,11 @@ const OperatorBusSeatView = () => {
         const res = await apiClient.get(`/operator/buses/${busId}`);
         const fetchedBus = res.data;
         setBus(fetchedBus);
-        if (fetchedBus?.boardingPoints?.length)
-          setSelectedBoardingPoint(fetchedBus.boardingPoints[0]);
-        if (fetchedBus?.droppingPoints?.length)
-          setSelectedDroppingPoint(fetchedBus.droppingPoints[0]);
+        if (fetchedBus?.boardingPoints?.length) setSelectedBoardingPoint(fetchedBus.boardingPoints[0]);
+        if (fetchedBus?.droppingPoints?.length) setSelectedDroppingPoint(fetchedBus.droppingPoints[0]);
       } catch (err) {
         if (err?.response?.status === 401) {
-          navigate(
-            "/login?redirect=" + encodeURIComponent(location.pathname),
-            { replace: true, state: { from: location } }
-          );
+          navigate("/login?redirect=" + encodeURIComponent(location.pathname), { replace: true, state: { from: location } });
           return;
         }
         alert("Failed to load bus information.");
@@ -248,37 +194,33 @@ const OperatorBusSeatView = () => {
   }, [busId, navigate, location]);
 
   // Fetch booked seats for the selected date + turn
+  const fetchTakenSeats = async (theDate, theDepartureTime) => {
+    try {
+      const res = await apiClient.get(`/operator/bookings/booked-seats`, {
+        params: { busId, date: theDate, departureTime: theDepartureTime },
+      });
+      const arr = Array.isArray(res.data?.bookedSeats) ? res.data.bookedSeats.map(String) : [];
+      setBookedSeats(arr);
+    } catch (err) {
+      if (err?.response?.status === 401) {
+        navigate("/login?redirect=" + encodeURIComponent(location.pathname), {
+          replace: true,
+          state: { from: location },
+        });
+        return;
+      }
+      setBookedSeats([]);
+      alert("Failed to load booked seats for the selected trip.");
+    }
+  };
+
   useEffect(() => {
     const selectedTurn = scheduledTurns[selectedTurnIndex];
     if (!(date && busId && selectedTurn)) return;
-
     setBookedSeats([]);
-    (async () => {
-      try {
-        const res = await apiClient.get(`/operator/bookings/booked-seats`, {
-          params: {
-            busId,
-            date,
-            departureTime: selectedTurn.departureTime,
-          },
-        });
-        const arr = Array.isArray(res.data?.bookedSeats)
-          ? res.data.bookedSeats.map(String)
-          : [];
-        setBookedSeats(arr);
-      } catch (err) {
-        if (err?.response?.status === 401) {
-          navigate(
-            "/login?redirect=" + encodeURIComponent(location.pathname),
-            { replace: true, state: { from: location } }
-          );
-          return;
-        }
-        setBookedSeats([]);
-        alert("Failed to load booked seats for the selected trip.");
-      }
-    })();
-  }, [busId, date, selectedTurnIndex, scheduledTurns, navigate, location]);
+    fetchTakenSeats(date, selectedTurn.departureTime);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [busId, date, selectedTurnIndex, scheduledTurns]);
 
   const toggleSeat = (seat) => {
     const seatStr = String(seat);
@@ -302,42 +244,47 @@ const OperatorBusSeatView = () => {
       alert("Please select at least one seat.");
       return;
     }
+    if (!selectedBoardingPoint || !selectedDroppingPoint) {
+      alert("Please select boarding and dropping points.");
+      return;
+    }
+    if (!passengerInfo.fullName || !passengerInfo.phone) {
+      alert("Please enter passenger name and phone number.");
+      return;
+    }
 
     try {
-      // compute price using the same logic as preview
-      const totalPrice = previewTotalPrice;
+      setSaving(true);
 
+      // ✅ Align payload with backend controller
       await apiClient.post(`/operator/bookings/manual`, {
         busId,
         date,
-        selectedSeats,
-        passengerInfo,
-        boardingPoint: selectedBoardingPoint,
-        droppingPoint: selectedDroppingPoint,
-        totalPrice,
         departureTime: selectedTurn.departureTime,
-        arrivalTime: selectedTurn.arrivalTime,
+        selectedSeats: selectedSeats.map(String),
+        from: selectedBoardingPoint.point,
+        to: selectedDroppingPoint.point,
+        passengerInfo,
       });
 
       alert("Booking created successfully!");
       setSelectedSeats([]);
       setPassengerInfo({ fullName: "", phone: "", nic: "" });
 
-      const updatedBookedSeats = [...bookedSeats, ...selectedSeats];
-      setBookedSeats(updatedBookedSeats);
+      // Re-fetch from server to include any seats taken in the same second
+      await fetchTakenSeats(date, selectedTurn.departureTime);
     } catch (err) {
       if (err?.response?.status === 401) {
-        navigate(
-          "/login?redirect=" + encodeURIComponent(location.pathname),
-          { replace: true, state: { from: location } }
-        );
+        navigate("/login?redirect=" + encodeURIComponent(location.pathname), {
+          replace: true,
+          state: { from: location },
+        });
         return;
       }
       console.error("Manual booking failed:", err);
-      alert(
-        err?.response?.data?.message ||
-          "An unknown error occurred during booking."
-      );
+      alert(err?.response?.data?.message || "An unknown error occurred during booking.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -346,9 +293,7 @@ const OperatorBusSeatView = () => {
 
   return (
     <div className="p-4 max-w-4xl mx-auto bg-white shadow-lg rounded-lg">
-      <h2 className="text-2xl font-bold text-gray-800 mb-4">
-        Manual Booking for {bus.name}
-      </h2>
+      <h2 className="text-2xl font-bold text-gray-800 mb-4">Manual Booking for {bus.name}</h2>
 
       <DateSelection selectedDate={date} onDateChange={setDate} />
 
@@ -361,9 +306,7 @@ const OperatorBusSeatView = () => {
             <div
               key={index}
               className={`p-3 rounded-lg flex items-center cursor-pointer border-2 ${
-                selectedTurnIndex === index
-                  ? "bg-blue-100 border-blue-500"
-                  : "bg-white border-gray-200"
+                selectedTurnIndex === index ? "bg-blue-100 border-blue-500" : "bg-white border-gray-200"
               }`}
               onClick={() => setSelectedTurnIndex(index)}
             >
@@ -375,9 +318,7 @@ const OperatorBusSeatView = () => {
                 className="h-4 w-4 mr-4 text-blue-600 border-gray-300 focus:ring-blue-500"
               />
               <div className="flex-grow">
-                Departure:{" "}
-                <span className="font-bold">{turn.departureTime || "N/A"}</span>{" "}
-                | Arrival:{" "}
+                Departure: <span className="font-bold">{turn.departureTime || "N/A"}</span> | Arrival:{" "}
                 <span className="font-bold">{turn.arrivalTime || "N/A"}</span>
               </div>
               {turn.isRotating && (
@@ -411,30 +352,24 @@ const OperatorBusSeatView = () => {
             bookedSeats,
             selectedSeats,
             onSeatClick: toggleSeat,
-            // ✅ important: prevent "Cannot read properties of undefined ('1')" when no gender map present
-            bookedSeatGenders: {}, 
+            // ✅ avoid undefined gender map in operator view
+            bookedSeatGenders: {},
           }}
         />
       </div>
 
       <div className="mb-6 p-4 border border-blue-200 rounded-md bg-blue-50 text-blue-800">
-        <p className="text-lg font-medium">
-          Selected Seats: {selectedSeats.join(", ") || "None"}
-        </p>
+        <p className="text-lg font-medium">Selected Seats: {selectedSeats.join(", ") || "None"}</p>
         <p className="text-lg font-medium">Total Price: LKR {previewTotalPrice}.00</p>
       </div>
 
       <div className="mb-6 space-y-4">
-        <h3 className="text-xl font-semibold text-gray-800">
-          Passenger Details
-        </h3>
+        <h3 className="text-xl font-semibold text-gray-800">Passenger Details</h3>
         <input
           type="text"
           placeholder="Passenger Full Name"
           value={passengerInfo.fullName}
-          onChange={(e) =>
-            setPassengerInfo({ ...passengerInfo, fullName: e.target.value })
-          }
+          onChange={(e) => setPassengerInfo({ ...passengerInfo, fullName: e.target.value })}
           className="w-full border p-2 rounded-md"
           required
         />
@@ -442,9 +377,7 @@ const OperatorBusSeatView = () => {
           type="text"
           placeholder="Phone Number"
           value={passengerInfo.phone}
-          onChange={(e) =>
-            setPassengerInfo({ ...passengerInfo, phone: e.target.value })
-          }
+          onChange={(e) => setPassengerInfo({ ...passengerInfo, phone: e.target.value })}
           className="w-full border p-2 rounded-md"
           required
         />
@@ -452,18 +385,17 @@ const OperatorBusSeatView = () => {
           type="text"
           placeholder="NIC (Optional)"
           value={passengerInfo.nic}
-          onChange={(e) =>
-            setPassengerInfo({ ...passengerInfo, nic: e.target.value })
-          }
+          onChange={(e) => setPassengerInfo({ ...passengerInfo, nic: e.target.value })}
           className="w-full border p-2 rounded-md"
         />
       </div>
 
       <button
         onClick={handleManualBooking}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-md shadow-lg"
+        disabled={saving || selectedSeats.length === 0}
+        className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold px-6 py-3 rounded-md shadow-lg"
       >
-        Confirm Manual Booking
+        {saving ? "Saving…" : "Confirm Manual Booking"}
       </button>
     </div>
   );
