@@ -1,10 +1,20 @@
+// src/pages/EditBus.jsx
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { useNavigate, useParams } from "react-router-dom";
+import apiClient from "../api";
 import SeatLayoutSelector from "../components/SeatLayoutSelector";
 import PointManager from "../components/PointManager";
 import PriceMatrix from "../components/PriceMatrix";
 import RotatedPointManager from "../components/RotatedPointManager"; // Make sure this is imported
+
+// small helper to sanitize [{time, point}] arrays
+const cleanPoints = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map(({ time, point }) => ({
+      time: String(time || "").trim(),
+      point: String(point || "").trim(),
+    }))
+    .filter((r) => r.time && r.point);
 
 const EditBus = () => {
   const { busId } = useParams();
@@ -54,15 +64,11 @@ const EditBus = () => {
   useEffect(() => {
     const fetchBus = async () => {
       try {
-        const res = await axios.get(
-          `http://localhost:5000/api/buses/${busId}`,
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
+        const res = await apiClient.get(`/buses/${busId}`, {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
         const bus = res.data;
+
         const formattedDate = bus.date ? bus.date.split("T")[0] : "";
         const formattedExpiry = bus.trendingOffer?.expiry
           ? bus.trendingOffer.expiry.split("T")[0]
@@ -80,15 +86,16 @@ const EditBus = () => {
           operator: bus.operator?._id || bus.operator || "",
           features: bus.features || { wifi: false, chargingPort: false },
           trendingOffer: {
-            isActive: bus.trendingOffer?.isActive || false,
-            discountPercent: bus.trendingOffer?.discountPercent || 0,
-            message: bus.trendingOffer?.message || "",
+            isActive: bus.trendingOffer?.isActive ?? false,
+            discountPercent: bus.trendingOffer?.discountPercent ?? 0,
+            message: bus.trendingOffer?.message ?? "",
             expiry: formattedExpiry,
           },
-          convenienceFee: bus.convenienceFee || {
-            amountType: "fixed",
-            value: 0,
-          },
+          convenienceFee:
+            bus.convenienceFee || {
+              amountType: "fixed",
+              value: 0,
+            },
           rotationSchedule: bus.rotationSchedule
             ? {
                 ...bus.rotationSchedule,
@@ -125,15 +132,11 @@ const EditBus = () => {
 
     const fetchOperators = async () => {
       try {
-        const res = await axios.get(
-          "http://localhost:5000/api/users/operators",
-          {
-            headers: {
-              Authorization: `Bearer ${localStorage.getItem("token")}`,
-            },
-          }
-        );
-        setOperators(res.data);
+        // Matches AddBus.jsx endpoint
+        const res = await apiClient.get("/admin/operators", {
+          headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        });
+        setOperators(res.data || []);
       } catch (err) {
         console.error("Failed to load operators:", err);
       }
@@ -207,10 +210,10 @@ const EditBus = () => {
 
   /**
    * Universal handler for updating any field within a rotation interval turn.
-   * This includes departure/arrival times and now also boarding/dropping points.
+   * This includes departure/arrival times and boarding/dropping points.
    */
   const handleIntervalChange = (dayOffset, turnIndex, field, value) => {
-    const intervals = [...form.rotationSchedule.intervals];
+    const intervals = [...(form.rotationSchedule.intervals || [])];
     let dayEntry = intervals.find((i) => i.dayOffset === dayOffset);
 
     // If the day doesn't exist in the intervals array, create it.
@@ -248,12 +251,12 @@ const EditBus = () => {
       form.rotationSchedule.intervals.find((i) => i.dayOffset === dayOffset)
         ?.turns || [];
     const newTurnIndex = turns.length;
-    // Add a new turn by setting a default field
+    // Add a new turn by setting a default field (and the handler will init arrays)
     handleIntervalChange(dayOffset, newTurnIndex, "departureTime", "");
   };
 
   const removeDayTurn = (dayOffset, turnIndex) => {
-    const intervals = [...form.rotationSchedule.intervals];
+    const intervals = [...(form.rotationSchedule.intervals || [])];
     const dayEntry = intervals.find((i) => i.dayOffset === dayOffset);
     if (dayEntry && dayEntry.turns) {
       dayEntry.turns.splice(turnIndex, 1);
@@ -276,6 +279,7 @@ const EditBus = () => {
   // --- Form Submission ---
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     const seatArray = (form.seatLayout || "")
       .split(",")
       .map((s) => s.trim().toUpperCase())
@@ -290,9 +294,13 @@ const EditBus = () => {
       ...form,
       seatLayout: seatArray,
       unavailableDates: unavailableArray,
-      // For non-rotating buses, send the top-level points
-      boardingPoints: !form.rotationSchedule.isRotating ? boardingPoints : [],
-      droppingPoints: !form.rotationSchedule.isRotating ? droppingPoints : [],
+      // For non-rotating buses, send the top-level points & fares; otherwise keep them empty
+      boardingPoints: !form.rotationSchedule.isRotating
+        ? cleanPoints(boardingPoints)
+        : [],
+      droppingPoints: !form.rotationSchedule.isRotating
+        ? cleanPoints(droppingPoints)
+        : [],
       fares: !form.rotationSchedule.isRotating ? fares : [],
       rotationSchedule: {
         ...form.rotationSchedule,
@@ -307,8 +315,8 @@ const EditBus = () => {
               turns: (i.turns || []).map((t) => ({
                 departureTime: t.departureTime || "",
                 arrivalTime: t.arrivalTime || "",
-                boardingPoints: t.boardingPoints || [],
-                droppingPoints: t.droppingPoints || [],
+                boardingPoints: cleanPoints(t.boardingPoints),
+                droppingPoints: cleanPoints(t.droppingPoints),
               })),
             }))
           : [],
@@ -316,7 +324,7 @@ const EditBus = () => {
     };
 
     try {
-      await axios.put(`http://localhost:5000/api/buses/${busId}`, payload, {
+      await apiClient.put(`/buses/${busId}`, payload, {
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
       alert("✅ Bus updated successfully!");
@@ -343,7 +351,6 @@ const EditBus = () => {
             Bus Information
           </legend>
           <div className="space-y-4 mt-2">
-            {/* Name, Operator, Logo, Type inputs remain the same */}
             <div>
               <label
                 htmlFor="name"
@@ -417,6 +424,7 @@ const EditBus = () => {
                 <option value="Sleeper">Sleeper</option>
               </select>
             </div>
+
             <SeatLayoutSelector
               selectedLayout={form.seatLayout}
               onLayoutChange={handleLayoutChange}
@@ -430,7 +438,6 @@ const EditBus = () => {
             Pricing
           </legend>
           <div className="space-y-4 mt-2">
-            {/* Default Price and Convenience Fee inputs remain the same */}
             <div>
               <label
                 htmlFor="price"
@@ -494,7 +501,6 @@ const EditBus = () => {
                 Route & Schedule
               </legend>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                {/* From, To, Date, Times inputs remain the same */}
                 <div>
                   <label
                     htmlFor="from"
@@ -615,7 +621,6 @@ const EditBus = () => {
             Availability & Features
           </legend>
           <div className="space-y-4 mt-2">
-            {/* Unavailable Dates and Features inputs remain the same */}
             <div>
               <label
                 htmlFor="unavailableDates"
@@ -695,7 +700,6 @@ const EditBus = () => {
             Trending Offer
           </legend>
           <div className="space-y-4 mt-2">
-            {/* Trending Offer inputs remain the same */}
             <div className="flex items-center">
               <input
                 id="isActive"
@@ -881,7 +885,7 @@ const EditBus = () => {
                           </div>
                         </div>
 
-                        {/* UPDATED: Rotated Point Manager Integration */}
+                        {/* Rotated Point Manager Integration */}
                         <div className="mt-4">
                           <RotatedPointManager
                             label="Boarding Points"
