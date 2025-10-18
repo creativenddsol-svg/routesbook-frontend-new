@@ -4,14 +4,13 @@ import axios from "axios";
 /** Resolve API base URL (Vite → CRA → fallback) */
 const fromVite = (() => {
   try {
-    // Works only when bundled by Vite
     return import.meta?.env?.VITE_API_BASE_URL || null;
   } catch {
     return null;
   }
 })();
 
-const API_BASE_URL =
+export const API_BASE_URL =
   fromVite ||
   (typeof process !== "undefined" &&
     process.env &&
@@ -48,7 +47,7 @@ export const toImgURL = (p) => {
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   withCredentials: true,
-  timeout: 20000, // 20s safety
+  timeout: 20000,
 });
 
 /** Persistent anonymous client id (no globalThis usage) */
@@ -85,7 +84,25 @@ export const getClientId = () => {
   }
 };
 
-/** Interceptors */
+/** Helpers for interceptors */
+const isFormData = (v) =>
+  typeof FormData !== "undefined" && v instanceof FormData;
+
+const extractPath = (configUrl) => {
+  try {
+    const full = new URL(configUrl, API_BASE_URL);
+    return full.pathname.toLowerCase();
+  } catch {
+    // Fallback if URL parsing fails
+    const rawUrl = String(configUrl || "").toLowerCase();
+    const baseLower = API_BASE_URL.toLowerCase();
+    let path = rawUrl.startsWith(baseLower) ? rawUrl.slice(baseLower.length) : rawUrl;
+    if (!path.startsWith("/")) path = `/${path}`;
+    return path;
+  }
+};
+
+/** Interceptors: request 1/2 */
 apiClient.interceptors.request.use(
   (config) => {
     // Auth
@@ -96,27 +113,22 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Ensure JSON content-type on non-GET if missing
     const method = (config.method || "get").toLowerCase();
-    if (method !== "get") {
+
+    // Ensure JSON content-type on non-GET if missing (but skip FormData)
+    if (method !== "get" && !isFormData(config.data)) {
       config.headers = config.headers || {};
       if (!config.headers["Content-Type"]) {
         config.headers["Content-Type"] = "application/json";
       }
     }
 
-    // Add clientId ONLY in payload/params for the lock & booking APIs (no custom header)
+    // Add clientId ONLY in payload/params for lock/release/booking APIs
     const clientId = getClientId();
-
-    // Normalize URL for matching (strip base if axios was given an absolute URL)
-    const rawUrl = (config.url || "").toLowerCase();
-    const baseLower = API_BASE_URL.toLowerCase();
-    let path = rawUrl.startsWith(baseLower)
-      ? rawUrl.slice(baseLower.length)
-      : rawUrl;
-    if (!path.startsWith("/")) path = `/${path}`;
+    const path = extractPath(config.url);
 
     const addToData = () => {
+      if (isFormData(config.data)) return; // don't mutate FormData
       if (config.data && typeof config.data === "object") {
         if (!("clientId" in config.data)) config.data.clientId = clientId;
       } else {
@@ -140,8 +152,7 @@ apiClient.interceptors.request.use(
       addToParams();
     }
 
-    // Ensure clientId is also sent when creating the booking
-    // Matches POST /bookings and POST /bookings/... (but not the lock/release endpoints already handled)
+    // Ensure clientId is also sent when creating bookings (excludes lock/release)
     if (
       method === "post" &&
       /(^|\/)bookings(\/|$)/.test(path) &&
@@ -156,15 +167,15 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/* 2nd request interceptor: CORS-safe guard — never send x-client-id as a header; keep Accept */
+/** Interceptors: request 2/2 — CORS-safe headers */
 apiClient.interceptors.request.use(
   (config) => {
     try {
-      // Remove any x-client-id header injected elsewhere (CORS preflight will fail otherwise)
       if (config && config.headers) {
         const h = config.headers;
         const del = (k) =>
           typeof h.delete === "function" ? h.delete(k) : delete h[k];
+        // never send custom x-client-id-like headers
         del("x-client-id");
         del("X-Client-Id");
         del("xClientId");
@@ -198,6 +209,7 @@ const rejectWaiters = (err) => {
   refreshWaiters = [];
 };
 
+/** Interceptors: response 1/2 — 401 refresh flow */
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -210,7 +222,6 @@ apiClient.interceptors.response.use(
         const full = new URL(original?.url || "", API_BASE_URL).toString();
         return full.startsWith(API_BASE_URL);
       } catch {
-        // Fallback if URL parsing fails: best-effort string check
         return String(original?.url || "").startsWith(API_BASE_URL);
       }
     })();
@@ -237,7 +248,7 @@ apiClient.interceptors.response.use(
       } catch (e) {
         isRefreshing = false;
         rejectWaiters(e);
-        // Optional: clear volatile tokens if you want a clean state
+        // Optional: clear volatile tokens if desired
         // localStorage.removeItem("token");
         // localStorage.removeItem("authToken");
         throw e;
@@ -245,6 +256,24 @@ apiClient.interceptors.response.use(
     }
 
     throw error;
+  }
+);
+
+/** Interceptors: response 2/2 — gentle retry for 429/5xx */
+apiClient.interceptors.response.use(
+  (r) => r,
+  async (err) => {
+    const { response, config } = err || {};
+    const status = response?.status;
+    const retriable = [429, 502, 503, 504].includes(status);
+    if (!retriable || !config || config._retried) throw err;
+
+    config._retried = true;
+    const retryAfterHeader = response?.headers?.["retry-after"];
+    const retryAfterMs =
+      (retryAfterHeader ? Number(retryAfterHeader) * 1000 : null) || 800; // ~0.8s fallback
+    await new Promise((res) => setTimeout(res, retryAfterMs));
+    return apiClient(config);
   }
 );
 
