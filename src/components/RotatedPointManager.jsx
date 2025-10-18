@@ -1,64 +1,69 @@
 import React from "react";
 
-const RotatedPointManager = ({ label, points = [], onChange }) => {
-  // This function now correctly uses the 'onChange' prop
+const ensure = (v) => (Array.isArray(v) ? v : []);
+
+export default function RotatedPointManager({ label, points = [], onChange }) {
+  const safeOnChange = (next) => (onChange ? onChange(ensure(next)) : void 0);
+  const list = ensure(points);
+
   const handleChange = (index, field, value) => {
-    const updated = [...points];
-    updated[index] = { ...updated[index], [field]: value };
-    onChange(updated);
+    const updated = [...list];
+    const row = { ...(updated[index] || { time: "", point: "" }) };
+    // trim only for point; keep raw time input format
+    updated[index] = { ...row, [field]: field === "point" ? value.trimStart() : value };
+    safeOnChange(updated);
   };
 
-  // This function now correctly uses the 'onChange' prop
-  const addPoint = () => {
-    onChange([...points, { time: "", point: "" }]);
-  };
+  const addPoint = () => safeOnChange([...list, { time: "", point: "" }]);
 
-  // This function now correctly uses the 'onChange' prop
   const removePoint = (index) => {
-    const updated = [...points];
+    const updated = [...list];
     updated.splice(index, 1);
-    onChange(updated);
+    safeOnChange(updated);
   };
+
+  const rows = list.length ? list : [{ time: "", point: "" }];
 
   return (
     <div className="mt-2 space-y-2">
-      {/* Use the 'label' prop for the title */}
       <p className="font-semibold text-sm text-gray-700">{label}</p>
-      {(points || []).map((p, idx) => (
+
+      {rows.map((p, idx) => (
         <div key={idx} className="flex gap-2 items-center">
           <input
             type="time"
-            value={p.time}
+            value={p.time || ""}
             onChange={(e) => handleChange(idx, "time", e.target.value)}
-            className="border border-gray-300 px-2 py-1 rounded-md w-1/3"
-            required
+            className="border border-gray-300 px-2 py-1 rounded-md w-28"
+            aria-label={`${label} time`}
           />
           <input
             type="text"
-            value={p.point}
+            value={p.point || ""}
             onChange={(e) => handleChange(idx, "point", e.target.value)}
             className="border border-gray-300 px-2 py-1 rounded-md flex-1"
             placeholder={`Enter ${label} location`}
-            required
+            aria-label={`${label} location`}
           />
-          <button
-            type="button"
-            className="text-red-500 hover:text-red-700 text-sm"
-            onClick={() => removePoint(idx)}
-          >
-            Remove
-          </button>
+          {list.length > 0 && (
+            <button
+              type="button"
+              className="text-red-500 hover:text-red-700 text-sm"
+              onClick={() => removePoint(idx)}
+            >
+              Remove
+            </button>
+          )}
         </div>
       ))}
+
       <button
         type="button"
         className="text-blue-600 hover:underline text-sm"
         onClick={addPoint}
       >
-        {/* Use the 'label' prop for the button text */}+ Add {label}
+        + Add {label}
       </button>
     </div>
   );
-};
-
-export default RotatedPointManager;
+}
