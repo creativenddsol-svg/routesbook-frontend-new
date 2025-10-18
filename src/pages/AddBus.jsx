@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 import SeatLayoutSelector from "../components/SeatLayoutSelector";
 import PointManager from "../components/PointManager";
 import PriceMatrix from "../components/PriceMatrix";
+import RotatedPointManager from "../components/RotatedPointManager"; // ✅ NEW
 
 // Helper function to get today's date in YYYY-MM-DD format
 const getTodayDate = () => {
@@ -28,6 +29,15 @@ const readFileAsDataURL = (file) =>
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+
+// ✅ NEW: sanitize [{time, point}]
+const cleanPoints = (arr) =>
+  (Array.isArray(arr) ? arr : [])
+    .map(({ time, point }) => ({
+      time: String(time || "").trim(),
+      point: String(point || "").trim(),
+    }))
+    .filter((r) => r.time && r.point);
 
 const AddBus = () => {
   const navigate = useNavigate();
@@ -184,12 +194,12 @@ const AddBus = () => {
       if (dayEntry) {
         dayEntry.turns = [
           ...(dayEntry.turns || []),
-          { departureTime: "", arrivalTime: "" },
+          { departureTime: "", arrivalTime: "", boardingPoints: [], droppingPoints: [] }, // ✅ NEW arrays
         ];
       } else {
         intervals.push({
           dayOffset,
-          turns: [{ departureTime: "", arrivalTime: "" }],
+          turns: [{ departureTime: "", arrivalTime: "", boardingPoints: [], droppingPoints: [] }], // ✅ NEW arrays
         });
         intervals.sort((a, b) => a.dayOffset - b.dayOffset);
       }
@@ -289,13 +299,13 @@ const AddBus = () => {
           .filter((d) => d)
       : [];
 
-    // --- START: payload processing for rotation (unchanged) ---
+    // --- START: payload processing for rotation (unchanged shape, now includes per-turn points) ---
     const payload = {
       ...form,
       seatLayout: seatArray,
       unavailableDates: unavailableArray,
-      boardingPoints,
-      droppingPoints,
+      boardingPoints, // keep global as-is (you already use this elsewhere)
+      droppingPoints, // keep global as-is
       fares,
       rotationSchedule: {
         ...form.rotationSchedule,
@@ -308,6 +318,9 @@ const AddBus = () => {
               turns: (i.turns || []).map((t) => ({
                 departureTime: t.departureTime,
                 arrivalTime: t.arrivalTime,
+                // ✅ NEW: include per-turn points (cleaned)
+                boardingPoints: cleanPoints(t.boardingPoints),
+                droppingPoints: cleanPoints(t.droppingPoints),
               })),
             }))
           : [],
@@ -339,7 +352,7 @@ const AddBus = () => {
         ? `Rs. ${Number(form.price).toLocaleString()}`
         : "Price not set",
       available: form.isAvailable,
-    }),
+    })),
     [form]
   );
 
@@ -959,58 +972,94 @@ const AddBus = () => {
                         form.rotationSchedule.intervals.find(
                           (i) => i.dayOffset === dayOffset
                         )?.turns || []
-                      ).map((turn, tIndex) => (
-                        <div
-                          key={tIndex}
-                          className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end mb-2"
-                        >
-                          <div className="sm:col-span-2">
-                            <label className="text-xs text-gray-600">
-                              Departure
-                            </label>
-                            <input
-                              type="time"
-                              value={turn.departureTime}
-                              onChange={(e) =>
-                                handleIntervalChange(
-                                  dayOffset,
-                                  tIndex,
-                                  "departureTime",
-                                  e.target.value
-                                )
+                      ).map((turn, tIndex) => {
+                        // helper to patch only this turn via existing handler
+                        const setTurnPatch = (patch) => {
+                          Object.entries(patch).forEach(([field, value]) => {
+                            handleIntervalChange(
+                              dayOffset,
+                              tIndex,
+                              field,
+                              value
+                            );
+                          });
+                        };
+
+                        return (
+                          <div
+                            key={tIndex}
+                            className="rounded-md border border-gray-200 p-3 mb-3 space-y-3"
+                          >
+                            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
+                              <div className="sm:col-span-2">
+                                <label className="text-xs text-gray-600">
+                                  Departure
+                                </label>
+                                <input
+                                  type="time"
+                                  value={turn.departureTime}
+                                  onChange={(e) =>
+                                    handleIntervalChange(
+                                      dayOffset,
+                                      tIndex,
+                                      "departureTime",
+                                      e.target.value
+                                    )
+                                  }
+                                  className={INPUT}
+                                />
+                              </div>
+                              <div className="sm:col-span-2">
+                                <label className="text-xs text-gray-600">
+                                  Arrival
+                                </label>
+                                <input
+                                  type="time"
+                                  value={turn.arrivalTime}
+                                  onChange={(e) =>
+                                    handleIntervalChange(
+                                      dayOffset,
+                                      tIndex,
+                                      "arrivalTime",
+                                      e.target.value
+                                    )
+                                  }
+                                  className={INPUT}
+                                />
+                              </div>
+                              <div className="sm:col-span-1">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeDayTurn(dayOffset, tIndex)
+                                  }
+                                  className="w-full text-red-600 text-sm border border-red-200 rounded-md px-3 py-2 hover:bg-red-50"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* ✅ Per-turn boarding points */}
+                            <RotatedPointManager
+                              label="Boarding point"
+                              points={turn.boardingPoints || []}
+                              onChange={(next) =>
+                                setTurnPatch({ boardingPoints: next })
                               }
-                              className={INPUT}
+                            />
+
+                            {/* ✅ Per-turn dropping points */}
+                            <RotatedPointManager
+                              label="Dropping point"
+                              points={turn.droppingPoints || []}
+                              onChange={(next) =>
+                                setTurnPatch({ droppingPoints: next })
+                              }
                             />
                           </div>
-                          <div className="sm:col-span-2">
-                            <label className="text-xs text-gray-600">
-                              Arrival
-                            </label>
-                            <input
-                              type="time"
-                              value={turn.arrivalTime}
-                              onChange={(e) =>
-                                handleIntervalChange(
-                                  dayOffset,
-                                  tIndex,
-                                  "arrivalTime",
-                                  e.target.value
-                                )
-                              }
-                              className={INPUT}
-                            />
-                          </div>
-                          <div className="sm:col-span-1">
-                            <button
-                              type="button"
-                              onClick={() => removeDayTurn(dayOffset, tIndex)}
-                              className="w-full text-red-600 text-sm border border-red-200 rounded-md px-3 py-2 hover:bg-red-50"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ))}
                 </div>
