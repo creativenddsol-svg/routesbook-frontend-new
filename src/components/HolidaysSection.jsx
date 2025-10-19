@@ -198,7 +198,13 @@ const HolidaysSection = () => {
         <div className={`${DESKTOP_CONTAINER}`}>
           <div className="grid grid-cols-5 gap-4">
             {items.slice(0, 5).map((h) => (
-              <HolidayChipCard key={h._id} holiday={h} />
+              <div key={h._id} className="relative group rounded-2xl overflow-hidden">
+                <HolidayChipCard holiday={h} />
+                {/* 🌟 Subtle shimmer overlay */}
+                <span className="pointer-events-none absolute inset-0">
+                  <span className="rb-shine-bar" />
+                </span>
+              </div>
             ))}
           </div>
         </div>
@@ -215,11 +221,15 @@ const HolidaysSection = () => {
           {items.map((h, index) => (
             <div
               key={h._id}
-              className={`w-[220px] flex-shrink-0 snap-start ${
-                index === items.length - 1 ? "pr-4" : ""
-              }`}
+              className={`w-[220px] flex-shrink-0 snap-start ${index === items.length - 1 ? "pr-4" : ""}`}
             >
-              <HolidayChipCard holiday={h} />
+              <div className="relative group rounded-2xl overflow-hidden">
+                <HolidayChipCard holiday={h} />
+                {/* 🌟 Subtle shimmer overlay */}
+                <span className="pointer-events-none absolute inset-0">
+                  <span className="rb-shine-bar" />
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -232,10 +242,41 @@ const HolidaysSection = () => {
         </div>
       </div>
 
-      {/* Hide scrollbar utility */}
+      {/* Hide scrollbar utility + shimmer animation */}
       <style>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* ===== Subtle Shimmer Overlay (match NoticesSection style) ===== */
+        .rb-shine-bar {
+          position: absolute;
+          top: -25%;
+          left: -130%;
+          height: 150%;
+          width: 26%;
+          transform: skewX(-18deg);
+          background: linear-gradient(
+            90deg,
+            rgba(255,255,255,0) 0%,
+            rgba(255,255,255,0.32) 48%,
+            rgba(255,255,255,0) 100%
+          );
+          mix-blend-mode: soft-light;
+          opacity: .16;
+          animation: rb-shine-move 5.2s ease-in-out infinite;
+        }
+        .group:hover .rb-shine-bar {
+          opacity: .28;
+          animation-duration: 3.6s;
+        }
+        @keyframes rb-shine-move {
+          0%   { left: -130%; }
+          100% { left: 150%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .rb-shine-bar { animation: none; opacity: 0; }
+          .group:hover .rb-shine-bar { opacity: .15; }
+        }
       `}</style>
     </section>
   );
