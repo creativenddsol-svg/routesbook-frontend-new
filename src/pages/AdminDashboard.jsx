@@ -96,6 +96,13 @@ const AdminDashboard = () => (
             title="What’s New"
             description="Curate cards for the What's New row."
           />
+          {/* ✅ Holidays management */}
+          <DashboardCard
+            to="/admin/holidays"
+            icon={<Icon>📆</Icon>}
+            title="Holidays"
+            description="Manage public holidays shown on Home."
+          />
         </div>
 
         {/* --- Operator Management Section --- */}
