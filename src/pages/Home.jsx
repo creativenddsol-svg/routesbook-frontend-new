@@ -1,4 +1,3 @@
-// src/pages/Home.jsx
 import axios from "axios";
 
 import { useNavigate } from "react-router-dom";
@@ -507,7 +506,7 @@ const MobileCalendarSheet = ({
             </button>
           </div>
 
-          <button
+        <button
             onClick={onClose}
             className="text-xs px-3 py-1.5 rounded-lg border text-gray-600"
           >
@@ -567,6 +566,15 @@ const CustomMenu = (menuKey) => {
 
     return (
       <components.Menu {...props}>
+        {/* ===== 1) Suggested cities (typeahead results) FIRST ===== */}
+        <div className="px-3 pt-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+            Suggested Cities
+          </div>
+        </div>
+        <components.MenuList {...props}>{props.children}</components.MenuList>
+
+        {/* ===== 2) Recent searches ===== */}
         <div className="px-3 pt-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-2">
             <FaClock className="opacity-70" />
@@ -594,6 +602,7 @@ const CustomMenu = (menuKey) => {
           )}
         </div>
 
+        {/* ===== 3) Popular cities LAST ===== */}
         <div className="px-3 pb-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
             Popular Cities
@@ -616,8 +625,6 @@ const CustomMenu = (menuKey) => {
             ))}
           </div>
         </div>
-
-        <components.MenuList {...props}>{props.children}</components.MenuList>
       </components.Menu>
     );
   };
