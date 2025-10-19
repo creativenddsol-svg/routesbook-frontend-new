@@ -108,7 +108,6 @@ const HolidaysSection = () => {
   const updateActiveIndex = useCallback(() => {
     const el = railRef.current;
     if (!el || items.length === 0) return;
-
     const cardWidth = el.firstChild?.offsetWidth || 220; // 220px + 16 gap
     const gap = 16;
     const cardScrollWidth = cardWidth + gap;
@@ -120,13 +119,9 @@ const HolidaysSection = () => {
     (index) => {
       const el = railRef.current;
       if (!el || items.length === 0 || index < 0 || index >= items.length) return;
-
       const cardWidth = el.firstChild?.offsetWidth || 220;
       const gap = 16;
-      el.scrollTo({
-        left: index * (cardWidth + gap),
-        behavior: "smooth",
-      });
+      el.scrollTo({ left: index * (cardWidth + gap), behavior: "smooth" });
       setActiveIndex(index);
       setTimeout(updateActiveIndex, 350);
     },
@@ -193,15 +188,15 @@ const HolidaysSection = () => {
         </Link>
       </div>
 
-      {/* ---------- Desktop: fixed 5-card grid aligned with search width ---------- */}
+      {/* ---------- Desktop: fixed 5-card grid ---------- */}
       <div className="hidden lg:block">
         <div className={`${DESKTOP_CONTAINER}`}>
           <div className="grid grid-cols-5 gap-4">
             {items.slice(0, 5).map((h) => (
               <div key={h._id} className="relative group rounded-2xl overflow-hidden">
                 <HolidayChipCard holiday={h} />
-                {/* 🌟 Subtle shimmer overlay */}
-                <span className="pointer-events-none absolute inset-0">
+                {/* 🌟 Shimmer overlay */}
+                <span className="rb-shine-wrap pointer-events-none absolute inset-0 z-10 rounded-2xl overflow-hidden">
                   <span className="rb-shine-bar" />
                 </span>
               </div>
@@ -225,8 +220,8 @@ const HolidaysSection = () => {
             >
               <div className="relative group rounded-2xl overflow-hidden">
                 <HolidayChipCard holiday={h} />
-                {/* 🌟 Subtle shimmer overlay */}
-                <span className="pointer-events-none absolute inset-0">
+                {/* 🌟 Shimmer overlay */}
+                <span className="rb-shine-wrap pointer-events-none absolute inset-0 z-10 rounded-2xl overflow-hidden">
                   <span className="rb-shine-bar" />
                 </span>
               </div>
@@ -247,35 +242,40 @@ const HolidaysSection = () => {
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* ===== Subtle Shimmer Overlay (match NoticesSection style) ===== */
+        /* ===== Stronger, always-visible shimmer =====
+           Works well on very light pastel backgrounds.
+           Inherits rounded corners via wrapper.
+        */
+        .rb-shine-wrap { isolation: isolate; } /* create a stacking context */
+
         .rb-shine-bar {
           position: absolute;
-          top: -25%;
+          top: -40%;
           left: -130%;
-          height: 150%;
-          width: 26%;
-          transform: skewX(-18deg);
+          height: 180%;
+          width: 55%;
+          transform: rotate(18deg);
           background: linear-gradient(
             90deg,
             rgba(255,255,255,0) 0%,
-            rgba(255,255,255,0.32) 48%,
+            rgba(255,255,255,0.75) 50%,
             rgba(255,255,255,0) 100%
           );
-          mix-blend-mode: soft-light;
-          opacity: .16;
-          animation: rb-shine-move 5.2s ease-in-out infinite;
+          filter: blur(1px);
+          opacity: .30;                 /* more visible on light chips */
+          animation: rb-shine-move 2.8s linear infinite;
+          z-index: 1;
         }
         .group:hover .rb-shine-bar {
-          opacity: .28;
-          animation-duration: 3.6s;
+          opacity: .45;
+          animation-duration: 2.2s;
         }
         @keyframes rb-shine-move {
           0%   { left: -130%; }
-          100% { left: 150%; }
+          100% { left: 145%; }
         }
         @media (prefers-reduced-motion: reduce) {
-          .rb-shine-bar { animation: none; opacity: 0; }
-          .group:hover .rb-shine-bar { opacity: .15; }
+          .rb-shine-bar { animation: none; opacity: .18; }
         }
       `}</style>
     </section>
