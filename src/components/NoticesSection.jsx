@@ -1,4 +1,3 @@
-// src/components/NoticesSection.jsx
 import React, {
   useEffect,
   useRef,
@@ -13,10 +12,13 @@ import { Link } from "react-router-dom";
 // Define a constant for consistent mobile/desktop horizontal padding
 const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8"; 
 
+// ✅ Use the SAME container as the Home.jsx search bar section
+const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
+
 // Helper component for the navigation dots
 const Dots = ({ count, activeIndex, goToIndex }) => {
   return (
-    <div className="flex justify-center mt-4 space-x-2">
+    <div className="flex justify-center mt-4 space-x-2 lg:hidden">
       {[...Array(count)].map((_, index) => (
         <button
           key={index}
@@ -37,7 +39,6 @@ const Dots = ({ count, activeIndex, goToIndex }) => {
 const Skeleton = () => (
   <div className="w-[300px] h-48 bg-gray-200 rounded-xl animate-pulse flex-shrink-0" />
 );
-
 
 const NoticesSection = () => {
   const [items, setItems] = useState([]);
@@ -104,23 +105,34 @@ const NoticesSection = () => {
     }
   }, [items, updateActiveIndex]);
 
-
   if (loading) {
     return (
-      <section className="w-full max-w-7xl mx-auto py-8 sm:py-12">
-        <div className={`flex items-center justify-between mb-4 sm:mb-6 ${CONTAINER_MARGIN_X}`}>
+      <section className="w-full py-8 sm:py-12">
+        <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
           {/* ✅ FIX: Final title name and reduced boldness (font-semibold) */}
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
             Deals and Offers
           </h2>
         </div>
         
-        <div className="w-full overflow-hidden">
-            <div className="flex gap-4 overflow-x-auto pl-4">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton key={i} />
+        {/* Mobile skeleton rail */}
+        <div className="lg:hidden w-full overflow-hidden">
+          <div className="flex gap-4 overflow-x-auto pl-4">
+            {[...Array(4)].map((_, i) => (
+              <Skeleton key={i} />
+            ))}
+          </div>
+        </div>
+
+        {/* Desktop skeleton grid to match 5-up */}
+        <div className="hidden lg:block">
+          <div className={`${DESKTOP_CONTAINER}`}>
+            <div className="grid grid-cols-5 gap-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-48 bg-gray-200 rounded-xl animate-pulse" />
               ))}
             </div>
+          </div>
         </div>
       </section>
     );
@@ -128,10 +140,9 @@ const NoticesSection = () => {
   if (err || !Array.isArray(items) || items.length === 0) return null;
 
   return (
-    <section className="w-full max-w-7xl mx-auto py-8 sm:py-12">
-      
+    <section className="w-full py-8 sm:py-12">
       {/* Header (aligned with screen edge padding) */}
-      <div className={`flex items-center justify-between mb-4 sm:mb-6 ${CONTAINER_MARGIN_X}`}>
+      <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
         {/* ✅ FIX: Final title name and reduced boldness (font-semibold) */}
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
           Deals and Offers
@@ -144,8 +155,21 @@ const NoticesSection = () => {
         </Link>
       </div>
 
-      {/* Rail Container */}
-      <div className="w-full overflow-hidden">
+      {/* ---------- Desktop: fixed 5-card grid aligned with search width ---------- */}
+      <div className="hidden lg:block">
+        <div className={`${DESKTOP_CONTAINER}`}>
+          <div className="grid grid-cols-5 gap-4">
+            {items.slice(0, 5).map((n) => (
+              <div key={n._id} className="rounded-xl overflow-hidden">
+                <NoticeCard notice={n} linkTo="/notices" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* ---------- Mobile/Tablet: original horizontal rail ---------- */}
+      <div className="lg:hidden w-full overflow-hidden">
         {/* Horizontal scroll rail */}
         <div
           ref={railRef}
@@ -164,17 +188,17 @@ const NoticesSection = () => {
             </div>
           ))}
         </div>
-      </div>
-      
-      {/* Tiny Navigation Dots */}
-      <div className={`${CONTAINER_MARGIN_X}`}>
-        {items.length > 1 && (
+
+        {/* Tiny Navigation Dots */}
+        <div className={`${CONTAINER_MARGIN_X}`}>
+          {items.length > 1 && (
             <Dots 
-                count={items.length} 
-                activeIndex={activeIndex} 
-                goToIndex={scrollToCard} 
+              count={items.length} 
+              activeIndex={activeIndex} 
+              goToIndex={scrollToCard} 
             />
-        )}
+          )}
+        </div>
       </div>
 
       {/* Hide scrollbar */}
