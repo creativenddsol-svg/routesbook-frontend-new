@@ -93,7 +93,7 @@ const CalendarPopover = ({
 }) => {
   const popRef = useRef(null);
   const today = new Date();
-  theMinDate = minDateString ? parseYMD(minDateString) : today;
+  const minDate = minDateString ? parseYMD(minDateString) : today;
   const selected = value ? parseYMD(value) : null;
 
   const [viewMonth, setViewMonth] = useState(
@@ -147,7 +147,7 @@ const CalendarPopover = ({
   });
 
   const isDisabled = (d) =>
-    d < new Date(new Date().toDateString()) || d < theMinDate;
+    d < new Date(new Date().toDateString()) || d < minDate;
 
   const selectDay = (d) => {
     if (isDisabled(d)) return;
@@ -911,7 +911,9 @@ const Home = () => {
       toast.error("Please fill all fields before searching");
       return;
     }
-    navigate(`/search-results?from=${from}&to=${to}&date=${dateToSearch}`);
+    navigate(
+      `/search-results?from=${from}&to=${to}&date=${dateToSearch}`
+    );
   };
 
   const swapLocations = () => {
@@ -1066,7 +1068,7 @@ const Home = () => {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="bg-white border border-gray-300 rounded-xl lg:rounded-2xl lg:shadow-2xl"
           >
-            {/* ----- DESKTOP VIEW ----- */}
+            {/* ----- DESKTOP VIEW (unchanged) ----- */}
             <div className="hidden lg:flex rounded-2xl overflow-hidden">
               <div
                 className="relative flex-1 p-6 flex items-center border-r"
@@ -1369,6 +1371,7 @@ const Home = () => {
                   className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-3.5 rounded-xl shadow-lg transition-all"
                   style={{ backgroundColor: PALETTE.primaryRed }}
                 >
+                  {/* ADDED icon (mobile only) */}
                   <FaSearch />
                   SEARCH BUSES
                 </motion.button>
@@ -1383,7 +1386,7 @@ const Home = () => {
         <HolidaysSection />
       </div>
 
-      {/* ===== Offers / Notices (pulled up to reduce gap) ===== */}
+      {/* ===== Offers / Notices (reduced spacing) ===== */}
       <div className="-mt-6 sm:-mt-8">
         <NoticesSection />
       </div>
@@ -1401,7 +1404,7 @@ const Home = () => {
             Popular Routes
           </h2>
 
-          {/* ✅ Responsive grid */}
+          {/* ✅ Responsive grid: balanced layout */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {[
               "Colombo → Kandy",
@@ -1421,9 +1424,7 @@ const Home = () => {
                   onClick={() => {
                     const currentDateForRoute = toLocalYYYYMMDD(new Date());
                     navigate(
-                      `/search-results?from=${routeFrom.trim()}&to=${
-                        routeTo.trim()
-                      }&date=${currentDateForRoute}`
+                      `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
                     );
                   }}
                   className="group rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-200 p-4 sm:p-5 flex flex-col bg-gradient-to-br from-[#D84E55] to-[#FFD54F]"
