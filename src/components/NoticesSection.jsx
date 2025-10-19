@@ -1,3 +1,4 @@
+// src/components/NoticesSection.jsx
 import React, {
   useEffect,
   useRef,
@@ -10,10 +11,11 @@ import NoticeCard from "./NoticeCard";
 import { Link } from "react-router-dom";
 
 // Define a constant for consistent mobile/desktop horizontal padding
-const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8"; 
+const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8";
 
 // ✅ Use the SAME container as the Home.jsx search bar section
-const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
+const DESKTOP_CONTAINER =
+  "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
 
 // Helper component for the navigation dots
 const Dots = ({ count, activeIndex, goToIndex }) => {
@@ -44,8 +46,8 @@ const NoticesSection = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  
-  const [activeIndex, setActiveIndex] = useState(0); 
+
+  const [activeIndex, setActiveIndex] = useState(0);
   const railRef = useRef(null);
 
   useEffect(() => {
@@ -56,7 +58,8 @@ const NoticesSection = () => {
         const data = Array.isArray(res.data) ? res.data : [];
         if (live) setItems(data);
       } catch (e) {
-        if (live) setErr(e?.response?.data?.message || "Failed to load notices.");
+        if (live)
+          setErr(e?.response?.data?.message || "Failed to load notices.");
       } finally {
         if (live) setLoading(false);
       }
@@ -70,51 +73,59 @@ const NoticesSection = () => {
     if (!el || items.length === 0) return;
 
     // Card width + gap = 316.
-    const cardScrollWidth = el.firstChild?.offsetWidth ? el.firstChild.offsetWidth + 16 : 316;
+    const cardScrollWidth = el.firstChild?.offsetWidth
+      ? el.firstChild.offsetWidth + 16
+      : 316;
 
     const newIndex = Math.round(el.scrollLeft / cardScrollWidth);
-    
+
     setActiveIndex(Math.max(0, Math.min(newIndex, items.length - 1)));
   }, [items.length]);
 
   // Scroll to a specific index
-  const scrollToCard = useCallback((index) => {
-    const el = railRef.current;
-    if (!el || items.length === 0 || index < 0 || index >= items.length) return;
+  const scrollToCard = useCallback(
+    (index) => {
+      const el = railRef.current;
+      if (!el || items.length === 0 || index < 0 || index >= items.length)
+        return;
 
-    const cardWidth = el.firstChild?.offsetWidth || 300;
-    const gap = 16;
-    
-    el.scrollTo({
-      left: index * (cardWidth + gap),
-      behavior: "smooth",
-    });
+      const cardWidth = el.firstChild?.offsetWidth || 300;
+      const gap = 16;
 
-    setActiveIndex(index); 
-    
-    setTimeout(updateActiveIndex, 350); 
-  }, [items.length, updateActiveIndex]);
+      el.scrollTo({
+        left: index * (cardWidth + gap),
+        behavior: "smooth",
+      });
+
+      setActiveIndex(index);
+
+      setTimeout(updateActiveIndex, 350);
+    },
+    [items.length, updateActiveIndex]
+  );
 
   // Set up scroll listener on mount
   useEffect(() => {
-    updateActiveIndex(); 
+    updateActiveIndex();
     const el = railRef.current;
     if (el) {
-      el.addEventListener('scroll', updateActiveIndex);
-      return () => el.removeEventListener('scroll', updateActiveIndex);
+      el.addEventListener("scroll", updateActiveIndex);
+      return () => el.removeEventListener("scroll", updateActiveIndex);
     }
   }, [items, updateActiveIndex]);
 
   if (loading) {
     return (
       <section className="w-full py-8 sm:py-12">
-        <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
+        <div
+          className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}
+        >
           {/* ✅ FIX: Final title name and reduced boldness (font-semibold) */}
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
             Deals and Offers
           </h2>
         </div>
-        
+
         {/* Mobile skeleton rail */}
         <div className="lg:hidden w-full overflow-hidden">
           <div className="flex gap-4 overflow-x-auto pl-4">
@@ -129,7 +140,10 @@ const NoticesSection = () => {
           <div className={`${DESKTOP_CONTAINER}`}>
             <div className="grid grid-cols-5 gap-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-48 bg-gray-200 rounded-xl animate-pulse" />
+                <div
+                  key={i}
+                  className="h-48 bg-gray-200 rounded-xl animate-pulse"
+                />
               ))}
             </div>
           </div>
@@ -142,7 +156,9 @@ const NoticesSection = () => {
   return (
     <section className="w-full py-8 sm:py-12">
       {/* Header (aligned with screen edge padding) */}
-      <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
+      <div
+        className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}
+      >
         {/* ✅ FIX: Final title name and reduced boldness (font-semibold) */}
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
           Deals and Offers
@@ -160,8 +176,15 @@ const NoticesSection = () => {
         <div className={`${DESKTOP_CONTAINER}`}>
           <div className="grid grid-cols-5 gap-4">
             {items.slice(0, 5).map((n) => (
-              <div key={n._id} className="rounded-xl overflow-hidden">
+              <div
+                key={n._id}
+                className="relative group rounded-xl overflow-hidden"
+              >
                 <NoticeCard notice={n} linkTo="/notices" />
+                {/* 🌟 Shining overlay */}
+                <span className="pointer-events-none absolute inset-0">
+                  <span className="rb-shine-bar" />
+                </span>
               </div>
             ))}
           </div>
@@ -179,12 +202,20 @@ const NoticesSection = () => {
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {items.map((n, index) => (
-            <div 
-              key={n._id} 
+            <div
+              key={n._id}
               // ✅ FIX: Added pr-4 to the LAST card's wrapper to provide end padding.
-              className={`w-[300px] flex-shrink-0 snap-start ${index === items.length - 1 ? 'pr-4' : ''}`}
+              className={`w-[300px] flex-shrink-0 snap-start ${
+                index === items.length - 1 ? "pr-4" : ""
+              }`}
             >
-              <NoticeCard notice={n} linkTo="/notices" />
+              <div className="relative group rounded-xl overflow-hidden">
+                <NoticeCard notice={n} linkTo="/notices" />
+                {/* 🌟 Shining overlay */}
+                <span className="pointer-events-none absolute inset-0">
+                  <span className="rb-shine-bar" />
+                </span>
+              </div>
             </div>
           ))}
         </div>
@@ -192,19 +223,44 @@ const NoticesSection = () => {
         {/* Tiny Navigation Dots */}
         <div className={`${CONTAINER_MARGIN_X}`}>
           {items.length > 1 && (
-            <Dots 
-              count={items.length} 
-              activeIndex={activeIndex} 
-              goToIndex={scrollToCard} 
+            <Dots
+              count={items.length}
+              activeIndex={activeIndex}
+              goToIndex={scrollToCard}
             />
           )}
         </div>
       </div>
 
-      {/* Hide scrollbar */}
+      {/* Hide scrollbar + shine animation CSS */}
       <style>{`
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* ===== Shining overlay ===== */
+        .rb-shine-bar {
+          position: absolute;
+          top: -20%;
+          left: -120%;
+          height: 140%;
+          width: 45%;
+          transform: skewX(-20deg);
+          background: linear-gradient(
+            90deg,
+            rgba(255,255,255,0) 0%,
+            rgba(255,255,255,0.55) 50%,
+            rgba(255,255,255,0) 100%
+          );
+          mix-blend-mode: overlay;
+          opacity: .35;
+          animation: rb-shine-move 2.2s ease-in-out infinite;
+        }
+        .group:hover .rb-shine-bar { opacity: .55; }
+
+        @keyframes rb-shine-move {
+          0%   { left: -120%; }
+          100% { left: 140%; }
+        }
       `}</style>
     </section>
   );
