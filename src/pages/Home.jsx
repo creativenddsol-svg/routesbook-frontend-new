@@ -25,7 +25,7 @@ import { FaClock, FaMapMarkerAlt, FaUserCircle } from "react-icons/fa";
 
 import Footer from "../components/Footer";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 
 import { createPortal } from "react-dom"; // portal for calendar
 
@@ -141,7 +141,7 @@ const CalendarPopover = ({
   const rows = Math.ceil(totalCells / 7);
   const cells = Array.from({ length: rows * 7 }, (_, i) => {
     const dayNum = i - firstDow + 1;
-    if (dayNum < 1 || dayNum > end.getDate()) return null;
+    if (dayNum < 1 || dayNum > endOfMonth(viewMonth).getDate()) return null;
     return new Date(viewMonth.getFullYear(), viewMonth.getMonth(), dayNum);
   });
 
