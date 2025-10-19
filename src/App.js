@@ -35,6 +35,7 @@ import AdminOperatorList from "./pages/AdminOperatorList";
 import AdminOperatorPayments from "./pages/OperatorPaymentsAdmin.jsx"; // ✅ fixed path
 import AdminNotices from "./pages/AdminNotices"; // ✅ ADDED
 import AdminWhatsNew from "./pages/AdminWhatsNew"; // ✅ ADDED
+import AdminHolidays from "./pages/AdminHolidays"; // ✅ NEW (wire Holidays admin)
 
 /* ───── Operator Pages ──── */
 import OperatorDashboard from "./pages/OperatorDashboard";
@@ -207,6 +208,15 @@ const App = () => (
             }
           />{" "}
           {/* ✅ ADDED */}
+          <Route
+            path="/admin/holidays"
+            element={
+              <AdminRoute>
+                <AdminHolidays />
+              </AdminRoute>
+            }
+          />{" "}
+          {/* ✅ NEW */}
           {/* ───── OPERATOR ROUTES ──── */}
           <Route
             path="/operator/dashboard"
