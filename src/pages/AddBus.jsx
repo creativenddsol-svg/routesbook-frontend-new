@@ -96,6 +96,10 @@ const AddBus = () => {
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingOfferImage, setIsUploadingOfferImage] = useState(false);
 
+  // ---- NEW: UI selection for rotated point manager
+  const [selectedDayOffset, setSelectedDayOffset] = useState(null);
+  const [selectedTurnIndex, setSelectedTurnIndex] = useState(null);
+
   useEffect(() => {
     const fetchOperators = async () => {
       try {
@@ -124,6 +128,35 @@ const AddBus = () => {
     };
     fetchOperators();
   }, []);
+
+  // Keep selected Day/Turn sensible as intervals change
+  useEffect(() => {
+    const intervals = form.rotationSchedule.intervals || [];
+    if (!intervals.length) {
+      setSelectedDayOffset(null);
+      setSelectedTurnIndex(null);
+      return;
+    }
+    // If no day selected, select first available
+    let day = selectedDayOffset;
+    if (
+      day === null ||
+      !intervals.find((i) => i.dayOffset === day && (i.turns || []).length)
+    ) {
+      const firstWithTurns = intervals.find((i) => (i.turns || []).length);
+      day = firstWithTurns ? firstWithTurns.dayOffset : intervals[0].dayOffset;
+    }
+
+    const turns =
+      intervals.find((i) => i.dayOffset === day)?.turns || [];
+    let turnIdx = selectedTurnIndex;
+    if (turnIdx === null || turnIdx >= turns.length) {
+      turnIdx = turns.length ? 0 : null;
+    }
+
+    setSelectedDayOffset(day);
+    setSelectedTurnIndex(turnIdx);
+  }, [form.rotationSchedule.intervals]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -177,6 +210,15 @@ const AddBus = () => {
       intervals.sort((a, b) => a.dayOffset - b.dayOffset);
     }
     dayEntry.turns = dayEntry.turns || [];
+    // ensure turn exists
+    if (!dayEntry.turns[turnIndex]) {
+      dayEntry.turns[turnIndex] = {
+        departureTime: "",
+        arrivalTime: "",
+        boardingPoints: [],
+        droppingPoints: [],
+      };
+    }
     dayEntry.turns[turnIndex] = {
       ...dayEntry.turns[turnIndex],
       [field]: value,
@@ -188,52 +230,28 @@ const AddBus = () => {
   };
 
   const addDayTurn = (dayOffset) => {
-    setForm((prev) => {
-      const intervals = [...(prev.rotationSchedule.intervals || [])];
-      let dayEntry = intervals.find((i) => i.dayOffset === dayOffset);
-      if (dayEntry) {
-        dayEntry.turns = [
-          ...(dayEntry.turns || []),
-          {
-            departureTime: "",
-            arrivalTime: "",
-            boardingPoints: [],
-            droppingPoints: [],
-          }, // ✅ NEW arrays
-        ];
-      } else {
-        intervals.push({
-          dayOffset,
-          turns: [
-            {
-              departureTime: "",
-              arrivalTime: "",
-              boardingPoints: [],
-              droppingPoints: [],
-            },
-          ], // ✅ NEW arrays
-        });
-        intervals.sort((a, b) => a.dayOffset - b.dayOffset);
-      }
-      return {
-        ...prev,
-        rotationSchedule: { ...prev.rotationSchedule, intervals },
-      };
-    });
+    // Initialize a new turn by touching a field (guarantees arrays exist)
+    const turns =
+      form.rotationSchedule.intervals.find((i) => i.dayOffset === dayOffset)
+        ?.turns || [];
+    const newTurnIndex = turns.length;
+    handleIntervalChange(dayOffset, newTurnIndex, "departureTime", "");
+    // also set selection to the newly added turn for convenience
+    setSelectedDayOffset(dayOffset);
+    setSelectedTurnIndex(newTurnIndex);
   };
 
   const removeDayTurn = (dayOffset, turnIndex) => {
     setForm((prev) => {
       const intervals = [...(prev.rotationSchedule.intervals || [])];
-      const dayIndex = intervals.findIndex((i) => i.dayOffset === dayOffset);
-      if (dayIndex === -1) return prev;
-      const updatedTurns = intervals[dayIndex].turns.filter(
-        (_, tIdx) => tIdx !== turnIndex
-      );
-      if (updatedTurns.length === 0) {
-        intervals.splice(dayIndex, 1);
+      const dayIdx = intervals.findIndex((i) => i.dayOffset === dayOffset);
+      if (dayIdx === -1) return prev;
+      const turns = intervals[dayIdx].turns || [];
+      turns.splice(turnIndex, 1);
+      if (!turns.length) {
+        intervals.splice(dayIdx, 1);
       } else {
-        intervals[dayIndex].turns = updatedTurns;
+        intervals[dayIdx].turns = turns;
       }
       return {
         ...prev,
@@ -316,9 +334,14 @@ const AddBus = () => {
       ...form,
       seatLayout: seatArray,
       unavailableDates: unavailableArray,
-      boardingPoints, // keep global as-is (you already use this elsewhere)
-      droppingPoints, // keep global as-is
-      fares,
+      // only include top-level points & fares when NOT rotating
+      boardingPoints: !form.rotationSchedule.isRotating
+        ? cleanPoints(boardingPoints)
+        : [],
+      droppingPoints: !form.rotationSchedule.isRotating
+        ? cleanPoints(droppingPoints)
+        : [],
+      fares: !form.rotationSchedule.isRotating ? fares : [],
       rotationSchedule: {
         ...form.rotationSchedule,
         rotationLength: form.rotationSchedule.isRotating
@@ -328,8 +351,8 @@ const AddBus = () => {
           ? (form.rotationSchedule.intervals || []).map((i) => ({
               dayOffset: parseInt(i.dayOffset),
               turns: (i.turns || []).map((t) => ({
-                departureTime: t.departureTime,
-                arrivalTime: t.arrivalTime,
+                departureTime: t.departureTime || "",
+                arrivalTime: t.arrivalTime || "",
                 // ✅ NEW: include per-turn points (cleaned)
                 boardingPoints: cleanPoints(t.boardingPoints),
                 droppingPoints: cleanPoints(t.droppingPoints),
@@ -372,6 +395,19 @@ const AddBus = () => {
     return <div className="p-6 text-center text-lg">Loading...</div>;
   if (error)
     return <div className="p-6 text-center text-lg text-red-500">{error}</div>;
+
+  // helpers to read currently selected turn (for the Rotated Points Manager)
+  const intervals = form.rotationSchedule.intervals || [];
+  const selectedDayEntry =
+    selectedDayOffset === null
+      ? null
+      : intervals.find((i) => i.dayOffset === selectedDayOffset) || null;
+  const selectedTurn =
+    selectedDayEntry &&
+    selectedTurnIndex !== null &&
+    (selectedDayEntry.turns || [])[selectedTurnIndex]
+      ? selectedDayEntry.turns[selectedTurnIndex]
+      : null;
 
   return (
     <div className="p-4 md:p-6 max-w-7xl mx-auto">
@@ -616,45 +652,49 @@ const AddBus = () => {
           </section>
 
           {/* Boarding & Dropping */}
-          <section className={CARD}>
-            <div className={CARD_HEAD}>
-              <h2 className="text-base font-semibold text-gray-800">
-                Boarding & Dropping Points
-              </h2>
-            </div>
-            <div className={CARD_BODY}>
-              <div className="space-y-6">
-                <PointManager
-                  points={boardingPoints}
-                  setPoints={setBoardingPoints}
-                  pointType="Boarding"
-                />
-                <hr className="border-gray-200" />
-                <PointManager
-                  points={droppingPoints}
-                  setPoints={setDroppingPoints}
-                  pointType="Dropping"
-                />
+          {!form.rotationSchedule.isRotating && (
+            <section className={CARD}>
+              <div className={CARD_HEAD}>
+                <h2 className="text-base font-semibold text-gray-800">
+                  Boarding & Dropping Points
+                </h2>
               </div>
-            </div>
-          </section>
+              <div className={CARD_BODY}>
+                <div className="space-y-6">
+                  <PointManager
+                    points={boardingPoints}
+                    setPoints={setBoardingPoints}
+                    pointType="Boarding"
+                  />
+                  <hr className="border-gray-200" />
+                  <PointManager
+                    points={droppingPoints}
+                    setPoints={setDroppingPoints}
+                    pointType="Dropping"
+                  />
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Price Matrix */}
-          <section className={CARD}>
-            <div className={CARD_HEAD}>
-              <h2 className="text-base font-semibold text-gray-800">
-                Fares Between Points
-              </h2>
-            </div>
-            <div className={CARD_BODY}>
-              <PriceMatrix
-                boardingPoints={boardingPoints}
-                droppingPoints={droppingPoints}
-                fares={fares}
-                setFares={setFares}
-              />
-            </div>
-          </section>
+          {!form.rotationSchedule.isRotating && (
+            <section className={CARD}>
+              <div className={CARD_HEAD}>
+                <h2 className="text-base font-semibold text-gray-800">
+                  Fares Between Points
+                </h2>
+              </div>
+              <div className={CARD_BODY}>
+                <PriceMatrix
+                  boardingPoints={boardingPoints}
+                  droppingPoints={droppingPoints}
+                  fares={fares}
+                  setFares={setFares}
+                />
+              </div>
+            </section>
+          )}
 
           {/* Pricing & Fees */}
           <section className={CARD}>
@@ -918,7 +958,7 @@ const AddBus = () => {
             </div>
           </section>
 
-          {/* Rotating Schedule */}
+          {/* Rotating Schedule (turns only) */}
           <section className={CARD}>
             <div className={CARD_HEAD}>
               <div className="flex items-center justify-between">
@@ -980,104 +1020,178 @@ const AddBus = () => {
                         </button>
                       </div>
 
-                      {(
-                        form.rotationSchedule.intervals.find(
-                          (i) => i.dayOffset === dayOffset
-                        )?.turns || []
-                      ).map((turn, tIndex) => {
-                        // helper to patch only this turn via existing handler
-                        const setTurnPatch = (patch) => {
-                          Object.entries(patch).forEach(([field, value]) => {
-                            handleIntervalChange(
-                              dayOffset,
-                              tIndex,
-                              field,
-                              value
-                            );
-                          });
-                        };
-
-                        return (
-                          <div
-                            key={tIndex}
-                            className="rounded-md border border-gray-200 p-3 mb-3 space-y-3"
-                          >
-                            <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
-                              <div className="sm:col-span-2">
-                                <label className="text-xs text-gray-600">
-                                  Departure
-                                </label>
-                                <input
-                                  type="time"
-                                  value={turn.departureTime}
-                                  onChange={(e) =>
-                                    handleIntervalChange(
-                                      dayOffset,
-                                      tIndex,
-                                      "departureTime",
-                                      e.target.value
-                                    )
-                                  }
-                                  className={INPUT}
-                                />
-                              </div>
-                              <div className="sm:col-span-2">
-                                <label className="text-xs text-gray-600">
-                                  Arrival
-                                </label>
-                                <input
-                                  type="time"
-                                  value={turn.arrivalTime}
-                                  onChange={(e) =>
-                                    handleIntervalChange(
-                                      dayOffset,
-                                      tIndex,
-                                      "arrivalTime",
-                                      e.target.value
-                                    )
-                                  }
-                                  className={INPUT}
-                                />
-                              </div>
-                              <div className="sm:col-span-1">
-                                <button
-                                  type="button"
-                                  onClick={() =>
-                                    removeDayTurn(dayOffset, tIndex)
-                                  }
-                                  className="w-full text-red-600 text-sm border border-red-200 rounded-md px-3 py-2 hover:bg-red-50"
-                                >
-                                  Remove
-                                </button>
-                              </div>
+                      {(form.rotationSchedule.intervals.find(
+                        (i) => i.dayOffset === dayOffset
+                      )?.turns || []
+                      ).map((turn, tIndex) => (
+                        <div
+                          key={tIndex}
+                          className="rounded-md border border-gray-200 p-3 mb-3 space-y-3"
+                        >
+                          <div className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end">
+                            <div className="sm:col-span-2">
+                              <label className="text-xs text-gray-600">
+                                Departure
+                              </label>
+                              <input
+                                type="time"
+                                value={turn?.departureTime || ""}
+                                onChange={(e) =>
+                                  handleIntervalChange(
+                                    dayOffset,
+                                    tIndex,
+                                    "departureTime",
+                                    e.target.value
+                                  )
+                                }
+                                className={INPUT}
+                              />
                             </div>
-
-                            {/* ✅ Per-turn boarding points */}
-                            <RotatedPointManager
-                              label="Boarding point"
-                              points={turn.boardingPoints || []}
-                              onChange={(next) =>
-                                setTurnPatch({ boardingPoints: next })
-                              }
-                            />
-
-                            {/* ✅ Per-turn dropping points */}
-                            <RotatedPointManager
-                              label="Dropping point"
-                              points={turn.droppingPoints || []}
-                              onChange={(next) =>
-                                setTurnPatch({ droppingPoints: next })
-                              }
-                            />
+                            <div className="sm:col-span-2">
+                              <label className="text-xs text-gray-600">
+                                Arrival
+                              </label>
+                              <input
+                                type="time"
+                                value={turn?.arrivalTime || ""}
+                                onChange={(e) =>
+                                  handleIntervalChange(
+                                    dayOffset,
+                                    tIndex,
+                                    "arrivalTime",
+                                    e.target.value
+                                  )
+                                }
+                                className={INPUT}
+                              />
+                            </div>
+                            <div className="sm:col-span-1">
+                              <button
+                                type="button"
+                                onClick={() => removeDayTurn(dayOffset, tIndex)}
+                                className="w-full text-red-600 text-sm border border-red-200 rounded-md px-3 py-2 hover:bg-red-50"
+                              >
+                                Remove
+                              </button>
+                            </div>
                           </div>
-                        );
-                      })}
+                          {/* ⬆️ Only times here. Points handled in dedicated section below. */}
+                        </div>
+                      ))}
                     </div>
                   ))}
                 </div>
               </div>
             )}
           </section>
+
+          {/* ✅ NEW: Rotated Points Manager (separate section with Day/Turn dropdowns) */}
+          {form.rotationSchedule.isRotating && (
+            <section className={CARD}>
+              <div className={CARD_HEAD}>
+                <h2 className="text-base font-semibold text-gray-800">
+                  Rotated Points Manager
+                </h2>
+              </div>
+              <div className={CARD_BODY}>
+                {intervals.length === 0 ||
+                !intervals.some((i) => (i.turns || []).length) ? (
+                  <p className="text-sm text-gray-500">
+                    Add at least one turn in the Rotating Schedule above to
+                    manage boarding/dropping points.
+                  </p>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                      <div>
+                        <label className={LABEL}>Day of Rotation</label>
+                        <select
+                          className={INPUT}
+                          value={selectedDayOffset ?? ""}
+                          onChange={(e) => {
+                            const nextDay = Number(e.target.value);
+                            setSelectedDayOffset(nextDay);
+                            // reset turn to first available for this day
+                            const turns =
+                              intervals.find((i) => i.dayOffset === nextDay)
+                                ?.turns || [];
+                            setSelectedTurnIndex(turns.length ? 0 : null);
+                          }}
+                        >
+                          {intervals
+                            .filter((i) => (i.turns || []).length)
+                            .map((i) => (
+                              <option key={i.dayOffset} value={i.dayOffset}>
+                                Day {i.dayOffset}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className={LABEL}>Turn</label>
+                        <select
+                          className={INPUT}
+                          value={selectedTurnIndex ?? ""}
+                          onChange={(e) =>
+                            setSelectedTurnIndex(Number(e.target.value))
+                          }
+                        >
+                          {(selectedDayEntry?.turns || []).map((_, idx) => (
+                            <option key={idx} value={idx}>
+                              Turn {idx + 1}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div className="flex items-end">
+                        <div className="text-xs text-gray-500">
+                          Set boarding & dropping points for the selected
+                          Day/Turn.
+                        </div>
+                      </div>
+                    </div>
+
+                    {selectedTurn ? (
+                      <>
+                        <div className="mb-6">
+                          <RotatedPointManager
+                            label="Boarding Points"
+                            points={selectedTurn.boardingPoints || []}
+                            onChange={(updatedPoints) =>
+                              handleIntervalChange(
+                                selectedDayOffset,
+                                selectedTurnIndex,
+                                "boardingPoints",
+                                updatedPoints
+                              )
+                            }
+                          />
+                        </div>
+                        <div>
+                          <RotatedPointManager
+                            label="Dropping Points"
+                            points={selectedTurn.droppingPoints || []}
+                            onChange={(updatedPoints) =>
+                              handleIntervalChange(
+                                selectedDayOffset,
+                                selectedTurnIndex,
+                                "droppingPoints",
+                                updatedPoints
+                              )
+                            }
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-500">
+                        No turns found for the selected day.
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            </section>
+          )}
 
           {/* Submit */}
           <div className="flex items-center justify-end gap-3">
