@@ -1381,15 +1381,16 @@ const Home = () => {
         </div>
       </div>
 
-      {/* ===== Upcoming Holidays ===== */}
-      <div>
-        <HolidaysSection />
-      </div>
+     {/* ===== Upcoming Holidays ===== */}
+<div>
+  <HolidaysSection />
+</div>
 
-      {/* ===== Offers / Notices (reduced spacing) ===== */}
-      <div className="-mt-6 sm:-mt-8">
-        <NoticesSection />
-      </div>
+{/* ===== Offers / Notices (reduced spacing further) ===== */}
+<div className="-mt-8 sm:-mt-10 md:-mt-12 lg:-mt-16">
+  <NoticesSection />
+</div>
+
 
       {/* ===== What's New ===== */}
       <WhatsNewSection />
