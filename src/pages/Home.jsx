@@ -1408,11 +1408,11 @@ const Home = () => {
           {/* ✅ Responsive grid: balanced layout */}
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
             {[
-              "Colombo → Kandy",
+              "Colombo → Matara",
               "Galle → Colombo",
               "Matara → Colombo",
               "Jaffna → Colombo",
-              "Colombo → Anuradhapura",
+              "Colombo → Katharagama",
               "Badulla → Colombo",
             ].map((route, i) => {
               const [routeFrom, routeTo] = route.split(" → ");
