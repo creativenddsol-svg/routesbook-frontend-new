@@ -1,7 +1,7 @@
 // src/pages/SearchResults/Desktop.jsx
-import { useMemo, useRef, useState } from "react";
+import { useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import Select, { components } from "react-select";
+import Select from "react-select";
 import {
   FaBus,
   FaClock,
@@ -9,8 +9,6 @@ import {
   FaChevronLeft,
   FaExchangeAlt,
   FaSearch,
-  FaMapMarkerAlt,
-  FaCalendarAlt,
 } from "react-icons/fa";
 
 import {
@@ -30,319 +28,6 @@ import SeatLayout from "../../components/SeatLayout";
 import SeatLegend from "../../components/SeatLegend";
 import BookingSummary from "../../components/BookingSummary";
 import PointSelection from "../../components/PointSelection";
-
-/* ------------------------------------------------------------------
-   Desktop calendar popover (copied to match Home.jsx look & behavior)
--------------------------------------------------------------------*/
-const toLocalYYYYMMDD = (dateObj) => {
-  const y = dateObj.getFullYear();
-  const m = String(dateObj.getMonth() + 1).padStart(2, "0");
-  const d = String(dateObj.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
-};
-const parseYMD = (s) => {
-  const [y, m, d] = s.split("-").map(Number);
-  return new Date(y, m - 1, d);
-};
-const startOfMonth = (d) => new Date(d.getFullYear(), d.getMonth(), 1);
-const endOfMonth = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0);
-const addMonths = (d, n) => new Date(d.getFullYear(), d.getMonth() + n, 1);
-const sameYMD = (a, b) =>
-  a.getFullYear() === b.getFullYear() &&
-  a.getMonth() === b.getMonth() &&
-  a.getDate() === b.getDate();
-
-const CalendarPopover = ({
-  anchorRef,
-  open,
-  value,
-  minDateString,
-  onChange,
-  onClose,
-}) => {
-  const popRef = useRef(null);
-  const today = new Date();
-  const minDate = minDateString ? parseYMD(minDateString) : today;
-  const selected = value ? parseYMD(value) : null;
-
-  const [viewMonth, setViewMonth] = useState(
-    selected ? startOfMonth(selected) : startOfMonth(today)
-  );
-
-  // close on outside/esc
-  useState(() => {
-    if (!open) return;
-    const onDocClick = (e) => {
-      if (
-        popRef.current &&
-        !popRef.current.contains(e.target) &&
-        anchorRef.current &&
-        !anchorRef.current.contains(e.target)
-      ) {
-        onClose?.();
-      }
-    };
-    const onEsc = (e) => e.key === "Escape" && onClose?.();
-    document.addEventListener("mousedown", onDocClick);
-    document.addEventListener("keydown", onEsc);
-    return () => {
-      document.removeEventListener("mousedown", onDocClick);
-      document.removeEventListener("keydown", onEsc);
-    };
-  }, [open, onClose, anchorRef]);
-
-  // sync view when value changes
-  useState(() => {
-    if (selected) setViewMonth(startOfMonth(selected));
-  }, [value]);
-
-  if (!open || !anchorRef.current) return null;
-
-  const rect = anchorRef.current.getBoundingClientRect();
-  const top = rect.bottom + 8;
-  const width = 360;
-  const maxLeft = Math.max(8, window.innerWidth - width - 8);
-  const left = Math.min(rect.left, maxLeft);
-
-  const start = startOfMonth(viewMonth);
-  const end = endOfMonth(viewMonth);
-  const firstDow = (start.getDay() + 6) % 7;
-  const totalCells = firstDow + end.getDate();
-  const rows = Math.ceil(totalCells / 7);
-  const cells = Array.from({ length: rows * 7 }, (_, i) => {
-    const dayNum = i - firstDow + 1;
-    if (dayNum < 1 || dayNum > end.getDate()) return null;
-    return new Date(viewMonth.getFullYear(), viewMonth.getMonth(), dayNum);
-  });
-
-  const isDisabled = (d) =>
-    d < new Date(new Date().toDateString()) || d < minDate;
-
-  const selectDay = (d) => {
-    if (isDisabled(d)) return;
-    onChange?.(toLocalYYYYMMDD(d));
-    onClose?.();
-  };
-
-  return (
-    <div
-      ref={popRef}
-      onMouseDown={(e) => e.stopPropagation()}
-      style={{ top, left, zIndex: 9999, width, position: "fixed" }}
-      className="bg-white rounded-2xl shadow-[0_15px_40px_-10px_rgba(0,0,0,0.25)] border border-gray-100 overflow-hidden"
-    >
-      <div className="px-4 pt-4 pb-2 border-b border-gray-100">
-        <div className="text-xs uppercase font-medium tracking-wider text-gray-500">
-          Date of Journey
-        </div>
-
-        <div className="flex items-center justify-between mt-1">
-          <div className="text-base font-semibold text-gray-900">
-            {value
-              ? parseYMD(value).toLocaleDateString("en-GB", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "Select Date"}
-          </div>
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => setViewMonth(addMonths(viewMonth, -1))}
-              className="w-8 h-8 rounded-full border hover:bg-gray-50 border-gray-200"
-              aria-label="Previous month"
-            >
-              ←
-            </button>
-            <button
-              onClick={() => setViewMonth(addMonths(viewMonth, 1))}
-              className="w-8 h-8 rounded-full border hover:bg-gray-50 border-gray-200"
-              aria-label="Next month"
-            >
-              →
-            </button>
-          </div>
-        </div>
-
-        <div className="mt-1 text-sm font-medium text-gray-900">
-          {viewMonth.toLocaleString("en-GB", { month: "long", year: "numeric" })}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-7 text-center text-xs py-2 text-gray-500">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-          <div key={d} className="select-none">
-            {d}
-          </div>
-        ))}
-      </div>
-
-      <div className="grid grid-cols-7 gap-y-1 px-2 pb-3">
-        {cells.map((d, idx) => {
-          if (!d) return <div key={idx} />;
-
-          const selectedDay = value && sameYMD(parseYMD(value), d);
-          const isToday = sameYMD(new Date(), d);
-          const disabled = isDisabled(d);
-
-          let classes =
-            "mx-auto my-1 flex items-center justify-center w-9 h-9 rounded-full text-sm transition select-none ";
-          if (disabled) classes += "text-gray-300 cursor-not-allowed";
-          else if (selectedDay) classes += "text-white font-semibold";
-          else classes += "hover:bg-red-50 cursor-pointer";
-
-          return (
-            <button
-              key={idx}
-              className={classes}
-              onClick={() => selectDay(d)}
-              style={{
-                backgroundColor: selectedDay ? "#D84E55" : undefined,
-                border:
-                  isToday && !selectedDay ? "1px solid #D84E55" : undefined,
-                color: disabled ? "#D1D5DB" : selectedDay ? "#FFFFFF" : "#1A1A1A",
-              }}
-              disabled={disabled}
-            >
-              {d.getDate()}
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
-        <div className="space-x-3">
-          <button
-            onClick={() => {
-              const t = new Date();
-              onChange?.(toLocalYYYYMMDD(t));
-              onClose?.();
-            }}
-            className="text-sm font-medium text-[#3A86FF] hover:underline"
-          >
-            Today
-          </button>
-          <button
-            onClick={() => {
-              const tm = new Date();
-              tm.setDate(tm.getDate() + 1);
-              onChange?.(toLocalYYYYMMDD(tm));
-              onClose?.();
-            }}
-            className="text-sm font-medium text-[#3A86FF] hover:underline"
-          >
-            Tomorrow
-          </button>
-        </div>
-
-        <button
-          onClick={onClose}
-          className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-};
-
-/* ---------------- Popular cities + CustomMenu (same as Home.jsx) --------------- */
-const POPULAR_CITIES = [
-  "Colombo",
-  "Kandy",
-  "Galle",
-  "Matara",
-  "Jaffna",
-  "Negombo",
-  "Kurunegala",
-  "Gampaha",
-  "Badulla",
-  "Anuradhapura",
-];
-
-const CustomMenu = (menuKey) => {
-  return (props) => {
-    const { selectProps } = props;
-    const recents = selectProps.recent?.[menuKey] || [];
-
-    const finishPickAndClose = () => {
-      props.selectProps.onMenuClose &&
-        requestAnimationFrame(() => props.selectProps.onMenuClose());
-    };
-    const onPick = (city) => {
-      selectProps.onChange({ value: city, label: city }, { action: "select-option" });
-      finishPickAndClose();
-    };
-    const handlePointerPick = (e, city) => {
-      if (e.pointerType !== "touch") e.preventDefault?.();
-      e.stopPropagation?.();
-      onPick(city);
-    };
-
-    return (
-      <components.Menu {...props}>
-        {/* 1) Suggested cities (typeahead results) */}
-        <div className="px-3 pt-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            Suggested Cities
-          </div>
-        </div>
-        <components.MenuList {...props}>{props.children}</components.MenuList>
-
-        {/* 2) Recents */}
-        <div className="px-3 pt-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-2">
-            <FaClock className="opacity-70" />
-            Recent searches
-          </div>
-          {recents.length === 0 ? (
-            <div className="text-xs text-gray-400 mb-3">No recent searches</div>
-          ) : (
-            <div className="mb-3 divide-y rounded-lg border border-gray-100 overflow-hidden">
-              {recents.map((city, idx) => (
-                <button
-                  key={idx}
-                  type="button"
-                  className="w-full flex items-center gap-3 px-3 py-2 text-left hover:bg-red-50 transition"
-                  style={{ touchAction: "manipulation" }}
-                  onPointerDown={(e) => handlePointerPick(e, city)}
-                >
-                  <FaMapMarkerAlt className="text-gray-500" />
-                  <span className="text-sm font-medium text-gray-800">{city}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* 3) Popular cities */}
-        <div className="px-3 pb-2">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            Popular Cities
-          </div>
-          <div className="flex flex-wrap gap-2 mb-2">
-            {POPULAR_CITIES.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className="px-3 py-1.5 rounded-full border text-sm hover:bg-red-50"
-                style={{
-                  borderColor: "#E5E7EB",
-                  color: "#1F2937",
-                  touchAction: "manipulation",
-                }}
-                onPointerDown={(e) => handlePointerPick(e, c)}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-      </components.Menu>
-    );
-  };
-};
 
 /* ————————————————————————————————
    Small skeleton while loading
@@ -390,8 +75,8 @@ export default function Desktop() {
     setSearchFrom,
     searchTo,
     setSearchTo,
-    // dateInputRef,                 // no longer needed (we use popover)
-    // handleDateContainerClick,     // replaced with local open handler
+    dateInputRef,
+    handleDateContainerClick,
     handleModifySearch,
     todayStr,
     tomorrowStr,
@@ -423,36 +108,6 @@ export default function Desktop() {
     handleProceedToPayment,
   } = useSearchCore();
 
-  /* ---- recents (same keys used on Home.jsx) ---- */
-  const [recent, setRecent] = useState(() => {
-    try {
-      return {
-        from: JSON.parse(localStorage.getItem("rb_recent_from") || "[]"),
-        to: JSON.parse(localStorage.getItem("rb_recent_to") || "[]"),
-      };
-    } catch {
-      return { from: [], to: [] };
-    }
-  });
-  const pushRecent = (key, city) => {
-    setRecent((prev) => {
-      const next = { ...prev };
-      const list = [city, ...prev[key].filter((c) => c !== city)].slice(0, 5);
-      next[key] = list;
-      try {
-        localStorage.setItem(
-          key === "from" ? "rb_recent_from" : "rb_recent_to",
-          JSON.stringify(list)
-        );
-      } catch {}
-      return next;
-    });
-  };
-
-  /* ---- calendar popover state (desktop) ---- */
-  const desktopDateAnchorRef = useRef(null);
-  const [calOpen, setCalOpen] = useState(false);
-
   const selectStyles = {
     control: (p) => ({
       ...p,
@@ -481,7 +136,6 @@ export default function Desktop() {
       borderRadius: "12px",
       boxShadow:
         "0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)",
-      backgroundColor: "#FFFFFF",
     }),
     menuPortal: (p) => ({ ...p, zIndex: 9999 }),
     option: (p, state) => ({
@@ -490,27 +144,32 @@ export default function Desktop() {
         ? PALETTE.primaryRed
         : state.isFocused
         ? "#FEE2E2"
-        : "#FFFFFF",
-      color: state.isSelected ? "#FFFFFF" : PALETTE.textDark,
+        : PALETTE.white,
+      color: state.isSelected ? PALETTE.white : PALETTE.textDark,
       cursor: "pointer",
       padding: "12px 16px",
       transition: "background-color 0.2s ease, color 0.2s ease",
     }),
   };
 
-  const filterPanelTopOffset = useMemo(
-    () => stickySearchCardOwnHeight + 16,
-    [stickySearchCardOwnHeight]
-  );
+  const filterPanelTopOffset = useMemo(() => {
+    // keep the sidebar just below the sticky search card
+    return stickySearchCardOwnHeight + 16;
+  }, [stickySearchCardOwnHeight]);
 
   const renderCards = () => {
     if (loading) {
-      return Array.from({ length: 5 }).map((_, i) => <BusCardSkeleton key={i} />);
+      return Array.from({ length: 5 }).map((_, i) => (
+        <BusCardSkeleton key={i} />
+      ));
     }
     if (fetchError) {
       return (
         <div className="text-center p-10 bg-white rounded-2xl shadow">
-          <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
+          <h3
+            className="text-2xl font-bold mb-2"
+            style={{ color: PALETTE.textDark }}
+          >
             Oops! Something went wrong.
           </h3>
           <p className="mb-6" style={{ color: PALETTE.textLight }}>
@@ -529,8 +188,13 @@ export default function Desktop() {
     if (!visibleBuses.length) {
       return (
         <div className="text-center p-10 bg-white rounded-2xl shadow">
-          <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
-            {activeFilterCount ? "No Buses Match Your Filters" : "No Buses Available"}
+          <h3
+            className="text-2xl font-bold mb-2"
+            style={{ color: PALETTE.textDark }}
+          >
+            {activeFilterCount
+              ? "No Buses Match Your Filters"
+              : "No Buses Available"}
           </h3>
           <p className="mb-6" style={{ color: PALETTE.textLight }}>
             {activeFilterCount
@@ -606,7 +270,7 @@ export default function Desktop() {
                         )}
                       </div>
                       <div>
-                        <h3 className="text/base font-semibold text-gray-900">
+                        <h3 className="text-base font-semibold text-gray-900">
                           {bus.name}
                         </h3>
                         <div className="flex items-center gap-2">
@@ -712,14 +376,14 @@ export default function Desktop() {
                     >
                       {isSoldOut
                         ? "Sold Out"
-                        : expandedBusId === `${bus._id}-${bus.departureTime}`
+                        : expandedBusId === busKey
                         ? "Hide Seats"
                         : "View seats"}
                     </button>
                   </div>
                 </div>
 
-                {expandedBusId === `${bus._id}-${bus.departureTime}` && (
+                {expandedBusId === busKey && (
                   <AnimatePresence>
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
@@ -734,15 +398,14 @@ export default function Desktop() {
                             <SeatLegend />
                             <SeatLayout
                               seatLayout={bus.seatLayout}
-                              bookedSeats={[...(availability?.[`${bus._id}-${bus.departureTime}`]?.bookedSeats || [])]}
+                              bookedSeats={[...(a?.bookedSeats || [])]}
                               selectedSeats={
-                                (busSpecificBookingData[`${bus._id}-${bus.departureTime}`]?.selectedSeats) ||
-                                []
+                                currentBusBookingData.selectedSeats
                               }
-                              onSeatClick={(seat) => handleSeatToggle(bus, seat)}
-                              bookedSeatGenders={
-                                availability?.[`${bus._id}-${bus.departureTime}`]?.seatGenderMap || {}
+                              onSeatClick={(seat) =>
+                                handleSeatToggle(bus, seat)
                               }
+                              bookedSeatGenders={a?.seatGenderMap || {}}
                               selectedSeatGenders={{}}
                             />
                           </div>
@@ -753,17 +416,13 @@ export default function Desktop() {
                               boardingPoints={bus.boardingPoints}
                               droppingPoints={bus.droppingPoints}
                               selectedBoardingPoint={
-                                (busSpecificBookingData[`${bus._id}-${bus.departureTime}`]?.selectedBoardingPoint) ||
-                                bus.boardingPoints?.[0] ||
-                                null
+                                currentBusBookingData.selectedBoardingPoint
                               }
                               setSelectedBoardingPoint={(p) =>
                                 handleBoardingPointSelect(bus, p)
                               }
                               selectedDroppingPoint={
-                                (busSpecificBookingData[`${bus._id}-${bus.departureTime}`]?.selectedDroppingPoint) ||
-                                bus.droppingPoints?.[0] ||
-                                null
+                                currentBusBookingData.selectedDroppingPoint
                               }
                               setSelectedDroppingPoint={(p) =>
                                 handleDroppingPointSelect(bus, p)
@@ -774,30 +433,20 @@ export default function Desktop() {
                             <BookingSummary
                               bus={bus}
                               selectedSeats={
-                                (busSpecificBookingData[`${bus._id}-${bus.departureTime}`]?.selectedSeats) ||
-                                []
+                                currentBusBookingData.selectedSeats
                               }
                               date={searchDateParam}
-                              basePrice={
-                                (busSpecificBookingData[`${bus._id}-${bus.departureTime}`]?.basePrice) ||
-                                0
-                              }
+                              basePrice={currentBusBookingData.basePrice}
                               convenienceFee={
-                                (busSpecificBookingData[`${bus._id}-${bus.departureTime}`]?.convenienceFee) ||
-                                0
+                                currentBusBookingData.convenienceFee
                               }
-                              totalPrice={
-                                (busSpecificBookingData[`${bus._id}-${bus.departureTime}`]?.totalPrice) ||
-                                0
-                              }
+                              totalPrice={currentBusBookingData.totalPrice}
                               onProceed={() => handleProceedToPayment(bus)}
                               boardingPoint={
-                                (busSpecificBookingData[`${bus._id}-${bus.departureTime}`]?.selectedBoardingPoint) ||
-                                null
+                                currentBusBookingData.selectedBoardingPoint
                               }
                               droppingPoint={
-                                (busSpecificBookingData[`${bus._id}-${bus.departureTime}`]?.selectedDroppingPoint) ||
-                                null
+                                currentBusBookingData.selectedDroppingPoint
                               }
                             />
                           </div>
@@ -815,26 +464,44 @@ export default function Desktop() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen" style={{ backgroundColor: PALETTE.bgLight }}>
+    <div
+      className="flex flex-col min-h-screen"
+      style={{ backgroundColor: PALETTE.bgLight }}
+    >
       {/* Header */}
       <div className="w-full bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
           <div className="hidden lg:block">
             <div className="flex items-center mb-2">
-              <FaChevronLeft className="text-xl mr-2 cursor-pointer" onClick={() => navigate(-1)} />
-              <span className="text-sm font-medium" style={{ color: PALETTE.textLight }}>
+              <FaChevronLeft
+                className="text-xl mr-2 cursor-pointer"
+                onClick={() => navigate(-1)}
+              />
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
                 Bus Ticket
               </span>
               <span className="mx-1 text-gray-400 text-sm">&gt;</span>
-              <span className="text-sm font-medium" style={{ color: PALETTE.textLight }}>
+              <span
+                className="text-sm font-medium"
+                style={{ color: PALETTE.textLight }}
+              >
                 {from} to {to} Bus
               </span>
             </div>
-            <h1 className="text-2xl font-bold" style={{ color: PALETTE.textDark }}>
-              {from} <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
+            <h1
+              className="text-2xl font-bold"
+              style={{ color: PALETTE.textDark }}
+            >
+              {from}{" "}
+              <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
             </h1>
             {!loading && !fetchError && (
-              <p className="text-sm text-gray-500 mb-4">{sortedBuses.length} buses</p>
+              <p className="text-sm text-gray-500 mb-4">
+                {sortedBuses.length} buses
+              </p>
             )}
           </div>
         </div>
@@ -849,21 +516,26 @@ export default function Desktop() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="bg-white border border-gray-300 rounded-3xl">
             <div className="hidden lg:flex rounded-2xl">
-              {/* FROM */}
-              <div className="relative flex-1 p-4 flex items-center border-r" style={{ borderColor: PALETTE.borderLight }}>
+              <div
+                className="relative flex-1 p-4 flex items-center border-r"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
                 <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
                 <div className="w-full">
-                  <label className="block text-xs font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
                     From
                   </label>
                   <Select
                     options={fromOptions}
-                    value={searchFrom ? { value: searchFrom, label: searchFrom } : null}
-                    onChange={(s) => {
-                      const v = s?.value || "";
-                      setSearchFrom(v);
-                      if (v) pushRecent("from", v);
-                    }}
+                    value={
+                      searchFrom
+                        ? { value: searchFrom, label: searchFrom }
+                        : null
+                    }
+                    onChange={(s) => setSearchFrom(s?.value || "")}
                     placeholder="Select departure"
                     isClearable
                     styles={selectStyles}
@@ -871,10 +543,7 @@ export default function Desktop() {
                     components={{
                       DropdownIndicator: () => null,
                       IndicatorSeparator: () => null,
-                      Menu: CustomMenu("from"),
                     }}
-                    recent={recent}
-                    closeMenuOnSelect
                   />
                 </div>
                 <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 z-20">
@@ -892,21 +561,24 @@ export default function Desktop() {
                 </div>
               </div>
 
-              {/* TO */}
-              <div className="flex-1 p-4 flex items-center border-r" style={{ borderColor: PALETTE.borderLight }}>
+              <div
+                className="flex-1 p-4 flex items-center border-r"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
                 <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
                 <div className="w-full">
-                  <label className="block text-xs font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
                     To
                   </label>
                   <Select
                     options={toOptions}
-                    value={searchTo ? { value: searchTo, label: searchTo } : null}
-                    onChange={(s) => {
-                      const v = s?.value || "";
-                      setSearchTo(v);
-                      if (v) pushRecent("to", v);
-                    }}
+                    value={
+                      searchTo ? { value: searchTo, label: searchTo } : null
+                    }
+                    onChange={(s) => setSearchTo(s?.value || "")}
                     placeholder="Select destination"
                     isClearable
                     styles={selectStyles}
@@ -914,81 +586,81 @@ export default function Desktop() {
                     components={{
                       DropdownIndicator: () => null,
                       IndicatorSeparator: () => null,
-                      Menu: CustomMenu("to"),
                     }}
-                    recent={recent}
-                    closeMenuOnSelect
                   />
                 </div>
               </div>
 
-              {/* DATE (Desktop – same as Home) */}
-              <div className="flex-1 p-4 flex items-center relative">
-                <FaCalendarAlt className="text-gray-400 mr-4 text-xl shrink-0" />
+              <div className="flex-1 p-4 flex items-center">
+                <div className="mr-4">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    className="text-gray-400"
+                  >
+                    <path fill="currentColor" d="M7 11h5v5H7z" />
+                    <path
+                      fill="currentColor"
+                      d="M19 4h-1V2h-2v2H8V2H6v2H5a3 3 0 0 0-3 3v11a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V10h16z"
+                    />
+                  </svg>
+                </div>
                 <div className="w-full">
-                  <label className="block text-xs font-medium uppercase tracking-wider" style={{ color: PALETTE.textLight }}>
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
                     Date of Journey
                   </label>
                   <div
-                    ref={desktopDateAnchorRef}
-                    onClick={() => setCalOpen(true)}
+                    onClick={handleDateContainerClick}
                     className="cursor-pointer"
                   >
-                    <span className="text-lg font-medium" style={{ color: PALETTE.textDark }}>
+                    <span
+                      className="text-lg font-medium"
+                      style={{ color: PALETTE.textDark }}
+                    >
                       {getReadableDate(searchDate)}
                     </span>
                   </div>
                   <div className="mt-1">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSearchDate(toLocalYYYYMMDD(new Date()));
-                      }}
+                      onClick={() => setSearchDate(todayStr)}
                       className="text-xs font-medium mr-3 hover:underline"
                       style={{
                         color:
-                          searchDate === toLocalYYYYMMDD(new Date())
+                          searchDate === todayStr
                             ? PALETTE.primaryRed
-                            : "#3A86FF",
+                            : PALETTE.accentBlue,
                       }}
                     >
                       Today
                     </button>
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const tm = new Date();
-                        tm.setDate(tm.getDate() + 1);
-                        setSearchDate(toLocalYYYYMMDD(tm));
-                      }}
+                      onClick={() => setSearchDate(tomorrowStr)}
                       className="text-xs font-medium hover:underline"
                       style={{
                         color:
-                          (() => {
-                            const tm = new Date();
-                            tm.setDate(tm.getDate() + 1);
-                            return toLocalYYYYMMDD(tm);
-                          })() === searchDate
+                          searchDate === tomorrowStr
                             ? PALETTE.primaryRed
-                            : "#3A86FF",
+                            : PALETTE.accentBlue,
                       }}
                     >
                       Tomorrow
                     </button>
                   </div>
                 </div>
-
-                <CalendarPopover
-                  anchorRef={desktopDateAnchorRef}
-                  open={calOpen}
+                <input
+                  ref={dateInputRef}
+                  type="date"
                   value={searchDate}
-                  minDateString={toLocalYYYYMMDD(new Date())}
-                  onChange={setSearchDate}
-                  onClose={() => setCalOpen(false)}
+                  onChange={(e) => setSearchDate(e.target.value)}
+                  min={todayStr}
+                  className="absolute opacity-0 pointer-events-none"
                 />
               </div>
 
-              {/* SEARCH */}
               <div className="p-3 flex items-center">
                 <button
                   onClick={handleModifySearch}
@@ -1012,7 +684,11 @@ export default function Desktop() {
               className="hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 sticky"
               style={{ top: `${filterPanelTopOffset}px`, zIndex: 20 }}
             >
-              <FilterPanel isMobile={false} sortBy={sortBy} setSortBy={setSortBy} />
+              <FilterPanel
+                isMobile={false}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+              />
             </aside>
 
             {/* Main column */}
