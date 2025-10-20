@@ -1,4 +1,4 @@
-// src/api.js 
+// src/api.js
 import axios from "axios";
 
 /** Resolve API base URL (Vite → CRA → fallback) */
@@ -47,7 +47,9 @@ export const toImgURL = (p) => {
 /** Axios instance */
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  withCredentials: true,
+  // IMPORTANT: default to no credentials to avoid unnecessary CORS preflights.
+  // We'll opt-in per-request below for protected/payment routes.
+  withCredentials: false,
   timeout: 20000, // 20s safety
 });
 
@@ -115,6 +117,14 @@ apiClient.interceptors.request.use(
       ? rawUrl.slice(baseLower.length)
       : rawUrl;
     if (!path.startsWith("/")) path = `/${path}`;
+
+    // 🔒 Opt-in cookies only where needed (auth, bookings, admin, and payment)
+    // Includes PayHere-related paths to avoid "unauthorized" on payment flows.
+    const needsCookie =
+      /(\/auth|\/me|\/profile|\/bookings|\/admin|\/payments|\/payment|\/payhere|\/checkout)(\/|$)/.test(
+        path
+      );
+    config.withCredentials = !!needsCookie;
 
     const addToData = () => {
       if (config.data && typeof config.data === "object") {
@@ -247,5 +257,33 @@ apiClient.interceptors.response.use(
     throw error;
   }
 );
+
+/* ---- Helpers to improve reliability on free hosting (cold starts) ---- */
+
+// Best-effort warm-up for cold starts (Render free can take 20–60s)
+export async function warmUp() {
+  try {
+    await apiClient.get("/health", { timeout: 30000 });
+  } catch {
+    // swallow – it's just a nudge to wake the dyno
+  }
+}
+
+// Simple GET with exponential backoff (0.5s, 1s, 2s + jitter)
+export async function getWithRetry(url, config = {}, { retries = 2 } = {}) {
+  let lastErr;
+  for (let i = 0; i <= retries; i++) {
+    try {
+      return await apiClient.get(url, config);
+    } catch (err) {
+      lastErr = err;
+      if (i === retries) break;
+      const base = 500 * 2 ** i;
+      const jitter = Math.random() * 300;
+      await new Promise((r) => setTimeout(r, base + jitter));
+    }
+  }
+  throw lastErr;
+}
 
 export default apiClient;
