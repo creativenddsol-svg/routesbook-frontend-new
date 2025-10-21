@@ -1406,7 +1406,7 @@ const Home = () => {
               Popular Routes
             </h2>
 
-            {/* Cards styled to match Holidays section aesthetics */}
+            {/* Pastel cards, no bus icon */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {[
                 "Colombo → Matara",
@@ -1417,6 +1417,17 @@ const Home = () => {
                 "Badulla → Colombo",
               ].map((route, i) => {
                 const [routeFrom, routeTo] = route.split(" → ");
+
+                // cycle through soft pastel palettes
+                const pastel = [
+                  { bg: "bg-[#FFF5F5]", br: "border-[#FDE2E2]" }, // soft red
+                  { bg: "bg-[#F5FAFF]", br: "border-[#D7ECFF]" }, // soft blue
+                  { bg: "bg-[#F6FFF7]", br: "border-[#D9F7DF]" }, // soft green
+                  { bg: "bg-[#FFF9F2]", br: "border-[#FCE8CF]" }, // soft orange
+                  { bg: "bg-[#F9F5FF]", br: "border-[#E9D8FD]" }, // soft purple
+                  { bg: "bg-[#FFF7FB]", br: "border-[#FAD1E8]" }, // soft pink
+                ][i % 6];
+
                 return (
                   <motion.button
                     key={i}
@@ -1428,36 +1439,31 @@ const Home = () => {
                         `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
                       );
                     }}
-                    className="group w-full text-left rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-[#D84E55]/30 transition-all"
+                    className={`group w-full text-left rounded-xl border ${pastel.br} ${pastel.bg} p-4 sm:p-5 shadow-sm hover:shadow-md transition-all`}
                   >
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                        <div className="shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center">
-                          <FaBus className="opacity-80" />
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                          <span
+                            className="font-heading text-base sm:text-lg font-semibold truncate"
+                            style={{ color: PALETTE.textDark }}
+                            title={routeFrom.trim()}
+                          >
+                            {routeFrom.trim()}
+                          </span>
+                          <FaLongArrowAltRight className="opacity-60 shrink-0" />
+                          <span
+                            className="font-heading text-base sm:text-lg font-semibold truncate"
+                            style={{ color: PALETTE.textDark }}
+                            title={routeTo.trim()}
+                          >
+                            {routeTo.trim()}
+                          </span>
                         </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                            <span
-                              className="font-heading text-base sm:text-lg font-semibold truncate"
-                              style={{ color: PALETTE.textDark }}
-                              title={routeFrom.trim()}
-                            >
-                              {routeFrom.trim()}
-                            </span>
-                            <FaLongArrowAltRight className="opacity-60 shrink-0" />
-                            <span
-                              className="font-heading text-base sm:text-lg font-semibold truncate"
-                              style={{ color: PALETTE.textDark }}
-                              title={routeTo.trim()}
-                            >
-                              {routeTo.trim()}
-                            </span>
-                          </div>
-                          <div className="mt-1">
-                            <span className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">
-                              Popular this week
-                            </span>
-                          </div>
+                        <div className="mt-2">
+                          <span className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-white/60 border border-white/70">
+                            Popular this week
+                          </span>
                         </div>
                       </div>
 
