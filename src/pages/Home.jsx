@@ -1398,72 +1398,78 @@ const Home = () => {
       {/* ===== Popular Routes ===== */}
       <div className={`${SECTION_WRAP}`}>
         <section className={`${SECTION_INNER} py-16`}>
-          <h2
-            className="font-heading text-3xl font-bold mb-8 text-center lg:text-left"
-            style={{ color: PALETTE.textDark }}
-          >
-            Popular Routes
-          </h2>
+          <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-100">
+            <h2
+              className="font-heading text-3xl font-bold mb-6"
+              style={{ color: PALETTE.textDark }}
+            >
+              Popular Routes
+            </h2>
 
-          {/* ✅ Responsive grid: balanced layout */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
-            {[
-              "Colombo → Matara",
-              "Galle → Colombo",
-              "Matara → Colombo",
-              "Jaffna → Colombo",
-              "Colombo → Katharagama",
-              "Badulla → Colombo",
-            ].map((route, i) => {
-              const [routeFrom, routeTo] = route.split(" → ");
-              return (
-                <motion.div
-                  whileHover={{ y: -3, boxShadow: "0 8px 18px rgba(0,0,0,0.08)" }}
-                  whileTap={{ scale: 0.97 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
-                  key={i}
-                  onClick={() => {
-                    const currentDateForRoute = toLocalYYYYMMDD(new Date());
-                    navigate(
-                      `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
-                    );
-                  }}
-                  className="group rounded-xl sm:rounded-2xl shadow-sm hover:shadow-md transition-all duration-300 cursor-pointer border border-gray-200 p-4 sm:p-5 flex flex-col bg-gradient-to-br from-[#D84E55] to-[#FFD54F]"
-                >
-                  <div className="flex-grow">
-                    <div className="flex items-center gap-2 sm:gap-3">
-                      <span
-                        className="font-heading text-base sm:text-lg font-bold truncate max-w-[45%] sm:max-w-[48%]"
-                        style={{ color: "#ffffff" }}
-                        title={routeFrom.trim()}
-                      >
-                        {routeFrom.trim()}
-                      </span>
-                      <FaLongArrowAltRight
-                        className="text-sm sm:text-base flex-shrink-0"
-                        style={{ color: "#fff" }}
-                      />
-                      <span
-                        className="font-heading text-base sm:text-lg font-bold truncate max-w-[45%] sm:max-w-[48%]"
-                        style={{ color: "#ffffff" }}
-                        title={routeTo.trim()}
-                      >
-                        {routeTo.trim()}
-                      </span>
+            {/* Cards styled to match Holidays section aesthetics */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+              {[
+                "Colombo → Matara",
+                "Galle → Colombo",
+                "Matara → Colombo",
+                "Jaffna → Colombo",
+                "Colombo → Katharagama",
+                "Badulla → Colombo",
+              ].map((route, i) => {
+                const [routeFrom, routeTo] = route.split(" → ");
+                return (
+                  <motion.button
+                    key={i}
+                    whileHover={{ y: -2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      const currentDateForRoute = toLocalYYYYMMDD(new Date());
+                      navigate(
+                        `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
+                      );
+                    }}
+                    className="group w-full text-left rounded-xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm hover:shadow-md hover:border-[#D84E55]/30 transition-all"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                        <div className="shrink-0 w-10 h-10 rounded-lg border border-gray-200 flex items-center justify-center">
+                          <FaBus className="opacity-80" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <span
+                              className="font-heading text-base sm:text-lg font-semibold truncate"
+                              style={{ color: PALETTE.textDark }}
+                              title={routeFrom.trim()}
+                            >
+                              {routeFrom.trim()}
+                            </span>
+                            <FaLongArrowAltRight className="opacity-60 shrink-0" />
+                            <span
+                              className="font-heading text-base sm:text-lg font-semibold truncate"
+                              style={{ color: PALETTE.textDark }}
+                              title={routeTo.trim()}
+                            >
+                              {routeTo.trim()}
+                            </span>
+                          </div>
+                          <div className="mt-1">
+                            <span className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-red-50 text-red-600 border border-red-100">
+                              Popular this week
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="ml-3 shrink-0 flex items-center gap-2 text-sm font-medium text-[#6B7280]">
+                        <span className="hidden sm:inline">View buses</span>
+                        <FaArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-xs sm:text-sm font-medium text-white">
-                      View Buses
-                    </span>
-                    <FaArrowRight
-                      className="text-xs sm:text-sm transition-transform duration-300 group-hover:translate-x-1"
-                      style={{ color: "#fff" }}
-                    />
-                  </div>
-                </motion.div>
-              );
-            })}
+                  </motion.button>
+                );
+              })}
+            </div>
           </div>
         </section>
       </div>
