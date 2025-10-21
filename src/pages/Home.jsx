@@ -499,7 +499,7 @@ const MobileCalendarSheet = ({
                 const tm = new Date();
                 tm.setDate(tm.getDate() + 1);
                 onChange?.(toLocalYYYYMMDD(tm));
-                onClose?.();
+                onClose?.()
               }}
               className="text-sm font-semibold text-[#3A86FF]"
             >
@@ -680,7 +680,6 @@ const MobileCityPicker = ({
           type="search"
           inputMode="search"
           enterKeyHint="search"
-          // Prevent iOS Safari zoom-on-focus (keep >=16px) and stabilize text sizing
           style={{ fontSize: 16, WebkitTextSizeAdjust: "100%" }}
           autoCapitalize="none"
           autoCorrect="off"
@@ -825,7 +824,6 @@ const Home = () => {
 
       // 2) color the iOS status bar area (Safari uses theme-color)
       setOrCreateMeta("theme-color", IOS_BAR_COLOR);
-      // also provide dark-scheme variant so it doesn't turn black automatically
       setOrCreateMeta("theme-color", IOS_BAR_COLOR, {
         media: "(prefers-color-scheme: light)",
       });
@@ -838,7 +836,6 @@ const Home = () => {
       setOrCreateMeta("apple-mobile-web-app-status-bar-style", "default");
     } catch {}
 
-    // keep text sizing stable on iOS
     if (isIOS) document.documentElement.style.webkitTextSizeAdjust = "100%";
   }, []);
 
@@ -998,16 +995,15 @@ const Home = () => {
       className="min-h-screen min-h-[100svh] font-sans"
       style={{
         backgroundColor: PALETTE.bgLight,
-        // Ensure iOS Safari uses full dynamic viewport height
         minHeight: "100dvh",
       }}
     >
-      {/* Top safe-area (lets the iOS status bar sit on our color) */}
+      {/* Top safe-area */}
       <div
         className="lg:hidden"
         style={{
           height: "env(safe-area-inset-top)",
-          backgroundColor: IOS_BAR_COLOR, // match theme-color
+          backgroundColor: IOS_BAR_COLOR,
         }}
       />
 
@@ -1068,7 +1064,7 @@ const Home = () => {
             transition={{ delay: 0.3, duration: 0.8 }}
             className="bg-white border border-gray-300 rounded-xl lg:rounded-2xl lg:shadow-2xl"
           >
-            {/* ----- DESKTOP VIEW (unchanged) ----- */}
+            {/* ----- DESKTOP VIEW ----- */}
             <div className="hidden lg:flex rounded-2xl overflow-hidden">
               <div
                 className="relative flex-1 p-6 flex items-center border-r"
@@ -1302,7 +1298,6 @@ const Home = () => {
                     style={{ border: `1px solid ${PALETTE.borderLight}` }}
                     title="Swap locations"
                   >
-                    {/* Vertical only on mobile */}
                     <FaExchangeAlt
                       className="text-base rotate-90"
                       style={{ color: PALETTE.textLight }}
@@ -1371,7 +1366,6 @@ const Home = () => {
                   className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-3.5 rounded-xl shadow-lg transition-all"
                   style={{ backgroundColor: PALETTE.primaryRed }}
                 >
-                  {/* ADDED icon (mobile only) */}
                   <FaSearch />
                   SEARCH BUSES
                 </motion.button>
@@ -1381,16 +1375,15 @@ const Home = () => {
         </div>
       </div>
 
-     {/* ===== Upcoming Holidays ===== */}
-<div>
-  <HolidaysSection />
-</div>
+      {/* ===== Upcoming Holidays ===== */}
+      <div>
+        <HolidaysSection />
+      </div>
 
-{/* ===== Offers / Notices (reduced spacing further) ===== */}
-<div className="-mt-8 sm:-mt-10 md:-mt-12 lg:-mt-16">
-  <NoticesSection />
-</div>
-
+      {/* ===== Offers / Notices ===== */}
+      <div className="-mt-8 sm:-mt-10 md:-mt-12 lg:-mt-16">
+        <NoticesSection />
+      </div>
 
       {/* ===== What's New ===== */}
       <WhatsNewSection />
@@ -1406,7 +1399,7 @@ const Home = () => {
               Popular Routes
             </h2>
 
-            {/* Pastel cards, no bus icon */}
+            {/* Pastel cards, tighter colors, no bus icon */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {[
                 "Colombo → Matara",
@@ -1418,14 +1411,14 @@ const Home = () => {
               ].map((route, i) => {
                 const [routeFrom, routeTo] = route.split(" → ");
 
-                // cycle through soft pastel palettes
+                // tightened pastel palette
                 const pastel = [
-                  { bg: "bg-[#FFF5F5]", br: "border-[#FDE2E2]" }, // soft red
-                  { bg: "bg-[#F5FAFF]", br: "border-[#D7ECFF]" }, // soft blue
-                  { bg: "bg-[#F6FFF7]", br: "border-[#D9F7DF]" }, // soft green
-                  { bg: "bg-[#FFF9F2]", br: "border-[#FCE8CF]" }, // soft orange
-                  { bg: "bg-[#F9F5FF]", br: "border-[#E9D8FD]" }, // soft purple
-                  { bg: "bg-[#FFF7FB]", br: "border-[#FAD1E8]" }, // soft pink
+                  { bg: "bg-[#FFE8EA]", br: "border-[#F7C4C9]" }, // tighter red
+                  { bg: "bg-[#EAF4FF]", br: "border-[#C7E2FF]" }, // tighter blue
+                  { bg: "bg-[#EAFBF0]", br: "border-[#BFEFD0]" }, // tighter green
+                  { bg: "bg-[#FFF1E5]", br: "border-[#F9D6B5]" }, // tighter orange
+                  { bg: "bg-[#F3EDFF]", br: "border-[#DCCBFF]" }, // tighter purple
+                  { bg: "bg-[#FFEAF4]", br: "border-[#F7C2DF]" }, // tighter pink
                 ][i % 6];
 
                 return (
@@ -1461,7 +1454,7 @@ const Home = () => {
                           </span>
                         </div>
                         <div className="mt-2">
-                          <span className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-white/60 border border-white/70">
+                          <span className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-white/70 border border-white/80">
                             Popular this week
                           </span>
                         </div>
@@ -1591,7 +1584,7 @@ const Home = () => {
 
       <Footer />
 
-      {/* Bottom safe-area so content never collides with iPhone home bar */}
+      {/* Bottom safe-area */}
       <div
         className="lg:hidden"
         style={{
@@ -1610,7 +1603,7 @@ const Home = () => {
         onClose={() => setMobilePickerOpen(false)}
       />
 
-      {/* === MOBILE BOTTOM-SHEET CALENDAR (drop-up) === */}
+      {/* === MOBILE BOTTOM-SHEET CALENDAR === */}
       <MobileCalendarSheet
         open={calOpen && isRefVisible(mobileDateAnchorRef)}
         value={date}
