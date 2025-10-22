@@ -63,8 +63,8 @@ const Navbar = () => {
           to="/"
           className="flex items-center gap-2 text-2xl font-bold transition-all duration-300"
         >
-          <FaBus className="text-red-500" />
-          <span className="bg-gradient-to-r from-red-500 to-orange-500 bg-clip-text text-transparent">
+          {/* removed small bus icon */}
+          <span className="text-[#E11D48]">
             Routesbook
           </span>
         </NavLink>
