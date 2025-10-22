@@ -861,7 +861,7 @@ const Home = () => {
   });
 
   const todayStr = toLocalYYYYMMDD(new Date());
-  the tomorrow = new Date();
+  const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowStr = toLocalYYYYMMDD(tomorrow);
 
