@@ -3,37 +3,72 @@
   <head>
     <meta charset="utf-8" />
 
+    <!-- Performance -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+
+    <!-- Fonts -->
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@700;800&display=swap"
       rel="stylesheet"
     />
 
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <meta name="theme-color" content="#000000" />
+    <!-- Favicons & App Icons -->
+    <!-- Standard favicon -->
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" sizes="any" />
+    <!-- PNG favicons for most browsers -->
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png" />
+    <!-- iOS home screen icon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="%PUBLIC_URL%/apple-touch-icon.png" />
+    <!-- Android/Chrome icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="%PUBLIC_URL%/android-chrome-192x192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="%PUBLIC_URL%/android-chrome-512x512.png" />
+    <!-- Safari pinned tab (monochrome SVG) -->
+    <link rel="mask-icon" href="%PUBLIC_URL%/safari-pinned-tab.svg" color="#E11D48" />
+    <!-- Windows tiles -->
+    <meta name="msapplication-TileColor" content="#111827" />
+    <meta name="msapplication-TileImage" content="%PUBLIC_URL%/mstile-150x150.png" />
 
-    <link rel="icon" type="image/jpg" href="%PUBLIC_URL%/images/Finale.jpg" />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/images/Finale.jpg" />
+    <!-- PWA manifest (keep your existing manifest if you use CRA/Vite) -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+
+    <!-- Theme colors for address bar / UI -->
+    <meta name="theme-color" content="#000000" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Viewport -->
     <meta name="viewport" content="width=device-width, initial-scale=1" />
 
+    <!-- SEO -->
+    <title>Routesbook.lk — Book Your Bus Tickets Online</title>
     <meta
       name="description"
       content="Routesbook.lk — Search, compare, and book Sri Lanka intercity & highway bus tickets. Real-time seat availability, secure booking, and instant confirmation."
     />
     <link rel="canonical" href="https://routesbook.lk/" />
+    <meta name="robots" content="index,follow" />
 
+    <!-- Open Graph (Facebook/WhatsApp/LinkedIn) -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://routesbook.lk/" />
+    <meta property="og:site_name" content="Routesbook.lk" />
     <meta property="og:title" content="Routesbook.lk — Book Your Bus Tickets Online" />
     <meta
       property="og:description"
       content="Book your next bus ride easily across Sri Lanka. Real-time seats, secure checkout, and trusted operators."
     />
-    <meta property="og:image" content="https://routesbook.lk/images/Finale.jpeg" />
-    <meta property="og:site_name" content="Routesbook.lk" />
+    <!-- Use a 1200×630 (or 1200×628) JPG/PNG. Absolute URL is required. -->
+    <meta property="og:image" content="https://routesbook.lk/og-image.jpg" />
+    <meta property="og:image:secure_url" content="https://routesbook.lk/og-image.jpg" />
+    <meta property="og:image:type" content="image/jpeg" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Routesbook.lk — Sri Lanka bus ticket booking" />
 
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://routesbook.lk/" />
     <meta name="twitter:title" content="Routesbook.lk — Book Your Bus Tickets Online" />
@@ -41,15 +76,13 @@
       name="twitter:description"
       content="Fast, easy bus ticket booking for Sri Lanka with live seat availability."
     />
-    <meta name="twitter:image" content="https://routesbook.lk/images/Finale.jpeg" />
+    <meta name="twitter:image" content="https://routesbook.lk/og-image.jpg" />
+    <meta name="twitter:image:alt" content="Routesbook.lk — Sri Lanka bus ticket booking" />
 
-    <meta name="robots" content="index,follow" />
-
-    <!-- Google Identity Services (for Sign in with Google) -->
+    <!-- Google Identity Services (Sign in with Google) -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-
-    <title>Routesbook.lk — Book Your Bus Tickets Online</title>
   </head>
+
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
     <div id="root"></div>
