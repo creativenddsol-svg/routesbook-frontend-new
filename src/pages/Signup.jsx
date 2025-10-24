@@ -1,17 +1,36 @@
 // src/pages/Signup.jsx
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import {
+  useNavigate,
+  Link,
+  useSearchParams,
+  useLocation,
+} from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import toast, { Toaster } from "react-hot-toast";
 import apiClient from "../api";
-import GoogleSignInButton from "../components/GoogleSignInButton"; // 👈 add this
+
+/* ---- Shared UI (same as Login) ---- */
+import TopBar from "../components/ui/TopBar";
+import SectionCard from "../components/ui/SectionCard";
+import { RowInput } from "../components/ui/FormAtoms";
+
+/* ---- Google ---- */
+import GoogleSignInButton from "../components/GoogleSignInButton";
+
+/* ---- Page palette (same as Login) ---- */
+const PALETTE = {
+  primary: "var(--rb-primary, #D84E55)",
+  bg: "var(--rb-bg, #F5F6F8)",
+  subtle: "var(--rb-subtle, #6B7280)",
+};
 
 const isValidLKMobile = (raw = "") => {
   const s = String(raw).replace(/[^\d+]/g, "");
   return /^\+94\d{9}$/.test(s) || /^0\d{9}$/.test(s);
 };
 
-// ✅ Normalize to a single canonical format before sending to backend
+// Normalize to a single canonical format before sending to backend
 const normalizeLkMobile = (raw = "") => {
   const s = String(raw).replace(/[^\d+]/g, "");
   if (/^\+94\d{9}$/.test(s)) return s;
@@ -19,7 +38,7 @@ const normalizeLkMobile = (raw = "") => {
   return s; // fallback unchanged
 };
 
-// ✅ Persist resend cooldown so it doesn't reset on rerender
+// Persist resend cooldown so it doesn't reset on rerender
 const startResendTimer = (key, seconds, setResendIn) => {
   const target = Date.now() + seconds * 1000;
   sessionStorage.setItem(key, String(target));
@@ -27,33 +46,48 @@ const startResendTimer = (key, seconds, setResendIn) => {
 };
 
 export default function Signup() {
+  // —— page mode (mirror Login)
   const [mode, setMode] = useState("email"); // "email" | "phone"
 
-  // Email signup state
-  const [formData, setFormData] = useState({ fullName: "", email: "", password: "" });
-  const [loadingEmail, setLoadingEmail] = useState(false);
+  // —— email signup state
+  const [formData, setFormData] = useState({
+    fullName: "",
+    email: "",
+    password: "",
+  });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  // Phone signup state
-  const [fullNameP, setFullNameP] = useState("");
+  // —— phone unified OTP (login-or-signup) state
   const [mobile, setMobile] = useState("");
-  const [emailP, setEmailP] = useState(""); // optional
+  const [fullName, setFullName] = useState(""); // used if number is new
   const [step, setStep] = useState("request"); // "request" | "verify"
   const [code, setCode] = useState("");
-  const [loadingOtp, setLoadingOtp] = useState(false);
+  const [otpLoading, setOtpLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0);
+  const [isExistingUser, setIsExistingUser] = useState(null);
 
-  const [error, setError] = useState("");
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login } = useAuth();
 
-  // resend countdown tick
+  // same redirect policy as Login
+  const redirectQuery = searchParams.get("redirect");
+  const stateFrom = location.state?.from?.pathname || null;
+  const redirect = useMemo(
+    () => redirectQuery || stateFrom || "/",
+    [redirectQuery, stateFrom]
+  );
+
+  // resend timer tick
   useEffect(() => {
     if (!resendIn) return;
     const id = setInterval(() => setResendIn((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(id);
   }, [resendIn]);
 
-  // restore resend cooldown on mount (so it won't reset)
+  // restore resend cooldown on mount (separate key for signup)
   useEffect(() => {
     const t = parseInt(sessionStorage.getItem("rb-signup-otp-resend") || "0", 10);
     if (t > Date.now()) {
@@ -66,304 +100,372 @@ export default function Signup() {
     setError("");
   }, [mode]);
 
-  /* =========================
-     EMAIL SIGNUP (existing)
-     ========================= */
+  /* ================= EMAIL SIGNUP (same flow, prettier UI) ================= */
   const handleChange = (e) => {
-    const { name, value } = e.target;
-    const v = name === "email" || name === "fullName" ? value.replace(/^\s+/, "") : value;
-    setFormData((prev) => ({ ...prev, [name]: v }));
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleEmailSubmit = async (e) => {
+  const handleEmailSignup = async (e) => {
     e.preventDefault();
     setError("");
-
-    const payload = {
-      fullName: formData.fullName.trim(),
-      email: formData.email.trim(),
-      password: formData.password,
-    };
-    if (payload.password.length < 6) {
-      const msg = "Password must be at least 6 characters";
-      setError(msg);
-      toast.error(msg);
-      return;
-    }
-
-    setLoadingEmail(true);
+    setSubmitting(true);
     try {
+      const payload = {
+        fullName: formData.fullName.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+      };
       const res = await apiClient.post("/auth/signup", payload);
-      localStorage.setItem("token", res.data.token);
-      // AuthContext: login(user, token)
-      login(res.data.user, res.data.token);
+      const token = res?.data?.token || null;
+      const user = res?.data?.user;
+
+      if (token) localStorage.setItem("token", token);
+      else localStorage.removeItem("token");
+
+      login(user, token);
       toast.success("Signup successful!");
-      navigate("/", { replace: true });
+
+      // pending booking resume
+      const pending = localStorage.getItem("pendingBooking");
+      if (pending) {
+        const { busId, date } = JSON.parse(pending);
+        localStorage.removeItem("pendingBooking");
+        navigate(`/book/${busId}?date=${date}`, { replace: true });
+        return;
+      }
+
+      navigate(redirect, { replace: true });
     } catch (err) {
-      const arr = err.response?.data?.errors;
+      const arr = err?.response?.data?.errors;
       const msg =
         (Array.isArray(arr) && arr.length && arr[0]?.msg) ||
-        err.response?.data?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
         "Signup failed";
       setError(msg);
       toast.error(msg);
     } finally {
-      setLoadingEmail(false);
+      setSubmitting(false);
     }
   };
 
-  /* =========================
-     PHONE SIGNUP (OTP)
-     ========================= */
-  const requestOtp = async (e) => {
+  /* ============ PHONE: UNIFIED OTP (login or signup) – same as Login ============ */
+  const sendOtp = async (e) => {
     e?.preventDefault?.();
     setError("");
-
-    if (!fullNameP.trim()) {
-      setError("Full name is required");
-      toast.error("Full name is required");
-      return;
-    }
     if (!isValidLKMobile(mobile)) {
-      const msg = "Enter a valid Sri Lanka mobile (e.g., 077xxxxxxx or +9477xxxxxxx)";
-      setError(msg);
-      toast.error(msg);
+      setError("Enter a valid Sri Lanka mobile (e.g., 077xxxxxxx or +9477xxxxxxx)");
       return;
     }
-
-    setLoadingOtp(true);
+    setOtpLoading(true);
     try {
       const mobileNorm = normalizeLkMobile(mobile);
-      const { data } = await apiClient.post("/auth/otp/signup/request", {
-        fullName: fullNameP.trim(),
-        mobile: mobileNorm,
-        email: emailP.trim() || undefined, // optional
-      });
+      const payload = { mobile: mobileNorm };
+      if (fullName.trim()) payload.fullName = fullName.trim(); // only used if new
+
+      const { data } = await apiClient.post(
+        "/auth/otp/login-or-signup/request",
+        payload
+      );
+
       toast.success(data?.message || "OTP sent");
+      setIsExistingUser(Boolean(data?.isExistingUser));
       setStep("verify");
 
-      // use server-provided cooldown if available; fallback to 45s
-      const serverCooldownMs = data?.resendAvailableAt
-        ? Math.max(0, Math.floor((data.resendAvailableAt - Date.now()) / 1000))
-        : 45;
-
-      startResendTimer("rb-signup-otp-resend", serverCooldownMs, setResendIn);
+      const seconds =
+        typeof data?.expiresInSec === "number" ? data.expiresInSec : 45;
+      startResendTimer("rb-signup-otp-resend", seconds, setResendIn);
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || "Failed to send OTP";
+      const msg =
+        err?.response?.data?.message || err?.message || "Failed to send OTP";
       setError(msg);
       toast.error(msg);
     } finally {
-      setLoadingOtp(false);
+      setOtpLoading(false);
     }
   };
 
   const verifyOtp = async (e) => {
     e?.preventDefault?.();
     setError("");
-
     const numeric = code.replace(/[^\d]/g, "");
     if (numeric.length !== 6) {
-      const msg = "Enter the 6-digit code";
-      setError(msg);
-      toast.error(msg);
+      setError("Enter the 6-digit code");
       return;
     }
-
-    setLoadingOtp(true);
+    setOtpLoading(true);
     try {
       const mobileNorm = normalizeLkMobile(mobile);
-      const { data } = await apiClient.post("/auth/otp/signup/verify", {
-        mobile: mobileNorm,
-        code: numeric,
-      });
-      // AuthContext: login(user, token)
+      const { data } = await apiClient.post(
+        "/auth/otp/login-or-signup/verify",
+        { mobile: mobileNorm, code: numeric }
+      );
+
       login(data.user, data.token);
-      toast.success("Account created!");
-      navigate("/", { replace: true });
+      toast.success(isExistingUser ? "Logged in!" : "Account created!");
+
+      // pending booking resume
+      const pending = localStorage.getItem("pendingBooking");
+      if (pending) {
+        const { busId, date } = JSON.parse(pending);
+        localStorage.removeItem("pendingBooking");
+        navigate(`/book/${busId}?date=${date}`, { replace: true });
+        return;
+      }
+
+      navigate(redirect, { replace: true });
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || "Verification failed";
+      const msg =
+        err?.response?.data?.message || err?.message || "Verification failed";
       setError(msg);
       toast.error(msg);
     } finally {
-      setLoadingOtp(false);
+      setOtpLoading(false);
     }
   };
 
   const resend = async () => {
     if (resendIn > 0) return;
-    await requestOtp();
+    await sendOtp();
   };
 
-  const canSendOtp = fullNameP.trim().length > 0 && isValidLKMobile(mobile);
-
   return (
-    <div className="min-h-screen bg-[#F4F7FE] flex items-center justify-center px-4">
+    <div className="min-h-screen" style={{ background: PALETTE.bg }}>
       <Toaster position="top-right" />
-      <div className="bg-white rounded-xl shadow-lg p-8 max-w-md w-full">
-        <h2 className="text-2xl font-bold mb-2 text-center text-[#0F172A]">
-          Create your Routesbook account
-        </h2>
-        <p className="text-sm text-gray-500 mb-6 text-center">
-          Choose Email & Password or Phone (OTP).
-        </p>
+      <TopBar />
 
-        {/* Toggle */}
-        <div className="flex gap-2 mb-5">
-          <button
-            onClick={() => setMode("email")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "email" ? "text-white" : ""}`}
-            style={{ background: mode === "email" ? "#2563eb" : "#E5E7EB" }}
-          >
-            Sign up with Email
-          </button>
-          <button
-            onClick={() => setMode("phone")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "phone" ? "text-white" : ""}`}
-            style={{ background: mode === "phone" ? "#2563eb" : "#E5E7EB" }}
-          >
-            Sign up with Phone
-          </button>
-        </div>
-
-        {/* EMAIL SIGNUP */}
-        {mode === "email" && (
-          <>
-            <form onSubmit={handleEmailSubmit} className="space-y-4">
-              <input
-                type="text"
-                name="fullName"
-                placeholder="Full Name"
-                value={formData.fullName}
-                onChange={handleChange}
-                className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              <input
-                type="email"
-                name="email"
-                placeholder="Email Address"
-                value={formData.email}
-                onChange={handleChange}
-                className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-              <input
-                type="password"
-                name="password"
-                placeholder="Password (min 6 characters)"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                required
-              />
-
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="grid md:grid-cols-2 gap-6">
+          <SectionCard title="Create your Routesbook account">
+            {/* Toggle (same buttons as Login) */}
+            <div className="flex gap-2 mb-4">
               <button
-                type="submit"
-                disabled={loadingEmail}
-                className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:brightness-110 text-white py-2 rounded-lg font-semibold transition-all disabled:opacity-60"
+                onClick={() => setMode("email")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "email" ? "text-white" : ""}`}
+                style={{ background: mode === "email" ? PALETTE.primary : "#E5E7EB" }}
               >
-                {loadingEmail ? "Creating account…" : "Sign Up"}
+                Email
               </button>
-
-              {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-            </form>
-
-            {/* Divider */}
-            <div className="flex items-center my-6">
-              <div className="h-px bg-gray-200 flex-1" />
-              <span className="px-3 text-xs uppercase tracking-wide text-gray-400">or</span>
-              <div className="h-px bg-gray-200 flex-1" />
+              <button
+                onClick={() => setMode("phone")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "phone" ? "text-white" : ""}`}
+                style={{ background: mode === "phone" ? PALETTE.primary : "#E5E7EB" }}
+              >
+                Phone
+              </button>
             </div>
 
-            {/* Google Sign-Up (GIS) */}
-            <GoogleSignInButton
-              text="signup_with"
-              size="large"
-              shape="pill"
-              theme="outline"
-              onSuccess={() => navigate("/", { replace: true })}
-            />
-          </>
-        )}
+            {/* EMAIL SIGNUP FORM + Google */}
+            {mode === "email" && (
+              <>
+                <form onSubmit={handleEmailSignup} className="space-y-4">
+                  <RowInput
+                    id="fullName"
+                    name="fullName"
+                    label="Full name"
+                    type="text"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    placeholder="e.g., Tharindu Perera"
+                    required
+                  />
 
-        {/* PHONE SIGNUP (OTP) */}
-        {mode === "phone" && (
-          <div className="space-y-4">
-            {step === "request" && (
-              <form onSubmit={requestOtp} className="space-y-4">
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={fullNameP}
-                  onChange={(e) => setFullNameP(e.target.value)}
-                  className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-                <input
-                  type="tel"
-                  placeholder="077xxxxxxx or +9477xxxxxxx"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                  className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-                <input
-                  type="email"
-                  placeholder="Email (optional)"
-                  value={emailP}
-                  onChange={(e) => setEmailP(e.target.value)}
-                  className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                  <RowInput
+                    id="email"
+                    name="email"
+                    label="Email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    autoComplete="email"
+                    inputMode="email"
+                    enterKeyHint="next"
+                    placeholder="you@email.com"
+                    required
+                  />
 
-                <button
-                  type="submit"
-                  disabled={loadingOtp || !canSendOtp}
-                  className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:brightness-110 text-white py-2 rounded-lg font-semibold transition-all disabled:opacity-60"
-                >
-                  {loadingOtp ? "Sending…" : "Send OTP"}
-                </button>
-              </form>
-            )}
+                  <RowInput
+                    id="password"
+                    name="password"
+                    label="Password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    autoComplete="new-password"
+                    enterKeyHint="done"
+                    placeholder="••••••••"
+                    required
+                  />
 
-            {step === "verify" && (
-              <form onSubmit={verifyOtp} className="space-y-4">
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="\d*"
-                  maxLength={6}
-                  placeholder="Enter 6-digit code"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
-                  className="w-full border border-gray-300 px-4 py-2 rounded shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 tracking-widest text-center text-lg"
-                  required
-                />
-
-                <div className="text-sm text-gray-600">
-                  Didn’t get it?{" "}
                   <button
-                    type="button"
-                    onClick={resend}
-                    disabled={loadingOtp || resendIn > 0}
-                    className="text-blue-600 font-semibold disabled:opacity-60"
+                    type="submit"
+                    disabled={submitting}
+                    className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{ background: PALETTE.primary }}
                   >
-                    {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend now"}
+                    {submitting ? "Creating…" : "Create Account"}
                   </button>
+
+                  {error && (
+                    <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
+                      {error}
+                    </p>
+                  )}
+
+                  <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
+                    Already have an account?{" "}
+                    <Link
+                      to="/login"
+                      className="font-semibold hover:underline"
+                      style={{ color: PALETTE.primary }}
+                    >
+                      Log in
+                    </Link>
+                  </p>
+                </form>
+
+                {/* Divider */}
+                <div className="flex items-center my-6">
+                  <div className="h-px bg-gray-200 flex-1" />
+                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">or</span>
+                  <div className="h-px bg-gray-200 flex-1" />
                 </div>
 
-                <button
-                  type="submit"
-                  disabled={loadingOtp}
-                  className="w-full bg-gradient-to-r from-blue-400 to-blue-500 hover:brightness-110 text-white py-2 rounded-lg font-semibold transition-all disabled:opacity-60"
-                >
-                  {loadingOtp ? "Verifying…" : "Create Account"}
-                </button>
-              </form>
+                {/* Google Sign-Up (GIS) */}
+                <GoogleSignInButton
+                  text="signup_with"
+                  size="large"
+                  shape="pill"
+                  theme="outline"
+                  onSuccess={() => {
+                    const pending = localStorage.getItem("pendingBooking");
+                    if (pending) {
+                      const { busId, date } = JSON.parse(pending);
+                      localStorage.removeItem("pendingBooking");
+                      navigate(`/book/${busId}?date=${date}`, { replace: true });
+                      return;
+                    }
+                    navigate(redirect, { replace: true });
+                  }}
+                />
+              </>
             )}
 
-            {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
+            {/* PHONE: unified login-or-signup (same logic + fields as Login) */}
+            {mode === "phone" && (
+              <div className="space-y-4">
+                {step === "request" && (
+                  <form onSubmit={sendOtp} className="space-y-4">
+                    <RowInput
+                      id="mobile"
+                      name="mobile"
+                      label="Mobile number"
+                      type="tel"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                      placeholder="077xxxxxxx or +9477xxxxxxx"
+                      required
+                    />
+
+                    {/* Optional: used only if the number is new */}
+                    <RowInput
+                      id="fullNamePhone"
+                      name="fullNamePhone"
+                      label="Full name (only if new)"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g., Tharindu Perera"
+                    />
+
+                    <button
+                      type="submit"
+                      disabled={otpLoading || !isValidLKMobile(mobile)}
+                      className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ background: PALETTE.primary }}
+                    >
+                      {otpLoading ? "Sending…" : "Send OTP"}
+                    </button>
+                  </form>
+                )}
+
+                {step === "verify" && (
+                  <form onSubmit={verifyOtp} className="space-y-4">
+                    <RowInput
+                      id="code"
+                      name="code"
+                      label="Enter 6-digit code"
+                      type="text"
+                      value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
+                      maxLength={6}
+                      inputMode="numeric"
+                      placeholder="••••••"
+                      required
+                    />
+
+                    <div className="text-sm" style={{ color: PALETTE.subtle }}>
+                      Didn’t get it?{" "}
+                      <button
+                        type="button"
+                        onClick={resend}
+                        disabled={otpLoading || resendIn > 0}
+                        className="font-semibold hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+                        style={{ color: PALETTE.primary }}
+                      >
+                        {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend now"}
+                      </button>
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={otpLoading}
+                      className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ background: PALETTE.primary }}
+                    >
+                      {otpLoading ? "Verifying…" : "Verify & Continue"}
+                    </button>
+
+                    {isExistingUser === false && (
+                      <p className="text-xs mt-1" style={{ color: PALETTE.subtle }}>
+                        We’ll create your account after verification.
+                      </p>
+                    )}
+                  </form>
+                )}
+
+                {error && (
+                  <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
+                    {error}
+                  </p>
+                )}
+
+                <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
+                  Prefer email?{" "}
+                  <button
+                    type="button"
+                    onClick={() => setMode("email")}
+                    className="font-semibold hover:underline"
+                    style={{ color: PALETTE.primary }}
+                  >
+                    Sign up with email
+                  </button>
+                </p>
+              </div>
+            )}
+          </SectionCard>
+
+          {/* Right column (same as Login) */}
+          <div className="hidden md:block">
+            <SectionCard title="Welcome aboard ✨">
+              <p className="text-sm" style={{ color: PALETTE.subtle }}>
+                Use your email & password, Google, or your mobile number with a
+                6-digit OTP. If it’s your first time with phone, we’ll create
+                your account right after verification.
+              </p>
+            </SectionCard>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
