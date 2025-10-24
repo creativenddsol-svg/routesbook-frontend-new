@@ -8,15 +8,14 @@ import {
 } from "react-router-dom";
 import { useAuth } from "../AuthContext";
 import toast, { Toaster } from "react-hot-toast";
-// shared API client (baseURL=/api, withCredentials=true)
 import apiClient from "../api";
 
-/* ---- Shared UI (matches your current components) ---- */
+/* ---- Shared UI ---- */
 import TopBar from "../components/ui/TopBar";
 import SectionCard from "../components/ui/SectionCard";
 import { RowInput } from "../components/ui/FormAtoms";
 
-// ✅ Add Google button
+/* ---- Google ---- */
 import GoogleSignInButton from "../components/GoogleSignInButton";
 
 /* ---- Page palette ---- */
@@ -31,7 +30,7 @@ const isValidLKMobile = (raw = "") => {
   return /^\+94\d{9}$/.test(s) || /^0\d{9}$/.test(s);
 };
 
-// ✅ Normalize to a single canonical format before sending to backend
+// Normalize to a single canonical format before sending to backend
 const normalizeLkMobile = (raw = "") => {
   const s = String(raw).replace(/[^\d+]/g, "");
   if (/^\+94\d{9}$/.test(s)) return s;
@@ -39,7 +38,7 @@ const normalizeLkMobile = (raw = "") => {
   return s; // fallback unchanged
 };
 
-// ✅ Persist resend cooldown so it doesn't reset on rerender
+// Persist resend cooldown so it doesn't reset on rerender
 const startResendTimer = (key, seconds, setResendIn) => {
   const target = Date.now() + seconds * 1000;
   sessionStorage.setItem(key, String(target));
@@ -50,17 +49,19 @@ export default function Login() {
   // —— page mode
   const [mode, setMode] = useState("email"); // "email" | "phone"
 
-  // —— email login state (existing)
+  // —— email login state
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // —— phone login state (new)
+  // —— phone login-or-signup (unified) state
   const [mobile, setMobile] = useState("");
+  const [fullName, setFullName] = useState(""); // optional; used if number is new
   const [step, setStep] = useState("request"); // "request" | "verify"
   const [code, setCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
-  const [resendIn, setResendIn] = useState(0); // 45s cooldown
+  const [resendIn, setResendIn] = useState(0); // 45s default cooldown
+  const [isExistingUser, setIsExistingUser] = useState(null); // null until request returns
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -70,7 +71,10 @@ export default function Login() {
   // redirect policy (kept as before)
   const redirectQuery = searchParams.get("redirect");
   const stateFrom = location.state?.from?.pathname || null;
-  const redirect = useMemo(() => redirectQuery || stateFrom || "/", [redirectQuery, stateFrom]);
+  const redirect = useMemo(
+    () => redirectQuery || stateFrom || "/",
+    [redirectQuery, stateFrom]
+  );
 
   // resend timer tick
   useEffect(() => {
@@ -81,7 +85,10 @@ export default function Login() {
 
   // restore resend cooldown on mount (so it won't reset)
   useEffect(() => {
-    const t = parseInt(sessionStorage.getItem("rb-login-otp-resend") || "0", 10);
+    const t = parseInt(
+      sessionStorage.getItem("rb-login-otp-resend") || "0",
+      10
+    );
     if (t > Date.now()) {
       setResendIn(Math.ceil((t - Date.now()) / 1000));
     }
@@ -92,7 +99,7 @@ export default function Login() {
     setError("");
   }, [mode]);
 
-  // ====== EMAIL LOGIN (unchanged behavior) ======
+  /* ================= EMAIL LOGIN (unchanged) ================= */
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -106,17 +113,12 @@ export default function Login() {
       const token = res?.data?.token || null;
       const user = res?.data?.user;
 
-      if (token) {
-        localStorage.setItem("token", token);
-      } else {
-        localStorage.removeItem("token");
-      }
+      if (token) localStorage.setItem("token", token);
+      else localStorage.removeItem("token");
 
-      // your AuthContext signature is login(user, token)
       login(user, token);
       toast.success("Login successful!");
 
-      // pending booking resume
       const pending = localStorage.getItem("pendingBooking");
       if (pending) {
         const { busId, date } = JSON.parse(pending);
@@ -125,17 +127,15 @@ export default function Login() {
         return;
       }
 
-      // admins always land on Home
       const role = user?.role?.toString?.().toLowerCase?.() || "";
       if (role === "admin") {
         navigate("/", { replace: true });
         return;
       }
-
-      // otherwise follow redirect
       navigate(redirect, { replace: true });
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || "Login failed";
+      const msg =
+        err?.response?.data?.message || err?.message || "Login failed";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -143,25 +143,39 @@ export default function Login() {
     }
   };
 
-  // ====== PHONE LOGIN (new) ======
+  /* ============ PHONE: UNIFIED OTP (login or signup) ============ */
   const sendOtp = async (e) => {
     e?.preventDefault?.();
     setError("");
     if (!isValidLKMobile(mobile)) {
-      setError("Enter a valid Sri Lanka mobile (e.g., 077xxxxxxx or +9477xxxxxxx)");
+      setError(
+        "Enter a valid Sri Lanka mobile (e.g., 077xxxxxxx or +9477xxxxxxx)"
+      );
       return;
     }
     setOtpLoading(true);
     try {
       const mobileNorm = normalizeLkMobile(mobile);
-      const { data } = await apiClient.post("/auth/otp/request", { mobile: mobileNorm });
+      // ✅ unified endpoint
+      const payload = { mobile: mobileNorm };
+      if (fullName.trim()) payload.fullName = fullName.trim(); // used only if user is new
+
+      const { data } = await apiClient.post(
+        "/auth/otp/login-or-signup/request",
+        payload
+      );
+
       toast.success(data?.message || "OTP sent");
+      setIsExistingUser(Boolean(data?.isExistingUser));
       setStep("verify");
-      // use server-provided cooldown if available; fallback to 45s
-      const serverCooldownMs = data?.resendAvailableAt ? Math.max(0, Math.floor((data.resendAvailableAt - Date.now()) / 1000)) : 45;
-      startResendTimer("rb-login-otp-resend", serverCooldownMs, setResendIn);
+
+      // Use server expiry if provided, else fallback to 45s
+      const seconds =
+        typeof data?.expiresInSec === "number" ? data.expiresInSec : 45;
+      startResendTimer("rb-login-otp-resend", seconds, setResendIn);
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || "Failed to send OTP";
+      const msg =
+        err?.response?.data?.message || err?.message || "Failed to send OTP";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -180,15 +194,15 @@ export default function Login() {
     setOtpLoading(true);
     try {
       const mobileNorm = normalizeLkMobile(mobile);
+      // ✅ unified endpoint
       const { data } = await apiClient.post(
-        "/auth/otp/verify",
-        { mobile: mobileNorm, code: numeric }, // refresh cookie set via withCredentials
+        "/auth/otp/login-or-signup/verify",
+        { mobile: mobileNorm, code: numeric }
       );
-      // keep the same auth shape as email login
-      login(data.user, data.token);
-      toast.success("Logged in!");
 
-      // pending booking resume
+      login(data.user, data.token);
+      toast.success(isExistingUser ? "Logged in!" : "Account created!");
+
       const pending = localStorage.getItem("pendingBooking");
       if (pending) {
         const { busId, date } = JSON.parse(pending);
@@ -204,7 +218,8 @@ export default function Login() {
       }
       navigate(redirect, { replace: true });
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || "Verification failed";
+      const msg =
+        err?.response?.data?.message || err?.message || "Verification failed";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -229,21 +244,29 @@ export default function Login() {
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setMode("email")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "email" ? "text-white" : ""}`}
-                style={{ background: mode === "email" ? PALETTE.primary : "#E5E7EB" }}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                  mode === "email" ? "text-white" : ""
+                }`}
+                style={{
+                  background: mode === "email" ? PALETTE.primary : "#E5E7EB",
+                }}
               >
                 Email
               </button>
               <button
                 onClick={() => setMode("phone")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "phone" ? "text-white" : ""}`}
-                style={{ background: mode === "phone" ? PALETTE.primary : "#E5E7EB" }}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                  mode === "phone" ? "text-white" : ""
+                }`}
+                style={{
+                  background: mode === "phone" ? PALETTE.primary : "#E5E7EB",
+                }}
               >
                 Phone
               </button>
             </div>
 
-            {/* EMAIL LOGIN FORM (existing) + Google Sign-In */}
+            {/* EMAIL LOGIN + Google */}
             {mode === "email" && (
               <>
                 <form onSubmit={handleEmailLogin} className="space-y-4">
@@ -295,12 +318,18 @@ export default function Login() {
                   </button>
 
                   {error && (
-                    <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
+                    <p
+                      className="text-sm mt-2 font-semibold"
+                      style={{ color: "#B91C1C" }}
+                    >
                       {error}
                     </p>
                   )}
 
-                  <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
+                  <p
+                    className="mt-4 text-sm text-center"
+                    style={{ color: PALETTE.subtle }}
+                  >
                     Don’t have an account?{" "}
                     <Link
                       to="/signup"
@@ -315,7 +344,9 @@ export default function Login() {
                 {/* Divider */}
                 <div className="flex items-center my-6">
                   <div className="h-px bg-gray-200 flex-1" />
-                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">or</span>
+                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
+                    or
+                  </span>
                   <div className="h-px bg-gray-200 flex-1" />
                 </div>
 
@@ -326,12 +357,13 @@ export default function Login() {
                   shape="pill"
                   theme="outline"
                   onSuccess={() => {
-                    // After GIS success, follow same redirect logic
                     const pending = localStorage.getItem("pendingBooking");
                     if (pending) {
                       const { busId, date } = JSON.parse(pending);
                       localStorage.removeItem("pendingBooking");
-                      navigate(`/book/${busId}?date=${date}`, { replace: true });
+                      navigate(`/book/${busId}?date=${date}`, {
+                        replace: true,
+                      });
                       return;
                     }
                     navigate(redirect, { replace: true });
@@ -340,7 +372,7 @@ export default function Login() {
               </>
             )}
 
-            {/* PHONE LOGIN FORM (new) */}
+            {/* PHONE: unified login-or-signup */}
             {mode === "phone" && (
               <div className="space-y-4">
                 {step === "request" && (
@@ -354,6 +386,17 @@ export default function Login() {
                       onChange={(e) => setMobile(e.target.value)}
                       placeholder="077xxxxxxx or +9477xxxxxxx"
                       required
+                    />
+
+                    {/* Optional: improves UX for first-time users but ignored for existing */}
+                    <RowInput
+                      id="fullName"
+                      name="fullName"
+                      label="Full name (only if new)"
+                      type="text"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="e.g., Tharindu Perera"
                     />
 
                     <button
@@ -375,7 +418,9 @@ export default function Login() {
                       label="Enter 6-digit code"
                       type="text"
                       value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
+                      onChange={(e) =>
+                        setCode(e.target.value.replace(/[^\d]/g, ""))
+                      }
                       maxLength={6}
                       inputMode="numeric"
                       placeholder="••••••"
@@ -391,7 +436,9 @@ export default function Login() {
                         className="font-semibold hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
                         style={{ color: PALETTE.primary }}
                       >
-                        {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend now"}
+                        {resendIn > 0
+                          ? `Resend in ${resendIn}s`
+                          : "Resend now"}
                       </button>
                     </div>
 
@@ -401,18 +448,33 @@ export default function Login() {
                       className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
                       style={{ background: PALETTE.primary }}
                     >
-                      {otpLoading ? "Verifying…" : "Verify & Login"}
+                      {otpLoading ? "Verifying…" : "Verify & Continue"}
                     </button>
+
+                    {isExistingUser === false && (
+                      <p
+                        className="text-xs mt-1"
+                        style={{ color: PALETTE.subtle }}
+                      >
+                        We’ll create your account after verification.
+                      </p>
+                    )}
                   </form>
                 )}
 
                 {error && (
-                  <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
+                  <p
+                    className="text-sm mt-2 font-semibold"
+                    style={{ color: "#B91C1C" }}
+                  >
                     {error}
                   </p>
                 )}
 
-                <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
+                <p
+                  className="mt-4 text-sm text-center"
+                  style={{ color: PALETTE.subtle }}
+                >
                   Prefer email?{" "}
                   <button
                     type="button"
@@ -431,7 +493,9 @@ export default function Login() {
           <div className="hidden md:block">
             <SectionCard title="Welcome back 👋">
               <p className="text-sm" style={{ color: PALETTE.subtle }}>
-                Use your email & password, log in with Google, or use your mobile number and a 6-digit OTP.
+                Use email & password, Google, or your mobile number with a
+                6-digit OTP. If it’s your first time with phone, we’ll create
+                your account right after verification.
               </p>
             </SectionCard>
           </div>
