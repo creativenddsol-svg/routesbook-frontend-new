@@ -47,8 +47,7 @@ export const toImgURL = (p) => {
 /** Axios instance */
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  // IMPORTANT: default to no credentials to avoid unnecessary CORS preflights.
-  // We'll opt-in per-request below for protected/payment routes.
+  // Default to no credentials to reduce CORS preflights; opt-in below per-route.
   withCredentials: false,
   timeout: 20000, // 20s safety
 });
@@ -90,7 +89,7 @@ export const getClientId = () => {
 /** Interceptors */
 apiClient.interceptors.request.use(
   (config) => {
-    // Auth
+    // Auth bearer
     const token =
       localStorage.getItem("token") || localStorage.getItem("authToken");
     if (token) {
@@ -111,15 +110,21 @@ apiClient.interceptors.request.use(
     const clientId = getClientId();
 
     // Normalize URL for matching (strip base if axios was given an absolute URL)
-    const rawUrl = (config.url || "").toLowerCase();
-    const baseLower = API_BASE_URL.toLowerCase();
-    let path = rawUrl.startsWith(baseLower)
-      ? rawUrl.slice(baseLower.length)
-      : rawUrl;
-    if (!path.startsWith("/")) path = `/${path}`;
+    const rawUrl = String(config.url || "");
+    let path;
+    try {
+      const full = new URL(rawUrl, API_BASE_URL);
+      path = full.pathname.toLowerCase();
+    } catch {
+      const baseLower = API_BASE_URL.toLowerCase();
+      const inLower = rawUrl.toLowerCase();
+      let p = inLower.startsWith(baseLower) ? inLower.slice(baseLower.length) : inLower;
+      if (!p.startsWith("/")) p = `/${p}`;
+      path = p;
+    }
 
     // 🔒 Opt-in cookies only where needed (auth, bookings, admin, and payment)
-    // Includes PayHere-related paths to avoid "unauthorized" on payment flows.
+    // Includes PayHere-related paths to avoid issues on payment flows.
     const needsCookie =
       /(\/auth|\/me|\/profile|\/bookings|\/admin|\/payments|\/payment|\/payhere|\/checkout)(\/|$)/.test(
         path
@@ -220,7 +225,6 @@ apiClient.interceptors.response.use(
         const full = new URL(original?.url || "", API_BASE_URL).toString();
         return full.startsWith(API_BASE_URL);
       } catch {
-        // Fallback if URL parsing fails: best-effort string check
         return String(original?.url || "").startsWith(API_BASE_URL);
       }
     })();
@@ -247,9 +251,6 @@ apiClient.interceptors.response.use(
       } catch (e) {
         isRefreshing = false;
         rejectWaiters(e);
-        // Optional: clear volatile tokens if you want a clean state
-        // localStorage.removeItem("token");
-        // localStorage.removeItem("authToken");
         throw e;
       }
     }
