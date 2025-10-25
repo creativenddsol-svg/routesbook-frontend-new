@@ -56,7 +56,6 @@ export default function Login() {
 
   // —— phone login-or-signup (unified) state
   const [mobile, setMobile] = useState("");
-  const [fullName, setFullName] = useState(""); // optional; used if number is new
   const [step, setStep] = useState("request"); // "request" | "verify"
   const [code, setCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
@@ -156,9 +155,8 @@ export default function Login() {
     setOtpLoading(true);
     try {
       const mobileNorm = normalizeLkMobile(mobile);
-      // ✅ unified endpoint
+      // ✅ unified endpoint — payload is ONLY the mobile (no name field on login)
       const payload = { mobile: mobileNorm };
-      if (fullName.trim()) payload.fullName = fullName.trim(); // used only if user is new
 
       const { data } = await apiClient.post(
         "/auth/otp/login-or-signup/request",
@@ -169,7 +167,6 @@ export default function Login() {
       setIsExistingUser(Boolean(data?.isExistingUser));
       setStep("verify");
 
-      // Use server expiry if provided, else fallback to 45s
       const seconds =
         typeof data?.expiresInSec === "number" ? data.expiresInSec : 45;
       startResendTimer("rb-login-otp-resend", seconds, setResendIn);
@@ -194,7 +191,6 @@ export default function Login() {
     setOtpLoading(true);
     try {
       const mobileNorm = normalizeLkMobile(mobile);
-      // ✅ unified endpoint
       const { data } = await apiClient.post(
         "/auth/otp/login-or-signup/verify",
         { mobile: mobileNorm, code: numeric }
@@ -372,7 +368,7 @@ export default function Login() {
               </>
             )}
 
-            {/* PHONE: unified login-or-signup */}
+            {/* PHONE: unified login-or-signup (no name field) */}
             {mode === "phone" && (
               <div className="space-y-4">
                 {step === "request" && (
@@ -386,17 +382,6 @@ export default function Login() {
                       onChange={(e) => setMobile(e.target.value)}
                       placeholder="077xxxxxxx or +9477xxxxxxx"
                       required
-                    />
-
-                    {/* Optional: improves UX for first-time users but ignored for existing */}
-                    <RowInput
-                      id="fullName"
-                      name="fullName"
-                      label="Full name (only if new)"
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g., Tharindu Perera"
                     />
 
                     <button
