@@ -98,6 +98,25 @@ export default function Login() {
     setError("");
   }, [mode]);
 
+  // helper: route to redirect, passing confirm draft if needed
+  const navigateWithConfirmDraftIfNeeded = () => {
+    if (redirect && redirect.startsWith("/confirm-booking")) {
+      try {
+        const raw = sessionStorage.getItem("rb_confirm_draft");
+        const draft = raw ? JSON.parse(raw) : null;
+        navigate("/confirm-booking", {
+          replace: true,
+          state: draft || undefined,
+        });
+        return true;
+      } catch {
+        // fall through to normal redirect if parse fails
+      }
+    }
+    navigate(redirect, { replace: true });
+    return false;
+  };
+
   /* ================= EMAIL LOGIN (unchanged) ================= */
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -131,7 +150,9 @@ export default function Login() {
         navigate("/", { replace: true });
         return;
       }
-      navigate(redirect, { replace: true });
+
+      // 🔁 If returning to ConfirmBooking, pass draft state
+      navigateWithConfirmDraftIfNeeded();
     } catch (err) {
       const msg =
         err?.response?.data?.message || err?.message || "Login failed";
@@ -212,7 +233,9 @@ export default function Login() {
         navigate("/", { replace: true });
         return;
       }
-      navigate(redirect, { replace: true });
+
+      // 🔁 If returning to ConfirmBooking, pass draft state
+      navigateWithConfirmDraftIfNeeded();
     } catch (err) {
       const msg =
         err?.response?.data?.message || err?.message || "Verification failed";
@@ -361,6 +384,23 @@ export default function Login() {
                         replace: true,
                       });
                       return;
+                    }
+                    // 🔁 If returning to ConfirmBooking, pass draft state
+                    if (
+                      redirect &&
+                      redirect.startsWith("/confirm-booking")
+                    ) {
+                      try {
+                        const raw = sessionStorage.getItem("rb_confirm_draft");
+                        const draft = raw ? JSON.parse(raw) : null;
+                        navigate("/confirm-booking", {
+                          replace: true,
+                          state: draft || undefined,
+                        });
+                        return;
+                      } catch {
+                        // fall through
+                      }
                     }
                     navigate(redirect, { replace: true });
                   }}
