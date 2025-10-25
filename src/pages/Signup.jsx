@@ -49,7 +49,7 @@ export default function Signup() {
   // —— page mode (mirror Login)
   const [mode, setMode] = useState("email"); // "email" | "phone"
 
-  // —— email signup state
+  // —— email signup state (fullName optional)
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -60,7 +60,7 @@ export default function Signup() {
 
   // —— phone unified OTP (login-or-signup) state
   const [mobile, setMobile] = useState("");
-  const [fullName, setFullName] = useState(""); // used if number is new
+  const [fullName, setFullName] = useState(""); // optional; used if number is new
   const [step, setStep] = useState("request"); // "request" | "verify"
   const [code, setCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
@@ -89,7 +89,10 @@ export default function Signup() {
 
   // restore resend cooldown on mount (separate key for signup)
   useEffect(() => {
-    const t = parseInt(sessionStorage.getItem("rb-signup-otp-resend") || "0", 10);
+    const t = parseInt(
+      sessionStorage.getItem("rb-signup-otp-resend") || "0",
+      10
+    );
     if (t > Date.now()) {
       setResendIn(Math.ceil((t - Date.now()) / 1000));
     }
@@ -100,7 +103,7 @@ export default function Signup() {
     setError("");
   }, [mode]);
 
-  /* ================= EMAIL SIGNUP (same flow, prettier UI) ================= */
+  /* ================= EMAIL SIGNUP (fullName optional) ================= */
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -111,10 +114,11 @@ export default function Signup() {
     setSubmitting(true);
     try {
       const payload = {
-        fullName: formData.fullName.trim(),
         email: formData.email.trim(),
         password: formData.password,
       };
+      if (formData.fullName.trim()) payload.fullName = formData.fullName.trim(); // optional
+
       const res = await apiClient.post("/auth/signup", payload);
       const token = res?.data?.token || null;
       const user = res?.data?.user;
@@ -154,7 +158,9 @@ export default function Signup() {
     e?.preventDefault?.();
     setError("");
     if (!isValidLKMobile(mobile)) {
-      setError("Enter a valid Sri Lanka mobile (e.g., 077xxxxxxx or +9477xxxxxxx)");
+      setError(
+        "Enter a valid Sri Lanka mobile (e.g., 077xxxxxxx or +9477xxxxxxx)"
+      );
       return;
     }
     setOtpLoading(true);
@@ -241,15 +247,23 @@ export default function Signup() {
             <div className="flex gap-2 mb-4">
               <button
                 onClick={() => setMode("email")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "email" ? "text-white" : ""}`}
-                style={{ background: mode === "email" ? PALETTE.primary : "#E5E7EB" }}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                  mode === "email" ? "text-white" : ""
+                }`}
+                style={{
+                  background: mode === "email" ? PALETTE.primary : "#E5E7EB",
+                }}
               >
                 Email
               </button>
               <button
                 onClick={() => setMode("phone")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${mode === "phone" ? "text-white" : ""}`}
-                style={{ background: mode === "phone" ? PALETTE.primary : "#E5E7EB" }}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                  mode === "phone" ? "text-white" : ""
+                }`}
+                style={{
+                  background: mode === "phone" ? PALETTE.primary : "#E5E7EB",
+                }}
               >
                 Phone
               </button>
@@ -259,15 +273,15 @@ export default function Signup() {
             {mode === "email" && (
               <>
                 <form onSubmit={handleEmailSignup} className="space-y-4">
+                  {/* Full name now OPTIONAL */}
                   <RowInput
                     id="fullName"
                     name="fullName"
-                    label="Full name"
+                    label="Full name (optional)"
                     type="text"
                     value={formData.fullName}
                     onChange={handleChange}
                     placeholder="e.g., Tharindu Perera"
-                    required
                   />
 
                   <RowInput
@@ -307,12 +321,18 @@ export default function Signup() {
                   </button>
 
                   {error && (
-                    <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
+                    <p
+                      className="text-sm mt-2 font-semibold"
+                      style={{ color: "#B91C1C" }}
+                    >
                       {error}
                     </p>
                   )}
 
-                  <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
+                  <p
+                    className="mt-4 text-sm text-center"
+                    style={{ color: PALETTE.subtle }}
+                  >
                     Already have an account?{" "}
                     <Link
                       to="/login"
@@ -327,7 +347,9 @@ export default function Signup() {
                 {/* Divider */}
                 <div className="flex items-center my-6">
                   <div className="h-px bg-gray-200 flex-1" />
-                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">or</span>
+                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
+                    or
+                  </span>
                   <div className="h-px bg-gray-200 flex-1" />
                 </div>
 
@@ -342,7 +364,9 @@ export default function Signup() {
                     if (pending) {
                       const { busId, date } = JSON.parse(pending);
                       localStorage.removeItem("pendingBooking");
-                      navigate(`/book/${busId}?date=${date}`, { replace: true });
+                      navigate(`/book/${busId}?date=${date}`, {
+                        replace: true,
+                      });
                       return;
                     }
                     navigate(redirect, { replace: true });
@@ -351,7 +375,7 @@ export default function Signup() {
               </>
             )}
 
-            {/* PHONE: unified login-or-signup (same logic + fields as Login) */}
+            {/* PHONE: unified login-or-signup (same logic as Login) */}
             {mode === "phone" && (
               <div className="space-y-4">
                 {step === "request" && (
@@ -371,7 +395,7 @@ export default function Signup() {
                     <RowInput
                       id="fullNamePhone"
                       name="fullNamePhone"
-                      label="Full name (only if new)"
+                      label="Full name (optional)"
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
@@ -397,7 +421,9 @@ export default function Signup() {
                       label="Enter 6-digit code"
                       type="text"
                       value={code}
-                      onChange={(e) => setCode(e.target.value.replace(/[^\d]/g, ""))}
+                      onChange={(e) =>
+                        setCode(e.target.value.replace(/[^\d]/g, ""))
+                      }
                       maxLength={6}
                       inputMode="numeric"
                       placeholder="••••••"
@@ -413,7 +439,9 @@ export default function Signup() {
                         className="font-semibold hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
                         style={{ color: PALETTE.primary }}
                       >
-                        {resendIn > 0 ? `Resend in ${resendIn}s` : "Resend now"}
+                        {resendIn > 0
+                          ? `Resend in ${resendIn}s`
+                          : "Resend now"}
                       </button>
                     </div>
 
@@ -427,7 +455,10 @@ export default function Signup() {
                     </button>
 
                     {isExistingUser === false && (
-                      <p className="text-xs mt-1" style={{ color: PALETTE.subtle }}>
+                      <p
+                        className="text-xs mt-1"
+                        style={{ color: PALETTE.subtle }}
+                      >
                         We’ll create your account after verification.
                       </p>
                     )}
@@ -435,12 +466,18 @@ export default function Signup() {
                 )}
 
                 {error && (
-                  <p className="text-sm mt-2 font-semibold" style={{ color: "#B91C1C" }}>
+                  <p
+                    className="text-sm mt-2 font-semibold"
+                    style={{ color: "#B91C1C" }}
+                  >
                     {error}
                   </p>
                 )}
 
-                <p className="mt-4 text-sm text-center" style={{ color: PALETTE.subtle }}>
+                <p
+                  className="mt-4 text-sm text-center"
+                  style={{ color: PALETTE.subtle }}
+                >
                   Prefer email?{" "}
                   <button
                     type="button"
