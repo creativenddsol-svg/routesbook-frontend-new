@@ -772,6 +772,38 @@ const ConfirmBooking = () => {
     }
   }, [cameBackFromGateway, cameFromGatewayFlag, location.state?.restoreFromConfirm, acquireOrRefreshSeatLock]);
 
+  // 🆕 Save confirm draft helper (used before redirecting to login)
+  const saveConfirmDraft = useCallback(() => {
+    try {
+      sessionStorage.setItem(
+        "rb_confirm_draft",
+        JSON.stringify({
+          bus,
+          selectedSeats,
+          date,
+          priceDetails,
+          selectedBoardingPoint,
+          selectedDroppingPoint,
+          departureTime,
+          seatGenders,
+          formDraft: { ...form },
+          passengersDraft: passengers,
+        })
+      );
+    } catch {}
+  }, [
+    bus,
+    selectedSeats,
+    date,
+    priceDetails,
+    selectedBoardingPoint,
+    selectedDroppingPoint,
+    departureTime,
+    seatGenders,
+    form,
+    passengers,
+  ]);
+
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
@@ -795,6 +827,17 @@ const ConfirmBooking = () => {
         return;
       }
 
+      // ✅ If not logged in, save draft and send to login with redirect back here
+      const token =
+        localStorage.getItem("token") || localStorage.getItem("authToken");
+      if (!token) {
+        saveConfirmDraft();
+        sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+        suppressAutoRelease?.();
+        navigate("/login?redirect=/confirm-booking", { replace: true });
+        return;
+      }
+
       // ✅ Double-check the hold right before payment
       const stillHeld = await verifyHoldAlive();
       if (!stillHeld) {
@@ -809,23 +852,7 @@ const ConfirmBooking = () => {
       suppressAutoRelease();
 
       // 🆕 Save a draft so "Back to the site" can restore this page cleanly
-      try {
-        sessionStorage.setItem(
-          "rb_confirm_draft",
-          JSON.stringify({
-            bus,
-            selectedSeats,
-            date,
-            priceDetails,
-            selectedBoardingPoint,
-            selectedDroppingPoint,
-            departureTime,
-            seatGenders,
-            formDraft: { ...form },
-            passengersDraft: passengers,
-          })
-        );
-      } catch {}
+      saveConfirmDraft();
 
       try {
         // ---- 1) Create booking (Pending) ----
@@ -954,6 +981,8 @@ const ConfirmBooking = () => {
       suppressAutoRelease,
       setHoldExpired,
       acquireOrRefreshSeatLock,
+      navigate,
+      saveConfirmDraft,
     ]
   );
 
