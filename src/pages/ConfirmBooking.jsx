@@ -417,9 +417,9 @@ const ConfirmBooking = () => {
   const cameBackFromGateway =
     !!phStatus && phStatus !== "2" && !/^success$/i.test(phStatus || "");
 
+  // 🆕 Always try to restore a draft if we arrive without state (covers login→confirm)
   useEffect(() => {
-    // If user returns from PayHere without success and this page has no state, restore from draft
-    if (!location.state && cameBackFromGateway) {
+    if (!location.state) {
       try {
         const raw = sessionStorage.getItem("rb_confirm_draft");
         if (raw) {
@@ -429,7 +429,7 @@ const ConfirmBooking = () => {
       } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameBackFromGateway]); // keep minimal to avoid loops
+  }, []); // run once on mount
 
   // 🆕 If we DO have state (e.g., from PaymentFailed → Resume Booking) but it's
   // missing form/passenger drafts, merge them from session without losing the rest.
