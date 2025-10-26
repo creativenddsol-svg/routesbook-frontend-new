@@ -1,6 +1,7 @@
+// src/pages/Profile.jsx
 import { useEffect, useState, useRef } from "react";
-import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import apiClient from "../api"; // ✅ shared client (baseURL + withCredentials)
 
 const Profile = () => {
   /* ─────────────────────────────
@@ -23,24 +24,26 @@ const Profile = () => {
   const navigate = useNavigate();
 
   /* ─────────────────────────────
-     Auth token
+     Auth token (optional; cookie works too)
   ───────────────────────────── */
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("token") || null;
 
   /* ─────────────────────────────
      Fetch profile on mount
   ───────────────────────────── */
   useEffect(() => {
-    if (!token) {
-      navigate("/login");
-      return;
-    }
+    let alive = true;
 
     const fetchProfile = async () => {
       try {
-        const res = await axios.get("http://localhost:5000/api/profile", {
-          headers: { Authorization: `Bearer ${token}` },
+        // ✅ Do not hardcode localhost; use apiClient baseURL
+        const res = await apiClient.get("/profile", {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          // apiClient should already have withCredentials: true
         });
+
+        if (!alive) return;
+
         setUser(res.data);
         setForm({
           name: res.data.fullName || "",
@@ -50,28 +53,42 @@ const Profile = () => {
           profilePicture: res.data.profilePicture || "",
         });
       } catch (err) {
+        if (!alive) return;
+
+        const status = err?.response?.status;
         console.error("❌ Failed to load profile", err);
-        setMessage("⚠️ Failed to load profile. Please login again.");
-        navigate("/login");
+
+        // ✅ Only redirect on 401 (unauthorized)
+        if (status === 401) {
+          setMessage("⚠️ Session expired. Please login again.");
+          navigate("/login");
+          return;
+        }
+
+        // Other errors (network, 5xx, CORS) → show message, don't force-redirect
+        setMessage("⚠️ Failed to load profile. Please try again.");
       }
     };
 
     fetchProfile();
+    return () => {
+      alive = false;
+    };
   }, [token, navigate]);
 
   /* ─────────────────────────────
      Handlers
   ───────────────────────────── */
   const handleChange = (e) =>
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const handlePasswordChange = (e) =>
-    setPasswordForm({ ...passwordForm, [e.target.name]: e.target.value });
+    setPasswordForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
   const handleProfileUpdate = async () => {
     try {
-      await axios.put("http://localhost:5000/api/profile", form, {
-        headers: { Authorization: `Bearer ${token}` },
+      await apiClient.put("/profile", form, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
       setMessage("✅ Profile updated successfully");
     } catch (err) {
@@ -82,13 +99,9 @@ const Profile = () => {
 
   const handlePasswordUpdate = async () => {
     try {
-      await axios.put(
-        "http://localhost:5000/api/profile/change-password",
-        passwordForm,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
+      await apiClient.put("/profile/change-password", passwordForm, {
+        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      });
       setMessage("✅ Password changed successfully");
       setPasswordForm({ currentPassword: "", newPassword: "" });
     } catch (err) {
@@ -103,23 +116,19 @@ const Profile = () => {
   const triggerFileSelect = () => fileInputRef.current?.click();
 
   const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
     if (!file) return;
 
     const data = new FormData();
     data.append("image", file);
 
     try {
-      const res = await axios.post(
-        "http://localhost:5000/api/upload/profile-picture",
-        data,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await apiClient.post("/upload/profile-picture", data, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       setForm((prev) => ({ ...prev, profilePicture: res.data.imageUrl }));
       setMessage("✅ Image uploaded");
     } catch (err) {
@@ -133,7 +142,9 @@ const Profile = () => {
   ───────────────────────────── */
   if (!user) {
     return (
-      <p className="text-center text-gray-600 mt-10">Loading profile...</p>
+      <p className="text-center text-gray-600 mt-10">
+        Loading profile...
+      </p>
     );
   }
 
@@ -153,15 +164,14 @@ const Profile = () => {
           <img
             src={form.profilePicture}
             onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
                 form.name || "User"
               )}&background=0D8ABC&color=fff`;
             }}
             alt="avatar"
             className="w-16 h-16 rounded-full object-cover border"
           />
-
           <span className="text-sm text-gray-500 underline">
             Change profile picture
           </span>
