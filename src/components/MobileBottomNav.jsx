@@ -1,36 +1,51 @@
+// src/components/MobileBottomNav.jsx
 import { useState, useRef, useEffect } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import {
   FaHome,
-  FaListUl, // Used for Bookings (lines icon)
-  FaHeadset, // Used for Help (support/headset icon)
-  FaRegUserCircle, // Updated for Account (unfilled circle icon)
+  FaListUl, // Bookings
+  FaHeadset, // Help
+  FaRegUserCircle, // Account
 } from "react-icons/fa";
-// Removed FaUserCircle as it is now FaRegUserCircle
-import { useAuth } from "../AuthContext";
+// ✅ Align import with desktop navbar
+import { useAuth } from "./context/AuthContext";
 
 /** Keep this in sync with the bar height in Tailwind classes below */
 const NAV_HEIGHT_PX = 64; // 16 * 4
 
 const MobileBottomNav = () => {
-  const { isLoggedIn, user, logout } = useAuth();
+  // ✅ Be compatible with both shapes of useAuth
+  const auth = useAuth() || {};
+  const {
+    user,
+    token,
+    logout = () => {},
+    isLoggedIn: authIsLoggedIn,
+    loading,
+  } = auth;
+
   const [showMenu, setShowMenu] = useState(false);
   const navigate = useNavigate();
   const sheetRef = useRef(null);
 
+  // ✅ Same "isLoggedIn" derivation style as desktop (token || user)
+  const isLoggedIn = Boolean(authIsLoggedIn ?? (token || user));
+
+  // ✅ Copy the same robust role detection from desktop navbar
+  const roleStr = user?.role?.toString?.().toLowerCase?.() || "";
+  const isAdmin =
+    roleStr === "admin" ||
+    user?.isAdmin === true ||
+    (Array.isArray(user?.roles) &&
+      user.roles.some((r) => r?.toString?.().toLowerCase?.() === "admin"));
+  const isOperator =
+    roleStr === "operator" ||
+    (Array.isArray(user?.roles) &&
+      user.roles.some((r) => r?.toString?.().toLowerCase?.() === "operator"));
+
   // Add bottom padding to the page so content never hides behind the bar
   useEffect(() => {
-    const safeInset =
-      typeof window !== "undefined"
-        ? parseInt(
-            getComputedStyle(document.documentElement).getPropertyValue(
-              "--sat-safe-bottom"
-            ) || "0",
-            10
-          )
-        : 0;
     const oldPadding = document.body.style.paddingBottom;
-    // use env(safe-area-inset-bottom) via CSS var fallback trick
     document.body.style.paddingBottom = `calc(${NAV_HEIGHT_PX}px + env(safe-area-inset-bottom, 0px))`;
     return () => {
       document.body.style.paddingBottom = oldPadding;
@@ -47,28 +62,23 @@ const MobileBottomNav = () => {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  // Updated tab classes to match RedBus styling: lighter gray when inactive, red when active.
+  // Updated tab classes (unchanged UI/colors)
   const tabClasses = (isActive) =>
     [
       "flex flex-col items-center justify-center h-16 w-full select-none",
       "transition-colors duration-150 ease-out",
-      // RedBus active color
       isActive ? "text-[#d84e55]" : "text-gray-500",
-      "text-[10px] font-medium" // Adjusted text style for better look
+      "text-[10px] font-medium",
     ].join(" ");
 
-  // The Indicator component is removed as the RedBus UI doesn't show a top bar indicator.
-  // const Indicator = ({ active }) => (...)
+  if (loading) return null;
 
   return (
     <>
       {/* --- Bottom navigation (full-width, aligned with screen) --- */}
       <nav
-        // Removed 'border-t border-gray-200' for a cleaner app-like look
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.08)]"
-        style={{
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        }}
+        style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
         role="navigation"
         aria-label="Primary"
       >
@@ -76,7 +86,7 @@ const MobileBottomNav = () => {
           {/* Home */}
           <li className="relative">
             <NavLink to="/" className={({ isActive }) => tabClasses(isActive)}>
-              {({ isActive }) => (
+              {() => (
                 <>
                   <FaHome className="text-[24px]" />
                   <span className="mt-0.5">Home</span>
@@ -85,13 +95,13 @@ const MobileBottomNav = () => {
             </NavLink>
           </li>
 
-          {/* Bookings - Lines icon */}
+          {/* Bookings */}
           <li className="relative">
             <NavLink
               to="/my-bookings"
               className={({ isActive }) => tabClasses(isActive)}
             >
-              {({ isActive }) => (
+              {() => (
                 <>
                   <FaListUl className="text-[24px]" />
                   <span className="mt-0.5">Bookings</span>
@@ -100,13 +110,13 @@ const MobileBottomNav = () => {
             </NavLink>
           </li>
 
-          {/* Help - Headset icon */}
+          {/* Help */}
           <li className="relative">
             <NavLink
               to="/help"
               className={({ isActive }) => tabClasses(isActive)}
             >
-              {({ isActive }) => (
+              {() => (
                 <>
                   <FaHeadset className="text-[24px]" />
                   <span className="mt-0.5">Help</span>
@@ -115,7 +125,7 @@ const MobileBottomNav = () => {
             </NavLink>
           </li>
 
-          {/* Account (opens sheet) - Updated to unfilled icon */}
+          {/* Account (opens sheet) */}
           <li className="relative">
             <button
               onClick={() => setShowMenu((v) => !v)}
@@ -123,7 +133,6 @@ const MobileBottomNav = () => {
               aria-expanded={showMenu}
               aria-controls="account-sheet"
             >
-              {/* Using FaRegUserCircle for the unfilled look */}
               <FaRegUserCircle className="text-[24px]" />
               <span className="mt-0.5">Account</span>
             </button>
@@ -133,11 +142,7 @@ const MobileBottomNav = () => {
 
       {/* --- Account Bottom Sheet (full-width, aligned) --- */}
       {showMenu && (
-        <div
-          className="fixed inset-0 z-[60] lg:hidden"
-          role="dialog"
-          aria-modal="true"
-        >
+        <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true">
           {/* backdrop */}
           <div
             className="absolute inset-0 bg-black/35"
@@ -183,7 +188,21 @@ const MobileBottomNav = () => {
                     My Profile
                   </button>
 
-                  {user?.role === "admin" && (
+                  {/* ✅ Operator Dashboard (same logic as desktop) */}
+                  {isOperator && (
+                    <button
+                      onClick={() => {
+                        navigate("/operator/dashboard");
+                        setShowMenu(false);
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-xl hover:bg-gray-50 active:bg-gray-100"
+                    >
+                      Operator Dashboard
+                    </button>
+                  )}
+
+                  {/* ✅ Admin Dashboard (same logic as desktop) */}
+                  {isAdmin && (
                     <button
                       onClick={() => {
                         navigate("/admin");
