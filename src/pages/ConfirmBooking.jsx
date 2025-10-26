@@ -409,9 +409,11 @@ const ConfirmBooking = () => {
   const token =
     localStorage.getItem("token") || localStorage.getItem("authToken") || null;
 
-  // 🆕 simple throttle helper
-  const throttleRef = useRef(0);
-  const THROTTLE_MS = 1200;
+  // 🆕 debounce / backoff helpers for autosave
+  const debounceIdRef = useRef(null);
+  const inFlightRef = useRef(false);
+  const pauseUntilRef = useRef(0); // ms epoch when autosave can resume
+  const existingProfileRef = useRef(null); // cache baseline to diff against
 
   // 🆕 Detect PayHere "back to the site" with non-success status and restore draft
   const phParams = new URLSearchParams(location.search || "");
@@ -596,7 +598,7 @@ const ConfirmBooking = () => {
     await apiClient.put("/profile", payload, { headers: profileHeaders });
   }, [profileHeaders]);
 
-  // 🆕 Prefill Contact Details from /profile when logged in (doesn't override user-typed)
+  // 🆕 Prefill Contact Details when logged in (and cache baseline for autosave)
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -605,13 +607,14 @@ const ConfirmBooking = () => {
         try {
           const hint = JSON.parse(sessionStorage.getItem("rb_profile_hint") || "{}");
           if (!alive) return;
-          setForm((prev) => ({ ...hint, ...prev, ...hint })); // hint wins where prev empty
+          setForm((prev) => ({ ...hint, ...prev, ...hint }));
         } catch {}
         return;
       }
       try {
         const existing = await fetchProfile();
         if (!alive) return;
+        existingProfileRef.current = existing; // cache baseline
         setForm((prev) => ({
           name: prev.name || existing.fullName || "",
           mobile: prev.mobile || existing.phone || "",
@@ -634,8 +637,8 @@ const ConfirmBooking = () => {
         const raw = sessionStorage.getItem("rb_profile_hint");
         if (!raw) return;
         const hint = JSON.parse(raw || "{}");
-        const existing = await fetchProfile();
-        const payload = diffForProfile(existing, {
+        const baseline = existingProfileRef.current || (await fetchProfile());
+        const payload = diffForProfile(baseline, {
           name: hint.name ?? form.name,
           email: hint.email ?? form.email,
           mobile: hint.mobile ?? form.mobile,
@@ -643,6 +646,8 @@ const ConfirmBooking = () => {
         });
         if (Object.keys(payload).length) {
           await upsertProfile(payload);
+          // update cache baseline
+          existingProfileRef.current = { ...baseline, ...mapProfilePayloadToCache(payload) };
         }
         sessionStorage.removeItem("rb_profile_hint");
         done = true;
@@ -652,19 +657,19 @@ const ConfirmBooking = () => {
     })();
   }, [token, fetchProfile, upsertProfile, diffForProfile, form]);
 
-  // 🆕 Light autosave: when user edits fields while logged in, throttle PUT /profile
+  // 🆕 Debounced, backoff-aware autosave (prevents 429 floods)
   useEffect(() => {
     if (!token) return;
-    const now = Date.now();
-    if (now - throttleRef.current < THROTTLE_MS) return;
-    throttleRef.current = now;
+    if (Date.now() < pauseUntilRef.current) return;
 
-    let cancelled = false;
-    (async () => {
+    if (debounceIdRef.current) clearTimeout(debounceIdRef.current);
+    debounceIdRef.current = setTimeout(async () => {
+      if (inFlightRef.current) return;
       try {
-        const existing = await fetchProfile();
-        if (cancelled) return;
-        const payload = diffForProfile(existing, {
+        inFlightRef.current = true;
+        const baseline =
+          existingProfileRef.current || (await fetchProfile());
+        const payload = diffForProfile(baseline, {
           name: form.name,
           email: form.email,
           mobile: form.mobile,
@@ -672,15 +677,41 @@ const ConfirmBooking = () => {
         });
         if (Object.keys(payload).length) {
           await upsertProfile(payload);
+          existingProfileRef.current = {
+            ...baseline,
+            ...mapProfilePayloadToCache(payload),
+          };
         }
-      } catch {
-        // best-effort autosave; ignore errors
+      } catch (err) {
+        const status = err?.response?.status;
+        const retryAfter = parseInt(
+          err?.response?.headers?.["retry-after"] || "0",
+          10
+        );
+        if (status === 429) {
+          const waitMs = (retryAfter > 0 ? retryAfter : 30) * 1000;
+          pauseUntilRef.current = Date.now() + waitMs;
+        }
+      } finally {
+        inFlightRef.current = false;
       }
-    })();
+    }, 3000); // 3s after the user stops typing
 
-    return () => { cancelled = true; };
+    return () => {
+      if (debounceIdRef.current) clearTimeout(debounceIdRef.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [form.name, form.email, form.mobile, form.nic, token]);
+
+  // helper to convert PUT payload keys into our cache shape
+  function mapProfilePayloadToCache(payload) {
+    const m = {};
+    if ("fullName" in payload) m.fullName = payload.fullName;
+    if ("email" in payload) m.email = payload.email;
+    if ("phone" in payload) m.phone = payload.phone;
+    if ("nic" in payload) m.nic = payload.nic;
+    return m;
+  }
 
   // ---------- back nav + hold timers (unchanged) ----------
   const goBackToResults = useCallback(() => {
@@ -937,7 +968,6 @@ const ConfirmBooking = () => {
       const localToken =
         localStorage.getItem("token") || localStorage.getItem("authToken");
       if (!localToken) {
-        // 🆕 store a hint for post-login push
         try {
           sessionStorage.setItem("rb_profile_hint", JSON.stringify({
             name: form.name, email: form.email, mobile: form.mobile, nic: form.nic,
@@ -952,12 +982,17 @@ const ConfirmBooking = () => {
 
       // 🆕 Logged-in: upsert profile before creating booking (best effort)
       try {
-        const existing = await fetchProfile();
-        const payload = diffForProfile(existing, {
+        const baseline =
+          existingProfileRef.current || (await fetchProfile());
+        const payload = diffForProfile(baseline, {
           name: form.name, email: form.email, mobile: form.mobile, nic: form.nic,
         });
         if (Object.keys(payload).length) {
           await upsertProfile(payload);
+          existingProfileRef.current = {
+            ...baseline,
+            ...mapProfilePayloadToCache(payload),
+          };
         }
       } catch {
         // ignore (booking can proceed even if profile sync fails)
