@@ -3,63 +3,63 @@ import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import apiClient from "../api";
 
-// Build absolute https URL safely
+/**
+ * Safely construct an absolute HTTPS image URL.
+ * - Keeps existing https://
+ * - Upgrades http:// to https://
+ * - Resolves relative URLs against apiClient baseURL (or window location)
+ * - Removes trailing "/api" from base paths
+ * - Deduplicates slashes
+ */
 const buildAbsolute = (img, base) => {
   if (!img) return null;
   try {
-    // Check if the URL already has http or https.
-    // FIX: Using string regex notation and escaping slashes for safe deployment.
-    if (/^https?:\/\//i.test(img)) 
-      // Replace http:// with https://
-      return img.replace(/^http:\/\//i, "https://"); 
+    // Already absolute?
+    if (/^https?:\/\//i.test(img)) {
+      return img.replace(/^http:\/\//i, "https://");
+    }
 
+    // Resolve against base (apiClient baseURL or current location)
     const u = new URL(
       base || "",
-      typeof window !== "undefined"
-        ? window.location.href
-        : "https://example.com"
+      typeof window !== "undefined" ? window.location.href : "https://example.com"
     );
     const origin = u.origin;
-    
-    // Remove /api/ from the path if present.
-    // FIX: Escaping slashes.
-    const path = (u.pathname || "").replace(/\/api\/?$/i, ""); 
-    
-    // Join the path and the image URL correctly.
+
+    // Strip trailing "/api" from pathname if present
+    const path = (u.pathname || "").replace(/\/api\/?$/i, "");
+
+    // Ensure single leading slash for the image path
     const joined = (img.startsWith("/") ? "" : "/") + img.replace(/^\//, "");
-    
-    // Clean up double slashes (except after the colon in 'http://')
-    // FIX: Escaping slashes.
+
+    // Join & normalize (avoid double slashes except after protocol)
     return (origin + path + joined).replace(/([^:]\/)\/+/g, "$1");
   } catch {
-    // Fallback if URL construction fails
+    // Fallback to the raw value if URL construction fails
     return img;
   }
 };
 
 const NoticeCard = ({ notice, linkTo }) => {
   const base = apiClient?.defaults?.baseURL || "";
-  const src = useMemo(
-    () => buildAbsolute(notice?.imageUrl || "", base),
-    [notice?.imageUrl, base]
-  );
+  const imgCandidate = notice?.imageUrl || notice?.image || notice?.cover || "";
+  const src = useMemo(() => buildAbsolute(imgCandidate, base), [imgCandidate, base]);
 
   const CardInner = (
     <div className="w-full rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 bg-white">
-      {/* Pure image, fixed height (h-40 sm:h-48 is a good, consistent size) */}
+      {/* Match mobile rail sizing (prevents left overflow, keeps aspect) */}
       <div className="relative w-full h-40 sm:h-48">
         {src ? (
           <img
-            src={src} // This is the final URL from buildAbsolute
+            src={src}
             alt={notice?.title || "Notice"}
-            className="w-full h-full object-cover" 
+            className="w-full h-full object-cover"
             loading="lazy"
             decoding="async"
             draggable={false}
           />
         ) : (
           <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
-            {/* This fallback div shows "No Image" if 'src' is null/empty */}
             No Image
           </div>
         )}
