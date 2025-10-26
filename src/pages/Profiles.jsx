@@ -1,13 +1,28 @@
 // src/pages/Profile.jsx
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import apiClient from "../api"; // ✅ shared client (baseURL + withCredentials)
+import toast, { Toaster } from "react-hot-toast";
+import apiClient from "../api";
 
-const Profile = () => {
+/* ---- Shared UI (same as Login.jsx) ---- */
+import TopBar from "../components/ui/TopBar";
+import SectionCard from "../components/ui/SectionCard";
+import { RowInput } from "../components/ui/FormAtoms";
+
+/* ---- Page palette (same as Login.jsx) ---- */
+const PALETTE = {
+  primary: "var(--rb-primary, #D84E55)",
+  bg: "var(--rb-bg, #F5F6F8)",
+  subtle: "var(--rb-subtle, #6B7280)",
+};
+
+export default function Profile() {
   /* ─────────────────────────────
-     Local component state
+     State
   ───────────────────────────── */
   const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -15,62 +30,50 @@ const Profile = () => {
     phone: "",
     profilePicture: "",
   });
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: "",
     newPassword: "",
   });
-  const [message, setMessage] = useState("");
+
   const fileInputRef = useRef(null);
   const navigate = useNavigate();
 
-  /* ─────────────────────────────
-     Auth token (optional; cookie works too)
-  ───────────────────────────── */
-  const token = localStorage.getItem("token") || null;
+  const token = localStorage.getItem("token") || null; // optional; cookie auth also works
 
   /* ─────────────────────────────
-     Fetch profile on mount
+     Fetch profile (401 → login)
   ───────────────────────────── */
   useEffect(() => {
     let alive = true;
-
-    const fetchProfile = async () => {
+    (async () => {
       try {
-        // ✅ Do not hardcode localhost; use apiClient baseURL
         const res = await apiClient.get("/profile", {
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
-          // apiClient should already have withCredentials: true
         });
 
         if (!alive) return;
-
-        setUser(res.data);
+        const u = res.data || {};
+        setUser(u);
         setForm({
-          name: res.data.fullName || "",
-          email: res.data.email || "",
-          nic: res.data.nic || "",
-          phone: res.data.phone || "",
-          profilePicture: res.data.profilePicture || "",
+          name: u.fullName || "",
+          email: u.email || "",
+          nic: u.nic || "",
+          phone: u.phone || "",
+          profilePicture: u.profilePicture || "",
         });
       } catch (err) {
-        if (!alive) return;
-
         const status = err?.response?.status;
-        console.error("❌ Failed to load profile", err);
-
-        // ✅ Only redirect on 401 (unauthorized)
         if (status === 401) {
-          setMessage("⚠️ Session expired. Please login again.");
+          toast.error("Session expired. Please login again.");
           navigate("/login");
           return;
         }
-
-        // Other errors (network, 5xx, CORS) → show message, don't force-redirect
-        setMessage("⚠️ Failed to load profile. Please try again.");
+        toast.error("Failed to load profile. Please try again.");
+      } finally {
+        if (alive) setLoading(false);
       }
-    };
-
-    fetchProfile();
+    })();
     return () => {
       alive = false;
     };
@@ -79,46 +82,47 @@ const Profile = () => {
   /* ─────────────────────────────
      Handlers
   ───────────────────────────── */
-  const handleChange = (e) =>
+  const onChange = (e) =>
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  const handlePasswordChange = (e) =>
+  const onPasswordChange = (e) =>
     setPasswordForm((f) => ({ ...f, [e.target.name]: e.target.value }));
 
-  const handleProfileUpdate = async () => {
+  const updateProfile = async (e) => {
+    e?.preventDefault?.();
     try {
       await apiClient.put("/profile", form, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      setMessage("✅ Profile updated successfully");
+      toast.success("Profile updated successfully");
     } catch (err) {
-      console.error(err);
-      setMessage("❌ Failed to update profile");
+      toast.error(err?.response?.data?.message || "Failed to update profile");
     }
   };
 
-  const handlePasswordUpdate = async () => {
+  const changePassword = async (e) => {
+    e?.preventDefault?.();
     try {
       await apiClient.put("/profile/change-password", passwordForm, {
         headers: token ? { Authorization: `Bearer ${token}` } : undefined,
       });
-      setMessage("✅ Password changed successfully");
+      toast.success("Password changed successfully");
       setPasswordForm({ currentPassword: "", newPassword: "" });
     } catch (err) {
-      console.error(err);
-      setMessage("❌ Failed to change password");
+      toast.error(
+        err?.response?.data?.message || "Failed to change password"
+      );
     }
   };
 
   /* ─────────────────────────────
-     Image upload logic
+     Avatar upload
   ───────────────────────────── */
-  const triggerFileSelect = () => fileInputRef.current?.click();
+  const triggerFile = () => fileInputRef.current?.click();
 
-  const handleFileUpload = async (e) => {
+  const onFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-
     const data = new FormData();
     data.append("image", file);
 
@@ -130,125 +134,175 @@ const Profile = () => {
         },
       });
       setForm((prev) => ({ ...prev, profilePicture: res.data.imageUrl }));
-      setMessage("✅ Image uploaded");
+      toast.success("Image uploaded");
     } catch (err) {
-      console.error(err);
-      setMessage("❌ Image upload failed");
+      toast.error(err?.response?.data?.message || "Image upload failed");
     }
   };
 
   /* ─────────────────────────────
-     UI
+     UI (mirrors Login.jsx layout)
   ───────────────────────────── */
-  if (!user) {
+  if (loading) {
     return (
-      <p className="text-center text-gray-600 mt-10">
-        Loading profile...
-      </p>
+      <div className="min-h-screen" style={{ background: PALETTE.bg }}>
+        <TopBar />
+        <div className="max-w-5xl mx-auto px-4 py-8">
+          <SectionCard title="Loading profile…">
+            <p className="text-sm" style={{ color: PALETTE.subtle }}>
+              Please wait a moment.
+            </p>
+          </SectionCard>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="max-w-2xl mx-auto p-6 bg-white rounded shadow">
-      <h2 className="text-2xl font-bold mb-4">👤 My Profile</h2>
-      {message && <div className="mb-4 text-blue-600">{message}</div>}
+    <div className="min-h-screen" style={{ background: PALETTE.bg }}>
+      <Toaster position="top-right" />
+      <TopBar />
 
-      {/* Profile form */}
-      <div className="space-y-3 mb-6">
-        {/* Avatar + hidden file input */}
-        <div
-          className="flex items-center gap-4 cursor-pointer"
-          onClick={triggerFileSelect}
-          title="Click to change picture"
-        >
-          <img
-            src={form.profilePicture}
-            onError={(e) => {
-              e.currentTarget.onerror = null;
-              e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
-                form.name || "User"
-              )}&background=0D8ABC&color=fff`;
-            }}
-            alt="avatar"
-            className="w-16 h-16 rounded-full object-cover border"
-          />
-          <span className="text-sm text-gray-500 underline">
-            Change profile picture
-          </span>
+      <div className="max-w-5xl mx-auto px-4 py-8">
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Left: Profile details (like Login left column) */}
+          <SectionCard title="My Profile">
+            {/* Avatar */}
+            <div className="flex items-center gap-4 mb-4">
+              <img
+                src={form.profilePicture}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    form.name || "User"
+                  )}&background=0D8ABC&color=fff`;
+                }}
+                alt="avatar"
+                className="w-16 h-16 rounded-full object-cover border"
+              />
+              <div>
+                <button
+                  type="button"
+                  onClick={triggerFile}
+                  className="px-3 py-2 rounded-lg text-sm font-semibold text-white"
+                  style={{ background: PALETTE.primary }}
+                >
+                  Change picture
+                </button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={onFile}
+                  className="hidden"
+                />
+                <p className="text-xs mt-2" style={{ color: PALETTE.subtle }}>
+                  JPG/PNG, up to ~2MB recommended.
+                </p>
+              </div>
+            </div>
+
+            {/* Form fields styled like Login (RowInput) */}
+            <form onSubmit={updateProfile} className="space-y-4">
+              <RowInput
+                id="name"
+                name="name"
+                label="Full Name"
+                type="text"
+                value={form.name}
+                onChange={onChange}
+                placeholder="Your full name"
+                required
+              />
+
+              <RowInput
+                id="email"
+                name="email"
+                label="Email"
+                type="email"
+                value={form.email}
+                onChange={onChange}
+                placeholder="you@email.com"
+                autoComplete="email"
+                required
+              />
+
+              <RowInput
+                id="nic"
+                name="nic"
+                label="NIC (optional)"
+                type="text"
+                value={form.nic}
+                onChange={onChange}
+                placeholder="NIC number"
+              />
+
+              <RowInput
+                id="phone"
+                name="phone"
+                label="Phone (optional)"
+                type="tel"
+                value={form.phone}
+                onChange={onChange}
+                placeholder="07xxxxxxxx"
+              />
+
+              <button
+                type="submit"
+                className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: PALETTE.primary }}
+              >
+                Save Changes
+              </button>
+            </form>
+          </SectionCard>
+
+          {/* Right: Security (like Login right column helper card) */}
+          <SectionCard title="Security">
+            <form onSubmit={changePassword} className="space-y-4">
+              <RowInput
+                id="currentPassword"
+                name="currentPassword"
+                label="Current Password"
+                type="password"
+                value={passwordForm.currentPassword}
+                onChange={onPasswordChange}
+                placeholder="••••••••"
+                autoComplete="current-password"
+                required
+              />
+
+              <RowInput
+                id="newPassword"
+                name="newPassword"
+                label="New Password"
+                type="password"
+                value={passwordForm.newPassword}
+                onChange={onPasswordChange}
+                placeholder="••••••••"
+                autoComplete="new-password"
+                required
+              />
+
+              <button
+                type="submit"
+                className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: PALETTE.primary }}
+              >
+                Change Password
+              </button>
+            </form>
+
+            <div className="mt-6 text-sm" style={{ color: PALETTE.subtle }}>
+              <p className="mb-1">
+                • Keep your email up to date—booking confirmations are sent
+                there.
+              </p>
+              <p>• Use a strong password you don’t use elsewhere.</p>
+            </div>
+          </SectionCard>
         </div>
-        <input
-          type="file"
-          accept="image/*"
-          ref={fileInputRef}
-          onChange={handleFileUpload}
-          className="hidden"
-        />
-
-        <input
-          name="name"
-          value={form.name}
-          onChange={handleChange}
-          placeholder="Full Name"
-          className="w-full border px-3 py-2 rounded"
-        />
-        <input
-          name="email"
-          value={form.email}
-          onChange={handleChange}
-          placeholder="Email"
-          className="w-full border px-3 py-2 rounded"
-        />
-        <input
-          name="nic"
-          value={form.nic}
-          onChange={handleChange}
-          placeholder="NIC (optional)"
-          className="w-full border px-3 py-2 rounded"
-        />
-        <input
-          name="phone"
-          value={form.phone}
-          onChange={handleChange}
-          placeholder="Phone (optional)"
-          className="w-full border px-3 py-2 rounded"
-        />
-
-        <button
-          onClick={handleProfileUpdate}
-          className="bg-blue-600 text-white px-4 py-2 rounded w-full"
-        >
-          Update Profile
-        </button>
-      </div>
-
-      {/* Change-password form */}
-      <div className="border-t pt-4 mt-6">
-        <h3 className="text-lg font-semibold mb-2">🔒 Change Password</h3>
-        <input
-          type="password"
-          name="currentPassword"
-          value={passwordForm.currentPassword}
-          onChange={handlePasswordChange}
-          placeholder="Current Password"
-          className="w-full border px-3 py-2 rounded mb-2"
-        />
-        <input
-          type="password"
-          name="newPassword"
-          value={passwordForm.newPassword}
-          onChange={handlePasswordChange}
-          placeholder="New Password"
-          className="w-full border px-3 py-2 rounded mb-2"
-        />
-        <button
-          onClick={handlePasswordUpdate}
-          className="bg-green-600 text-white px-4 py-2 rounded w-full"
-        >
-          Change Password
-        </button>
       </div>
     </div>
   );
-};
-
-export default Profile;
+}
