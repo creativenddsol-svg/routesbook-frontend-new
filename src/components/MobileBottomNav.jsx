@@ -2,10 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import {
   FaHome,
-  FaTicketAlt,
-  FaQuestionCircle,
   FaUserCircle,
+  FaListUl, // Used for Bookings (lines icon)
+  FaHeadset, // Used for Help (support/headset icon)
 } from "react-icons/fa";
+// FaTicketAlt and FaQuestionCircle are no longer imported/used
 import { useAuth } from "../AuthContext";
 
 /** Keep this in sync with the bar height in Tailwind classes below */
@@ -13,7 +14,6 @@ const NAV_HEIGHT_PX = 64; // 16 * 4
 
 const MobileBottomNav = () => {
   const { isLoggedIn, user, logout } = useAuth();
-  // Using 'showMenu' to control the bottom sheet for Account (retains original functionality)
   const [showMenu, setShowMenu] = useState(false);
   const navigate = useNavigate();
   const sheetRef = useRef(null);
@@ -47,26 +47,18 @@ const MobileBottomNav = () => {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  // Updated tab classes to closely match the RedBus style:
-  // - Icon color is lighter gray when inactive, red when active.
-  // - No top indicator line is used as the RedBus screenshot doesn't show one.
+  // Updated styling for better RedBus resemblance: removed top indicator, increased icon size, and slightly thicker text.
   const tabClasses = (isActive) =>
     [
       "flex flex-col items-center justify-center h-16 w-full select-none",
       "transition-colors duration-150 ease-out",
-      // RedBus uses a slightly muted red/maroon: #d84e55
+      // RedBus active color
       isActive ? "text-[#d84e55]" : "text-gray-500",
+      "text-[10px] font-medium" // Adjusted text style for better look
     ].join(" ");
 
-  // Removing the Indicator component to match the simple RedBus bottom nav design.
-  // const Indicator = ({ active }) => (
-  //   <span
-  //     className={[
-  //       "absolute inset-x-10 -top-[1px] h-[3px] rounded-full",
-  //       active ? "bg-[#d84e55]" : "bg-transparent",
-  //     ].join(" ")}
-  //   />
-  // );
+  // The Indicator component is removed as the RedBus UI doesn't show a top bar indicator.
+  // const Indicator = ({ active }) => (...)
 
   return (
     <>
@@ -86,14 +78,14 @@ const MobileBottomNav = () => {
               {({ isActive }) => (
                 <>
                   {/* <Indicator active={isActive} /> */}
-                  <FaHome className="text-[24px]" /> {/* Increased size for visual impact */}
-                  <span className="text-[10px] mt-0.5 font-medium">Home</span>
+                  <FaHome className="text-[24px]" />
+                  <span className="mt-0.5">Home</span>
                 </>
               )}
             </NavLink>
           </li>
 
-          {/* Bookings (Matches RedBus text 'Bookings' and general icon placement) */}
+          {/* Bookings - Updated to lines/list icon (FaListUl) */}
           <li className="relative">
             <NavLink
               to="/my-bookings"
@@ -102,14 +94,14 @@ const MobileBottomNav = () => {
               {({ isActive }) => (
                 <>
                   {/* <Indicator active={isActive} /> */}
-                  <FaTicketAlt className="text-[24px]" /> {/* Increased size */}
-                  <span className="text-[10px] mt-0.5 font-medium">Bookings</span>
+                  <FaListUl className="text-[24px]" />
+                  <span className="mt-0.5">Bookings</span>
                 </>
               )}
             </NavLink>
           </li>
 
-          {/* Help (Matches RedBus text 'Help' and general icon placement) */}
+          {/* Help - Updated to headset/support icon (FaHeadset) */}
           <li className="relative">
             <NavLink
               to="/help"
@@ -118,27 +110,24 @@ const MobileBottomNav = () => {
               {({ isActive }) => (
                 <>
                   {/* <Indicator active={isActive} /> */}
-                  <FaQuestionCircle className="text-[24px]" /> {/* Increased size */}
-                  <span className="text-[10px] mt-0.5 font-medium">Help</span>
+                  <FaHeadset className="text-[24px]" />
+                  <span className="mt-0.5">Help</span>
                 </>
               )}
             </NavLink>
           </li>
 
-          {/* Account (Now a NavLink/Button combination for the same visual style,
-              but still uses onClick to show the menu/sheet) */}
+          {/* Account (opens sheet) */}
           <li className="relative">
-            {/* The active state now considers if the sheet is open, or if we were on the /account path (if applicable) */}
             <button
               onClick={() => setShowMenu((v) => !v)}
-              // Using a simple active check for a cleaner look
               className={tabClasses(showMenu)}
               aria-expanded={showMenu}
               aria-controls="account-sheet"
             >
               {/* <Indicator active={showMenu} /> */}
-              <FaUserCircle className="text-[24px]" /> {/* Increased size */}
-              <span className="text-[10px] mt-0.5 font-medium">Account</span>
+              <FaUserCircle className="text-[24px]" />
+              <span className="mt-0.5">Account</span>
             </button>
           </li>
         </ul>
