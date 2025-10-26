@@ -211,7 +211,11 @@ const HolidaysSection = () => {
           ref={railRef}
           onScroll={updateActiveIndex}
           className="flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-4 hide-scrollbar snap-x snap-mandatory"
-          style={{ WebkitOverflowScrolling: "touch" }}
+          style={{ 
+            WebkitOverflowScrolling: "touch",
+            /* ✅ Ensures first snapped card respects the left padding, matching Notices fix */
+            scrollPaddingLeft: "1rem"
+          }}
         >
           {items.map((h, index) => (
             <div
@@ -242,11 +246,8 @@ const HolidaysSection = () => {
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-        /* ===== Stronger, always-visible shimmer =====
-           Works well on very light pastel backgrounds.
-           Inherits rounded corners via wrapper.
-        */
-        .rb-shine-wrap { isolation: isolate; } /* create a stacking context */
+        /* ===== Stronger, always-visible shimmer ===== */
+        .rb-shine-wrap { isolation: isolate; }
 
         .rb-shine-bar {
           position: absolute;
@@ -262,7 +263,7 @@ const HolidaysSection = () => {
             rgba(255,255,255,0) 100%
           );
           filter: blur(1px);
-          opacity: .30;                 /* more visible on light chips */
+          opacity: .30;
           animation: rb-shine-move 2.8s linear infinite;
           z-index: 1;
         }
