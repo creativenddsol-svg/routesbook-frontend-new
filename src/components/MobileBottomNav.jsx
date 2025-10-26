@@ -3,24 +3,23 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import {
   FaHome,
-  FaListUl, // Bookings
-  FaHeadset, // Help
+  FaListUl,     // Bookings
+  FaHeadset,     // Help
   FaRegUserCircle, // Account
 } from "react-icons/fa";
-// ✅ Align import with desktop navbar
-import { useAuth } from "./context/AuthContext";
+// ✅ Use the path that exists in your repo (original was ../AuthContext)
+import { useAuth } from "../AuthContext";
 
 /** Keep this in sync with the bar height in Tailwind classes below */
 const NAV_HEIGHT_PX = 64; // 16 * 4
 
 const MobileBottomNav = () => {
-  // ✅ Be compatible with both shapes of useAuth
   const auth = useAuth() || {};
   const {
     user,
-    token,
-    logout = () => {},
     isLoggedIn: authIsLoggedIn,
+    logout = () => {},
+    token, // in case your hook provides it
     loading,
   } = auth;
 
@@ -28,22 +27,20 @@ const MobileBottomNav = () => {
   const navigate = useNavigate();
   const sheetRef = useRef(null);
 
-  // ✅ Same "isLoggedIn" derivation style as desktop (token || user)
+  // ✅ Same isLoggedIn derivation style as desktop (token || user || hook flag)
   const isLoggedIn = Boolean(authIsLoggedIn ?? (token || user));
 
-  // ✅ Copy the same robust role detection from desktop navbar
+  // ✅ Robust role checks (match desktop navbar behavior)
   const roleStr = user?.role?.toString?.().toLowerCase?.() || "";
-  const isAdmin =
-    roleStr === "admin" ||
-    user?.isAdmin === true ||
-    (Array.isArray(user?.roles) &&
-      user.roles.some((r) => r?.toString?.().toLowerCase?.() === "admin"));
-  const isOperator =
-    roleStr === "operator" ||
-    (Array.isArray(user?.roles) &&
-      user.roles.some((r) => r?.toString?.().toLowerCase?.() === "operator"));
+  const rolesArr = Array.isArray(user?.roles) ? user.roles : [];
+  const hasRole = (r) =>
+    roleStr === r ||
+    rolesArr.some((x) => x?.toString?.().toLowerCase?.() === r);
 
-  // Add bottom padding to the page so content never hides behind the bar
+  const isAdmin = user?.isAdmin === true || hasRole("admin");
+  const isOperator = hasRole("operator");
+
+  // Add bottom padding so page content doesn’t hide behind the bar
   useEffect(() => {
     const oldPadding = document.body.style.paddingBottom;
     document.body.style.paddingBottom = `calc(${NAV_HEIGHT_PX}px + env(safe-area-inset-bottom, 0px))`;
@@ -62,7 +59,7 @@ const MobileBottomNav = () => {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  // Updated tab classes (unchanged UI/colors)
+  // Keep UI the same (colors/icons/size)
   const tabClasses = (isActive) =>
     [
       "flex flex-col items-center justify-center h-16 w-full select-none",
@@ -75,7 +72,7 @@ const MobileBottomNav = () => {
 
   return (
     <>
-      {/* --- Bottom navigation (full-width, aligned with screen) --- */}
+      {/* --- Bottom navigation --- */}
       <nav
         className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.08)]"
         style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
@@ -95,7 +92,7 @@ const MobileBottomNav = () => {
             </NavLink>
           </li>
 
-          {/* Bookings */}
+          {/* Bookings (visible; route can auth-guard) */}
           <li className="relative">
             <NavLink
               to="/my-bookings"
@@ -125,7 +122,7 @@ const MobileBottomNav = () => {
             </NavLink>
           </li>
 
-          {/* Account (opens sheet) */}
+          {/* Account → opens sheet */}
           <li className="relative">
             <button
               onClick={() => setShowMenu((v) => !v)}
@@ -140,7 +137,7 @@ const MobileBottomNav = () => {
         </ul>
       </nav>
 
-      {/* --- Account Bottom Sheet (full-width, aligned) --- */}
+      {/* --- Account Bottom Sheet --- */}
       {showMenu && (
         <div className="fixed inset-0 z-[60] lg:hidden" role="dialog" aria-modal="true">
           {/* backdrop */}
@@ -188,7 +185,7 @@ const MobileBottomNav = () => {
                     My Profile
                   </button>
 
-                  {/* ✅ Operator Dashboard (same logic as desktop) */}
+                  {/* Operator Dashboard (parity) */}
                   {isOperator && (
                     <button
                       onClick={() => {
@@ -201,7 +198,7 @@ const MobileBottomNav = () => {
                     </button>
                   )}
 
-                  {/* ✅ Admin Dashboard (same logic as desktop) */}
+                  {/* Admin Dashboard (parity) */}
                   {isAdmin && (
                     <button
                       onClick={() => {
