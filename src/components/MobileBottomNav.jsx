@@ -2,11 +2,11 @@ import { useState, useRef, useEffect } from "react";
 import { useNavigate, NavLink } from "react-router-dom";
 import {
   FaHome,
-  FaUserCircle,
   FaListUl, // Used for Bookings (lines icon)
   FaHeadset, // Used for Help (support/headset icon)
+  FaRegUserCircle, // Updated for Account (unfilled circle icon)
 } from "react-icons/fa";
-// FaTicketAlt and FaQuestionCircle are no longer imported/used
+// Removed FaUserCircle as it is now FaRegUserCircle
 import { useAuth } from "../AuthContext";
 
 /** Keep this in sync with the bar height in Tailwind classes below */
@@ -47,7 +47,7 @@ const MobileBottomNav = () => {
     return () => document.removeEventListener("mousedown", onDown);
   }, []);
 
-  // Updated styling for better RedBus resemblance: removed top indicator, increased icon size, and slightly thicker text.
+  // Updated tab classes to match RedBus styling: lighter gray when inactive, red when active.
   const tabClasses = (isActive) =>
     [
       "flex flex-col items-center justify-center h-16 w-full select-none",
@@ -64,7 +64,8 @@ const MobileBottomNav = () => {
     <>
       {/* --- Bottom navigation (full-width, aligned with screen) --- */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white border-t border-gray-200 shadow-[0_-4px_14px_rgba(0,0,0,0.08)]"
+        // Removed 'border-t border-gray-200' for a cleaner app-like look
+        className="fixed bottom-0 left-0 right-0 z-50 lg:hidden bg-white shadow-[0_-4px_14px_rgba(0,0,0,0.08)]"
         style={{
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
         }}
@@ -77,7 +78,6 @@ const MobileBottomNav = () => {
             <NavLink to="/" className={({ isActive }) => tabClasses(isActive)}>
               {({ isActive }) => (
                 <>
-                  {/* <Indicator active={isActive} /> */}
                   <FaHome className="text-[24px]" />
                   <span className="mt-0.5">Home</span>
                 </>
@@ -85,7 +85,7 @@ const MobileBottomNav = () => {
             </NavLink>
           </li>
 
-          {/* Bookings - Updated to lines/list icon (FaListUl) */}
+          {/* Bookings - Lines icon */}
           <li className="relative">
             <NavLink
               to="/my-bookings"
@@ -93,7 +93,6 @@ const MobileBottomNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  {/* <Indicator active={isActive} /> */}
                   <FaListUl className="text-[24px]" />
                   <span className="mt-0.5">Bookings</span>
                 </>
@@ -101,7 +100,7 @@ const MobileBottomNav = () => {
             </NavLink>
           </li>
 
-          {/* Help - Updated to headset/support icon (FaHeadset) */}
+          {/* Help - Headset icon */}
           <li className="relative">
             <NavLink
               to="/help"
@@ -109,7 +108,6 @@ const MobileBottomNav = () => {
             >
               {({ isActive }) => (
                 <>
-                  {/* <Indicator active={isActive} /> */}
                   <FaHeadset className="text-[24px]" />
                   <span className="mt-0.5">Help</span>
                 </>
@@ -117,7 +115,7 @@ const MobileBottomNav = () => {
             </NavLink>
           </li>
 
-          {/* Account (opens sheet) */}
+          {/* Account (opens sheet) - Updated to unfilled icon */}
           <li className="relative">
             <button
               onClick={() => setShowMenu((v) => !v)}
@@ -125,8 +123,8 @@ const MobileBottomNav = () => {
               aria-expanded={showMenu}
               aria-controls="account-sheet"
             >
-              {/* <Indicator active={showMenu} /> */}
-              <FaUserCircle className="text-[24px]" />
+              {/* Using FaRegUserCircle for the unfilled look */}
+              <FaRegUserCircle className="text-[24px]" />
               <span className="mt-0.5">Account</span>
             </button>
           </li>
