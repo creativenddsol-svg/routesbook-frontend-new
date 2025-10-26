@@ -90,12 +90,8 @@ const SoftPill = ({ children, bg }) => (
     {children}
   </span>
 );
-const DatePill = ({ children }) => (
-  <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>
-);
-const AcPill = ({ children }) => (
-  <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>
-);
+const DatePill = ({ children }) => <SoftPill bg={PALETTE.datePillBg}>{children}</SoftPill>;
+const AcPill = ({ children }) => <SoftPill bg={PALETTE.acPillBg}>{children}</SoftPill>;
 const SeatPill = ({ children }) => (
   <span
     className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
@@ -104,9 +100,7 @@ const SeatPill = ({ children }) => (
     {children}
   </span>
 );
-const TimeGreenPill = ({ children }) => (
-  <SoftPill bg={PALETTE.timeGreenBg}>{children}</SoftPill>
-);
+const TimeGreenPill = ({ children }) => <SoftPill bg={PALETTE.timeGreenBg}>{children}</SoftPill>;
 
 const GenderSeatPill = ({ gender, children }) => {
   const isMale = gender === "M";
@@ -250,7 +244,7 @@ const HoldCountdown = ({ busId, date, departureTime, onExpire }) => {
   );
 };
 
-/* RowInput: now supports inline errors & blur validation (desktop unchanged) */
+/* RowInput (unchanged UI) */
 const RowInput = ({
   id,
   name,
@@ -263,10 +257,10 @@ const RowInput = ({
   enterKeyHint,
   placeholder,
   required,
-  onBlur, // ✅ added
-  error, // ✅ added
-  maxLength, // ✅ passthrough
-  pattern, // ✅ passthrough
+  onBlur,
+  error,
+  maxLength,
+  pattern,
 }) => (
   <div className="w-full">
     <Label>{label}</Label>
@@ -411,6 +405,14 @@ const ConfirmBooking = () => {
   const navigate = useNavigate();
   const pageTopRef = useRef(null);
 
+  // 🆕 auth token helper
+  const token =
+    localStorage.getItem("token") || localStorage.getItem("authToken") || null;
+
+  // 🆕 simple throttle helper
+  const throttleRef = useRef(0);
+  const THROTTLE_MS = 1200;
+
   // 🆕 Detect PayHere "back to the site" with non-success status and restore draft
   const phParams = new URLSearchParams(location.search || "");
   const phStatus = phParams.get("status_code") || phParams.get("status") || "";
@@ -431,8 +433,7 @@ const ConfirmBooking = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // run once on mount
 
-  // 🆕 If we DO have state (e.g., from PaymentFailed → Resume Booking) but it's
-  // missing form/passenger drafts, merge them from session without losing the rest.
+  // 🆕 If we DO have state but it's missing drafts, merge them from session
   useEffect(() => {
     if (location.state && !(location.state.formDraft && location.state.passengersDraft)) {
       try {
@@ -445,7 +446,6 @@ const ConfirmBooking = () => {
             passengersDraft: location.state.passengersDraft || draft.passengersDraft,
             seatGenders: location.state.seatGenders || draft.seatGenders,
           };
-          // Only replace if something actually changed
           const changed =
             merged.formDraft !== location.state.formDraft ||
             merged.passengersDraft !== location.state.passengersDraft ||
@@ -469,7 +469,6 @@ const ConfirmBooking = () => {
     selectedDroppingPoint,
     departureTime,
     seatGenders,
-    // 🆕 restored form & passengers if present in draft
     formDraft,
     passengersDraft,
   } = location.state || {};
@@ -493,11 +492,17 @@ const ConfirmBooking = () => {
     nic: formDraft?.nic || "",
     email: formDraft?.email || "",
   });
+
   const onChangeForm = useCallback((e) => {
     const { name, value } = e.target;
-    setForm((prev) =>
-      prev[name] === value ? prev : { ...prev, [name]: value }
-    );
+    setForm((prev) => (prev[name] === value ? prev : { ...prev, [name]: value }));
+
+    // 🆕 Store a local hint so if user logs in later we can push to profile
+    try {
+      const hint = { ...(JSON.parse(sessionStorage.getItem("rb_profile_hint") || "{}")) };
+      hint[name] = value;
+      sessionStorage.setItem("rb_profile_hint", JSON.stringify(hint));
+    } catch {}
   }, []);
 
   const initialPassengers = useMemo(
@@ -569,7 +574,115 @@ const ConfirmBooking = () => {
     seats: selectedSeatStrings,
   });
 
-  // ---------- 🆕 Centralized "Back to Results" logic ----------
+  // ---------- 🆕 profile sync helpers ----------
+  const profileHeaders = token ? { Authorization: `Bearer ${token}` } : undefined;
+
+  const fetchProfile = useCallback(async () => {
+    const res = await apiClient.get("/profile", { headers: profileHeaders });
+    return res?.data || {};
+  }, [profileHeaders]);
+
+  const diffForProfile = useCallback((existing, wanted) => {
+    const out = {};
+    if ((wanted.name || "").trim() && existing.fullName !== wanted.name) out.fullName = wanted.name.trim();
+    if ((wanted.email || "").trim() && existing.email !== wanted.email) out.email = wanted.email.trim();
+    if ((wanted.mobile || "").trim() && existing.phone !== wanted.mobile) out.phone = wanted.mobile.trim();
+    if ((wanted.nic || "").trim() && existing.nic !== wanted.nic) out.nic = wanted.nic.trim();
+    return out;
+  }, []);
+
+  const upsertProfile = useCallback(async (payload) => {
+    if (!Object.keys(payload).length) return;
+    await apiClient.put("/profile", payload, { headers: profileHeaders });
+  }, [profileHeaders]);
+
+  // 🆕 Prefill Contact Details from /profile when logged in (doesn't override user-typed)
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      if (!token) {
+        // not logged in → try local hint to prefill
+        try {
+          const hint = JSON.parse(sessionStorage.getItem("rb_profile_hint") || "{}");
+          if (!alive) return;
+          setForm((prev) => ({ ...hint, ...prev, ...hint })); // hint wins where prev empty
+        } catch {}
+        return;
+      }
+      try {
+        const existing = await fetchProfile();
+        if (!alive) return;
+        setForm((prev) => ({
+          name: prev.name || existing.fullName || "",
+          mobile: prev.mobile || existing.phone || "",
+          nic: prev.nic || existing.nic || "",
+          email: prev.email || existing.email || "",
+        }));
+      } catch {
+        // ignore fetch errors; user can still type
+      }
+    })();
+    return () => { alive = false; };
+  }, [token, fetchProfile]);
+
+  // 🆕 After login, if we have a local hint, push it to profile once
+  useEffect(() => {
+    let done = false;
+    (async () => {
+      if (!token || done) return;
+      try {
+        const raw = sessionStorage.getItem("rb_profile_hint");
+        if (!raw) return;
+        const hint = JSON.parse(raw || "{}");
+        const existing = await fetchProfile();
+        const payload = diffForProfile(existing, {
+          name: hint.name ?? form.name,
+          email: hint.email ?? form.email,
+          mobile: hint.mobile ?? form.mobile,
+          nic: hint.nic ?? form.nic,
+        });
+        if (Object.keys(payload).length) {
+          await upsertProfile(payload);
+        }
+        sessionStorage.removeItem("rb_profile_hint");
+        done = true;
+      } catch {
+        // swallow; will try again on next visit
+      }
+    })();
+  }, [token, fetchProfile, upsertProfile, diffForProfile, form]);
+
+  // 🆕 Light autosave: when user edits fields while logged in, throttle PUT /profile
+  useEffect(() => {
+    if (!token) return;
+    const now = Date.now();
+    if (now - throttleRef.current < THROTTLE_MS) return;
+    throttleRef.current = now;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const existing = await fetchProfile();
+        if (cancelled) return;
+        const payload = diffForProfile(existing, {
+          name: form.name,
+          email: form.email,
+          mobile: form.mobile,
+          nic: form.nic,
+        });
+        if (Object.keys(payload).length) {
+          await upsertProfile(payload);
+        }
+      } catch {
+        // best-effort autosave; ignore errors
+      }
+    })();
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.name, form.email, form.mobile, form.nic, token]);
+
+  // ---------- back nav + hold timers (unchanged) ----------
   const goBackToResults = useCallback(() => {
     suppressAutoRelease?.();
     sessionStorage.setItem("rb_restore_from_confirm", "1");
@@ -611,23 +724,76 @@ const ConfirmBooking = () => {
     navigate,
   ]);
 
-  // Final hold verification before navigating to payment
-  const verifyHoldAlive = useCallback(async () => {
+  const [lockVersion, setLockVersion] = useState(0);
+  const acquireOrRefreshSeatLock = useCallback(async () => {
+    if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0)
+      return;
     try {
-      const { ms, expiresAt, headers } = await fetchHoldRemaining({
-        busId: bus?._id,
+      await apiClient.post("/bookings/lock", {
+        busId: bus._id,
         date,
         departureTime,
+        seats: selectedSeatStrings,
       });
-      const now = serverNowFromHeaders(headers);
-      const left = expiresAt ? new Date(expiresAt).getTime() - now : ms ?? 0;
-      return left > 0;
-    } catch {
-      return true;
+      setHoldExpired(false);
+      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+      suppressAutoRelease?.();
+      setLockVersion((v) => v + 1);
+    } catch (e) {
+      console.warn("Re-lock seats failed:", e?.response?.data || e?.message);
     }
-  }, [bus?._id, date, departureTime]);
+  }, [bus, date, departureTime, selectedSeatStrings, suppressAutoRelease]);
 
-  /* ---------- Validation helpers ---------- */
+  const cameFromGatewayFlag = (() => {
+    try {
+      return sessionStorage.getItem("rb_back_from_gateway") === "1";
+    } catch {
+      return false;
+    }
+  })();
+
+  useEffect(() => {
+    if (cameBackFromGateway || cameFromGatewayFlag || location.state?.restoreFromConfirm) {
+      acquireOrRefreshSeatLock();
+      try {
+        sessionStorage.removeItem("rb_back_from_gateway");
+      } catch {}
+    }
+  }, [cameBackFromGateway, cameFromGatewayFlag, location.state?.restoreFromConfirm, acquireOrRefreshSeatLock]);
+
+  // 🆕 Save confirm draft helper
+  const saveConfirmDraft = useCallback(() => {
+    try {
+      sessionStorage.setItem(
+        "rb_confirm_draft",
+        JSON.stringify({
+          bus,
+          selectedSeats,
+          date,
+          priceDetails,
+          selectedBoardingPoint,
+          selectedDroppingPoint,
+          departureTime,
+          seatGenders,
+          formDraft: { ...form },
+          passengersDraft: passengers,
+        })
+      );
+    } catch {}
+  }, [
+    bus,
+    selectedSeats,
+    date,
+    priceDetails,
+    selectedBoardingPoint,
+    selectedDroppingPoint,
+    departureTime,
+    seatGenders,
+    form,
+    passengers,
+  ]);
+
+  // ---------- validation (unchanged) ----------
   const phoneOk = (v) => /^0\d{9,10}$/.test(String(v || "").trim());
   const emailOk = (v) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(v || "").trim());
@@ -730,91 +896,31 @@ const ConfirmBooking = () => {
     });
   };
 
-  // 🆕 Ensure/reacquire lock when user resumes from payment or draft restore
-  const [lockVersion, setLockVersion] = useState(0); // 👈 added
-  const acquireOrRefreshSeatLock = useCallback(async () => {
-    if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0)
-      return;
+  // ---------- verify hold ----------
+  const verifyHoldAlive = useCallback(async () => {
     try {
-      await apiClient.post("/bookings/lock", {
-        busId: bus._id,
+      const { ms, expiresAt, headers } = await fetchHoldRemaining({
+        busId: bus?._id,
         date,
         departureTime,
-        seats: selectedSeatStrings,
       });
-      setHoldExpired(false);
-      // keep locks across navigations
-      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-      suppressAutoRelease?.();
-      // 👇 force countdown to remount & refetch
-      setLockVersion((v) => v + 1);
-    } catch (e) {
-      // If re-lock fails, keep the expired banner; user can go back to results.
-      console.warn("Re-lock seats failed:", e?.response?.data || e?.message);
-    }
-  }, [bus, date, departureTime, selectedSeatStrings, suppressAutoRelease]);
-
-  // detect explicit "back from gateway" flag set by PaymentFailed.jsx
-  const cameFromGatewayFlag = (() => {
-    try {
-      return sessionStorage.getItem("rb_back_from_gateway") === "1";
+      const now = serverNowFromHeaders(headers);
+      const left = expiresAt ? new Date(expiresAt).getTime() - now : ms ?? 0;
+      return left > 0;
     } catch {
-      return false;
+      return true;
     }
-  })();
+  }, [bus?._id, date, departureTime]);
 
-  useEffect(() => {
-    if (cameBackFromGateway || cameFromGatewayFlag || location.state?.restoreFromConfirm) {
-      acquireOrRefreshSeatLock();
-      try {
-        sessionStorage.removeItem("rb_back_from_gateway");
-      } catch {}
-    }
-  }, [cameBackFromGateway, cameFromGatewayFlag, location.state?.restoreFromConfirm, acquireOrRefreshSeatLock]);
-
-  // 🆕 Save confirm draft helper (used before redirecting to login)
-  const saveConfirmDraft = useCallback(() => {
-    try {
-      sessionStorage.setItem(
-        "rb_confirm_draft",
-        JSON.stringify({
-          bus,
-          selectedSeats,
-          date,
-          priceDetails,
-          selectedBoardingPoint,
-          selectedDroppingPoint,
-          departureTime,
-          seatGenders,
-          formDraft: { ...form },
-          passengersDraft: passengers,
-        })
-      );
-    } catch {}
-  }, [
-    bus,
-    selectedSeats,
-    date,
-    priceDetails,
-    selectedBoardingPoint,
-    selectedDroppingPoint,
-    departureTime,
-    seatGenders,
-    form,
-    passengers,
-  ]);
-
+  // ---------- submit ----------
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
 
-      // ✅ Inline validation first (shows messages + scroll)
-      if (!validateAll()) {
-        return;
-      }
+      // ✅ Inline validation first
+      if (!validateAll()) return;
 
       if (holdExpired) {
-        // Try a quick re-lock attempt before blocking user
         await acquireOrRefreshSeatLock();
         if (holdExpired) {
           alert("Your seat hold has expired. Please go back and reselect seats.");
@@ -827,15 +933,34 @@ const ConfirmBooking = () => {
         return;
       }
 
-      // ✅ If not logged in, save draft and send to login with redirect back here
-      const token =
+      // ✅ If not logged in, save drafts + profile hint, then go to login
+      const localToken =
         localStorage.getItem("token") || localStorage.getItem("authToken");
-      if (!token) {
+      if (!localToken) {
+        // 🆕 store a hint for post-login push
+        try {
+          sessionStorage.setItem("rb_profile_hint", JSON.stringify({
+            name: form.name, email: form.email, mobile: form.mobile, nic: form.nic,
+          }));
+        } catch {}
         saveConfirmDraft();
         sessionStorage.setItem("rb_skip_release_on_unmount", "1");
         suppressAutoRelease?.();
         navigate("/login?redirect=/confirm-booking", { replace: true });
         return;
+      }
+
+      // 🆕 Logged-in: upsert profile before creating booking (best effort)
+      try {
+        const existing = await fetchProfile();
+        const payload = diffForProfile(existing, {
+          name: form.name, email: form.email, mobile: form.mobile, nic: form.nic,
+        });
+        if (Object.keys(payload).length) {
+          await upsertProfile(payload);
+        }
+      } catch {
+        // ignore (booking can proceed even if profile sync fails)
       }
 
       // ✅ Double-check the hold right before payment
@@ -847,11 +972,9 @@ const ConfirmBooking = () => {
         return;
       }
 
-      // Keep the locks while we go to external gateway
+      // keep locks during external redirect
       sessionStorage.setItem("rb_skip_release_on_unmount", "1");
       suppressAutoRelease();
-
-      // 🆕 Save a draft so "Back to the site" can restore this page cleanly
       saveConfirmDraft();
 
       try {
@@ -888,7 +1011,7 @@ const ConfirmBooking = () => {
           return;
         }
 
-        // ---- 2) Stash data for /download-ticket fallback after PayHere returns ----
+        // ---- 2) Stash data for /download-ticket fallback ----
         try {
           sessionStorage.setItem(
             "rb_ticket_payload",
@@ -919,9 +1042,10 @@ const ConfirmBooking = () => {
           );
         } catch {}
 
-        // ---- 3) Ask backend for PayHere payload (Option A) ----
+        // ---- 3) PayHere payload ----
         const firstName = (form?.name || "Customer").trim().split(" ")[0] || "Customer";
-        const lastName = (form?.name || "").trim().split(" ").slice(1).join(" ") || "";
+        const lastName =
+          (form?.name || "").trim().split(" ").slice(1).join(" ") || "";
 
         const { data: ph } = await apiClient.post("/payhere/create", {
           bookingNo: booking.bookingNo,
@@ -938,7 +1062,6 @@ const ConfirmBooking = () => {
           return;
         }
 
-        // ---- 4) Redirect to PayHere by posting the hidden form ----
         const formEl = document.createElement("form");
         formEl.method = "POST";
         formEl.action = ph.payHereUrl;
@@ -983,6 +1106,10 @@ const ConfirmBooking = () => {
       acquireOrRefreshSeatLock,
       navigate,
       saveConfirmDraft,
+      token,
+      fetchProfile,
+      diffForProfile,
+      upsertProfile,
     ]
   );
 
@@ -994,7 +1121,7 @@ const ConfirmBooking = () => {
     !selectedDroppingPoint ||
     prices.total === undefined;
 
-  // 🆕 Use back guard to send user back to Results (NOT Home) and keep locks.
+  // back guard
   useSeatLockBackGuard({
     enabled: !missingData && !holdExpired && selectedSeatStrings.length > 0,
     busId: bus?._id,
@@ -1004,7 +1131,6 @@ const ConfirmBooking = () => {
     onConfirmBack: goBackToResults,
   });
 
-  // If details are missing, try to recover by sending user to the Search Results
   if (missingData) {
     return (
       <div className="text-center mt-10">
@@ -1053,7 +1179,6 @@ const ConfirmBooking = () => {
               {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
             </p>
           </div>
-          {/* 🆕 explicit back to results button (optional UX helper) */}
           <button
             type="button"
             onClick={goBackToResults}
@@ -1070,7 +1195,6 @@ const ConfirmBooking = () => {
           <BookingSteps currentStep={3} />
         </div>
 
-        {/* 🆕 Show a small banner if user returned from payment with an error/cancel */}
         {cameBackFromGateway ? (
           <div
             className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
@@ -1084,14 +1208,13 @@ const ConfirmBooking = () => {
           </div>
         ) : null}
 
-        {/* Error banner (mobile-friendly) */}
-        {errors.name ||
-        errors.mobile ||
-        errors.nic ||
-        errors.email ||
-        Object.keys(errors.passengers || {}).length ||
-        errors.terms ||
-        holdExpired ? (
+        {(errors.name ||
+          errors.mobile ||
+          errors.nic ||
+          errors.email ||
+          Object.keys(errors.passengers || {}).length ||
+          errors.terms ||
+          holdExpired) && (
           <div
             className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
             style={{
@@ -1104,7 +1227,7 @@ const ConfirmBooking = () => {
               ? "Your seat hold has expired. Please go back and reselect seats."
               : "Please correct the highlighted fields below."}
           </div>
-        ) : null}
+        )}
 
         {/* Journey Overview */}
         <SectionCard>
@@ -1129,13 +1252,13 @@ const ConfirmBooking = () => {
                 {selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
               <HoldCountdown
-                key={`hold-${lockVersion}`}   // 👈 remounts after re-lock to reset timer
+                key={`hold-${lockVersion}`}
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
                 onExpire={() => {
                   setHoldExpired(true);
-                  releaseSeats(); // proactively release if countdown hits zero
+                  releaseSeats();
                 }}
               />
             </div>
