@@ -64,9 +64,16 @@ const normalizePath = (raw) => {
     return p;
   }
 };
+const isPlainObject =
+  (x) => !!x && typeof x === "object" && (typeof FormData === "undefined" || !(x instanceof FormData));
 
-const isPlainObject = (x) =>
-  !!x && typeof x === "object" && (typeof FormData === "undefined" || !(x instanceof FormData));
+/** ======= Fetch-compat wrapper (res.ok / res.json()) ======= */
+const addFetchCompat = (resp) => {
+  if (!resp) return resp;
+  if (typeof resp.json !== "function") resp.json = async () => resp.data;
+  if (typeof resp.ok !== "boolean") resp.ok = resp.status >= 200 && resp.status < 300;
+  return resp;
+};
 
 /** ========= Request coalescing & rate limit =========
  *  - Coalesce identical requests (method + full URL + params + body) while in flight
@@ -148,7 +155,7 @@ apiClient.interceptors.request.use(
       }
     } catch {}
 
-    // Availability micro-cache (30s) to reduce repeated hits when filters change quickly
+    // Availability micro-cache (30s)
     if (method === "get" && path.startsWith("/bookings/availability")) {
       const fullURL = new URL(config.url || "", API_BASE_URL);
       if (config.params) Object.entries(config.params).forEach(([k,v]) => fullURL.searchParams.set(k, v));
@@ -157,7 +164,6 @@ apiClient.interceptors.request.use(
       try {
         const cached = JSON.parse(sessionStorage.getItem(cacheKey) || "null");
         if (cached && cached.exp > now) {
-          // return a fake axios response from cache via a custom adapter
           config.adapter = async () => ({
             data: cached.data,
             status: 200,
@@ -168,7 +174,6 @@ apiClient.interceptors.request.use(
           });
           return config;
         }
-        // mark we’ll cache on response
         config._rbCacheKey = cacheKey;
       } catch {}
     }
@@ -204,7 +209,7 @@ apiClient.interceptors.request.use(
 
 /** ========= Response interceptors ========= */
 
-// Small error logger
+// Small error logger (first in the chain)
 apiClient.interceptors.response.use(
   (r) => r,
   (err) => {
@@ -231,9 +236,9 @@ const rejectWaiters  = (e) => { refreshWaiters.forEach(({reject})=>reject(e)); r
 // separate axios instance for 429 retries
 const retryClient = axios.create();
 
+// Success path (cache write-through + fetch-compat) and robust error path
 apiClient.interceptors.response.use(
   async (response) => {
-    // availability cache write-through
     const cfg = response?.config;
     if (cfg?._rbCacheKey) {
       try {
@@ -243,7 +248,7 @@ apiClient.interceptors.response.use(
         );
       } catch {}
     }
-    return response;
+    return addFetchCompat(response);
   },
   async (error) => {
     const status = error?.response?.status;
@@ -274,7 +279,8 @@ apiClient.interceptors.response.use(
           isRefreshing = false;
           resolveWaiters();
         }
-        return apiClient(original);
+        const resp = await apiClient(original);
+        return addFetchCompat(resp);
       } catch (e) {
         isRefreshing = false;
         rejectWaiters(e);
@@ -297,15 +303,15 @@ apiClient.interceptors.response.use(
         withCredentials: original.withCredentials,
         timeout: original.timeout || 20000,
       };
-      return retryClient.request(rebuilt);
+      const resp = await retryClient.request(rebuilt);
+      return addFetchCompat(resp);
     }
 
     // ---- Optional endpoints soft-fallback (avoid “Oops”)
     const path = normalizePath(original.url);
     if (status === 404 && isOurApiCall) {
       if (/(^|\/)(buses|special-notices|bus-locations)(\/|$)/.test(path)) {
-        // return an empty list instead of throwing; lets UI render gracefully
-        return {
+        const resp = {
           data: [],
           status: 200,
           statusText: "OK (empty fallback)",
@@ -313,6 +319,7 @@ apiClient.interceptors.response.use(
           config: original,
           request: {},
         };
+        return addFetchCompat(resp);
       }
     }
 
@@ -329,7 +336,7 @@ export async function warmUp() {
 export async function getWithRetry(url, config = {}, { retries = 2 } = {}) {
   let lastErr;
   for (let i = 0; i <= retries; i++) {
-    try { return await apiClient.get(url, config); }
+    try { return addFetchCompat(await apiClient.get(url, config)); }
     catch (err) {
       lastErr = err;
       if (i === retries) break;
