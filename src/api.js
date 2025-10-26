@@ -4,7 +4,6 @@ import axios from "axios";
 /** Resolve API base URL (Vite → CRA → fallback) */
 const fromVite = (() => {
   try {
-    // Works only when bundled by Vite
     return import.meta?.env?.VITE_API_BASE_URL || null;
   } catch {
     return null;
@@ -31,7 +30,6 @@ export const API_ORIGIN = (() => {
 export const toImgURL = (p) => {
   if (!p) return "";
   if (/^https?:\/\//i.test(p)) {
-    // if backend accidentally returns http while site is https, prefer https
     try {
       const u = new URL(p);
       return u.protocol === "http:"
@@ -47,12 +45,11 @@ export const toImgURL = (p) => {
 /** Axios instance */
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
-  // Default to no credentials to reduce CORS preflights; opt-in below per-route.
   withCredentials: false,
-  timeout: 20000, // 20s safety
+  timeout: 20000,
 });
 
-/** Persistent anonymous client id (no globalThis usage) */
+/** Persistent anonymous client id */
 export const getClientId = () => {
   try {
     let id = localStorage.getItem("rb_client_id");
@@ -86,7 +83,8 @@ export const getClientId = () => {
   }
 };
 
-/** Interceptors */
+/* ---------------- Request interceptors ---------------- */
+
 apiClient.interceptors.request.use(
   (config) => {
     // Auth bearer
@@ -97,19 +95,22 @@ apiClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
 
-    // Ensure JSON content-type on non-GET if missing
+    // Set JSON Content-Type ONLY for plain objects (not FormData)
     const method = (config.method || "get").toLowerCase();
+    const isPlainObject =
+      !!config.data &&
+      typeof config.data === "object" &&
+      typeof FormData !== "undefined" &&
+      !(config.data instanceof FormData);
+
     if (method !== "get") {
       config.headers = config.headers || {};
-      if (!config.headers["Content-Type"]) {
+      if (!config.headers["Content-Type"] && isPlainObject) {
         config.headers["Content-Type"] = "application/json";
       }
     }
 
-    // Add clientId ONLY in payload/params for the lock & booking APIs (no custom header)
-    const clientId = getClientId();
-
-    // Normalize URL for matching (strip base if axios was given an absolute URL)
+    // Normalize path for matching
     const rawUrl = String(config.url || "");
     let path;
     try {
@@ -123,30 +124,30 @@ apiClient.interceptors.request.use(
       path = p;
     }
 
-    // 🔒 Opt-in cookies only where needed (auth, bookings, admin, and payment)
-    // Includes PayHere-related paths to avoid issues on payment flows.
+    // 🔒 Opt-in cookies only where needed (auth, me, profile, bookings, admin, payment)
     const needsCookie =
       /(\/auth|\/me|\/profile|\/bookings|\/admin|\/payments|\/payment|\/payhere|\/checkout)(\/|$)/.test(
         path
       );
     config.withCredentials = !!needsCookie;
 
+    // Add clientId where required (payload/params — never a custom header)
+    const clientId = getClientId();
     const addToData = () => {
-      if (config.data && typeof config.data === "object") {
+      if (config.data && typeof config.data === "object" && !(config.data instanceof FormData)) {
         if (!("clientId" in config.data)) config.data.clientId = clientId;
-      } else {
+      } else if (!(config.data instanceof FormData)) {
         config.data = { clientId };
       }
+      // If it's FormData, skip — server doesn’t expect clientId there.
     };
     const addToParams = () => {
       config.params = { ...(config.params || {}), clientId };
     };
 
-    // Seat lock & release
     if (path.includes("/bookings/lock") && method === "post") addToData();
     if (path.includes("/bookings/release") && method === "delete") addToData();
 
-    // Lock remaining (both styles: /lock-remaining and /lock/remaining)
     if (
       method === "get" &&
       (path.includes("/bookings/lock-remaining") ||
@@ -155,8 +156,6 @@ apiClient.interceptors.request.use(
       addToParams();
     }
 
-    // Ensure clientId is also sent when creating the booking
-    // Matches POST /bookings and POST /bookings/... (but not the lock/release endpoints already handled)
     if (
       method === "post" &&
       /(^|\/)bookings(\/|$)/.test(path) &&
@@ -171,11 +170,10 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/* 2nd request interceptor: CORS-safe guard — never send x-client-id as a header; keep Accept */
+// CORS-safe guard — never send x-client-id as header; ensure Accept
 apiClient.interceptors.request.use(
   (config) => {
     try {
-      // Remove any x-client-id header injected elsewhere (CORS preflight will fail otherwise)
       if (config && config.headers) {
         const h = config.headers;
         const del = (k) =>
@@ -196,7 +194,29 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/* Safe 401 auto-refresh (cookie-based) with concurrency control */
+/* ---------------- Response interceptors ---------------- */
+
+// Small console logger for failed calls (helps diagnose “site is down” quickly)
+apiClient.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    try {
+      const cfg = err?.config || {};
+      const method = (cfg.method || "get").toUpperCase();
+      const url = new URL(cfg?.url || "", API_BASE_URL).toString();
+      const status = err?.response?.status;
+      const retryAfter = err?.response?.headers?.["retry-after"];
+      // eslint-disable-next-line no-console
+      console.warn(`[API ERROR] ${method} ${url} -> ${status}`, {
+        data: err?.response?.data,
+        retryAfter,
+      });
+    } catch {}
+    return Promise.reject(err);
+  }
+);
+
+/* 401 auto-refresh (cookie-based) with concurrency control */
 let isRefreshing = false;
 let refreshWaiters = [];
 
@@ -212,6 +232,9 @@ const rejectWaiters = (err) => {
   refreshWaiters.forEach(({ reject }) => reject(err));
   refreshWaiters = [];
 };
+
+// Lightweight 429 backoff per-request (uses Retry-After if provided)
+const retryable = axios.create(); // used only for retries (no interceptors)
 
 apiClient.interceptors.response.use(
   (response) => response,
@@ -229,6 +252,7 @@ apiClient.interceptors.response.use(
       }
     })();
 
+    // ---- 401 refresh flow ----
     if (
       status === 401 &&
       original &&
@@ -240,19 +264,39 @@ apiClient.interceptors.response.use(
       original._retry = true;
       try {
         if (isRefreshing) {
-          await enqueueWait(); // wait for ongoing refresh
+          await enqueueWait();
         } else {
           isRefreshing = true;
-          await apiClient.post("/auth/refresh"); // expects httpOnly refresh cookie
+          await apiClient.post("/auth/refresh"); // expects httpOnly cookie
           isRefreshing = false;
           resolveWaiters();
         }
-        return apiClient(original); // retry original request
+        return apiClient(original);
       } catch (e) {
         isRefreshing = false;
         rejectWaiters(e);
         throw e;
       }
+    }
+
+    // ---- Gentle 429 backoff (bounded) ----
+    if (status === 429 && original && !original._rb429) {
+      original._rb429 = 1;
+      const ra = parseInt(error?.response?.headers?.["retry-after"] || "0", 10);
+      const waitMs = (ra > 0 ? ra : 3) * 1000; // default 3s if header missing
+      await new Promise((r) => setTimeout(r, waitMs));
+      // re-send with a clean client (to avoid re-entering interceptors loops)
+      const rebuilt = {
+        method: original.method,
+        url: new URL(original.url || "", API_BASE_URL).toString(),
+        baseURL: undefined, // url is absolute now
+        headers: original.headers,
+        data: original.data,
+        params: original.params,
+        withCredentials: original.withCredentials,
+        timeout: original.timeout || 20000,
+      };
+      return retryable.request(rebuilt);
     }
 
     throw error;
@@ -261,12 +305,11 @@ apiClient.interceptors.response.use(
 
 /* ---- Helpers to improve reliability on free hosting (cold starts) ---- */
 
-// Best-effort warm-up for cold starts (Render free can take 20–60s)
 export async function warmUp() {
   try {
     await apiClient.get("/health", { timeout: 30000 });
   } catch {
-    // swallow – it's just a nudge to wake the dyno
+    // swallow
   }
 }
 
