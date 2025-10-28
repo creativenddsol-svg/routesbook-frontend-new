@@ -431,6 +431,20 @@ const ConfirmBooking = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cameBackFromGateway]); // keep minimal to avoid loops
 
+  // 🆕 Generic restore on mount if this page lacks state (e.g., user hit refresh or deep-linked here)
+  useEffect(() => {
+    if (!location.state && !cameBackFromGateway) {
+      try {
+        const raw = sessionStorage.getItem("rb_confirm_draft");
+        if (raw) {
+          const draft = JSON.parse(raw);
+          navigate(location.pathname, { replace: true, state: draft });
+        }
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [location.state]);
+
   // 🆕 If we DO have state (e.g., from PaymentFailed → Resume Booking) but it's
   // missing form/passenger drafts, merge them from session without losing the rest.
   useEffect(() => {
@@ -571,6 +585,25 @@ const ConfirmBooking = () => {
 
   // ---------- 🆕 Centralized "Back to Results" logic ----------
   const goBackToResults = useCallback(() => {
+    // 🆕 save latest edits before jumping out
+    try {
+      sessionStorage.setItem(
+        "rb_confirm_draft",
+        JSON.stringify({
+          bus,
+          selectedSeats,
+          date,
+          priceDetails,
+          selectedBoardingPoint,
+          selectedDroppingPoint,
+          departureTime,
+          seatGenders,
+          formDraft: { ...form },
+          passengersDraft: passengers,
+        })
+      );
+    } catch {}
+
     suppressAutoRelease?.();
     sessionStorage.setItem("rb_restore_from_confirm", "1");
 
@@ -609,6 +642,10 @@ const ConfirmBooking = () => {
     seatGenders,
     prices,
     navigate,
+    form,
+    passengers,
+    priceDetails,
+    selectedSeats,
   ]);
 
   // Final hold verification before navigating to payment
@@ -803,6 +840,23 @@ const ConfirmBooking = () => {
     form,
     passengers,
   ]);
+
+  // 🆕 Auto-persist latest edits on any change (prevents losing data on back/forward/refresh)
+  useEffect(() => {
+    saveConfirmDraft();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, passengers, selectedSeats, date, priceDetails, selectedBoardingPoint, selectedDroppingPoint, departureTime, seatGenders]);
+
+  // 🆕 Persist on tab close/refresh as a last safety net
+  useEffect(() => {
+    const handler = () => {
+      try {
+        saveConfirmDraft();
+      } catch {}
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [saveConfirmDraft]);
 
   const handleSubmit = useCallback(
     async (e) => {
