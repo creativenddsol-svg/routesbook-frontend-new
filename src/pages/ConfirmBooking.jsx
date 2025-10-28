@@ -1048,15 +1048,34 @@ const ConfirmBooking = () => {
     !selectedDroppingPoint ||
     prices.total === undefined;
 
-  // 🆕 Use back guard to send user back to Results (NOT Home) and keep locks.
+  // 🆕 Use back guard: **disabled** here to prevent built-in release flow.
   useSeatLockBackGuard({
-    enabled: !missingData && !holdExpired && selectedSeatStrings.length > 0,
+    enabled: false,
     busId: bus?._id,
     date,
     departureTime,
     seats: selectedSeatStrings,
     onConfirmBack: goBackToResults,
   });
+
+  // 🆕 Our own back trap → always go to Search Results and keep data/locks
+  useEffect(() => {
+    if (missingData || holdExpired || selectedSeatStrings.length === 0) return;
+    const sentinel = { rb_confirm_guard: true };
+    try { window.history.pushState(sentinel, ""); } catch {}
+
+    const onPop = () => {
+      const ok = window.confirm("Go back to results and keep your selected seats?");
+      if (ok) {
+        goBackToResults();
+      } else {
+        try { window.history.pushState(sentinel, ""); } catch {}
+      }
+    };
+
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [missingData, holdExpired, selectedSeatStrings.length, goBackToResults]);
 
   // If details are missing, try to recover by sending user to the Search Results
   if (missingData) {
@@ -1395,10 +1414,10 @@ const ConfirmBooking = () => {
             onClick={(e) => {
               handleSubmit({ preventDefault: () => {} });
             }}
-            className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-            style={{ background: PALETTE.primary }}
           >
-            Proceed to Pay
+            <span className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed" style={{ background: PALETTE.primary }}>
+              Proceed to Pay
+            </span>
           </button>
           <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
             Payable Amount:{" "}
