@@ -413,7 +413,7 @@ const ConfirmBooking = () => {
 
   // 🆕 Detect PayHere "back to the site" with non-success status and restore draft
   const phParams = new URLSearchParams(location.search || "");
-  const phStatus = phParams.get("status_code") || phParams.get("status") || "";
+  the const phStatus = phParams.get("status_code") || phParams.get("status") || "";
   const cameBackFromGateway =
     !!phStatus && phStatus !== "2" && !/^success$/i.test(phStatus || "");
 
@@ -583,60 +583,75 @@ const ConfirmBooking = () => {
     seats: selectedSeatStrings,
   });
 
+  /** ---------- helper: write “preselect” bundle with TTL ---------- */
+  const writePreselectBundle = useCallback((payload) => {
+    try {
+      const ttlMs = 3 * 60 * 1000; // 3 minutes
+      const meta = { token: payload.token, expiresAt: Date.now() + ttlMs };
+      sessionStorage.setItem("rb_preselect_seats", JSON.stringify(payload));
+      sessionStorage.setItem("rb_preselect_meta", JSON.stringify(meta));
+    } catch {}
+  }, []);
+
   // ---------- 🆕 Centralized "Back to Results" logic ----------
   const goBackToResults = useCallback(() => {
+    // seats as strings and numbers for maximum compatibility
+    const seatStr = (selectedSeats || []).map(String);
+    const seatNum = (selectedSeats || []).map((s) => Number(s));
+
     // 🆕 save latest edits before jumping out
-    try {
-      sessionStorage.setItem(
-        "rb_confirm_draft",
-        JSON.stringify({
-          bus,
-          selectedSeats,
-          date,
-          priceDetails,
-          selectedBoardingPoint,
-          selectedDroppingPoint,
-          departureTime,
-          seatGenders,
-          formDraft: { ...form },
-          passengersDraft: passengers,
-        })
-      );
-    } catch {}
-
-    suppressAutoRelease?.();
-    sessionStorage.setItem("rb_restore_from_confirm", "1");
-
+    const token = String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
     const restorePayload = {
       restoreFromConfirm: true,
+      token,
       bus,
       busId: bus?._id,
       date,
       departureTime,
-      selectedSeats: selectedSeatStrings,
+      selectedSeats: seatStr,
+      selectedSeatsNums: seatNum,
       selectedBoardingPoint,
       selectedDroppingPoint,
       seatGenders: seatGenders || {},
       priceDetails: prices,
+      formDraft: { ...form },
+      passengersDraft: passengers,
     };
+
+    try {
+      sessionStorage.setItem("rb_confirm_draft", JSON.stringify(restorePayload));
+      sessionStorage.setItem("rb_restore_from_confirm", "1");
+      sessionStorage.setItem("rb_restore_payload", JSON.stringify(restorePayload));
+      writePreselectBundle({
+        token,
+        busId: bus?._id,
+        date,
+        departureTime,
+        seats: seatStr,
+        seatsNums: seatNum,
+        seatGenders: seatGenders || {},
+      });
+    } catch {}
+
+    suppressAutoRelease?.(); // keep the lock
+    sessionStorage.setItem("rb_skip_release_on_unmount", "1");
 
     const searchParams = new URLSearchParams({
       from: bus?.from || "",
       to: bus?.to || "",
       date: date || "",
+      preselect: "1",
+      token,
     }).toString();
 
-    try {
-      sessionStorage.setItem("rb_restore_payload", JSON.stringify(restorePayload));
-    } catch {}
-
-    navigate(`/search-results?${searchParams}`, { state: restorePayload, replace: true });
+    // NOTE: push (not replace) so location.state is available on mount
+    navigate(`/search-results?${searchParams}`, { state: restorePayload });
   }, [
     suppressAutoRelease,
     bus,
     date,
     departureTime,
-    selectedSeatStrings,
+    selectedSeats,
     selectedBoardingPoint,
     selectedDroppingPoint,
     seatGenders,
@@ -644,8 +659,7 @@ const ConfirmBooking = () => {
     navigate,
     form,
     passengers,
-    priceDetails,
-    selectedSeats,
+    writePreselectBundle,
   ]);
 
   // Final hold verification before navigating to payment
@@ -1407,25 +1421,27 @@ const ConfirmBooking = () => {
         </div>
 
         {/* Inline mobile CTA */}
-        <div className="sm:hidden mt-6">
-          <button
-            type="button"
-            disabled={!termsAccepted || holdExpired}
-            onClick={(e) => {
-              handleSubmit({ preventDefault: () => {} });
-            }}
-          >
-            <span className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed" style={{ background: PALETTE.primary }}>
-              Proceed to Pay
-            </span>
-          </button>
-          <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
-            Payable Amount:{" "}
-            <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>
-              Rs. {prices.total.toFixed(2)}
-            </span>
-          </p>
-        </div>
+        <SectionCard>
+          <div className="sm:hidden mt-2">
+            <button
+              type="button"
+              disabled={!termsAccepted || holdExpired}
+              onClick={(e) => {
+                handleSubmit({ preventDefault: () => {} });
+              }}
+            >
+              <span className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed" style={{ background: PALETTE.primary }}>
+                Proceed to Pay
+              </span>
+            </button>
+            <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
+              Payable Amount:{" "}
+              <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>
+                Rs. {prices.total.toFixed(2)}
+              </span>
+            </p>
+          </div>
+        </SectionCard>
       </div>
 
       {/* Sticky bottom CTA — desktop */}
