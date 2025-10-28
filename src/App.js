@@ -36,6 +36,7 @@ import AdminOperatorPayments from "./pages/OperatorPaymentsAdmin.jsx"; // ✅ fi
 import AdminNotices from "./pages/AdminNotices"; // ✅ ADDED
 import AdminWhatsNew from "./pages/AdminWhatsNew"; // ✅ ADDED
 import AdminHolidays from "./pages/AdminHolidays"; // ✅ NEW (wire Holidays admin)
+import AdminArrivalsToday from "./pages/AdminArrivalsToday"; // ✅ NEW (Arrivals one-click page)
 
 /* ───── Operator Pages ──── */
 import OperatorDashboard from "./pages/OperatorDashboard";
@@ -69,6 +70,7 @@ const App = () => (
           <Route path="/operators" element={<AllOperators />} />
           <Route path="/operators/:id" element={<OperatorProfile />} />
           <Route path="/whats-new" element={<WhatsNew />} /> {/* ✅ ADDED */}
+
           {/* ───── USER PROTECTED ROUTES ───── */}
           <Route
             path="/my-bookings"
@@ -102,6 +104,7 @@ const App = () => (
               </ProtectedRoute>
             }
           />
+
           {/* ───── ADMIN ROUTES ───── */}
           <Route
             path="/admin"
@@ -206,8 +209,7 @@ const App = () => (
                 <AdminWhatsNew />
               </AdminRoute>
             }
-          />{" "}
-          {/* ✅ ADDED */}
+          />
           <Route
             path="/admin/holidays"
             element={
@@ -215,8 +217,17 @@ const App = () => (
                 <AdminHolidays />
               </AdminRoute>
             }
-          />{" "}
-          {/* ✅ NEW */}
+          />
+          {/* ✅ NEW: One-click “Arrivals Today” page */}
+          <Route
+            path="/admin/arrivals-today"
+            element={
+              <AdminRoute>
+                <AdminArrivalsToday />
+              </AdminRoute>
+            }
+          />
+
           {/* ───── OPERATOR ROUTES ──── */}
           <Route
             path="/operator/dashboard"
