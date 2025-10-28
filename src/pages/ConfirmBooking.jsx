@@ -413,7 +413,7 @@ const ConfirmBooking = () => {
 
   // 🆕 Detect PayHere "back to the site" with non-success status and restore draft
   const phParams = new URLSearchParams(location.search || "");
-  the const phStatus = phParams.get("status_code") || phParams.get("status") || "";
+  const phStatus = phParams.get("status_code") || phParams.get("status") || "";
   const cameBackFromGateway =
     !!phStatus && phStatus !== "2" && !/^success$/i.test(phStatus || "");
 
