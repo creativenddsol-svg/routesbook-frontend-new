@@ -66,6 +66,13 @@ const AdminDashboard = () => (
             title="Audit Logs"
             description="Track user actions and system events."
           />
+          {/* ✅ New: Arrivals Today (one-click SMS page) */}
+          <DashboardCard
+            to="/admin/arrivals-today"
+            icon={<Icon>📳</Icon>}
+            title="Arrivals (Today)"
+            description="Send 'Bus Arrived' SMS in one click."
+          />
         </div>
 
         {/* --- Promotions & Content Section --- */}
