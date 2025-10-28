@@ -1497,24 +1497,33 @@ export function SearchCoreProvider({ children }) {
     // 👉 tell unmount cleanup not to release seats during handoff
     sessionStorage.setItem("rb_skip_release_on_unmount", "1");
 
-    navigate("/confirm-booking", {
-      state: {
-        bus,
-        busId: bus._id,
-        date: searchDateParam,
-        departureTime: bus.departureTime,
-        selectedSeats,
-        seatGenders: seatGenders || {},
-        priceDetails: {
-          basePrice,
-          convenienceFee,
-          totalPrice,
-        },
-        selectedBoardingPoint,
-        selectedDroppingPoint,
-        clientId: getClientId(), // ✅ pass same id to confirm page
+    const handoff = {
+      bus,
+      busId: bus._id,
+      date: searchDateParam,
+      departureTime: bus.departureTime,
+      selectedSeats: selectedSeats.map(String),
+      seatGenders: seatGenders || {},
+      priceDetails: {
+        basePrice,
+        convenienceFee,
+        totalPrice,
       },
-    });
+      selectedBoardingPoint,
+      selectedDroppingPoint,
+      clientId: getClientId(), // ✅ pass same id to confirm page
+    };
+
+    // 🧷 Persist a handoff copy so Confirm page can restore even if history.state is lost
+    try {
+      sessionStorage.setItem(
+        "rb_confirm_draft",
+        JSON.stringify({ ...handoff, formDraft: null, passengersDraft: null })
+      );
+      sessionStorage.setItem("rb_restore_payload", JSON.stringify(handoff));
+    } catch {}
+
+    navigate("/confirm-booking", { state: handoff });
   };
 
   /* -------- Defensive cleanup on fresh mount -------- */
