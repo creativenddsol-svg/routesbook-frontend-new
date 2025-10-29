@@ -18,7 +18,7 @@ const PALETTE = {
   chip: "#FFF4F5",
 };
 
-const LOGO_SRC = "/logo-ticket.png";
+const LOGO_SRC = "/images/logo-ticket.png";
 
 /* ───────────────── No steps bar on ticket ─────────────── */
 const BookingSteps = () => null;
