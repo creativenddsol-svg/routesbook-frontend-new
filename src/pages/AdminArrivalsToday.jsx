@@ -59,27 +59,22 @@ const writeCounts = (obj) => {
 };
 
 /* ---------- conductor phone helpers ---------- */
-// Try to locate a conductor/owner phone in many likely fields (covers your schema variants)
 const getConductorPhoneRaw = (bus) =>
-  // Conductor nested object forms
   bus?.conductor?.mobile ||
   bus?.conductor?.phone ||
   bus?.conductor?.contactNumber ||
   bus?.conductor?.altMobile ||
-  // Flat fields sometimes used
   bus?.conductorPhone ||
   bus?.conductor_contact ||
   bus?.contactNumber ||
   bus?.contact ||
   bus?.phone ||
-  // Owner/operator fallbacks
   bus?.ownerNotifyMobile ||
   bus?.operator?.operatorProfile?.contactNumber ||
   bus?.operator?.mobile ||
   bus?.operatorMobile ||
   "";
 
-// Build a tel: link. If 9/10 digits SL local, normalize to +94
 const toTelHref = (raw) => {
   if (!raw) return "";
   const digits = String(raw).replace(/[^\d+]/g, "");
@@ -95,21 +90,16 @@ const AdminArrivalsToday = () => {
   const [buses, setBuses] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // global inputs for one-click sending
   const [date, setDate] = useState(todayYYYYMMDD());
   const [standPoint, setStandPoint] = useState(() => localStorage.getItem("arrive_stand") || "");
   const [platform, setPlatform] = useState(() => localStorage.getItem("arrive_platform") || "");
-  const [savingPrefs, setSavingPrefs] = useState(true); // persist defaults automatically
+  const [savingPrefs, setSavingPrefs] = useState(true);
 
-  // search filters
   const [q, setQ] = useState("");
   const [routeFilter, setRouteFilter] = useState("");
 
-  // in-flight guard per busId
-  const [sentMap, setSentMap] = useState({}); // { [busId]: true }
-
-  // persistent counters (per trip/date)
-  const [sentCounts, setSentCounts] = useState({}); // { [tripKey]: number }
+  const [sentMap, setSentMap] = useState({}); // in-flight
+  const [sentCounts, setSentCounts] = useState({}); // persisted counters
 
   useEffect(() => {
     const fetch = async () => {
@@ -126,12 +116,10 @@ const AdminArrivalsToday = () => {
     fetch();
   }, []);
 
-  // load counters on mount
   useEffect(() => {
     setSentCounts(readCounts());
   }, []);
 
-  // persist stand/platform choice
   useEffect(() => {
     if (!savingPrefs) return;
     try {
@@ -147,7 +135,6 @@ const AdminArrivalsToday = () => {
 
   const todayList = useMemo(() => {
     let list = [...(buses || [])];
-
     if (q.trim()) {
       const s = q.trim().toLowerCase();
       list = list.filter(
@@ -159,11 +146,7 @@ const AdminArrivalsToday = () => {
           (b.departureTime || "").toLowerCase().includes(s)
       );
     }
-
-    if (routeFilter) {
-      list = list.filter((b) => `${b.from} → ${b.to}` === routeFilter);
-    }
-
+    if (routeFilter) list = list.filter((b) => `${b.from} → ${b.to}` === routeFilter);
     list.sort((a, b) => toMinutes(a.departureTime) - toMinutes(b.departureTime));
     return list;
   }, [buses, q, routeFilter]);
@@ -185,9 +168,7 @@ const AdminArrivalsToday = () => {
   const resetCountsForDate = () => {
     const all = readCounts();
     const prefix = `${date}::`;
-    const next = Object.fromEntries(
-      Object.entries(all).filter(([k]) => !k.startsWith(prefix))
-    );
+    const next = Object.fromEntries(Object.entries(all).filter(([k]) => !k.startsWith(prefix)));
     writeCounts(next);
     setSentCounts(next);
   };
@@ -230,12 +211,10 @@ const AdminArrivalsToday = () => {
       );
 
       if (sent > 0) bumpCount(bus._id, date, bus?.departureTime || "");
-
     } catch (e) {
       const msg = e?.response?.data?.message || "Failed to send arrival SMS";
       alert(msg);
     } finally {
-      // re-enable button after request completes (success or fail)
       setSentMap((m) => {
         const copy = { ...m };
         delete copy[bus._id];
@@ -253,12 +232,10 @@ const AdminArrivalsToday = () => {
             <h1 className="text-2xl font-bold text-gray-900">Arrivals — Today</h1>
             <p className="text-gray-600">Send “Bus Arrived” SMS in one click and call the conductor if needed.</p>
           </div>
-          <Link to="/admin" className="text-blue-600 hover:text-blue-800">
-            ← Back to Admin
-          </Link>
+        <Link to="/admin" className="text-blue-600 hover:text-blue-800">← Back to Admin</Link>
         </div>
 
-        {/* Controls: Date + Stand + Platform */}
+        {/* Controls */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
           <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
             <label className="block md:col-span-1">
@@ -303,9 +280,7 @@ const AdminArrivalsToday = () => {
             </label>
           </div>
           <div className="flex items-center justify-between mt-2">
-            <p className="text-xs text-gray-500">
-              Tip: Set the stand once. Then click “Send” on each bus below — one click per bus.
-            </p>
+            <p className="text-xs text-gray-500">Tip: Set the stand once. Then click “Send” on each bus below — one click per bus.</p>
             <button
               onClick={resetCountsForDate}
               className="text-xs text-gray-600 hover:text-gray-900 underline"
@@ -333,21 +308,14 @@ const AdminArrivalsToday = () => {
             >
               <option value="">All Routes</option>
               {uniqueRoutes.map((r) => (
-                <option key={r} value={r}>
-                  {r}
-                </option>
+                <option key={r} value={r}>{r}</option>
               ))}
             </select>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-600">
-                Showing <b>{todayList.length}</b> buses
-              </span>
+              <span className="text-sm text-gray-600">Showing <b>{todayList.length}</b> buses</span>
               {(q || routeFilter) && (
                 <button
-                  onClick={() => {
-                    setQ("");
-                    setRouteFilter("");
-                  }}
+                  onClick={() => { setQ(""); setRouteFilter(""); }}
                   className="ml-auto text-sm text-blue-600 hover:text-blue-800"
                 >
                   Clear filters
@@ -378,8 +346,8 @@ const AdminArrivalsToday = () => {
                 {todayList.map((bus) => {
                   const count = countFor(bus);
                   const disabled = disabledGlobalSend || !!sentMap[bus._id];
+                  const isSentBefore = count > 0;
 
-                  // Prepare conductor phone/link
                   const conductorRaw = getConductorPhoneRaw(bus);
                   const telHref = toTelHref(conductorRaw);
                   const hasPhone = !!conductorRaw && !!telHref;
@@ -420,9 +388,11 @@ const AdminArrivalsToday = () => {
                           className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
                             disabled
                               ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                              : isSentBefore
+                              ? "bg-red-600 hover:bg-red-700 text-white"
                               : "bg-green-600 hover:bg-green-700 text-white"
                           }`}
-                          title="Send 'Arrived' SMS"
+                          title={isSentBefore ? "Resend 'Arrived' SMS" : "Send 'Arrived' SMS"}
                         >
                           <Icon path="M3 10h10M3 6h10M3 14h7M21 16V8a2 2 0 00-2-2h-4l-4-3-4 3H5a2 2 0 00-2 2v8a2 2 0 002 2h6" />
                           {sentMap[bus._id] ? "Sending…" : `Send${count > 0 ? ` (${count})` : ""}`}
