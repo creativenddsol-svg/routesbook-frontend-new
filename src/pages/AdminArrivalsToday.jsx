@@ -1,3 +1,4 @@
+// src/pages/AdminArrivalsToday.jsx
 import { useEffect, useMemo, useState } from "react";
 import apiClient from "../api";
 import { Link } from "react-router-dom";
@@ -15,7 +16,6 @@ const todayYYYYMMDD = () => {
 const toMinutes = (t) => {
   if (!t) return Number.MAX_SAFE_INTEGER;
   const s = String(t).trim().toUpperCase();
-  // "HH:MM AM/PM"
   const ampmMatch = s.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
   if (ampmMatch) {
     let hh = parseInt(ampmMatch[1], 10);
@@ -25,7 +25,6 @@ const toMinutes = (t) => {
     if (ap === "AM" && hh === 12) hh = 0;
     return hh * 60 + mm;
   }
-  // "HH:MM" 24h
   const m = s.match(/^(\d{1,2}):(\d{2})$/);
   if (m) {
     const hh = parseInt(m[1], 10);
@@ -60,31 +59,34 @@ const writeCounts = (obj) => {
 };
 
 /* ---------- conductor phone helpers ---------- */
-// Try to locate a conductor phone in several likely fields
+// Try to locate a conductor/owner phone in many likely fields (covers your schema variants)
 const getConductorPhoneRaw = (bus) =>
+  // Conductor nested object forms
+  bus?.conductor?.mobile ||
+  bus?.conductor?.phone ||
+  bus?.conductor?.contactNumber ||
+  bus?.conductor?.altMobile ||
+  // Flat fields sometimes used
   bus?.conductorPhone ||
   bus?.conductor_contact ||
-  bus?.conductor ||
   bus?.contactNumber ||
   bus?.contact ||
   bus?.phone ||
+  // Owner/operator fallbacks
+  bus?.ownerNotifyMobile ||
   bus?.operator?.operatorProfile?.contactNumber ||
   bus?.operator?.mobile ||
   bus?.operatorMobile ||
   "";
 
-// Build a tel: link. If 9/10 digits without country code, assume Sri Lanka (+94)
+// Build a tel: link. If 9/10 digits SL local, normalize to +94
 const toTelHref = (raw) => {
   if (!raw) return "";
-  const digits = String(raw).replace(/[^\d+]/g, ""); // keep + and digits
+  const digits = String(raw).replace(/[^\d+]/g, "");
   if (!digits) return "";
-  // Already has +country
   if (digits.startsWith("+")) return `tel:${digits}`;
-  // Starts with 0XXXXXXXXX -> convert to +94XXXXXXXXX
   if (/^0\d{9}$/.test(digits)) return `tel:+94${digits.slice(1)}`;
-  // 9 digits (no 0) -> +94XXXXXXXXX
   if (/^\d{9}$/.test(digits)) return `tel:+94${digits}`;
-  // Fallback
   return `tel:${digits}`;
 };
 
@@ -103,10 +105,10 @@ const AdminArrivalsToday = () => {
   const [q, setQ] = useState("");
   const [routeFilter, setRouteFilter] = useState("");
 
-  // avoid double sends per bus until in-flight completes
+  // in-flight guard per busId
   const [sentMap, setSentMap] = useState({}); // { [busId]: true }
 
-  // persistent counters
+  // persistent counters (per trip/date)
   const [sentCounts, setSentCounts] = useState({}); // { [tripKey]: number }
 
   useEffect(() => {
@@ -129,7 +131,7 @@ const AdminArrivalsToday = () => {
     setSentCounts(readCounts());
   }, []);
 
-  // persist stand/platform choice for convenience
+  // persist stand/platform choice
   useEffect(() => {
     if (!savingPrefs) return;
     try {
@@ -146,7 +148,6 @@ const AdminArrivalsToday = () => {
   const todayList = useMemo(() => {
     let list = [...(buses || [])];
 
-    // search
     if (q.trim()) {
       const s = q.trim().toLowerCase();
       list = list.filter(
@@ -159,14 +160,11 @@ const AdminArrivalsToday = () => {
       );
     }
 
-    // route filter
     if (routeFilter) {
       list = list.filter((b) => `${b.from} → ${b.to}` === routeFilter);
     }
 
-    // sort by departure time
     list.sort((a, b) => toMinutes(a.departureTime) - toMinutes(b.departureTime));
-
     return list;
   }, [buses, q, routeFilter]);
 
@@ -184,7 +182,6 @@ const AdminArrivalsToday = () => {
   const countFor = (bus) =>
     sentCounts[tripKey(bus._id, date, bus?.departureTime || "")] || 0;
 
-  // optional: reset counters for selected date
   const resetCountsForDate = () => {
     const all = readCounts();
     const prefix = `${date}::`;
@@ -203,12 +200,11 @@ const AdminArrivalsToday = () => {
     if (sentMap[bus._id]) return;
 
     try {
-      // optimistic disable
       setSentMap((m) => ({ ...m, [bus._id]: true }));
 
       const payload = {
         busId: bus._id,
-        date, // "YYYY-MM-DD"
+        date,
         departureTime: bus?.departureTime || "",
         standPoint,
         platform: platform || undefined,
@@ -233,24 +229,18 @@ const AdminArrivalsToday = () => {
         }`
       );
 
-      // Only increment when we actually sent something; change to bump on every attempt if you prefer
       if (sent > 0) bumpCount(bus._id, date, bus?.departureTime || "");
 
-      // re-enable button so admin can send again if needed (we keep disable only during flight)
-      setSentMap((m) => {
-        const copy = { ...m };
-        delete copy[bus._id];
-        return copy;
-      });
     } catch (e) {
-      // re-enable on failure
-      setSentMap((m) => {
-        const copy = { ...m };
-        delete copy[bus._id];
-        return copy;
-      });
       const msg = e?.response?.data?.message || "Failed to send arrival SMS";
       alert(msg);
+    } finally {
+      // re-enable button after request completes (success or fail)
+      setSentMap((m) => {
+        const copy = { ...m };
+        delete copy[bus._id];
+        return copy;
+      });
     }
   };
 
@@ -261,7 +251,7 @@ const AdminArrivalsToday = () => {
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Arrivals — Today</h1>
-            <p className="text-gray-600">Quickly send “Bus Arrived” SMS to passengers in one click.</p>
+            <p className="text-gray-600">Send “Bus Arrived” SMS in one click and call the conductor if needed.</p>
           </div>
           <Link to="/admin" className="text-blue-600 hover:text-blue-800">
             ← Back to Admin
@@ -377,16 +367,11 @@ const AdminArrivalsToday = () => {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Time
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Bus
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Route
-                  </th>
-                  <th className="px-6 py-3 text-right"></th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bus</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Route</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Conductor</th>
+                  <th className="px-6 py-3"></th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
@@ -411,43 +396,37 @@ const AdminArrivalsToday = () => {
                       <td className="px-6 py-3 text-sm text-gray-800 whitespace-nowrap">
                         {bus.from} → {bus.to}
                       </td>
-                      <td className="px-6 py-3 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-2">
-                          {/* Call Conductor */}
+                      <td className="px-6 py-3 text-sm whitespace-nowrap">
+                        {hasPhone ? (
                           <a
-                            href={hasPhone ? telHref : undefined}
-                            onClick={(e) => {
-                              if (!hasPhone) {
-                                e.preventDefault();
-                                alert("No conductor phone available for this bus.");
-                              }
-                            }}
-                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${
-                              hasPhone
-                                ? "border-blue-600 text-blue-600 hover:bg-blue-50"
-                                : "border-gray-300 text-gray-400 cursor-not-allowed"
-                            }`}
-                            title={hasPhone ? `Call ${conductorRaw}` : "No phone available"}
+                            href={telHref}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-blue-600 text-blue-600 hover:bg-blue-50"
+                            title={`Call ${conductorRaw}`}
                           >
                             <Icon path="M3 5a2 2 0 012-2h2.28a1 1 0 01.948.684l1.2 3.6a1 1 0 01-.27 1.061l-1.52 1.52a16 16 0 006.016 6.016l1.52-1.52a1 1 0 011.06-.27l3.6 1.2a1 1 0 01.685.948V19a2 2 0 01-2 2h-1C8.82 21 3 15.18 3 8V7a2 2 0 012-2z" />
-                            {hasPhone ? `Call ${conductorRaw}` : "No Number"}
+                            <span className="font-medium">{conductorRaw}</span>
                           </a>
-
-                          {/* Send Arrived */}
-                          <button
-                            onClick={() => sendArrived(bus)}
-                            disabled={disabled}
-                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
-                              disabled
-                                ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                                : "bg-green-600 hover:bg-green-700 text-white"
-                            }`}
-                            title="Send 'Arrived' SMS"
-                          >
-                            <Icon path="M3 10h10M3 6h10M3 14h7M21 16V8a2 2 0 00-2-2h-4l-4-3-4 3H5a2 2 0 00-2 2v8a2 2 0 002 2h6" />
-                            {sentMap[bus._id] ? "Sending…" : `Send${count > 0 ? ` (${count})` : ""}`}
-                          </button>
-                        </div>
+                        ) : (
+                          <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-gray-300 text-gray-400">
+                            <Icon path="M3 5a2 2 0 012-2h2.28a1 1 0 01.948.684l1.2 3.6a1 1 0 01-.27 1.061l-1.52 1.52a16 16 0 006.016 6.016l1.52-1.52a1 1 0 011.06-.27l3.6 1.2a1 1 0 01.685.948V19a2 2 0 01-2 2h-1C8.82 21 3 15.18 3 8V7a2 2 0 012-2z" />
+                            No Number
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-6 py-3 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => sendArrived(bus)}
+                          disabled={disabled}
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
+                            disabled
+                              ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                              : "bg-green-600 hover:bg-green-700 text-white"
+                          }`}
+                          title="Send 'Arrived' SMS"
+                        >
+                          <Icon path="M3 10h10M3 6h10M3 14h7M21 16V8a2 2 0 00-2-2h-4l-4-3-4 3H5a2 2 0 00-2 2v8a2 2 0 002 2h6" />
+                          {sentMap[bus._id] ? "Sending…" : `Send${count > 0 ? ` (${count})` : ""}`}
+                        </button>
                       </td>
                     </tr>
                   );
