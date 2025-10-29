@@ -18,7 +18,7 @@ const BRAND = {
   shadow: "0 10px 35px rgba(10,10,10,0.10)",
 };
 
-const LOGO = "/logo-ticket.png";          // 512–1024px PNG / SVG
+const LOGO = "/images/logo-ticket.png";          // 512–1024px PNG / SVG
 const WATERMARK = "/logo-watermark.png";  // optional large faint logo
 
 /* No steps here */
