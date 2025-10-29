@@ -1,72 +1,43 @@
 // src/pages/DownloadTicket.jsx
-import React, { useRef, useEffect, useState, useMemo } from "react";
+import React, { useMemo, useRef, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-/* ================= Brand palette & fonts ================= */
-const PALETTE = {
-  primary: "#C5162E",   // deeper redBus-like
-  primaryDark: "#A01325",
-  ink: "#1D232A",
-  inkSub: "#5B6676",
-  bg: "#F7F7F9",
-  surface: "#FFFFFF",
-  border: "#E6E8EB",
-  faint: "#F2F4F7",
-  chip: "#FFF4F5",
+/* ====== Brand + Artboard settings (Canva/Photoshop-like) ====== */
+const BRAND = {
+  red: "#C5162E",
+  redDark: "#9F1023",
+  ink: "#111316",
+  inkSub: "#6B7280",
+  line: "#E6E8EB",
+  paper: "#FFFFFF",
+  paperAlt: "#FAFBFC",
+  chip: "#FFF2F4",
+  shadow: "0 10px 35px rgba(10,10,10,0.10)",
 };
 
-const LOGO_SRC = "/images/logo-ticket.png";
+const LOGO = "/logo-ticket.png";          // 512–1024px PNG / SVG
+const WATERMARK = "/logo-watermark.png";  // optional large faint logo
 
-/* ───────────────── No steps bar on ticket ─────────────── */
+/* No steps here */
 const BookingSteps = () => null;
-
-/* ──────────────── Small banner for PayHere state ───────── */
-const Banner = ({ kind = "success", title, children }) => {
-  const isSuccess = kind === "success";
-  const bg = isSuccess ? "bg-green-50" : "bg-red-50";
-  const border = isSuccess ? "border-green-200" : "border-red-200";
-  const text = isSuccess ? "text-green-800" : "text-red-800";
-  return (
-    <div className={`rounded-md border ${bg} ${border} p-3 mb-4`}>
-      <p className={`font-semibold ${text}`}>{title}</p>
-      {children ? <p className="text-sm mt-1">{children}</p> : null}
-    </div>
-  );
-};
-
-const Row = ({ label, value, strong=false, align="left" }) => (
-  <div className="flex flex-col gap-0.5">
-    <span className="text-[11px] uppercase tracking-wide" style={{color: PALETTE.inkSub}}>
-      {label}
-    </span>
-    <span
-      className={`${strong ? "font-semibold" : ""} text-[15px]`}
-      style={{color: PALETTE.ink, textAlign: align}}
-    >
-      {value || "—"}
-    </span>
-  </div>
-);
 
 const DownloadTicket = () => {
   const { state, search } = useLocation();
   const navigate = useNavigate();
-  const ticketRef = useRef();
-  const [logoLoaded, setLogoLoaded] = useState(false);
+  const artboardRef = useRef(null);
+  const [logoOk, setLogoOk] = useState(false);
 
-  // Preload logo for html2canvas
   useEffect(() => {
     const img = new Image();
-    img.onload = () => setLogoLoaded(true);
-    img.onerror = () => setLogoLoaded(false);
-    img.crossOrigin = "anonymous";
-    img.src = LOGO_SRC;
+    img.onload = () => setLogoOk(true);
+    img.onerror = () => setLogoOk(false);
+    img.src = LOGO;
   }, []);
 
-  /* ---- PayHere return params ---- */
+  // Read PayHere params (kept for completeness)
   const params = useMemo(() => new URLSearchParams(search), [search]);
   const orderId = (
     params.get("order_id") ||
@@ -75,13 +46,8 @@ const DownloadTicket = () => {
     params.get("order-no") ||
     ""
   ).trim();
-  const statusCode = params.get("status_code") || params.get("status") || "";
-  const paymentId = params.get("payment_id") || "";
-  const method = params.get("method") || "";
-  const isSuccess = statusCode === "2" || /^success$/i.test(statusCode || "");
-  const isFailed  = statusCode && !isSuccess && !/^pending$/i.test(statusCode || "");
 
-  /* ---- Prefer state, fallback to sessionStorage ---- */
+  // Prefer state, fallback to sessionStorage (like before)
   const [bookingDetails, setBookingDetails] = useState(state?.bookingDetails || null);
   useEffect(() => {
     if (bookingDetails) return;
@@ -90,277 +56,275 @@ const DownloadTicket = () => {
       if (!raw) return;
       const parsed = JSON.parse(raw);
       if (parsed?.bookingDetails) setBookingDetails(parsed.bookingDetails);
-    } catch { /* ignore */ }
+    } catch {}
   }, [bookingDetails]);
 
   if (!bookingDetails) {
     return (
-      <div className="p-6 max-w-3xl mx-auto">
-        {isFailed ? (
-          <Banner kind="error" title="Payment Failed">
-            If money was deducted, it will be auto-reversed by the bank. Try again from My Bookings.
-          </Banner>
-        ) : null}
-        <h1 className="text-xl font-bold text-red-600 mb-2">No ticket data found</h1>
-        <p className="text-gray-700">
-          This can happen if the payment return opened in a new window without session data.
-        </p>
-        {orderId ? (
-          <p className="mt-2 text-sm text-gray-600">
-            Reference:&nbsp;<span className="font-semibold">{orderId}</span>
-          </p>
-        ) : null}
-        <div className="mt-4 flex items-center justify-center gap-3">
-          <button
-            onClick={() => navigate("/my-bookings")}
-            className="px-5 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Go to My Bookings
-          </button>
-          <button
-            onClick={() => navigate("/")}
-            className="px-5 py-2 bg-gray-100 rounded-md hover:bg-gray-200"
-          >
-            Home
-          </button>
+      <div className="max-w-xl mx-auto p-6">
+        <h1 className="text-xl font-bold text-red-600 mb-2">No ticket data</h1>
+        <p className="text-gray-700">Open from My Bookings or complete payment first.</p>
+        {orderId && <p className="text-sm text-gray-600 mt-2">Reference: <b>{orderId}</b></p>}
+        <div className="mt-4 flex gap-2">
+          <button onClick={() => navigate("/my-bookings")} className="px-4 py-2 rounded bg-blue-600 text-white">My Bookings</button>
+          <button onClick={() => navigate("/")} className="px-4 py-2 rounded bg-gray-100">Home</button>
         </div>
       </div>
     );
   }
 
-  /* ---------- Safe destructuring ---------- */
+  // ----- Safe destructuring -----
   const {
     bus = {},
     operator = {},
     passenger = {},
     passengers = [],
-    date = "",
     selectedSeats = [],
-    priceDetails = {},
     boardingPoint = {},
     droppingPoint = {},
+    priceDetails = {},
     departureTime = "",
-    reportingTime, // if you have one
-    bookingId = "",
+    date = "",
     bookingNo: bookingNoFromState,
     bookingNoShort: bookingNoShortFromState,
-    pnr, // optional
+    bookingId = "",
+    pnr,
   } = bookingDetails || {};
 
   const bookingNo = bookingNoFromState || bookingNoShortFromState || orderId || bookingId || "";
-  const totalPrice = Number(priceDetails?.totalPrice || 0);
-  const paxCount = passengers?.length || selectedSeats?.length || 1;
   const opName = operator?.name || bus?.operator || bus?.name || "—";
   const routeFrom = bus?.from || "—";
-  const routeTo   = bus?.to || "—";
+  const routeTo = bus?.to || "—";
+  const paxCount = passengers?.length || selectedSeats?.length || 1;
+  const totalPrice = Number(priceDetails?.totalPrice || 0);
 
-  /* ---------- PDF: sharp & light ---------- */
-  const handleDownloadPDF = async () => {
-    const el = ticketRef.current;
+  // QR compact payload
+  const firstNames = passengers.map((p) => p.name).filter(Boolean).slice(0, 3).join(", ");
+  const qrText = `Ticket|${bookingNo}|${routeFrom}->${routeTo}|${date} ${departureTime}|Seats:${selectedSeats.join(",")}|Pax:${paxCount}|Owner:${passenger.name||"-"}`;
+
+  // ---- Export: A4, Canva-like crisp ----
+  const downloadPDF = async () => {
+    const el = artboardRef.current;
     if (!el) return;
     el.style.webkitPrintColorAdjust = "exact";
     el.style.printColorAdjust = "exact";
-
-    const canvas = await html2canvas(el, { scale: 1.65, useCORS: true, backgroundColor: null });
-    const img = canvas.toDataURL("image/jpeg", 0.9);
+    const canvas = await html2canvas(el, {
+      scale: 2,       // higher for print crispness
+      useCORS: true,
+      backgroundColor: null,
+    });
+    const img = canvas.toDataURL("image/jpeg", 0.92);
     const pdf = new jsPDF("p", "mm", "a4");
     const w = pdf.internal.pageSize.getWidth();
     const h = (canvas.height * w) / canvas.width;
-    const margin = 8;
-    const drawH = Math.min(pdf.internal.pageSize.getHeight() - margin * 2, h);
-    pdf.addImage(img, "JPEG", margin, margin, w - margin * 2, drawH, undefined, "FAST");
-    pdf.save(`ticket-${(bookingNo || passenger.name || "guest").toString().replace(/\s/g, "_")}-${date}.pdf`);
+    pdf.addImage(img, "JPEG", 0, 0, w, h, undefined, "FAST");
+    pdf.save(`ticket-${(bookingNo || passenger.name || "guest").replace(/\s/g,"_")}-${date}.pdf`);
   };
 
-  /* ---------- QR payload ---------- */
-  const firstNames = passengers.map((p) => p.name).filter(Boolean).slice(0, 3).join(", ");
-  const qrText = `Ticket
-Booking: ${bookingNo}
-Owner: ${passenger.name || "N/A"}
-Route: ${routeFrom} -> ${routeTo}
-Date: ${date} at ${departureTime || "-"}
-Seats: ${selectedSeats.join(", ") || "-"}
-Pax: ${paxCount} (${firstNames}${passengers.length > 3 ? "…" : ""})`;
+  const printNow = () => window.print();
 
-  /* ========================== UI ========================== */
   return (
-    <div className="min-h-screen" style={{ backgroundColor: PALETTE.bg }}>
-      <BookingSteps currentStep={5} />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
-        {isSuccess ? (
-          <Banner kind="success" title="Payment Successful 🎉">
-            {paymentId ? <>Payment ID: <b>{paymentId}</b>{method ? ` • Method: ${method}` : ""}</> : "Your booking has been confirmed."}
-          </Banner>
-        ) : isFailed ? (
-          <Banner kind="error" title="Payment Failed">
-            If money was deducted, it will be auto-reversed by the bank. You can try again from My Bookings.
-          </Banner>
-        ) : null}
+    <div className="min-h-screen bg-[#F3F4F7] py-6 print:bg-white">
+      {/* Local styles dedicated to this artboard (precise print rules) */}
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 0; }
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .no-print { display: none !important; }
+          .sheet { box-shadow: none !important; margin: 0 !important; }
+        }
+        .sheet {
+          width: 794px;   /* A4 width @ 96dpi */
+          min-height: 1123px; /* A4 height @ 96dpi */
+          margin: 0 auto;
+          background: ${BRAND.paper};
+          box-shadow: ${BRAND.shadow};
+          position: relative;
+        }
+        .band {
+          background: linear-gradient(90deg, ${BRAND.red} 0%, ${BRAND.redDark} 100%);
+        }
+        .watermark {
+          position: absolute; inset: 0; pointer-events: none;
+          background-position: center 35%;
+          background-repeat: no-repeat;
+          background-size: 60%;
+          opacity: 0.045;
+          mix-blend-mode: multiply;
+        }
+        .perf {
+          background-image: radial-gradient(${BRAND.line} 2px, transparent 2px);
+          background-size: 10px 10px;
+          background-position: center;
+          height: 14px;
+          opacity: 0.9;
+        }
+        .chip {
+          border: 1px solid ${BRAND.line};
+          background: ${BRAND.chip};
+          color: ${BRAND.red};
+          font-weight: 700;
+          padding: 4px 10px;
+          border-radius: 999px;
+          font-size: 13px;
+        }
+        .label {
+          text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: ${BRAND.inkSub};
+        }
+        .value { color: ${BRAND.ink}; font-size: 15px; }
+      `}</style>
 
-        {/* ===== Ticket Card ===== */}
+      {/* ACTION BAR */}
+      <div className="no-print max-w-4xl mx-auto mb-4 px-4 flex gap-2 justify-end">
+        <button onClick={printNow} className="px-4 py-2 rounded bg-gray-900 text-white">🖨 Print</button>
+        <button onClick={downloadPDF} className="px-4 py-2 rounded" style={{background: BRAND.red, color:"#fff"}}>📄 Download PDF</button>
+        <button onClick={() => navigate("/my-bookings")} className="px-4 py-2 rounded border border-gray-300 bg-white">My Bookings</button>
+      </div>
+
+      {/* ======== A4 ARTBOARD (like a Canva design) ======== */}
+      <div className="sheet" ref={artboardRef}>
+        {/* Optional faint watermark */}
         <div
-          ref={ticketRef}
-          className="rounded-lg shadow-[0_3px_16px_rgba(0,0,0,0.07)] overflow-hidden border"
-          style={{ backgroundColor: PALETTE.surface, borderColor: PALETTE.border }}
-        >
-          {/* Top info bar like redBus */}
-          <div className="px-5 sm:px-6 py-4 border-b" style={{ borderColor: PALETTE.border, background: PALETTE.faint }}>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex items-center gap-3">
-                {logoLoaded ? (
-                  <img src={LOGO_SRC} alt="Routesbook" className="h-7 sm:h-8 w-auto" crossOrigin="anonymous" />
-                ) : (
-                  <div className="text-2xl font-extrabold" style={{ color: PALETTE.primary }}>Routesbook</div>
-                )}
-                <div className="leading-tight">
-                  <div className="text-[13px] font-semibold tracking-wide uppercase" style={{ color: PALETTE.primary }}>
-                    eTICKET
-                  </div>
-                  <div className="text-[12px]" style={{ color: PALETTE.inkSub }}>
-                    {opName !== "—" ? `Operator: ${opName}` : "Online Bus Ticket"}
-                  </div>
-                </div>
-              </div>
+          className="watermark"
+          style={{
+            backgroundImage: `url(${WATERMARK})`,
+          }}
+        />
 
-              <div className="text-right leading-tight">
-                <div className="text-[11px] uppercase tracking-wide" style={{ color: PALETTE.inkSub }}>
-                  Booking Number
-                </div>
-                <div className="text-2xl font-extrabold" style={{ color: PALETTE.primary }}>
-                  {bookingNo}
-                </div>
-                <div className="text-[11px]" style={{ color: PALETTE.inkSub }}>
-                  {pnr ? <>PNR: <b>{pnr}</b> • </> : null}
-                  {new Date().toLocaleString()}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Route banner */}
-          <div className="px-5 sm:px-6 py-4 border-b" style={{ borderColor: PALETTE.border }}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2 text-[15px]" style={{ color: PALETTE.ink }}>
-                <span className="font-semibold text-[18px]">{routeFrom}</span>
-                <span className="px-1.5 text-[12px] uppercase tracking-wide" style={{ color: PALETTE.inkSub }}>&rarr;</span>
-                <span className="font-semibold text-[18px]">{routeTo}</span>
-              </div>
-              <div className="text-[15px]" style={{ color: PALETTE.ink }}>
-                <span className="font-medium">{new Date(date).toLocaleDateString() || date || "—"}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Operator row (like redBus’s strip) */}
-          <div className="px-5 sm:px-6 py-4 border-b" style={{ borderColor: PALETTE.border }}>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <Row label="Bus / Operator" value={opName} strong />
-              <Row label="Reporting time" value={reportingTime || (departureTime ? departureTime : "-")} />
-              <Row label="Departure time" value={departureTime || "-"} />
-              <Row label="No. of Passengers" value={String(paxCount)} align="right" />
-            </div>
-          </div>
-
-          {/* Boarding details table */}
-          <div className="px-5 sm:px-6 py-4 border-b" style={{ borderColor: PALETTE.border }}>
-            <div className="text-[12px] font-semibold uppercase tracking-wide mb-2" style={{ color: PALETTE.inkSub }}>
-              Boarding point details
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-[14px]">
-              <div className="rounded-md border p-3" style={{ borderColor: PALETTE.border }}>
-                <div className="text-[11px] uppercase tracking-wide mb-0.5" style={{ color: PALETTE.inkSub }}>Location</div>
-                <div className="font-medium" style={{ color: PALETTE.ink }}>{boardingPoint.point || "—"}</div>
-              </div>
-              <div className="rounded-md border p-3" style={{ borderColor: PALETTE.border }}>
-                <div className="text-[11px] uppercase tracking-wide mb-0.5" style={{ color: PALETTE.inkSub }}>Landmark</div>
-                <div className="font-medium" style={{ color: PALETTE.ink }}>{boardingPoint.landmark || "—"}</div>
-              </div>
-              <div className="rounded-md border p-3" style={{ borderColor: PALETTE.border }}>
-                <div className="text-[11px] uppercase tracking-wide mb-0.5" style={{ color: PALETTE.inkSub }}>Address</div>
-                <div className="font-medium" style={{ color: PALETTE.ink }}>{boardingPoint.address || "—"}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Passenger row like redBus (names + seats) */}
-          <div className="px-5 sm:px-6 py-4 border-b" style={{ borderColor: PALETTE.border }}>
-            <div className="flex flex-wrap gap-3">
-              {passengers.length ? passengers.map((p, idx) => (
-                <div key={`${p.seat || idx}`} className="flex items-center gap-2 rounded-md border px-3 py-2"
-                     style={{ borderColor: PALETTE.border, background: "#fff" }}>
-                  <span className="px-2 py-0.5 text-[12px] rounded-full font-semibold"
-                        style={{ background: PALETTE.chip, color: PALETTE.primary, border: `1px solid ${PALETTE.border}` }}>
-                    Seat {p.seat ?? "—"}
-                  </span>
-                  <span className="text-[14px] font-medium" style={{ color: PALETTE.ink }}>
-                    {p.name || "Passenger"}
-                  </span>
-                  <span className="text-[12px]" style={{ color: PALETTE.inkSub }}>
-                    {p.gender ? `• ${p.gender === "F" ? "Female" : "Male"}` : ""} {p.age ? `• Age ${p.age}` : ""}
-                  </span>
-                </div>
-              )) : (
-                <div className="text-[14px]" style={{ color: PALETTE.inkSub }}>No passenger details provided.</div>
+        {/* Brand band header */}
+        <div className="band text-white px-8 py-12">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              {logoOk ? (
+                <img src={LOGO} alt="Routesbook" className="h-11 w-auto" />
+              ) : (
+                <div className="text-3xl font-extrabold">Routesbook</div>
               )}
+              <div className="ml-2">
+                <div className="text-[12px] tracking-[0.15em] font-semibold opacity-90">E-TICKET</div>
+                <div className="text-sm opacity-90">Operator: {opName}</div>
+              </div>
             </div>
-            <div className="mt-3 text-[12px]" style={{ color: PALETTE.inkSub }}>
-              <b>NOTE:</b> This operator accepts m-Ticket; no printout needed. Carry a valid ID.
+            <div className="text-right">
+              <div className="text-xs opacity-90 tracking-[0.15em]">BOOKING NUMBER</div>
+              <div className="text-3xl font-extrabold leading-tight">{bookingNo}</div>
+              <div className="text-[11px] opacity-90 mt-1">
+                {pnr ? <>PNR: <b>{pnr}</b> • </> : null}
+                {new Date().toLocaleString()}
+              </div>
             </div>
           </div>
 
-          {/* Fare + QR panel (side-by-side on desktop) */}
-          <div className="px-5 sm:px-6 py-5">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Left: contact + drop info */}
-              <div className="md:col-span-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="rounded-md border p-3" style={{ borderColor: PALETTE.border }}>
-                    <div className="text-[11px] uppercase tracking-wide mb-1" style={{ color: PALETTE.inkSub }}>
-                      Dropping Point
-                    </div>
-                    <div className="font-medium text-[15px]" style={{ color: PALETTE.ink }}>
-                      {droppingPoint.point || "—"}
-                    </div>
-                    <div className="text-[12px]" style={{ color: PALETTE.inkSub }}>
-                      Time: {droppingPoint.time || "—"}
-                    </div>
+          {/* Big route line */}
+          <div className="mt-8">
+            <div className="text-[15px] opacity-95">Route</div>
+            <div className="text-[40px] leading-none font-extrabold -mt-1">
+              {routeFrom} <span className="opacity-80 text-[28px] px-2">→</span> {routeTo}
+            </div>
+            <div className="mt-2 text-sm opacity-95 flex items-center gap-3">
+              <span className="label !text-white !opacity-90">Journey Date</span>
+              <span className="font-semibold text-white/95">{new Date(date).toLocaleDateString() || date || "—"}</span>
+              <span className="label !text-white !opacity-90 ml-6">Departure</span>
+              <span className="font-semibold text-white/95">{departureTime || "—"}</span>
+              <span className="label !text-white !opacity-90 ml-6">Passengers</span>
+              <span className="font-semibold text-white/95">{paxCount}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Perf line (tear) */}
+        <div className="perf" />
+
+        {/* Body content */}
+        <div className="px-8 py-8">
+          {/* Grid: details left, stub right */}
+          <div className="grid grid-cols-12 gap-10">
+            {/* LEFT 8/12 — detailed panel */}
+            <div className="col-span-12 md:col-span-8">
+              {/* Boarding details (table cards) */}
+              <div className="mb-6">
+                <div className="label mb-2">Boarding point details</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                  <div className="rounded-xl border p-4" style={{borderColor: BRAND.line, background: BRAND.paperAlt}}>
+                    <div className="label mb-1">Location</div>
+                    <div className="value font-semibold">{boardingPoint.point || "—"}</div>
+                    {boardingPoint.time && <div className="text-[12px]" style={{color: BRAND.inkSub}}>Time: {boardingPoint.time}</div>}
                   </div>
-                  <div className="rounded-md border p-3" style={{ borderColor: PALETTE.border }}>
-                    <div className="text-[11px] uppercase tracking-wide mb-1" style={{ color: PALETTE.inkSub }}>
-                      Booking Contact (Owner)
-                    </div>
-                    <div className="font-medium text-[15px]" style={{ color: PALETTE.ink }}>
-                      {passenger.name || "—"}
-                    </div>
-                    <div className="text-[12px]" style={{ color: PALETTE.inkSub }}>
-                      Mobile: {passenger.mobile || "—"}
-                    </div>
-                    <div className="text-[12px]" style={{ color: PALETTE.inkSub }}>
-                      Email: {passenger.email || "—"}
-                    </div>
+                  <div className="rounded-xl border p-4" style={{borderColor: BRAND.line, background: BRAND.paperAlt}}>
+                    <div className="label mb-1">Landmark</div>
+                    <div className="value font-semibold">{boardingPoint.landmark || "—"}</div>
+                  </div>
+                  <div className="rounded-xl border p-4" style={{borderColor: BRAND.line, background: BRAND.paperAlt}}>
+                    <div className="label mb-1">Address</div>
+                    <div className="value font-semibold">{boardingPoint.address || "—"}</div>
                   </div>
                 </div>
               </div>
 
-              {/* Right: QR + Fare */}
-              <div className="rounded-md border p-4 flex flex-col items-center justify-between"
-                   style={{ borderColor: PALETTE.border, background: PALETTE.faint }}>
+              {/* Passenger rows (seat chips) */}
+              <div className="mb-6">
+                <div className="label mb-2">Seats & passenger details</div>
+                <div className="flex flex-col gap-3">
+                  {passengers.length ? passengers.map((p, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-3 rounded-xl border p-3"
+                         style={{borderColor: BRAND.line, background: BRAND.paper}}>
+                      <span className="chip">Seat {p.seat ?? "—"}</span>
+                      <span className="value font-semibold">{p.name || "Passenger"}</span>
+                      <span className="text-[12px]" style={{color: BRAND.inkSub}}>
+                        {p.gender ? `• ${p.gender === "F" ? "Female" : "Male"}` : ""} {p.age ? `• Age ${p.age}` : ""}
+                      </span>
+                    </div>
+                  )) : (
+                    <div className="text-[14px]" style={{color: BRAND.inkSub}}>No passenger details provided.</div>
+                  )}
+                </div>
+              </div>
+
+              {/* Dropping + Contact */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                <div className="rounded-xl border p-4" style={{borderColor: BRAND.line}}>
+                  <div className="label mb-1">Dropping point</div>
+                  <div className="value font-semibold">{droppingPoint.point || "—"}</div>
+                  <div className="text-[12px]" style={{color: BRAND.inkSub}}>Time: {droppingPoint.time || "—"}</div>
+                </div>
+                <div className="rounded-xl border p-4" style={{borderColor: BRAND.line}}>
+                  <div className="label mb-1">Booking contact (Owner)</div>
+                  <div className="value font-semibold">{passenger.name || "—"}</div>
+                  <div className="text-[12px]" style={{color: BRAND.inkSub}}>Mobile: {passenger.mobile || "—"}</div>
+                  <div className="text-[12px]" style={{color: BRAND.inkSub}}>Email: {passenger.email || "—"}</div>
+                </div>
+              </div>
+
+              {/* Note */}
+              <div className="mt-6 text-[12.5px]" style={{color: BRAND.inkSub}}>
+                <b>Note:</b> This operator accepts m-Ticket. Carry a valid National ID/Passport. Arrive 15–20 minutes early.
+              </div>
+            </div>
+
+            {/* RIGHT 4/12 — detachable stub style */}
+            <div className="col-span-12 md:col-span-4">
+              <div className="rounded-2xl border p-16 relative overflow-hidden" style={{borderColor: BRAND.line, background: BRAND.paperAlt}}>
+                {/* Decorative corner circles to mimic perforation */}
+                <div className="absolute -left-6 top-10 w-12 h-12 rounded-full bg-white border" style={{borderColor: BRAND.line}}/>
+                <div className="absolute -left-6 bottom-10 w-12 h-12 rounded-full bg-white border" style={{borderColor: BRAND.line}}/>
+                <div className="absolute -right-6 top-10 w-12 h-12 rounded-full bg-white border" style={{borderColor: BRAND.line}}/>
+                <div className="absolute -right-6 bottom-10 w-12 h-12 rounded-full bg-white border" style={{borderColor: BRAND.line}}/>
+
                 <div className="text-center">
-                  <div className="text-[11px] uppercase tracking-wide mb-2" style={{ color: PALETTE.inkSub }}>
-                    Scan for validation
+                  <div className="label mb-2">Scan for validation</div>
+                  <div className="inline-block p-6 bg-white rounded-xl border shadow-sm" style={{borderColor: BRAND.line}}>
+                    <QRCodeCanvas value={qrText} size={132} />
                   </div>
-                  <div className="inline-block p-2 bg-white rounded-md border shadow-sm">
-                    <QRCodeCanvas value={qrText} size={116} />
-                  </div>
-                  <div className="mt-2 text-[12px]" style={{ color: PALETTE.inkSub }}>
-                    ID: <b style={{ color: PALETTE.primary }}>{bookingNo}</b>
+                  <div className="mt-3 text-[12px]" style={{color: BRAND.inkSub}}>
+                    ID: <b style={{color: BRAND.red}}>{bookingNo}</b>
                   </div>
                 </div>
-                <div className="text-center mt-5">
-                  <div className="text-[12px] uppercase tracking-wide mb-1" style={{ color: PALETTE.inkSub }}>
-                    Total Fare
-                  </div>
-                  <div className="text-[26px] font-extrabold" style={{ color: PALETTE.primary }}>
+
+                <div className="h-px my-8" style={{background: BRAND.line}} />
+
+                <div className="text-center">
+                  <div className="label mb-1">Total Fare</div>
+                  <div className="text-[30px] font-extrabold" style={{color: BRAND.red}}>
                     Rs. {isFinite(totalPrice) ? totalPrice.toFixed(2) : "0.00"}
                   </div>
                 </div>
@@ -368,56 +332,29 @@ Pax: ${paxCount} (${firstNames}${passengers.length > 3 ? "…" : ""})`;
             </div>
           </div>
 
-          {/* Tear line */}
-          <div className="px-5 sm:px-6">
-            <div className="border-t border-dashed" style={{ borderColor: PALETTE.border }} />
-          </div>
-
-          {/* Terms & Conditions – compact like redBus */}
-          <div className="px-5 sm:px-6 py-5">
-            <div className="text-[13px] font-semibold mb-2" style={{ color: PALETTE.ink }}>
-              Terms and Conditions
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[12.5px]" style={{ color: PALETTE.inkSub }}>
+          {/* Terms (small, designer spacing) */}
+          <div className="mt-10">
+            <div className="text-[13px] font-semibold mb-2" style={{color: BRAND.ink}}>Terms & Conditions</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[12.5px]" style={{color: BRAND.inkSub}}>
               <ol className="list-decimal ml-5 space-y-1">
-                <li>Routesbook is a ticketing agent; it does not operate buses.</li>
-                <li>m-Ticket with a valid photo ID is mandatory at boarding.</li>
-                <li>Reporting/Departure times are provided by the operator and may vary.</li>
-                <li>Operator is responsible for amenities, delays, and route changes.</li>
-                <li>Refunds/Cancellations are governed by the operator’s policy.</li>
+                <li>Routesbook is a ticketing agent; buses are operated by respective operators.</li>
+                <li>m-Ticket and a valid photo ID are mandatory for boarding.</li>
+                <li>Reporting & departure times are operator-provided and may vary.</li>
+                <li>Cancellations and refunds follow the operator’s policy.</li>
+                <li>Baggage is carried at passenger’s risk unless explicitly covered.</li>
               </ol>
               <ol className="list-decimal ml-5 space-y-1" start={6}>
-                <li>Baggage is carried at passenger’s risk unless stated otherwise.</li>
-                <li>Abusive behavior or intoxication may result in denied boarding.</li>
-                <li>Please arrive at the boarding point 15–20 minutes early.</li>
+                <li>Abusive behavior/intoxication may lead to denied boarding.</li>
+                <li>Please arrive 15–20 minutes before departure.</li>
                 <li>Contact support via My Bookings for changes and help.</li>
-                <li>GST/Service charges are included where applicable.</li>
+                <li>Taxes & platform fees included when applicable.</li>
+                <li>QR misuse or duplication can invalidate boarding.</li>
               </ol>
-            </div>
-            <div className="mt-3 text-[12px]" style={{ color: PALETTE.inkSub }}>
-              * Carry your National ID/Passport. The driver may require verification.
             </div>
           </div>
         </div>
-
-        {/* Actions */}
-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <button
-            onClick={handleDownloadPDF}
-            className="w-full py-3 rounded-md text-white font-semibold tracking-wide shadow-sm hover:shadow transition"
-            style={{ backgroundColor: PALETTE.primary }}
-          >
-            📄 Download Ticket (PDF)
-          </button>
-          <button
-            onClick={() => navigate("/my-bookings")}
-            className="w-full py-3 rounded-md font-semibold border hover:bg-gray-50 transition"
-            style={{ borderColor: PALETTE.border, color: PALETTE.ink, background: "#fff" }}
-          >
-            View My Bookings
-          </button>
-        </div>
       </div>
+      {/* ======== /A4 ARTBOARD ======== */}
     </div>
   );
 };
