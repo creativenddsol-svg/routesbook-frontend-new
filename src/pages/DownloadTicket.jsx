@@ -7,6 +7,7 @@ import html2canvas from "html2canvas";
 
 /* ====== Brand + Artboard settings (Canva/Photoshop-like) ====== */
 const BRAND = {
+  // Matched to RedBus colors from the image
   red: "#C5162E",
   redDark: "#9F1023",
   ink: "#111316",
@@ -16,10 +17,11 @@ const BRAND = {
   paperAlt: "#FAFBFC",
   chip: "#FFF2F4",
   shadow: "0 10px 35px rgba(10,10,10,0.10)",
+  greyHeader: "#F2F2F2", // For the top email header
 };
 
-const LOGO = "/images/logo-ticket.png";          // 512–1024px PNG / SVG
-const WATERMARK = "/logo-watermark.png";  // optional large faint logo
+const LOGO = "/images/redbus-logo.png"; // Use a RedBus-style logo here
+const WATERMARK = "/logo-watermark.png"; // optional large faint logo
 
 /* No steps here */
 const BookingSteps = () => null;
@@ -31,6 +33,7 @@ const DownloadTicket = () => {
   const [logoOk, setLogoOk] = useState(false);
 
   useEffect(() => {
+    // Note: You should replace LOGO with your actual logo path and ensure CORS is handled if loading external
     const img = new Image();
     img.onload = () => setLogoOk(true);
     img.onerror = () => setLogoOk(false);
@@ -74,33 +77,34 @@ const DownloadTicket = () => {
   }
 
   // ----- Safe destructuring -----
+  // Using sample data/fallbacks to match the image content
   const {
     bus = {},
     operator = {},
-    passenger = {},
-    passengers = [],
+    passenger = { name: "Dhilip Christopher", email: "dhilipchristopher23@gmail.com", mobile: "8754440418" }, // Mock data
+    passengers = [{ name: "Mr Paranthaman", seat: "52" }, { name: "Mr Anand", seat: "50" }, { name: "Mr Dhilip", seat: "51" }], // Mock data
     selectedSeats = [],
-    boardingPoint = {},
-    droppingPoint = {},
+    boardingPoint = { point: "Koyambedu", landmark: "Location", time: "21:30" }, // Mock data
+    droppingPoint = { point: "SRM Bus Stand", landmark: "Next to CMBT Bus Stand", address: "no.1/100 feet road" }, // Mock data
     priceDetails = {},
-    departureTime = "",
-    date = "",
+    departureTime = "21:45",
+    date = "2025-10-30",
     bookingNo: bookingNoFromState,
     bookingNoShort: bookingNoShortFromState,
-    bookingId = "",
-    pnr,
+    bookingId = "TK7N98677943", // Mock data
+    pnr = "RBA3CB698", // Mock data
   } = bookingDetails || {};
 
-  const bookingNo = bookingNoFromState || bookingNoShortFromState || orderId || bookingId || "";
-  const opName = operator?.name || bus?.operator || bus?.name || "—";
-  const routeFrom = bus?.from || "—";
-  const routeTo = bus?.to || "—";
-  const paxCount = passengers?.length || selectedSeats?.length || 1;
-  const totalPrice = Number(priceDetails?.totalPrice || 0);
+  const bookingNo = bookingNoFromState || bookingNoShortFromState || orderId || bookingId || "TK7N98677943";
+  const opName = operator?.name || bus?.operator || "SRM Transports"; // Mock data
+  const routeFrom = bus?.from || "Chennai"; // Mock data
+  const routeTo = bus?.to || "Udankudi"; // Mock data
+  const paxCount = passengers?.length || selectedSeats?.length || 3; // Mock data
+  const totalPrice = Number(priceDetails?.totalPrice || 3021); // Mock data
+  const journeyDate = new Date(date).toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) || "Saturday, June 24, 2017"; // Mock data
 
   // QR compact payload
-  const firstNames = passengers.map((p) => p.name).filter(Boolean).slice(0, 3).join(", ");
-  const qrText = `Ticket|${bookingNo}|${routeFrom}->${routeTo}|${date} ${departureTime}|Seats:${selectedSeats.join(",")}|Pax:${paxCount}|Owner:${passenger.name||"-"}`;
+  const qrText = `Ticket|${bookingNo}|${routeFrom}->${routeTo}|${date} ${departureTime}|Seats:${passengers.map(p => p.seat).join(",")}|Pax:${paxCount}|Owner:${passenger.name||"-"}`;
 
   // ---- Export: A4, Canva-like crisp ----
   const downloadPDF = async () => {
@@ -109,16 +113,20 @@ const DownloadTicket = () => {
     el.style.webkitPrintColorAdjust = "exact";
     el.style.printColorAdjust = "exact";
     const canvas = await html2canvas(el, {
-      scale: 2,       // higher for print crispness
+      scale: 2,        // higher for print crispness
       useCORS: true,
       backgroundColor: null,
+      scrollX: 0,
+      scrollY: 0,
+      windowWidth: el.scrollWidth,
+      windowHeight: el.scrollHeight,
     });
-    const img = canvas.toDataURL("image/jpeg", 0.92);
+    const img = canvas.toDataURL("image/jpeg", 0.95);
     const pdf = new jsPDF("p", "mm", "a4");
     const w = pdf.internal.pageSize.getWidth();
     const h = (canvas.height * w) / canvas.width;
     pdf.addImage(img, "JPEG", 0, 0, w, h, undefined, "FAST");
-    pdf.save(`ticket-${(bookingNo || passenger.name || "guest").replace(/\s/g,"_")}-${date}.pdf`);
+    pdf.save(`ticket-${(bookingNo || passenger.name || "guest").replace(/\s/g, "_")}-${date}.pdf`);
   };
 
   const printNow = () => window.print();
@@ -140,219 +148,239 @@ const DownloadTicket = () => {
           background: ${BRAND.paper};
           box-shadow: ${BRAND.shadow};
           position: relative;
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         }
-        .band {
-          background: linear-gradient(90deg, ${BRAND.red} 0%, ${BRAND.redDark} 100%);
+        .header-top {
+            background: ${BRAND.greyHeader};
+            color: ${BRAND.inkSub};
+            font-size: 11px;
         }
-        .watermark {
-          position: absolute; inset: 0; pointer-events: none;
-          background-position: center 35%;
-          background-repeat: no-repeat;
-          background-size: 60%;
-          opacity: 0.045;
-          mix-blend-mode: multiply;
+        .label {
+            text-transform: capitalize; 
+            font-size: 12px; 
+            color: ${BRAND.inkSub};
+            font-weight: 500;
         }
-        .perf {
-          background-image: radial-gradient(${BRAND.line} 2px, transparent 2px);
-          background-size: 10px 10px;
-          background-position: center;
-          height: 14px;
-          opacity: 0.9;
+        .value { 
+            color: ${BRAND.ink}; 
+            font-size: 15px; 
+            font-weight: 600;
         }
         .chip {
           border: 1px solid ${BRAND.line};
           background: ${BRAND.chip};
           color: ${BRAND.red};
           font-weight: 700;
-          padding: 4px 10px;
-          border-radius: 999px;
+          padding: 2px 8px;
+          border-radius: 4px;
           font-size: 13px;
+          display: inline-block;
+          white-space: nowrap;
         }
-        .label {
-          text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: ${BRAND.inkSub};
-        }
-        .value { color: ${BRAND.ink}; font-size: 15px; }
       `}</style>
 
       {/* ACTION BAR */}
       <div className="no-print max-w-4xl mx-auto mb-4 px-4 flex gap-2 justify-end">
         <button onClick={printNow} className="px-4 py-2 rounded bg-gray-900 text-white">🖨 Print</button>
-        <button onClick={downloadPDF} className="px-4 py-2 rounded" style={{background: BRAND.red, color:"#fff"}}>📄 Download PDF</button>
+        <button onClick={downloadPDF} className="px-4 py-2 rounded" style={{ background: BRAND.red, color: "#fff" }}>📄 Download PDF</button>
         <button onClick={() => navigate("/my-bookings")} className="px-4 py-2 rounded border border-gray-300 bg-white">My Bookings</button>
       </div>
 
-      {/* ======== A4 ARTBOARD (like a Canva design) ======== */}
+      {/* ======== A4 ARTBOARD (RedBus Style) ======== */}
       <div className="sheet" ref={artboardRef}>
         {/* Optional faint watermark */}
         <div
           className="watermark"
-          style={{
-            backgroundImage: `url(${WATERMARK})`,
-          }}
+          style={{ backgroundImage: `url(${WATERMARK})` }}
         />
 
-        {/* Brand band header */}
-        <div className="band text-white px-8 py-12">
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              {logoOk ? (
-                <img src={LOGO} alt="Routesbook" className="h-11 w-auto" />
-              ) : (
-                <div className="text-3xl font-extrabold">Routesbook</div>
+        {/* 1. TOP EMAIL HEADER */}
+        <div className="header-top px-8 py-3 flex justify-between items-center border-b" style={{ borderColor: BRAND.line }}>
+          <div className="flex items-center gap-1">
+            <span className="text-[12px] text-gray-700">GMAIL</span>
+            <span className="text-[11px] text-gray-500">•</span>
+            <span className="font-semibold text-[12px]">{passenger.email}</span>
+            <span className="text-[11px] text-gray-500">with</span>
+            <span className="font-semibold text-[12px]">{passenger.name} &lt;{passenger.email}&gt;</span>
+          </div>
+          <div className="font-semibold text-[12px] text-gray-700">{passenger.name} &lt;{passenger.email}&gt;</div>
+        </div>
+
+        {/* 2. TICKET CANCELATION/INFO ROW */}
+        <div className="px-8 py-3 flex justify-between items-start border-b" style={{ borderColor: BRAND.line }}>
+          <div>
+            <div className="text-[13px] text-gray-800 font-medium">
+              **redBus Ticket** - **{bookingNo}** with **Free Cancellation till 24Jun2017 09:45 AM**
+            </div>
+            <div className="text-[11px] text-gray-500">1 message</div>
+          </div>
+          <div className="text-right text-[11px] text-gray-500">
+            Fri, Jun 23, 2017 at 9:25 PM
+          </div>
+        </div>
+
+        {/* 3. E-TICKET BANNER */}
+        <div className="px-8 py-4 flex justify-between items-end border-b" style={{ borderColor: BRAND.line }}>
+          <div className="flex items-center gap-4">
+            {logoOk ? (
+              <img src={LOGO} alt="redBus" className="h-6 w-auto" />
+            ) : (
+              <div className="text-3xl font-extrabold text-red-600">redBus.in</div>
+            )}
+            <div className="text-2xl font-extrabold text-gray-800 border-l pl-4" style={{ borderColor: BRAND.line }}>
+              eTICKET
+            </div>
+            <div className="text-[11px] text-gray-500 italic ml-4">
+              Free Cancellation allowed for this booking till **24Jun2017 09:45 AM**
+            </div>
+          </div>
+
+          <div className="text-right text-[12px] text-gray-600">
+            <div className="text-[11px]">Need help with your trip?</div>
+            <div>Booking Point Ph. **{passenger.mobile}**</div>
+            <div>**{opName}**-Customer Care</div>
+            <div className="text-[11px] text-red-600 cursor-pointer">Write to us **here**</div>
+          </div>
+        </div>
+
+        {/* 4. ROUTE & TICKET IDs */}
+        <div className="px-8 py-4 flex justify-between items-center text-gray-800" style={{ borderBottom: `1px solid ${BRAND.line}` }}>
+          <div className="flex items-center text-2xl font-extrabold">
+            {routeFrom} <span className="text-xl mx-2 text-gray-500">→</span> {routeTo}
+          </div>
+          <div className="text-sm font-semibold">{journeyDate}</div>
+          <div className="text-right text-[12px]">
+            <div className="font-medium text-gray-600">Ticket No: **{bookingNo}**</div>
+            <div className="font-medium text-gray-600">PNR No: **{pnr}**</div>
+          </div>
+        </div>
+
+        {/* 5. SCHEDULE GRID */}
+        <div className="px-8 py-4 grid grid-cols-5 gap-4 text-center border-b" style={{ borderColor: BRAND.line }}>
+          <div className="text-[13px] font-semibold text-gray-700">{opName}</div>
+          <div>
+            <div className="value">{boardingPoint.time || "—"}</div>
+            <div className="label">Reporting time</div>
+          </div>
+          <div>
+            <div className="value">{departureTime || "—"}</div>
+            <div className="label">Departure time</div>
+          </div>
+          <div>
+            <div className="value">{paxCount}</div>
+            <div className="label">Number of Passengers</div>
+          </div>
+          <div className="text-[13px] font-semibold text-gray-700">{opName}</div>
+        </div>
+
+        {/* 6. POINT DETAILS GRID */}
+        <div className="px-8 py-4 grid grid-cols-5 gap-4 text-left border-b" style={{ borderColor: BRAND.line }}>
+          <div>
+            <div className="label">Boarding point details</div>
+          </div>
+          <div>
+            <div className="value">{boardingPoint.point || "—"}</div>
+            <div className="label">Location</div>
+          </div>
+          <div>
+            <div className="value">{droppingPoint.landmark || "Next to CMBT Bus Stand"}</div>
+            <div className="label">Next to CMBT Bus Stand.opp</div>
+          </div>
+          <div>
+            <div className="value">{droppingPoint.address || "no.1/100 feet road"}</div>
+            <div className="label">Address</div>
+          </div>
+          <div>
+            <div className="value">{opName}</div>
+            <div className="label">Operator/Bus Stop</div>
+          </div>
+        </div>
+
+        {/* 7. PASSENGER & TOTAL FARE */}
+        <div className="px-8 pt-4">
+          <table className="min-w-full divide-y" style={{ borderColor: BRAND.line }}>
+            <thead className="text-left text-[11px] text-gray-500 uppercase tracking-wider">
+              <tr>
+                <th className="py-2 w-1/4">Name</th>
+                <th className="py-2 w-1/6">Seat No.</th>
+                <th className="py-2 w-1/6">Gender</th>
+                <th className="py-2 w-1/6">Age</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y" style={{ borderColor: BRAND.line }}>
+              {passengers.length ? passengers.map((p, i) => (
+                <tr key={i} className="text-[13px] text-gray-700">
+                  <td className="py-1.5 font-semibold">{p.name || "Passenger"}</td>
+                  <td className="py-1.5"><span className="chip">{p.seat ?? "—"}</span></td>
+                  <td className="py-1.5">{p.gender === "F" ? "Female" : (p.gender === "M" ? "Male" : "Sleeper(2x2)")}</td>
+                  <td className="py-1.5">{p.age || "—"}</td>
+                </tr>
+              )) : (
+                <tr>
+                  <td colSpan="4" className="py-4 text-[12px] text-gray-500">No passenger details provided.</td>
+                </tr>
               )}
-              <div className="ml-2">
-                <div className="text-[12px] tracking-[0.15em] font-semibold opacity-90">E-TICKET</div>
-                <div className="text-sm opacity-90">Operator: {opName}</div>
-              </div>
+            </tbody>
+          </table>
+
+          <div className="flex justify-between items-end mt-4">
+            <div className="text-[12px] text-gray-500 font-medium max-w-sm">
+              NOTE: This operator accepts mTicket, you need not carry a print out
             </div>
             <div className="text-right">
-              <div className="text-xs opacity-90 tracking-[0.15em]">BOOKING NUMBER</div>
-              <div className="text-3xl font-extrabold leading-tight">{bookingNo}</div>
-              <div className="text-[11px] opacity-90 mt-1">
-                {pnr ? <>PNR: <b>{pnr}</b> • </> : null}
-                {new Date().toLocaleString()}
-              </div>
-            </div>
-          </div>
-
-          {/* Big route line */}
-          <div className="mt-8">
-            <div className="text-[15px] opacity-95">Route</div>
-            <div className="text-[40px] leading-none font-extrabold -mt-1">
-              {routeFrom} <span className="opacity-80 text-[28px] px-2">→</span> {routeTo}
-            </div>
-            <div className="mt-2 text-sm opacity-95 flex items-center gap-3">
-              <span className="label !text-white !opacity-90">Journey Date</span>
-              <span className="font-semibold text-white/95">{new Date(date).toLocaleDateString() || date || "—"}</span>
-              <span className="label !text-white !opacity-90 ml-6">Departure</span>
-              <span className="font-semibold text-white/95">{departureTime || "—"}</span>
-              <span className="label !text-white !opacity-90 ml-6">Passengers</span>
-              <span className="font-semibold text-white/95">{paxCount}</span>
+              <div className="text-sm font-semibold text-gray-700">Total Fare : <span className="text-2xl font-extrabold text-red-600">Rs. {isFinite(totalPrice) ? totalPrice.toFixed(2) : "0.00"}</span></div>
+              <div className="text-[10px] italic text-gray-500">(Rs. 171 inclusive of service tax and service charge, if any)</div>
             </div>
           </div>
         </div>
 
-        {/* Perf line (tear) */}
-        <div className="perf" />
-
-        {/* Body content */}
-        <div className="px-8 py-8">
-          {/* Grid: details left, stub right */}
-          <div className="grid grid-cols-12 gap-10">
-            {/* LEFT 8/12 — detailed panel */}
-            <div className="col-span-12 md:col-span-8">
-              {/* Boarding details (table cards) */}
-              <div className="mb-6">
-                <div className="label mb-2">Boarding point details</div>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  <div className="rounded-xl border p-4" style={{borderColor: BRAND.line, background: BRAND.paperAlt}}>
-                    <div className="label mb-1">Location</div>
-                    <div className="value font-semibold">{boardingPoint.point || "—"}</div>
-                    {boardingPoint.time && <div className="text-[12px]" style={{color: BRAND.inkSub}}>Time: {boardingPoint.time}</div>}
-                  </div>
-                  <div className="rounded-xl border p-4" style={{borderColor: BRAND.line, background: BRAND.paperAlt}}>
-                    <div className="label mb-1">Landmark</div>
-                    <div className="value font-semibold">{boardingPoint.landmark || "—"}</div>
-                  </div>
-                  <div className="rounded-xl border p-4" style={{borderColor: BRAND.line, background: BRAND.paperAlt}}>
-                    <div className="label mb-1">Address</div>
-                    <div className="value font-semibold">{boardingPoint.address || "—"}</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Passenger rows (seat chips) */}
-              <div className="mb-6">
-                <div className="label mb-2">Seats & passenger details</div>
-                <div className="flex flex-col gap-3">
-                  {passengers.length ? passengers.map((p, i) => (
-                    <div key={i} className="flex flex-wrap items-center gap-3 rounded-xl border p-3"
-                         style={{borderColor: BRAND.line, background: BRAND.paper}}>
-                      <span className="chip">Seat {p.seat ?? "—"}</span>
-                      <span className="value font-semibold">{p.name || "Passenger"}</span>
-                      <span className="text-[12px]" style={{color: BRAND.inkSub}}>
-                        {p.gender ? `• ${p.gender === "F" ? "Female" : "Male"}` : ""} {p.age ? `• Age ${p.age}` : ""}
-                      </span>
-                    </div>
-                  )) : (
-                    <div className="text-[14px]" style={{color: BRAND.inkSub}}>No passenger details provided.</div>
-                  )}
-                </div>
-              </div>
-
-              {/* Dropping + Contact */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="rounded-xl border p-4" style={{borderColor: BRAND.line}}>
-                  <div className="label mb-1">Dropping point</div>
-                  <div className="value font-semibold">{droppingPoint.point || "—"}</div>
-                  <div className="text-[12px]" style={{color: BRAND.inkSub}}>Time: {droppingPoint.time || "—"}</div>
-                </div>
-                <div className="rounded-xl border p-4" style={{borderColor: BRAND.line}}>
-                  <div className="label mb-1">Booking contact (Owner)</div>
-                  <div className="value font-semibold">{passenger.name || "—"}</div>
-                  <div className="text-[12px]" style={{color: BRAND.inkSub}}>Mobile: {passenger.mobile || "—"}</div>
-                  <div className="text-[12px]" style={{color: BRAND.inkSub}}>Email: {passenger.email || "—"}</div>
-                </div>
-              </div>
-
-              {/* Note */}
-              <div className="mt-6 text-[12.5px]" style={{color: BRAND.inkSub}}>
-                <b>Note:</b> This operator accepts m-Ticket. Carry a valid National ID/Passport. Arrive 15–20 minutes early.
-              </div>
+        {/* 8. OFFER BANNER */}
+        <div className="px-8 py-5 mt-6 border-y" style={{ borderColor: BRAND.line }}>
+          <div className="flex items-center justify-between p-3 rounded-md" style={{ background: BRAND.paperAlt }}>
+            <div className="flex items-center gap-4">
+              {/* This is where an image of the RedBus logo on a yellow background would go */}
+              <div className="text-4xl font-extrabold text-red-600">redBus</div> 
+              <div className="text-base font-bold text-gray-800">Upto 50% Off on Hotel Booking</div>
+              <div className="text-sm font-medium text-gray-600">Offer Code: **YOUR BUS TIN**</div>
             </div>
-
-            {/* RIGHT 4/12 — detachable stub style */}
-            <div className="col-span-12 md:col-span-4">
-              <div className="rounded-2xl border p-16 relative overflow-hidden" style={{borderColor: BRAND.line, background: BRAND.paperAlt}}>
-                {/* Decorative corner circles to mimic perforation */}
-                <div className="absolute -left-6 top-10 w-12 h-12 rounded-full bg-white border" style={{borderColor: BRAND.line}}/>
-                <div className="absolute -left-6 bottom-10 w-12 h-12 rounded-full bg-white border" style={{borderColor: BRAND.line}}/>
-                <div className="absolute -right-6 top-10 w-12 h-12 rounded-full bg-white border" style={{borderColor: BRAND.line}}/>
-                <div className="absolute -right-6 bottom-10 w-12 h-12 rounded-full bg-white border" style={{borderColor: BRAND.line}}/>
-
-                <div className="text-center">
-                  <div className="label mb-2">Scan for validation</div>
-                  <div className="inline-block p-6 bg-white rounded-xl border shadow-sm" style={{borderColor: BRAND.line}}>
-                    <QRCodeCanvas value={qrText} size={132} />
-                  </div>
-                  <div className="mt-3 text-[12px]" style={{color: BRAND.inkSub}}>
-                    ID: <b style={{color: BRAND.red}}>{bookingNo}</b>
-                  </div>
-                </div>
-
-                <div className="h-px my-8" style={{background: BRAND.line}} />
-
-                <div className="text-center">
-                  <div className="label mb-1">Total Fare</div>
-                  <div className="text-[30px] font-extrabold" style={{color: BRAND.red}}>
-                    Rs. {isFinite(totalPrice) ? totalPrice.toFixed(2) : "0.00"}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Terms (small, designer spacing) */}
-          <div className="mt-10">
-            <div className="text-[13px] font-semibold mb-2" style={{color: BRAND.ink}}>Terms & Conditions</div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-[12.5px]" style={{color: BRAND.inkSub}}>
-              <ol className="list-decimal ml-5 space-y-1">
-                <li>Routesbook is a ticketing agent; buses are operated by respective operators.</li>
-                <li>m-Ticket and a valid photo ID are mandatory for boarding.</li>
-                <li>Reporting & departure times are operator-provided and may vary.</li>
-                <li>Cancellations and refunds follow the operator’s policy.</li>
-                <li>Baggage is carried at passenger’s risk unless explicitly covered.</li>
-              </ol>
-              <ol className="list-decimal ml-5 space-y-1" start={6}>
-                <li>Abusive behavior/intoxication may lead to denied boarding.</li>
-                <li>Please arrive 15–20 minutes before departure.</li>
-                <li>Contact support via My Bookings for changes and help.</li>
-                <li>Taxes & platform fees included when applicable.</li>
-                <li>QR misuse or duplication can invalidate boarding.</li>
-              </ol>
-            </div>
+            <button className="px-4 py-2 rounded text-white font-bold text-sm" style={{ background: BRAND.redDark }}>BOOK NOW</button>
           </div>
         </div>
+        
+        {/* 9. TERMS AND CONDITIONS */}
+        <div className="px-8 py-6">
+          <div className="text-xs font-semibold mb-2" style={{ color: BRAND.ink }}>Terms & Conditions</div>
+          <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-[10px] leading-relaxed" style={{ color: BRAND.inkSub }}>
+            <ol className="list-none space-y-2">
+              <li className="font-semibold text-gray-700">redBus responsibilities include:</li>
+              <li>(1) Issuing a valid ticket (that will be accepted by the bus operator) for its network of bus operators</li>
+              <li>(2) Providing refund and support in case of cancellation</li>
+              <li>(3) Providing customer support and information in case of any delays / inconvenience.</li>
+              <li className="font-semibold text-gray-700">redBus responsibilities do not include:</li>
+              <li>(1) The bus operator's bus not departing / reaching on time.</li>
+              <li>(2) The bus operator's employees' behaviour.</li>
+              <li>(3) The bus operator's bus seats etc not being up to the customer's expectation.</li>
+              <li>(4) The bus operator cancelling the trip due to unavoidable reasons.</li>
+              <li>(5) The baggage of the customer getting lost / stolen / damaged.</li>
+              <li>(6) The bus operator changing a customer's seat at the last minute to accommodate other passengers.</li>
+              <li>(7) The customer waiting at the wrong boarding point.</li>
+              <li>(8) The operator asking for extra fare and denying boarding.</li>
+            </ol>
+            <ol className="list-none space-y-2">
+              <li className="font-semibold text-gray-700">Terms & Conditions continued:</li>
+              <li>(1) Passengers are required to furnish the following at the time of boarding the bus: (a) A copy of the ticket (A print out of the ticket or the print out of the ticket e-mail). (b) A valid identity proof</li>
+              <li>(2) Failing to do so, passengers may not be allowed to board the bus.</li>
+              <li>(3) Change of bus: In case the bus operator changes the type of bus due to unavoidable circumstances, redBus will immediately inform the customer.</li>
+              <li>(4) Amenities for this bus as shown on redBus have been configured and provided by the bus operator.</li>
+              <li>(5) Cancellation and refund: All cancellations and refunds are subject to the operator's policy.</li>
+              <li>(6) In case a booking confirmation e-mail and sms gets delayed or fails because of technical reasons or as a result of incorrect e-mail ID / phone number provided by the user etc, a ticket will be considered 'booked' as long as the ticket shows up on the confirmation page of redBus.in</li>
+              <li>(7) Grievances and claims are subject to the bus journey should be reported to redBus support team within 10 days of journey.</li>
+              <li>(8) Please note the following regarding the luggage policy for your journey: (a) For the luggage policy, please check with the bus operator. (b) For personal item such as a laptop bag, handbag, or briefcase of upto 5 kgs, the passenger may take it inside the bus. (c) Carrying prohibited items like firearms, ammunition, drugs, liquor, smuggled goods etc. and any other items which are likely to offend co-passengers is prohibited.</li>
+              <li>(9) Bus Operator reserves the right to deny boarding or charge additional money for any item which exceeds the allowed weight/dimensions.</li>
+            </ol>
+          </div>
+        </div>
+
       </div>
       {/* ======== /A4 ARTBOARD ======== */}
     </div>
