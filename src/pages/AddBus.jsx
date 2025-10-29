@@ -79,6 +79,16 @@ const AddBus = () => {
       intervals: [],
     },
     // --- END ---
+    // --- NEW: Contacts (Admin only) ---
+    conductor: {
+      name: "",
+      mobile: "",
+      altMobile: "",
+    },
+    owner: {
+      name: "",
+    },
+    ownerNotifyMobile: "",
   });
 
   const [operators, setOperators] = useState([]);
@@ -1192,6 +1202,93 @@ const AddBus = () => {
               </div>
             </section>
           )}
+
+          {/* ✅ NEW: Contacts (Admin Only) */}
+          <section className={CARD}>
+            <div className={CARD_HEAD}>
+              <h2 className="text-base font-semibold text-gray-800">Contacts (Admin)</h2>
+            </div>
+            <div className={CARD_BODY}>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className={LABEL}>Conductor Name</label>
+                  <input
+                    className={INPUT}
+                    placeholder="e.g., Kamal Perera"
+                    value={form.conductor.name}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        conductor: { ...prev.conductor, name: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Conductor Mobile</label>
+                  <input
+                    className={INPUT}
+                    placeholder="0771234567"
+                    value={form.conductor.mobile}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        conductor: { ...prev.conductor, mobile: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Conductor Alt Mobile (optional)</label>
+                  <input
+                    className={INPUT}
+                    placeholder="0719876543"
+                    value={form.conductor.altMobile}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        conductor: {
+                          ...prev.conductor,
+                          altMobile: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Owner Name</label>
+                  <input
+                    className={INPUT}
+                    placeholder="Lakshan Transport (Pvt) Ltd"
+                    value={form.owner.name}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        owner: { ...prev.owner, name: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Owner Notify Mobile</label>
+                  <input
+                    className={INPUT}
+                    placeholder="0777654321"
+                    value={form.ownerNotifyMobile}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        ownerNotifyMobile: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 mt-2">
+                These contacts are stored with the bus and can be used later for notifications.
+              </p>
+            </div>
+          </section>
 
           {/* Submit */}
           <div className="flex items-center justify-end gap-3">
