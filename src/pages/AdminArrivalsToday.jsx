@@ -41,6 +41,24 @@ const Icon = ({ path, className = "w-5 h-5" }) => (
   </svg>
 );
 
+/* ---------- persistent per-trip send counters ---------- */
+const COUNT_STORAGE_KEY = "arrivals_sent_counts_v1";
+const tripKey = (busId, date, departureTime) =>
+  `${date}::${busId}::${(departureTime || "").trim()}`;
+
+const readCounts = () => {
+  try {
+    return JSON.parse(localStorage.getItem(COUNT_STORAGE_KEY)) || {};
+  } catch {
+    return {};
+  }
+};
+const writeCounts = (obj) => {
+  try {
+    localStorage.setItem(COUNT_STORAGE_KEY, JSON.stringify(obj || {}));
+  } catch {}
+};
+
 /* ================== PAGE ================== */
 const AdminArrivalsToday = () => {
   const [buses, setBuses] = useState([]);
@@ -56,8 +74,11 @@ const AdminArrivalsToday = () => {
   const [q, setQ] = useState("");
   const [routeFilter, setRouteFilter] = useState("");
 
-  // avoid double sends per bus until refresh
+  // avoid double sends per bus until re-click
   const [sentMap, setSentMap] = useState({}); // { [busId]: true }
+
+  // persistent counters
+  const [sentCounts, setSentCounts] = useState({}); // { [tripKey]: number }
 
   useEffect(() => {
     const fetch = async () => {
@@ -74,6 +95,11 @@ const AdminArrivalsToday = () => {
     fetch();
   }, []);
 
+  // load counters on mount
+  useEffect(() => {
+    setSentCounts(readCounts());
+  }, []);
+
   // persist stand/platform choice for convenience
   useEffect(() => {
     if (!savingPrefs) return;
@@ -88,9 +114,6 @@ const AdminArrivalsToday = () => {
     [buses]
   );
 
-  // only show "today's trips" — here we consider buses that have a departureTime string (every bus),
-  // and we send using today's date field (admin sets/chosen at top).
-  // Admin can still change Date at the top if needed, but the list remains the same for simplicity.
   const todayList = useMemo(() => {
     let list = [...(buses || [])];
 
@@ -120,6 +143,29 @@ const AdminArrivalsToday = () => {
 
   const disabledGlobalSend = !standPoint || !date;
 
+  const bumpCount = (busId, d, t) => {
+    const k = tripKey(busId, d, t);
+    setSentCounts((prev) => {
+      const next = { ...prev, [k]: (prev[k] || 0) + 1 };
+      writeCounts(next);
+      return next;
+    });
+  };
+
+  const countFor = (bus) =>
+    sentCounts[tripKey(bus._id, date, bus?.departureTime || "")] || 0;
+
+  // optional: reset counters for selected date
+  const resetCountsForDate = () => {
+    const all = readCounts();
+    const prefix = `${date}::`;
+    const next = Object.fromEntries(
+      Object.entries(all).filter(([k]) => !k.startsWith(prefix))
+    );
+    writeCounts(next);
+    setSentCounts(next);
+  };
+
   const sendArrived = async (bus) => {
     if (disabledGlobalSend) {
       alert("Please fill Date and Stand first.");
@@ -140,8 +186,33 @@ const AdminArrivalsToday = () => {
       };
 
       const res = await apiClient.post("/admin/trips/arrived", payload, { timeout: 30000 });
-      const sent = res?.data?.sent ?? 0;
-      alert(`Arrived SMS sent to ${sent} passenger(s) — ${bus.name} ${bus.departureTime}`);
+      const { sent = 0, total = 0, skipped = 0, errors = 0, details = [] } = res?.data || {};
+
+      const firstDetail =
+        details?.find((d) => d?.error || d?.skipped?.reason) || details?.[0];
+
+      alert(
+        `Arrived SMS\nSent: ${sent}/${total}\nSkipped: ${skipped}\nErrors: ${errors}${
+          firstDetail
+            ? `\n\nNote: ${
+                firstDetail?.error?.message ||
+                firstDetail?.error ||
+                firstDetail?.skipped?.reason ||
+                ""
+              }`
+            : ""
+        }`
+      );
+
+      // increment persistent counter for this trip (count attempts; change to sent>0 if you prefer)
+      bumpCount(bus._id, date, bus?.departureTime || "");
+
+      // re-enable button so admin can send again if needed (we keep disable only during flight)
+      setSentMap((m) => {
+        const copy = { ...m };
+        delete copy[bus._id];
+        return copy;
+      });
     } catch (e) {
       // re-enable on failure
       setSentMap((m) => {
@@ -170,7 +241,7 @@ const AdminArrivalsToday = () => {
 
         {/* Controls: Date + Stand + Platform */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 mb-4">
-          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
             <label className="block md:col-span-1">
               <span className="text-sm font-medium text-gray-700">Date</span>
               <input
@@ -181,7 +252,7 @@ const AdminArrivalsToday = () => {
               />
             </label>
 
-            <label className="block md:col-span-2">
+            <label className="block md:col-span-3">
               <span className="text-sm font-medium text-gray-700">Stand (used for all sends)</span>
               <input
                 type="text"
@@ -212,9 +283,18 @@ const AdminArrivalsToday = () => {
               <span className="text-sm text-gray-700">Remember stand/platform</span>
             </label>
           </div>
-          <p className="text-xs text-gray-500 mt-2">
-            Tip: Set the stand once. Then click “Send” on each bus below — one click per bus.
-          </p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-gray-500">
+              Tip: Set the stand once. Then click “Send” on each bus below — one click per bus.
+            </p>
+            <button
+              onClick={resetCountsForDate}
+              className="text-xs text-gray-600 hover:text-gray-900 underline"
+              title="Clear all Send(n) counters for the selected date"
+            >
+              Reset today’s counters
+            </button>
+          </div>
         </div>
 
         {/* Search / Route filters */}
@@ -281,35 +361,38 @@ const AdminArrivalsToday = () => {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
-                {todayList.map((bus) => (
-                  <tr key={bus._id} className="hover:bg-gray-50">
-                    <td className="px-6 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
-                      {bus.departureTime || "—"}
-                    </td>
-                    <td className="px-6 py-3 text-sm text-gray-800 whitespace-nowrap">
-                      <div className="font-semibold">{bus.name}</div>
-                      <div className="text-xs text-gray-500">{bus.busNumber}</div>
-                    </td>
-                    <td className="px-6 py-3 text-sm text-gray-800 whitespace-nowrap">
-                      {bus.from} → {bus.to}
-                    </td>
-                    <td className="px-6 py-3 text-right whitespace-nowrap">
-                      <button
-                        onClick={() => sendArrived(bus)}
-                        disabled={disabledGlobalSend || sentMap[bus._id]}
-                        className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
-                          disabledGlobalSend || sentMap[bus._id]
-                            ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                            : "bg-green-600 hover:bg-green-700 text-white"
-                        }`}
-                        title="Send 'Arrived' SMS"
-                      >
-                        <Icon path="M3 10h10M3 6h10M3 14h7M21 16V8a2 2 0 00-2-2h-4l-4-3-4 3H5a2 2 0 00-2 2v8a2 2 0 002 2h6" />
-                        {sentMap[bus._id] ? "Sent" : "Send"}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {todayList.map((bus) => {
+                  const count = countFor(bus);
+                  const disabled = disabledGlobalSend || !!sentMap[bus._id];
+                  return (
+                    <tr key={bus._id} className="hover:bg-gray-50">
+                      <td className="px-6 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
+                        {bus.departureTime || "—"}
+                      </td>
+                      <td className="px-6 py-3 text-sm text-gray-800 whitespace-nowrap">
+                        <div className="font-semibold">{bus.name}</div>
+                        <div className="text-xs text-gray-500">{bus.busNumber}</div>
+                      </td>
+                      <td className="px-6 py-3 text-sm text-gray-800 whitespace-nowrap">
+                        {bus.from} → {bus.to}
+                      </td>
+                      <td className="px-6 py-3 text-right whitespace-nowrap">
+                        <button
+                          onClick={() => sendArrived(bus)}
+                          disabled={disabled}
+                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
+                            disabled ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                     : "bg-green-600 hover:bg-green-700 text-white"
+                          }`}
+                          title="Send 'Arrived' SMS"
+                        >
+                          <Icon path="M3 10h10M3 6h10M3 14h7M21 16V8a2 2 0 00-2-2h-4l-4-3-4 3H5a2 2 0 00-2 2v8a2 2 0 002 2h6" />
+                          {sentMap[bus._id] ? "Sending…" : `Send${count > 0 ? ` (${count})` : ""}`}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
