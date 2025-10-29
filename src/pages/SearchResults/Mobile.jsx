@@ -34,13 +34,13 @@ import MobileCalendarSheet from "./components/MobileCalendarSheet";
 // ————————————————————————————————
 // Local tiny skeleton used during loading
 const BusCardSkeleton = () => (
-    <div className="bg-white rounded-lg p-4 animate-pulse border border-gray-100 shadow-sm mb-3"> {/* Updated border and radius */}
+    <div className="bg-white rounded-lg p-4 animate-pulse border border-gray-100 shadow-sm mb-3"> 
         <div className="flex justify-between">
             <div className="w-2/3">
-                <div className="h-4 w-20 bg-gray-200 rounded mb-2" /> {/* Reduced height/width */}
-                <div className="h-3 w-32 bg-gray-200 rounded" />   {/* Reduced height/width */}
+                <div className="h-4 w-20 bg-gray-200 rounded mb-2" />
+                <div className="h-3 w-32 bg-gray-200 rounded" />
             </div>
-            <div className="h-8 w-8 bg-gray-100 rounded-full" /> {/* Logo placeholder */}
+            <div className="h-8 w-8 bg-gray-100 rounded-full" /> 
         </div>
         <div className="h-8 w-full bg-gray-100 rounded mt-3" />
     </div>
@@ -209,6 +209,9 @@ export default function Mobile() {
                         typeof bus.originalPrice === "number" &&
                         bus.originalPrice > displayPrice;
 
+                    // Safely prepare the class for Arrival Time (Fix for the Syntax Error)
+                    const arrivalTimeClass = `text-base tabular-nums font-medium ${bus.isNextDayArrival ? 'text-gray-500' : 'text-gray-900'}`;
+
                     return (
                         <motion.div
                             key={busKey}
@@ -305,7 +308,8 @@ export default function Mobile() {
 
                                     {/* ARRIVAL TIME */}
                                     <div className="flex flex-col items-end min-w-0 text-right">
-                                        <span className={`text-base tabular-nums font-medium ${bus.isNextDayArrival ? 'text-gray-500' : 'text-gray-900'}`}> {/* Less prominent arrival time, grayed out if next day */}
+                                        {/* FIX applied here: used pre-calculated class variable */}
+                                        <span className={arrivalTimeClass}> 
                                             {bus.arrivalTime}
                                         </span>
                                         <p className="text-[10px] text-gray-500 mt-0.5 uppercase tracking-wider">
