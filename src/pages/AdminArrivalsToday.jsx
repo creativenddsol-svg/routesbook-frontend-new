@@ -59,6 +59,35 @@ const writeCounts = (obj) => {
   } catch {}
 };
 
+/* ---------- conductor phone helpers ---------- */
+// Try to locate a conductor phone in several likely fields
+const getConductorPhoneRaw = (bus) =>
+  bus?.conductorPhone ||
+  bus?.conductor_contact ||
+  bus?.conductor ||
+  bus?.contactNumber ||
+  bus?.contact ||
+  bus?.phone ||
+  bus?.operator?.operatorProfile?.contactNumber ||
+  bus?.operator?.mobile ||
+  bus?.operatorMobile ||
+  "";
+
+// Build a tel: link. If 9/10 digits without country code, assume Sri Lanka (+94)
+const toTelHref = (raw) => {
+  if (!raw) return "";
+  const digits = String(raw).replace(/[^\d+]/g, ""); // keep + and digits
+  if (!digits) return "";
+  // Already has +country
+  if (digits.startsWith("+")) return `tel:${digits}`;
+  // Starts with 0XXXXXXXXX -> convert to +94XXXXXXXXX
+  if (/^0\d{9}$/.test(digits)) return `tel:+94${digits.slice(1)}`;
+  // 9 digits (no 0) -> +94XXXXXXXXX
+  if (/^\d{9}$/.test(digits)) return `tel:+94${digits}`;
+  // Fallback
+  return `tel:${digits}`;
+};
+
 /* ================== PAGE ================== */
 const AdminArrivalsToday = () => {
   const [buses, setBuses] = useState([]);
@@ -74,7 +103,7 @@ const AdminArrivalsToday = () => {
   const [q, setQ] = useState("");
   const [routeFilter, setRouteFilter] = useState("");
 
-  // avoid double sends per bus until re-click
+  // avoid double sends per bus until in-flight completes
   const [sentMap, setSentMap] = useState({}); // { [busId]: true }
 
   // persistent counters
@@ -204,8 +233,8 @@ const AdminArrivalsToday = () => {
         }`
       );
 
-      // increment persistent counter for this trip (count attempts; change to sent>0 if you prefer)
-      bumpCount(bus._id, date, bus?.departureTime || "");
+      // Only increment when we actually sent something; change to bump on every attempt if you prefer
+      if (sent > 0) bumpCount(bus._id, date, bus?.departureTime || "");
 
       // re-enable button so admin can send again if needed (we keep disable only during flight)
       setSentMap((m) => {
@@ -357,13 +386,19 @@ const AdminArrivalsToday = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Route
                   </th>
-                  <th className="px-6 py-3"></th>
+                  <th className="px-6 py-3 text-right"></th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100">
                 {todayList.map((bus) => {
                   const count = countFor(bus);
                   const disabled = disabledGlobalSend || !!sentMap[bus._id];
+
+                  // Prepare conductor phone/link
+                  const conductorRaw = getConductorPhoneRaw(bus);
+                  const telHref = toTelHref(conductorRaw);
+                  const hasPhone = !!conductorRaw && !!telHref;
+
                   return (
                     <tr key={bus._id} className="hover:bg-gray-50">
                       <td className="px-6 py-3 text-sm font-medium text-gray-900 whitespace-nowrap">
@@ -377,18 +412,42 @@ const AdminArrivalsToday = () => {
                         {bus.from} → {bus.to}
                       </td>
                       <td className="px-6 py-3 text-right whitespace-nowrap">
-                        <button
-                          onClick={() => sendArrived(bus)}
-                          disabled={disabled}
-                          className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
-                            disabled ? "bg-gray-300 text-gray-600 cursor-not-allowed"
-                                     : "bg-green-600 hover:bg-green-700 text-white"
-                          }`}
-                          title="Send 'Arrived' SMS"
-                        >
-                          <Icon path="M3 10h10M3 6h10M3 14h7M21 16V8a2 2 0 00-2-2h-4l-4-3-4 3H5a2 2 0 00-2 2v8a2 2 0 002 2h6" />
-                          {sentMap[bus._id] ? "Sending…" : `Send${count > 0 ? ` (${count})` : ""}`}
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          {/* Call Conductor */}
+                          <a
+                            href={hasPhone ? telHref : undefined}
+                            onClick={(e) => {
+                              if (!hasPhone) {
+                                e.preventDefault();
+                                alert("No conductor phone available for this bus.");
+                              }
+                            }}
+                            className={`inline-flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                              hasPhone
+                                ? "border-blue-600 text-blue-600 hover:bg-blue-50"
+                                : "border-gray-300 text-gray-400 cursor-not-allowed"
+                            }`}
+                            title={hasPhone ? `Call ${conductorRaw}` : "No phone available"}
+                          >
+                            <Icon path="M3 5a2 2 0 012-2h2.28a1 1 0 01.948.684l1.2 3.6a1 1 0 01-.27 1.061l-1.52 1.52a16 16 0 006.016 6.016l1.52-1.52a1 1 0 011.06-.27l3.6 1.2a1 1 0 01.685.948V19a2 2 0 01-2 2h-1C8.82 21 3 15.18 3 8V7a2 2 0 012-2z" />
+                            {hasPhone ? `Call ${conductorRaw}` : "No Number"}
+                          </a>
+
+                          {/* Send Arrived */}
+                          <button
+                            onClick={() => sendArrived(bus)}
+                            disabled={disabled}
+                            className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${
+                              disabled
+                                ? "bg-gray-300 text-gray-600 cursor-not-allowed"
+                                : "bg-green-600 hover:bg-green-700 text-white"
+                            }`}
+                            title="Send 'Arrived' SMS"
+                          >
+                            <Icon path="M3 10h10M3 6h10M3 14h7M21 16V8a2 2 0 00-2-2h-4l-4-3-4 3H5a2 2 0 00-2 2v8a2 2 0 002 2h6" />
+                            {sentMap[bus._id] ? "Sending…" : `Send${count > 0 ? ` (${count})` : ""}`}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
