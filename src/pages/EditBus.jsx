@@ -40,6 +40,7 @@ const EditBus = () => {
       discountPercent: 0,
       message: "",
       expiry: "",
+      imageUrl: "", // ✅ NEW
     },
     convenienceFee: {
       amountType: "fixed",
@@ -51,6 +52,10 @@ const EditBus = () => {
       rotationLength: "",
       intervals: [],
     },
+    // ✅ NEW: Contacts (admin-only metadata)
+    conductor: { name: "", mobile: "", altMobile: "" },
+    owner: { name: "" },
+    ownerNotifyMobile: "",
   });
 
   // State for non-rotating bus points
@@ -69,12 +74,12 @@ const EditBus = () => {
         });
         const bus = res.data;
 
-        const formattedDate = bus.date ? bus.date.split("T")[0] : "";
+        const formattedDate = bus.date ? String(bus.date).split("T")[0] : "";
         const formattedExpiry = bus.trendingOffer?.expiry
-          ? bus.trendingOffer.expiry.split("T")[0]
+          ? String(bus.trendingOffer.expiry).split("T")[0]
           : "";
         const formattedRotationStart = bus.rotationSchedule?.startDate
-          ? bus.rotationSchedule.startDate.split("T")[0]
+          ? String(bus.rotationSchedule.startDate).split("T")[0]
           : "";
 
         setForm({
@@ -90,6 +95,7 @@ const EditBus = () => {
             discountPercent: bus.trendingOffer?.discountPercent ?? 0,
             message: bus.trendingOffer?.message ?? "",
             expiry: formattedExpiry,
+            imageUrl: bus.trendingOffer?.imageUrl || "",
           },
           convenienceFee:
             bus.convenienceFee || {
@@ -107,6 +113,16 @@ const EditBus = () => {
                 rotationLength: "",
                 intervals: [],
               },
+          // ✅ Contacts defaults if missing
+          conductor: {
+            name: bus.conductor?.name || "",
+            mobile: bus.conductor?.mobile || "",
+            altMobile: bus.conductor?.altMobile || "",
+          },
+          owner: {
+            name: bus.owner?.name || "",
+          },
+          ownerNotifyMobile: bus.ownerNotifyMobile || "",
         });
 
         // Only set these for non-rotating buses
@@ -765,6 +781,32 @@ const EditBus = () => {
                     onChange={handleTrendingOfferChange}
                   />
                 </div>
+                {/* ✅ NEW: Offer Image URL + tiny preview */}
+                <div>
+                  <label
+                    htmlFor="imageUrl"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Offer Image URL (optional)
+                  </label>
+                  <input
+                    id="imageUrl"
+                    name="imageUrl"
+                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    placeholder="https://.../offer.png"
+                    value={form.trendingOffer.imageUrl}
+                    onChange={handleTrendingOfferChange}
+                  />
+                  {form.trendingOffer.imageUrl ? (
+                    <div className="mt-2">
+                      <img
+                        src={form.trendingOffer.imageUrl}
+                        alt="Offer"
+                        className="h-24 w-auto rounded border border-gray-200"
+                      />
+                    </div>
+                  ) : null}
+                </div>
               </>
             )}
           </div>
@@ -928,6 +970,102 @@ const EditBus = () => {
               </>
             )}
           </div>
+        </fieldset>
+
+        {/* ✅ NEW: Contacts (Admin) */}
+        <fieldset className="border p-4 rounded-md">
+          <legend className="text-lg font-semibold text-gray-600 px-2">
+            Contacts (Admin)
+          </legend>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Conductor Name
+              </label>
+              <input
+                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                placeholder="e.g., Kamal Perera"
+                value={form.conductor.name}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    conductor: { ...prev.conductor, name: e.target.value },
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Conductor Mobile
+              </label>
+              <input
+                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                placeholder="0771234567"
+                value={form.conductor.mobile}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    conductor: { ...prev.conductor, mobile: e.target.value },
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Conductor Alt Mobile (optional)
+              </label>
+              <input
+                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                placeholder="0719876543"
+                value={form.conductor.altMobile}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    conductor: {
+                      ...prev.conductor,
+                      altMobile: e.target.value,
+                    },
+                  }))
+                }
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Owner Name
+              </label>
+              <input
+                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                placeholder="Lakshan Transport (Pvt) Ltd"
+                value={form.owner.name}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    owner: { ...prev.owner, name: e.target.value },
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Owner Notify Mobile
+              </label>
+              <input
+                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                placeholder="0777654321"
+                value={form.ownerNotifyMobile}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    ownerNotifyMobile: e.target.value,
+                  }))
+                }
+              />
+            </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-2">
+            These contacts are stored with the bus and can be used later for SMS/alerts.
+          </p>
         </fieldset>
 
         <div className="pt-2">
