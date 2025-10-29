@@ -78,31 +78,30 @@ const DownloadTicket = () => {
         bus = {},
         operator = { name: "Operator Name" },
         // Updated passenger data to reflect screenshot
-        passenger = { name: "DILEEPA SANDARUWAN", email: "dileepa009@gmail.com", mobile: "077xxxx342" },
+        passenger = { name: "DILEEPA SANDARUWAN", email: "dileepa009@gmail.com", mobile: "0773412362" }, // Used phone number from screenshot
         // Updated passenger list to reflect screenshot
-        passengers = [{ name: "DILEEPA SANDARUWAN", seat: "23", gender: "Male", age: "33" }],
+        passengers = [{ name: "DILEEPA SANDARUWAN", seat: "23", gender: "M", age: "33" }],
         selectedSeats = [],
         // Updated boarding/dropping points to reflect screenshot
         boardingPoint = { point: "matara bus stand", landmark: "Location", time: "14:00" },
-        droppingPoint = { point: "Colombo", landmark: "Next to CMBT Bus Stand/Opp.", address: "no.1/100 feet road" },
+        droppingPoint = { point: "Colombo", landmark: "Next to CMBT Bus Stand/Opp", address: "Address" }, // Simplified Address for clarity
         priceDetails = {},
         departureTime = "14:00",
         date = "2025-10-30",
         bookingNo: bookingNoFromState,
         bookingNoShort: bookingNoShortFromState,
-        bookingId = "6B202510300002",
+        bookingId = "RB202510300002",
         pnr = "RBA30699",
     } = bookingDetails || {};
 
-    const bookingNo = bookingNoFromState || bookingNoShortFromState || orderId || bookingId || "6B202510300002";
-    const opName = operator?.name || bus?.operator || "Operator Bus Group";
+    const bookingNo = bookingNoFromState || bookingNoShortFromState || orderId || bookingId || "RB202510300002";
+    const opName = operator?.name || bus?.operator || "Operator Name";
     const routeFrom = bus?.from || "Matara";
     const routeTo = bus?.to || "Colombo";
     const paxCount = passengers?.length || selectedSeats?.length || 1;
     const totalPrice = Number(priceDetails?.totalPrice || 1196.00);
     const journeyDate = new Date(date).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) || "30 October 2025";
-    const journeyTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) || "Fri, Jun 23, 2017 at 9:25 PM";
-
+    const bookingTimestamp = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
     // QR compact payload
     const qrText = `Ticket|${bookingNo}|${routeFrom}->${routeTo}|${date} ${departureTime}|Seats:${passengers.map(p => p.seat).join(",")}|Pax:${paxCount}|Owner:${passenger.name || "-"}`;
@@ -178,9 +177,12 @@ const DownloadTicket = () => {
                     display: inline-block;
                     white-space: nowrap;
                 }
+                .grid-col-25 {
+                    grid-template-columns: 25% 25% 25% 25%; /* Custom 4-column layout */
+                }
             `}</style>
 
-            {/* ACTION BAR */}
+            {/* ACTION BAR (No print) */}
             <div className="no-print max-w-4xl mx-auto mb-4 px-4 flex gap-2 justify-end">
                 <button onClick={printNow} className="px-4 py-2 rounded bg-gray-900 text-white">🖨 Print</button>
                 <button onClick={downloadPDF} className="px-4 py-2 rounded" style={{ background: BRAND.red, color: "#fff" }}>📄 Download PDF</button>
@@ -197,12 +199,13 @@ const DownloadTicket = () => {
 
                 {/* 1. CLEAN TICKET HEADER / EMAIL CONTEXT */}
                 <div className="header-top px-8 py-3 flex justify-between items-center border-b" style={{ borderColor: BRAND.line }}>
-                    {/* The sender email is now a single, clean line */}
-                    <div className="text-[12px] text-gray-700 font-semibold">
-                         {passenger.email}
+                    <div className="flex items-center gap-2">
+                        <span className="text-[12px] text-gray-700 font-semibold">{passenger.email}</span>
+                        <span className="text-[11px] text-gray-500">to</span>
+                        <span className="text-[12px] text-gray-700 font-semibold">{passenger.name}</span>
                     </div>
                     <div className="text-[12px] text-gray-700">
-                        {journeyTime}
+                        {bookingTimestamp}
                     </div>
                 </div>
 
@@ -223,12 +226,11 @@ const DownloadTicket = () => {
                                     eTICKET
                                 </div>
                             </div>
-
-                            {/* Ticket Details Line */}
+                            
+                            {/* Ticket Details Line (Consolidated) */}
                             <div className="text-[13px] text-gray-800 font-medium mt-1">
                                 **Routesbook Ticket** - **{bookingNo}** with **Free Cancellation till 24Jan2017 09:45 AM**
                             </div>
-
                             <div className="text-[11px] text-gray-500 italic mt-1">
                                 Free Cancellation allowed for this booking till **24Jan2017 09:45 AM**
                             </div>
@@ -256,63 +258,63 @@ const DownloadTicket = () => {
                     <div className="text-sm font-semibold">{journeyDate}</div>
                 </div>
 
-                {/* 4. SCHEDULE GRID */}
-                <div className="px-8 py-4 grid grid-cols-5 gap-4 text-center border-b" style={{ borderColor: BRAND.line }}>
-                    {/* Column 1: Blank/Details */}
-                    <div className="text-[13px] font-semibold text-gray-700"></div> 
-                    
-                    {/* Column 2: Reporting Time */}
+                {/* 4. SCHEDULE GRID (Improved Structure) */}
+                <div className="px-8 py-4 grid grid-cols-4 gap-4 text-center border-b" style={{ borderColor: BRAND.line }}>
+                    {/* Column 1: Reporting Time */}
                     <div>
                         <div className="value">{boardingPoint.time || "—"}</div>
                         <div className="label">Reporting time</div>
                     </div>
                     
-                    {/* Column 3: Departure Time */}
+                    {/* Column 2: Departure Time (Separate column for clarity) */}
                     <div>
                         <div className="value">{departureTime || "—"}</div>
                         <div className="label">Departure time</div>
                     </div>
                     
-                    {/* Column 4: Passengers */}
+                    {/* Column 3: Passengers */}
                     <div>
                         <div className="value">{paxCount}</div>
                         <div className="label">Number Of Passengers</div>
                     </div>
                     
-                    {/* Column 5: Operator/Bus Name */}
-                    <div className="text-[13px] font-semibold text-gray-700"></div> 
+                    {/* Column 4: Operator/Bus Name (Moved here for better space utilization) */}
+                    <div className="text-[13px] font-semibold text-gray-700">
+                        <div className="value">—</div>
+                        <div className="label">Bus Type/Operator</div>
+                    </div>
                 </div>
 
-                {/* 5. POINT DETAILS GRID */}
+                {/* 5. POINT DETAILS GRID (Aligned and labeled) */}
                 <div className="px-8 py-4 grid grid-cols-5 gap-4 text-left border-b" style={{ borderColor: BRAND.line }}>
                     
-                    {/* Column 1: Boarding Point Details Label */}
+                    {/* Column 1: Boarding Point Details Label (Takes 1/5th space) */}
                     <div>
                         <div className="label">Boarding Point Details</div>
                     </div>
 
-                    {/* Column 2: Location */}
+                    {/* Column 2: Location (Takes 1/5th space) */}
                     <div>
                         <div className="value">{boardingPoint.point || "—"}</div>
                         <div className="label">Location</div>
                     </div>
                     
-                    {/* Column 3: Landmark */}
+                    {/* Column 3: Landmark (Takes 1/5th space) */}
                     <div>
                         <div className="value">{droppingPoint.landmark || "—"}</div>
                         <div className="label">Next to CMBT Bus Stand/Opp</div>
                     </div>
                     
-                    {/* Column 4: Address */}
+                    {/* Column 4: Address (Takes 1/5th space) */}
                     <div>
                         <div className="value">{droppingPoint.address || "—"}</div>
                         <div className="label">Address</div>
                     </div>
                     
-                    {/* Column 5: Operator/Bus Stop */}
+                    {/* Column 5: Operator/Bus Stop (Takes 1/5th space) */}
                     <div>
                         <div className="value">{opName}</div>
-                        <div className="label">Operation Bus Group</div>
+                        <div className="label">Operator Name</div>
                     </div>
                 </div>
 
