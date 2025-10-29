@@ -83,7 +83,7 @@ const DownloadTicket = () => {
         passengers = [{ name: "DILEEPA SANDARUWAN", seat: "23", gender: "Male", age: "33" }],
         selectedSeats = [],
         // Updated boarding/dropping points to reflect screenshot
-        boardingPoint = { point: "Matara bus stand", landmark: "Location", time: "14:00" },
+        boardingPoint = { point: "matara bus stand", landmark: "Location", time: "14:00" },
         droppingPoint = { point: "Colombo", landmark: "Next to CMBT Bus Stand/Opp.", address: "no.1/100 feet road" },
         priceDetails = {},
         departureTime = "14:00",
@@ -100,7 +100,8 @@ const DownloadTicket = () => {
     const routeTo = bus?.to || "Colombo";
     const paxCount = passengers?.length || selectedSeats?.length || 1;
     const totalPrice = Number(priceDetails?.totalPrice || 1196.00);
-    const journeyDate = new Date(date).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) || "Thursday, October 30, 2025";
+    const journeyDate = new Date(date).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) || "30 October 2025";
+    const journeyTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true }) || "Fri, Jun 23, 2017 at 9:25 PM";
 
 
     // QR compact payload
@@ -113,7 +114,7 @@ const DownloadTicket = () => {
         el.style.webkitPrintColorAdjust = "exact";
         el.style.printColorAdjust = "exact";
         const canvas = await html2canvas(el, {
-            scale: 2,        // higher for print crispness
+            scale: 2,
             useCORS: true,
             backgroundColor: null,
             scrollX: 0,
@@ -194,69 +195,68 @@ const DownloadTicket = () => {
                     style={{ backgroundImage: `url(${WATERMARK})` }}
                 />
 
-                {/* 1. TOP EMAIL HEADER */}
+                {/* 1. CLEAN TICKET HEADER / EMAIL CONTEXT */}
                 <div className="header-top px-8 py-3 flex justify-between items-center border-b" style={{ borderColor: BRAND.line }}>
-                    {/* Updated to reflect your customer's email and aligned text */}
-                    <div className="flex items-center gap-1">
-                        <span className="text-[12px] text-gray-700">GMAIL</span>
-                        <span className="text-[11px] text-gray-500">•</span>
-                        <span className="font-semibold text-[12px]">{passenger.email}</span>
-                        <span className="text-[11px] text-gray-500">to</span>
-                        <span className="font-semibold text-[12px]">{passenger.name} &lt;{passenger.email}&gt;</span>
+                    {/* The sender email is now a single, clean line */}
+                    <div className="text-[12px] text-gray-700 font-semibold">
+                         {passenger.email}
                     </div>
-                    <div className="font-semibold text-[12px] text-gray-700">{passenger.name} &lt;{passenger.email}&gt;</div>
-                </div>
-
-                {/* 2. TICKET CANCELATION/INFO ROW */}
-                <div className="px-8 py-3 flex justify-between items-start border-b" style={{ borderColor: BRAND.line }}>
-                    <div>
-                        <div className="text-[13px] text-gray-800 font-medium">
-                            **Routesbook Ticket** - **{bookingNo}** with **Free Cancellation till 24Jan2017 09:45 AM**
-                        </div>
-                        <div className="text-[11px] text-gray-500">1 message</div>
-                    </div>
-                    <div className="text-right text-[11px] text-gray-500">
-                        Fri, Jun 23, 2017 at 9:25 PM
+                    <div className="text-[12px] text-gray-700">
+                        {journeyTime}
                     </div>
                 </div>
 
-                {/* 3. E-TICKET BANNER (Routesbook branding) */}
-                <div className="px-8 py-4 flex justify-between items-end border-b" style={{ borderColor: BRAND.line }}>
-                    <div className="flex items-center gap-4">
-                        {logoOk ? (
-                            <img src={LOGO} alt="Routesbook" className="h-6 w-auto" />
-                        ) : (
-                            <div className="text-3xl font-extrabold text-red-600">Routesbook</div>
-                        )}
-                        <div className="text-2xl font-extrabold text-gray-800 border-l pl-4" style={{ borderColor: BRAND.line }}>
-                            eTICKET
-                        </div>
-                        <div className="text-[11px] text-gray-500 italic ml-4">
-                            Free Cancellation allowed for this booking till **24Jan2017 09:45 AM**
-                        </div>
-                    </div>
+                {/* 2. E-TICKET BANNER & KEY INFO */}
+                <div className="px-8 pt-4 pb-2">
+                    <div className="flex justify-between items-start border-b pb-4" style={{ borderColor: BRAND.line }}>
+                        
+                        {/* Left Side: Logo, E-Ticket Title, Main Info */}
+                        <div className="flex flex-col gap-1">
+                            {/* Logo Row */}
+                            <div className="flex items-center gap-4">
+                                {logoOk ? (
+                                    <img src={LOGO} alt="Routesbook" className="h-6 w-auto" />
+                                ) : (
+                                    <div className="text-3xl font-extrabold text-red-600">Routesbook</div>
+                                )}
+                                <div className="text-2xl font-extrabold text-gray-800 border-l pl-4" style={{ borderColor: BRAND.line }}>
+                                    eTICKET
+                                </div>
+                            </div>
 
-                    <div className="text-right text-[12px] text-gray-600">
-                        <div className="text-[11px]">Need help with your trip?</div>
-                        <div>Booking Point Ph. **{passenger.mobile}**</div>
-                        <div>**{opName}**-Customer Care</div>
-                        <div className="text-[11px] text-red-600 cursor-pointer">Write to us **here**</div>
+                            {/* Ticket Details Line */}
+                            <div className="text-[13px] text-gray-800 font-medium mt-1">
+                                **Routesbook Ticket** - **{bookingNo}** with **Free Cancellation till 24Jan2017 09:45 AM**
+                            </div>
+
+                            <div className="text-[11px] text-gray-500 italic mt-1">
+                                Free Cancellation allowed for this booking till **24Jan2017 09:45 AM**
+                            </div>
+                        </div>
+
+                        {/* Right Side: Contact & IDs */}
+                        <div className="text-right text-[12px] text-gray-600">
+                            <div className="text-[11px]">Need help with your trip?</div>
+                            <div>Booking Point Ph. **{passenger.mobile}**</div>
+                            <div>**{opName}** Customer Care</div>
+                            <div className="text-[11px] text-red-600 cursor-pointer">Write to us **here**</div>
+                            <div className="mt-2">
+                                <div className="font-medium text-gray-600">Ticket No: **{bookingNo}**</div>
+                                <div className="font-medium text-gray-600">PNR No: **{pnr}**</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                {/* 4. ROUTE & TICKET IDs */}
-                <div className="px-8 py-4 flex justify-between items-center text-gray-800" style={{ borderBottom: `1px solid ${BRAND.line}` }}>
+                {/* 3. ROUTE & DATE */}
+                <div className="px-8 py-4 flex justify-between items-center text-gray-800 border-b" style={{ borderBottom: `1px solid ${BRAND.line}` }}>
                     <div className="flex items-center text-2xl font-extrabold">
                         {routeFrom} <span className="text-xl mx-2 text-gray-500">→</span> {routeTo}
                     </div>
                     <div className="text-sm font-semibold">{journeyDate}</div>
-                    <div className="text-right text-[12px]">
-                        <div className="font-medium text-gray-600">Ticket No: **{bookingNo}**</div>
-                        <div className="font-medium text-gray-600">PNR No: **{pnr}**</div>
-                    </div>
                 </div>
 
-                {/* 5. SCHEDULE GRID (Aligned to center the data under the column headers) */}
+                {/* 4. SCHEDULE GRID */}
                 <div className="px-8 py-4 grid grid-cols-5 gap-4 text-center border-b" style={{ borderColor: BRAND.line }}>
                     {/* Column 1: Blank/Details */}
                     <div className="text-[13px] font-semibold text-gray-700"></div> 
@@ -283,7 +283,7 @@ const DownloadTicket = () => {
                     <div className="text-[13px] font-semibold text-gray-700"></div> 
                 </div>
 
-                {/* 6. POINT DETAILS GRID (Aligned to match the visual in your screenshot) */}
+                {/* 5. POINT DETAILS GRID */}
                 <div className="px-8 py-4 grid grid-cols-5 gap-4 text-left border-b" style={{ borderColor: BRAND.line }}>
                     
                     {/* Column 1: Boarding Point Details Label */}
@@ -316,7 +316,7 @@ const DownloadTicket = () => {
                     </div>
                 </div>
 
-                {/* 7. PASSENGER & TOTAL FARE */}
+                {/* 6. PASSENGER & TOTAL FARE */}
                 <div className="px-8 pt-4">
                     <table className="min-w-full divide-y" style={{ borderColor: BRAND.line }}>
                         <thead className="text-left text-[11px] text-gray-500 uppercase tracking-wider">
@@ -332,7 +332,7 @@ const DownloadTicket = () => {
                                 <tr key={i} className="text-[13px] text-gray-700">
                                     <td className="py-1.5 font-semibold">{p.name || "DILEEPA SANDARUWAN"}</td>
                                     <td className="py-1.5"><span className="chip">{p.seat ?? "23"}</span></td>
-                                    <td className="py-1.5">{p.gender || "Male"}</td>
+                                    <td className="py-1.5">{p.gender || "M"}</td>
                                     <td className="py-1.5">{p.age || "33"}</td>
                                 </tr>
                             )) : (
@@ -354,7 +354,7 @@ const DownloadTicket = () => {
                     </div>
                 </div>
 
-                {/* 8. OFFER BANNER (Routesbook branding) */}
+                {/* 7. OFFER BANNER (Routesbook branding) */}
                 <div className="px-8 py-5 mt-6 border-y" style={{ borderColor: BRAND.line }}>
                     <div className="flex items-center justify-between p-3 rounded-md" style={{ background: BRAND.paperAlt }}>
                         <div className="flex items-center gap-4">
@@ -370,11 +370,10 @@ const DownloadTicket = () => {
                     </div>
                 </div>
 
-                {/* 9. TERMS AND CONDITIONS */}
+                {/* 8. TERMS AND CONDITIONS */}
                 <div className="px-8 py-6">
                     <div className="text-xs font-semibold mb-2" style={{ color: BRAND.ink }}>Terms & Conditions</div>
                     <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-[10px] leading-relaxed" style={{ color: BRAND.inkSub }}>
-                        {/* List items adjusted to match the density of the original ticket's terms */}
                         <ol className="list-none space-y-2">
                             <li className="font-semibold text-gray-700">Routesbook responsibilities include:</li>
                             <li>(1) Issuing a valid ticket (that will be accepted by the bus operator) for its network of bus operators.</li>
