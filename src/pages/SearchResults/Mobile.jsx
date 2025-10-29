@@ -216,13 +216,13 @@ export default function Mobile() {
                         <motion.div
                             key={busKey}
                             variants={itemVariants}
-                            className={`bg-white rounded-lg border border-gray-100 overflow-hidden shadow-sm ${ // Smaller radius, lighter border
+                            className={`bg-white rounded-lg border border-gray-100 overflow-hidden shadow-sm ${
                                 isSoldOut ? "opacity-60" : "hover:shadow-md"
                             }`}
                         >
                             <button
                                 type="button"
-                                className={`w-full text-left p-3.5 ${ // Reduced padding
+                                className={`w-full text-left p-3.5 ${
                                     isSoldOut ? "cursor-not-allowed" : ""
                                 }`}
                                 onClick={() => !isSoldOut && handleToggleSeatLayout(bus)}
@@ -275,7 +275,7 @@ export default function Mobile() {
                                                 className="max-w-[70%] max-h-[70%] object-contain rounded-full"
                                             />
                                         ) : (
-                                            <FaBus className="text-base text-gray-400" /> {/* Smaller icon */}
+                                            <FaBus className="text-base text-gray-400" />
                                         )}
                                     </div>
                                 </div>
