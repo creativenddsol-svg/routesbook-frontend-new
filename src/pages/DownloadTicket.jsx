@@ -5,9 +5,9 @@ import { QRCodeCanvas } from "qrcode.react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 
-/* ====== Brand + Artboard settings (Canva/Photoshop-like) ====== */
+/* ====== Brand + Artboard settings ====== */
 const BRAND = {
-    red: "#C5162E", // RedBus-style red
+    red: "#C5162E", // primary red
     redDark: "#9F1023",
     ink: "#111316",
     inkSub: "#6B7280",
@@ -16,14 +16,14 @@ const BRAND = {
     paperAlt: "#FAFBFC",
     chip: "#FFF2F4",
     shadow: "0 10px 35px rgba(10,10,10,0.10)",
-    greyHeader: "#F2F2F2", // For the top email header
+    greyHeader: "#F2F2F2",
 };
 
-// IMPORTANT: Use your actual logo path here
+// TODO: make sure these paths exist in /public
 const LOGO = "/images/logo-ticket.png";
 const WATERMARK = "/logo-watermark.png";
 
-/* No steps here */
+/* We don't render steps inside ticket */
 const BookingSteps = () => null;
 
 const DownloadTicket = () => {
@@ -32,6 +32,7 @@ const DownloadTicket = () => {
     const artboardRef = useRef(null);
     const [logoOk, setLogoOk] = useState(false);
 
+    /* preload logo so PDF canvas captures it */
     useEffect(() => {
         const img = new Image();
         img.onload = () => setLogoOk(true);
@@ -39,6 +40,7 @@ const DownloadTicket = () => {
         img.src = LOGO;
     }, []);
 
+    /* read orderId from URL */
     const params = useMemo(() => new URLSearchParams(search), [search]);
     const orderId = (
         params.get("order_id") ||
@@ -48,7 +50,11 @@ const DownloadTicket = () => {
         ""
     ).trim();
 
-    const [bookingDetails, setBookingDetails] = useState(state?.bookingDetails || null);
+    /* bookingDetails from router state OR session fallback */
+    const [bookingDetails, setBookingDetails] = useState(
+        state?.bookingDetails || null
+    );
+
     useEffect(() => {
         if (bookingDetails) return;
         try {
@@ -56,62 +62,134 @@ const DownloadTicket = () => {
             if (!raw) return;
             const parsed = JSON.parse(raw);
             if (parsed?.bookingDetails) setBookingDetails(parsed.bookingDetails);
-        } catch { }
+        } catch {
+            /* ignore */
+        }
     }, [bookingDetails]);
 
+    // handle missing data early
     if (!bookingDetails) {
         return (
             <div className="max-w-xl mx-auto p-6">
-                <h1 className="text-xl font-bold text-red-600 mb-2">No ticket data</h1>
-                <p className="text-gray-700">Open from My Bookings or complete payment first.</p>
-                {orderId && <p className="text-sm text-gray-600 mt-2">Reference: <b>{orderId}</b></p>}
+                <h1 className="text-xl font-bold text-red-600 mb-2">
+                    No ticket data
+                </h1>
+                <p className="text-gray-700">
+                    Open this page from My Bookings or complete payment first.
+                </p>
+                {orderId && (
+                    <p className="text-sm text-gray-600 mt-2">
+                        Reference: <b>{orderId}</b>
+                    </p>
+                )}
                 <div className="mt-4 flex gap-2">
-                    <button onClick={() => navigate("/my-bookings")} className="px-4 py-2 rounded bg-blue-600 text-white">My Bookings</button>
-                    <button onClick={() => navigate("/")} className="px-4 py-2 rounded bg-gray-100">Home</button>
+                    <button
+                        onClick={() => navigate("/my-bookings")}
+                        className="px-4 py-2 rounded bg-blue-600 text-white"
+                    >
+                        My Bookings
+                    </button>
+                    <button
+                        onClick={() => navigate("/")}
+                        className="px-4 py-2 rounded bg-gray-100"
+                    >
+                        Home
+                    </button>
                 </div>
             </div>
         );
     }
 
-    // ----- Safe destructuring & MOCK DATA (to reflect your screenshot) -----
+    /* ===== destructure with safe fallbacks ===== */
     const {
         bus = {},
         operator = { name: "Operator Name" },
-        // Updated passenger data to reflect screenshot
-        passenger = { name: "DILEEPA SANDARUWAN", email: "dileepa009@gmail.com", mobile: "0773412362" }, // Used phone number from screenshot
-        // Updated passenger list to reflect screenshot
-        passengers = [{ name: "DILEEPA SANDARUWAN", seat: "23", gender: "M", age: "33" }],
+        passenger = {
+            name: "DILEEPA SANDARUWAN",
+            email: "dileepa009@gmail.com",
+            mobile: "0773412362",
+        },
+        // passenger rows (for seat table)
+        passengers = [
+            {
+                name: "DILEEPA SANDARUWAN",
+                seat: "30",
+                gender: "M",
+                age: "22",
+            },
+        ],
         selectedSeats = [],
-        // Updated boarding/dropping points to reflect screenshot
-        boardingPoint = { point: "matara bus stand", landmark: "Location", time: "14:00" },
-        droppingPoint = { point: "Colombo", landmark: "Next to CMBT Bus Stand/Opp", address: "Address" }, // Simplified Address for clarity
+        boardingPoint = {
+            point: "matara",
+            landmark: "Next to CMBT Bus Stand/Opp",
+            address: "Address",
+            time: "19:00",
+        },
+        droppingPoint = {
+            point: "Colombo",
+            landmark: "Next to CMBT Bus Stand/Opp",
+            address: "Address",
+        },
         priceDetails = {},
-        departureTime = "14:00",
-        date = "2025-10-30",
+        departureTime = "19:00",
+        date = "2025-11-01",
         bookingNo: bookingNoFromState,
         bookingNoShort: bookingNoShortFromState,
-        bookingId = "RB202510300002",
+        bookingId = "RB202511010004",
         pnr = "RBA30699",
     } = bookingDetails || {};
 
-    const bookingNo = bookingNoFromState || bookingNoShortFromState || orderId || bookingId || "RB202510300002";
+    const bookingNo =
+        bookingNoFromState ||
+        bookingNoShortFromState ||
+        orderId ||
+        bookingId ||
+        "RB202511010004";
+
     const opName = operator?.name || bus?.operator || "Operator Name";
     const routeFrom = bus?.from || "Matara";
     const routeTo = bus?.to || "Colombo";
-    const paxCount = passengers?.length || selectedSeats?.length || 1;
-    const totalPrice = Number(priceDetails?.totalPrice || 1196.00);
-    const journeyDate = new Date(date).toLocaleDateString('en-IN', { year: 'numeric', month: 'long', day: 'numeric' }) || "30 October 2025";
-    const bookingTimestamp = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    // QR compact payload
-    const qrText = `Ticket|${bookingNo}|${routeFrom}->${routeTo}|${date} ${departureTime}|Seats:${passengers.map(p => p.seat).join(",")}|Pax:${paxCount}|Owner:${passenger.name || "-"}`;
+    const paxCount =
+        (Array.isArray(passengers) && passengers.length) ||
+        (Array.isArray(selectedSeats) && selectedSeats.length) ||
+        1;
 
-    // ---- Export: A4, Canva-like crisp ----
+    const totalPrice = Number(priceDetails?.totalPrice || 1285.2);
+
+    // for visual text: "1 November 2025"
+    const journeyDate =
+        new Date(date).toLocaleDateString("en-GB", {
+            day: "numeric",
+            month: "long",
+            year: "numeric",
+        }) || "1 November 2025";
+
+    // top-right email-style timestamp (e.g. 05:14 pm)
+    const bookingTimestamp = new Date().toLocaleTimeString("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+    });
+
+    // pick reporting vs departure time
+    const reportingTime = boardingPoint?.time || departureTime || "—";
+    const departTime = departureTime || boardingPoint?.time || "—";
+
+    // QR code payload (not shown in UI yet, but can be used later)
+    const qrText = `Ticket|${bookingNo}|${routeFrom}->${routeTo}|${date} ${departTime}|Seats:${passengers
+        .map((p) => p.seat)
+        .join(",")}|Pax:${paxCount}|Owner:${
+        passenger.name || "-"
+    }`;
+
+    /* ===== PDF EXPORT (A4) ===== */
     const downloadPDF = async () => {
         const el = artboardRef.current;
         if (!el) return;
         el.style.webkitPrintColorAdjust = "exact";
         el.style.printColorAdjust = "exact";
+
         const canvas = await html2canvas(el, {
             scale: 2,
             useCORS: true,
@@ -121,19 +199,26 @@ const DownloadTicket = () => {
             windowWidth: el.scrollWidth,
             windowHeight: el.scrollHeight,
         });
+
         const img = canvas.toDataURL("image/jpeg", 0.95);
         const pdf = new jsPDF("p", "mm", "a4");
         const w = pdf.internal.pageSize.getWidth();
         const h = (canvas.height * w) / canvas.width;
+
         pdf.addImage(img, "JPEG", 0, 0, w, h, undefined, "FAST");
-        pdf.save(`ticket-${(bookingNo || passenger.name || "guest").replace(/\s/g, "_")}-${date}.pdf`);
+
+        pdf.save(
+            `ticket-${(bookingNo || passenger.name || "guest")
+                .replace(/\s/g, "_")
+                .replace(/[^a-zA-Z0-9_\-]/g, "")}-${date}.pdf`
+        );
     };
 
     const printNow = () => window.print();
 
     return (
         <div className="min-h-screen bg-[#F3F4F7] py-6 print:bg-white">
-            {/* Local styles dedicated to this artboard (precise print rules) */}
+            {/* Print rules + local styles */}
             <style>{`
                 @media print {
                     @page { size: A4; margin: 0; }
@@ -142,8 +227,8 @@ const DownloadTicket = () => {
                     .sheet { box-shadow: none !important; margin: 0 !important; }
                 }
                 .sheet {
-                    width: 794px;   /* A4 width @ 96dpi */
-                    min-height: 1123px; /* A4 height @ 96dpi */
+                    width: 794px;           /* A4 width @ 96dpi */
+                    min-height: 1123px;     /* A4 height @ 96dpi */
                     margin: 0 auto;
                     background: ${BRAND.paper};
                     box-shadow: ${BRAND.shadow};
@@ -156,15 +241,17 @@ const DownloadTicket = () => {
                     font-size: 11px;
                 }
                 .label {
-                    text-transform: capitalize; 
-                    font-size: 12px; 
+                    text-transform: capitalize;
+                    font-size: 12px;
                     color: ${BRAND.inkSub};
                     font-weight: 500;
+                    line-height: 1.2;
                 }
-                .value { 
-                    color: ${BRAND.ink}; 
-                    font-size: 15px; 
+                .value {
+                    color: ${BRAND.ink};
+                    font-size: 15px;
                     font-weight: 600;
+                    line-height: 1.3;
                 }
                 .chip {
                     border: 1px solid ${BRAND.line};
@@ -177,150 +264,232 @@ const DownloadTicket = () => {
                     display: inline-block;
                     white-space: nowrap;
                 }
-                .grid-col-25 {
-                    grid-template-columns: 25% 25% 25% 25%; /* Custom 4-column layout */
+                .watermark {
+                    position: absolute;
+                    top: 20%;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    opacity: 0.03;
+                    background-repeat: no-repeat;
+                    background-position: center;
+                    background-size: 300px 300px;
+                    width: 100%;
+                    height: 400px;
+                    pointer-events: none;
                 }
             `}</style>
 
-            {/* ACTION BAR (No print) */}
+            {/* Top action buttons (not printed) */}
             <div className="no-print max-w-4xl mx-auto mb-4 px-4 flex gap-2 justify-end">
-                <button onClick={printNow} className="px-4 py-2 rounded bg-gray-900 text-white">🖨 Print</button>
-                <button onClick={downloadPDF} className="px-4 py-2 rounded" style={{ background: BRAND.red, color: "#fff" }}>📄 Download PDF</button>
-                <button onClick={() => navigate("/my-bookings")} className="px-4 py-2 rounded border border-gray-300 bg-white">My Bookings</button>
+                <button
+                    onClick={printNow}
+                    className="px-4 py-2 rounded bg-gray-900 text-white"
+                >
+                    🖨 Print
+                </button>
+                <button
+                    onClick={downloadPDF}
+                    className="px-4 py-2 rounded text-white"
+                    style={{ background: BRAND.red }}
+                >
+                    📄 Download PDF
+                </button>
+                <button
+                    onClick={() => navigate("/my-bookings")}
+                    className="px-4 py-2 rounded border border-gray-300 bg-white"
+                >
+                    My Bookings
+                </button>
             </div>
 
-            {/* ======== A4 ARTBOARD (Routesbook Aligned) ======== */}
+            {/* ======== A4 ARTBOARD ======== */}
             <div className="sheet" ref={artboardRef}>
-                {/* Optional faint watermark */}
+                {/* faint brand watermark */}
                 <div
                     className="watermark"
                     style={{ backgroundImage: `url(${WATERMARK})` }}
                 />
 
-                {/* 1. CLEAN TICKET HEADER / EMAIL CONTEXT */}
-                <div className="header-top px-8 py-3 flex justify-between items-center border-b" style={{ borderColor: BRAND.line }}>
+                {/* 1. EMAIL-STYLE HEADER BAR */}
+                <div
+                    className="header-top px-8 py-3 flex justify-between items-center border-b"
+                    style={{ borderColor: BRAND.line }}
+                >
                     <div className="flex items-center gap-2">
-                        <span className="text-[12px] text-gray-700 font-semibold">{passenger.email}</span>
+                        <span className="text-[12px] text-gray-700 font-semibold">
+                            {passenger.email}
+                        </span>
                         <span className="text-[11px] text-gray-500">to</span>
-                        <span className="text-[12px] text-gray-700 font-semibold">{passenger.name}</span>
+                        <span className="text-[12px] text-gray-700 font-semibold">
+                            {passenger.name}
+                        </span>
                     </div>
                     <div className="text-[12px] text-gray-700">
                         {bookingTimestamp}
                     </div>
                 </div>
 
-                {/* 2. E-TICKET BANNER & KEY INFO */}
+                {/* 2. MAIN TICKET HEADER */}
                 <div className="px-8 pt-4 pb-2">
-                    <div className="flex justify-between items-start border-b pb-4" style={{ borderColor: BRAND.line }}>
-                        
-                        {/* Left Side: Logo, E-Ticket Title, Main Info */}
+                    <div
+                        className="flex justify-between items-start border-b pb-4"
+                        style={{ borderColor: BRAND.line }}
+                    >
+                        {/* Left cluster: logo + eTICKET + cancellation info */}
                         <div className="flex flex-col gap-1">
-                            {/* Logo Row */}
+                            {/* logo row */}
                             <div className="flex items-center gap-4">
                                 {logoOk ? (
-                                    <img src={LOGO} alt="Routesbook" className="h-6 w-auto" />
+                                    <img
+                                        src={LOGO}
+                                        alt="Routesbook"
+                                        className="h-6 w-auto"
+                                    />
                                 ) : (
-                                    <div className="text-3xl font-extrabold text-red-600">Routesbook</div>
+                                    <div className="text-3xl font-extrabold text-red-600">
+                                        Routesbook
+                                    </div>
                                 )}
-                                <div className="text-2xl font-extrabold text-gray-800 border-l pl-4" style={{ borderColor: BRAND.line }}>
+                                <div
+                                    className="text-2xl font-extrabold text-gray-800 border-l pl-4"
+                                    style={{ borderColor: BRAND.line }}
+                                >
                                     eTICKET
                                 </div>
                             </div>
-                            
-                            {/* Ticket Details Line (Consolidated) */}
+
+                            {/* ticket summary line */}
                             <div className="text-[13px] text-gray-800 font-medium mt-1">
-                                **Routesbook Ticket** - **{bookingNo}** with **Free Cancellation till 24Jan2017 09:45 AM**
+                                Routesbook Ticket – {bookingNo} with Free
+                                Cancellation till 24 Jan 2017 09:45 AM
                             </div>
-                            <div className="text-[11px] text-gray-500 italic mt-1">
-                                Free Cancellation allowed for this booking till **24Jan2017 09:45 AM**
+                            <div className="text-[11px] text-gray-500 italic mt-1 leading-snug">
+                                Free cancellation allowed for this booking
+                                until 24 Jan 2017 09:45 AM
                             </div>
                         </div>
 
-                        {/* Right Side: Contact & IDs */}
-                        <div className="text-right text-[12px] text-gray-600">
-                            <div className="text-[11px]">Need help with your trip?</div>
-                            <div>Booking Point Ph. **{passenger.mobile}**</div>
-                            <div>**{opName}** Customer Care</div>
-                            <div className="text-[11px] text-red-600 cursor-pointer">Write to us **here**</div>
+                        {/* Right cluster: operator contact + IDs */}
+                        <div className="text-right text-[12px] text-gray-600 leading-relaxed">
+                            <div className="text-[11px]">
+                                Need help with your trip?
+                            </div>
+                            <div>
+                                Booking Point Ph. {passenger.mobile || "—"}
+                            </div>
+                            <div>{opName} Customer Care</div>
+                            <div className="text-[11px] text-red-600 cursor-pointer">
+                                Write to us
+                            </div>
+
                             <div className="mt-2">
-                                <div className="font-medium text-gray-600">Ticket No: **{bookingNo}**</div>
-                                <div className="font-medium text-gray-600">PNR No: **{pnr}**</div>
+                                <div className="font-medium text-gray-600">
+                                    Ticket No: {bookingNo}
+                                </div>
+                                <div className="font-medium text-gray-600">
+                                    PNR No: {pnr}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* 3. ROUTE & DATE */}
-                <div className="px-8 py-4 flex justify-between items-center text-gray-800 border-b" style={{ borderBottom: `1px solid ${BRAND.line}` }}>
+                {/* 3. ROUTE + DATE */}
+                <div
+                    className="px-8 py-4 flex justify-between items-center text-gray-800 border-b"
+                    style={{ borderBottom: `1px solid ${BRAND.line}` }}
+                >
                     <div className="flex items-center text-2xl font-extrabold">
-                        {routeFrom} <span className="text-xl mx-2 text-gray-500">→</span> {routeTo}
+                        {routeFrom}
+                        <span className="text-xl mx-2 text-gray-500">→</span>
+                        {routeTo}
                     </div>
                     <div className="text-sm font-semibold">{journeyDate}</div>
                 </div>
 
-                {/* 4. SCHEDULE GRID (Improved Structure) */}
-                <div className="px-8 py-4 grid grid-cols-4 gap-4 text-center border-b" style={{ borderColor: BRAND.line }}>
-                    {/* Column 1: Reporting Time */}
+                {/* 4. SCHEDULE GRID */}
+                <div
+                    className="px-8 py-4 grid grid-cols-4 gap-4 text-center border-b"
+                    style={{ borderColor: BRAND.line }}
+                >
+                    {/* Reporting Time */}
                     <div>
-                        <div className="value">{boardingPoint.time || "—"}</div>
-                        <div className="label">Reporting time</div>
+                        <div className="value">{reportingTime || "—"}</div>
+                        <div className="label">Reporting Time</div>
                     </div>
-                    
-                    {/* Column 2: Departure Time (Separate column for clarity) */}
+
+                    {/* Departure Time */}
                     <div>
-                        <div className="value">{departureTime || "—"}</div>
-                        <div className="label">Departure time</div>
+                        <div className="value">{departTime || "—"}</div>
+                        <div className="label">Departure Time</div>
                     </div>
-                    
-                    {/* Column 3: Passengers */}
+
+                    {/* Pax Count */}
                     <div>
                         <div className="value">{paxCount}</div>
                         <div className="label">Number Of Passengers</div>
                     </div>
-                    
-                    {/* Column 4: Operator/Bus Name (Moved here for better space utilization) */}
-                    <div className="text-[13px] font-semibold text-gray-700">
-                        <div className="value">—</div>
-                        <div className="label">Bus Type/Operator</div>
+
+                    {/* Bus Type / Operator */}
+                    <div>
+                        <div className="value">
+                            {bus?.busType || opName || "—"}
+                        </div>
+                        <div className="label">Bus Type / Operator</div>
                     </div>
                 </div>
 
-                {/* 5. POINT DETAILS GRID (Aligned and labeled) */}
-                <div className="px-8 py-4 grid grid-cols-5 gap-4 text-left border-b" style={{ borderColor: BRAND.line }}>
-                    
-                    {/* Column 1: Boarding Point Details Label (Takes 1/5th space) */}
+                {/* 5. BOARDING / OPERATOR DETAILS */}
+                <div
+                    className="px-8 py-4 grid grid-cols-5 gap-4 text-left border-b"
+                    style={{ borderColor: BRAND.line }}
+                >
+                    {/* col 1 just header text */}
                     <div>
                         <div className="label">Boarding Point Details</div>
                     </div>
 
-                    {/* Column 2: Location (Takes 1/5th space) */}
+                    {/* col 2 location */}
                     <div>
-                        <div className="value">{boardingPoint.point || "—"}</div>
+                        <div className="value">
+                            {boardingPoint.point || boardingPoint?.location || "—"}
+                        </div>
                         <div className="label">Location</div>
                     </div>
-                    
-                    {/* Column 3: Landmark (Takes 1/5th space) */}
+
+                    {/* col 3 landmark */}
                     <div>
-                        <div className="value">{droppingPoint.landmark || "—"}</div>
-                        <div className="label">Next to CMBT Bus Stand/Opp</div>
+                        <div className="value">
+                            {boardingPoint.landmark ||
+                                droppingPoint.landmark ||
+                                "—"}
+                        </div>
+                        <div className="label">Landmark</div>
                     </div>
-                    
-                    {/* Column 4: Address (Takes 1/5th space) */}
+
+                    {/* col 4 address */}
                     <div>
-                        <div className="value">{droppingPoint.address || "—"}</div>
+                        <div className="value">
+                            {boardingPoint.address ||
+                                droppingPoint.address ||
+                                "—"}
+                        </div>
                         <div className="label">Address</div>
                     </div>
-                    
-                    {/* Column 5: Operator/Bus Stop (Takes 1/5th space) */}
+
+                    {/* col 5 operator */}
                     <div>
                         <div className="value">{opName}</div>
                         <div className="label">Operator Name</div>
                     </div>
                 </div>
 
-                {/* 6. PASSENGER & TOTAL FARE */}
+                {/* 6. PASSENGER TABLE + TOTAL FARE */}
                 <div className="px-8 pt-4">
-                    <table className="min-w-full divide-y" style={{ borderColor: BRAND.line }}>
+                    <table
+                        className="min-w-full divide-y"
+                        style={{ borderColor: BRAND.line }}
+                    >
                         <thead className="text-left text-[11px] text-gray-500 uppercase tracking-wider">
                             <tr>
                                 <th className="py-2 w-2/5">Name</th>
@@ -329,78 +498,189 @@ const DownloadTicket = () => {
                                 <th className="py-2 w-1/5">Age</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y" style={{ borderColor: BRAND.line }}>
-                            {passengers.length ? passengers.map((p, i) => (
-                                <tr key={i} className="text-[13px] text-gray-700">
-                                    <td className="py-1.5 font-semibold">{p.name || "DILEEPA SANDARUWAN"}</td>
-                                    <td className="py-1.5"><span className="chip">{p.seat ?? "23"}</span></td>
-                                    <td className="py-1.5">{p.gender || "M"}</td>
-                                    <td className="py-1.5">{p.age || "33"}</td>
-                                </tr>
-                            )) : (
+                        <tbody
+                            className="divide-y"
+                            style={{ borderColor: BRAND.line }}
+                        >
+                            {passengers && passengers.length ? (
+                                passengers.map((p, i) => (
+                                    <tr
+                                        key={i}
+                                        className="text-[13px] text-gray-700"
+                                    >
+                                        <td className="py-1.5 font-semibold">
+                                            {p.name || "Passenger"}
+                                        </td>
+                                        <td className="py-1.5">
+                                            <span className="chip">
+                                                {p.seat ?? "—"}
+                                            </span>
+                                        </td>
+                                        <td className="py-1.5">
+                                            {p.gender || "—"}
+                                        </td>
+                                        <td className="py-1.5">
+                                            {p.age || "—"}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
                                 <tr>
-                                    <td colSpan="4" className="py-4 text-[12px] text-gray-500">No passenger details provided.</td>
+                                    <td
+                                        colSpan="4"
+                                        className="py-4 text-[12px] text-gray-500"
+                                    >
+                                        No passenger details provided.
+                                    </td>
                                 </tr>
                             )}
                         </tbody>
                     </table>
 
                     <div className="flex justify-between items-end mt-4">
-                        <div className="text-[12px] text-gray-500 font-medium max-w-sm">
-                            NOTE: This operator accepts **mTicket**, you need not carry a print out
+                        <div className="text-[12px] text-gray-500 font-medium max-w-sm leading-snug">
+                            NOTE: This operator accepts mTicket. You do not
+                            need to carry a printed copy.
                         </div>
-                        <div className="text-right">
-                            <div className="text-sm font-semibold text-gray-700">Total Fare: <span className="text-2xl font-extrabold text-red-600">Rs. {isFinite(totalPrice) ? totalPrice.toFixed(2) : "0.00"}</span></div>
-                            <div className="text-[10px] italic text-gray-500">(Rs. 171 inclusive of service tax and service charge, if any)</div>
+                        <div className="text-right leading-tight">
+                            <div className="text-sm font-semibold text-gray-700">
+                                Total Fare:{" "}
+                                <span className="text-2xl font-extrabold text-red-600">
+                                    Rs.{" "}
+                                    {isFinite(totalPrice)
+                                        ? totalPrice.toFixed(2)
+                                        : "0.00"}
+                                </span>
+                            </div>
+                            <div className="text-[10px] italic text-gray-500">
+                                (Includes service tax / service charge, if any)
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* 7. OFFER BANNER (Routesbook branding) */}
-                <div className="px-8 py-5 mt-6 border-y" style={{ borderColor: BRAND.line }}>
-                    <div className="flex items-center justify-between p-3 rounded-md" style={{ background: BRAND.paperAlt }}>
-                        <div className="flex items-center gap-4">
-                             {logoOk ? (
-                                <img src={LOGO} alt="Routesbook" className="h-6 w-auto" />
+                {/* 7. OFFER STRIP */}
+                <div
+                    className="px-8 py-5 mt-6 border-y"
+                    style={{ borderColor: BRAND.line }}
+                >
+                    <div
+                        className="flex items-center justify-between p-3 rounded-md"
+                        style={{ background: BRAND.paperAlt }}
+                    >
+                        <div className="flex items-center gap-4 flex-wrap">
+                            {logoOk ? (
+                                <img
+                                    src={LOGO}
+                                    alt="Routesbook"
+                                    className="h-6 w-auto"
+                                />
                             ) : (
-                                <div className="text-2xl font-extrabold text-red-600">Routesbook</div>
+                                <div className="text-2xl font-extrabold text-red-600">
+                                    Routesbook
+                                </div>
                             )}
-                            <div className="text-base font-bold text-gray-800">Upto 50% Off on Hotel Booking</div>
-                            <div className="text-sm font-medium text-gray-600">Offer Code: **YOUR BUS TIN**</div>
+
+                            <div className="text-base font-bold text-gray-800">
+                                Upto 50% Off on Hotel Booking
+                            </div>
+                            <div className="text-sm font-medium text-gray-600">
+                                Offer Code: YOUR BUS TIN
+                            </div>
                         </div>
-                        <button className="px-4 py-2 rounded text-white font-bold text-sm" style={{ background: BRAND.redDark }}>BOOK NOW</button>
+                        <button
+                            className="px-4 py-2 rounded text-white font-bold text-sm"
+                            style={{ background: BRAND.redDark }}
+                        >
+                            BOOK NOW
+                        </button>
                     </div>
                 </div>
 
-                {/* 8. TERMS AND CONDITIONS */}
+                {/* 8. TERMS & CONDITIONS */}
                 <div className="px-8 py-6">
-                    <div className="text-xs font-semibold mb-2" style={{ color: BRAND.ink }}>Terms & Conditions</div>
-                    <div className="grid grid-cols-2 gap-x-12 gap-y-2 text-[10px] leading-relaxed" style={{ color: BRAND.inkSub }}>
+                    <div
+                        className="text-xs font-semibold mb-2"
+                        style={{ color: BRAND.ink }}
+                    >
+                        Terms &amp; Conditions
+                    </div>
+
+                    <div
+                        className="grid grid-cols-2 gap-x-12 gap-y-2 text-[10px] leading-relaxed"
+                        style={{ color: BRAND.inkSub }}
+                    >
                         <ol className="list-none space-y-2">
-                            <li className="font-semibold text-gray-700">Routesbook responsibilities include:</li>
-                            <li>(1) Issuing a valid ticket (that will be accepted by the bus operator) for its network of bus operators.</li>
-                            <li>(2) Providing refund and support in case of cancellation.</li>
-                            <li>(3) Providing customer support and information in case of any delays / inconvenience.</li>
-                            <li className="font-semibold text-gray-700">Routesbook responsibilities do not include:</li>
-                            <li>(1) The bus operator's bus not departing / reaching on time.</li>
-                            <li>(2) The bus operator's employees' behaviour.</li>
-                            <li>(3) The bus operator's bus seats etc not being up to the customer's expectation.</li>
-                            <li>(4) The bus operator cancelling the trip due to unavoidable reasons.</li>
+                            <li className="font-semibold text-gray-700">
+                                Routesbook responsibilities include:
+                            </li>
+                            <li>
+                                (1) Issuing a valid ticket that will be accepted
+                                by the listed bus operator(s).
+                            </li>
+                            <li>
+                                (2) Providing refund / support in case of
+                                cancellation as per policy.
+                            </li>
+                            <li>
+                                (3) Providing customer support and information
+                                in case of delays / inconvenience.
+                            </li>
+
+                            <li className="font-semibold text-gray-700 pt-2">
+                                Routesbook is not responsible for:
+                            </li>
+                            <li>
+                                (1) The bus not departing / arriving on time.
+                            </li>
+                            <li>
+                                (2) Bus staff behaviour / service quality.
+                            </li>
+                            <li>
+                                (3) Seat / vehicle condition not matching
+                                expectation.
+                            </li>
+                            <li>
+                                (4) Trips cancelled by the operator due to
+                                unavoidable reasons.
+                            </li>
                         </ol>
+
                         <ol className="list-none space-y-2">
-                            <li className="font-semibold text-gray-700">General Terms:</li>
-                            <li>(1) Passengers must carry a copy of the ticket (print or e-ticket) and a valid photo ID.</li>
-                            <li>(2) Failing to do so, passengers may not be allowed to board the bus.</li>
-                            <li>(3) Baggage is carried at passenger’s risk unless explicitly covered.</li>
-                            <li>(4) The customer waiting at the wrong boarding point.</li>
-                            <li>(5) Abusive behavior/intoxication may lead to denied boarding.</li>
-                            <li>(6) Please arrive **15–20 minutes** before departure.</li>
-                            <li>(7) Contact support via My Bookings for changes and help.</li>
-                            <li>(8) QR misuse or duplication can invalidate boarding.</li>
+                            <li className="font-semibold text-gray-700">
+                                General terms:
+                            </li>
+                            <li>
+                                (1) Carry a copy of this ticket (print or
+                                e-ticket) and a valid photo ID.
+                            </li>
+                            <li>
+                                (2) Failure to show ID may result in denied
+                                boarding.
+                            </li>
+                            <li>
+                                (3) Baggage is carried at passenger’s risk
+                                unless explicitly covered.
+                            </li>
+                            <li>
+                                (4) Please arrive 15–20 minutes before
+                                departure.
+                            </li>
+                            <li>
+                                (5) Abusive behavior / intoxication may lead to
+                                denied boarding.
+                            </li>
+                            <li>
+                                (6) Contact support through My Bookings for
+                                updates, changes, or help.
+                            </li>
+                            <li>
+                                (7) QR misuse or duplication can invalidate
+                                boarding.
+                            </li>
                         </ol>
                     </div>
                 </div>
-
             </div>
             {/* ======== /A4 ARTBOARD ======== */}
         </div>
