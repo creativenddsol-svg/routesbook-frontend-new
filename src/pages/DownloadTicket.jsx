@@ -19,11 +19,11 @@ const BRAND = {
     greyHeader: "#F2F2F2",
 };
 
-// TODO: make sure these paths exist in /public
+// make sure these exist in /public
 const LOGO = "/images/logo-ticket.png";
 const WATERMARK = "/logo-watermark.png";
 
-/* We don't render steps inside ticket */
+// no step UI here
 const BookingSteps = () => null;
 
 const DownloadTicket = () => {
@@ -32,7 +32,7 @@ const DownloadTicket = () => {
     const artboardRef = useRef(null);
     const [logoOk, setLogoOk] = useState(false);
 
-    /* preload logo so PDF canvas captures it */
+    /* preload logo for canvas/pdf */
     useEffect(() => {
         const img = new Image();
         img.onload = () => setLogoOk(true);
@@ -106,10 +106,9 @@ const DownloadTicket = () => {
         operator = { name: "Operator Name" },
         passenger = {
             name: "DILEEPA SANDARUWAN",
-            email: "dileepa009@gmail.com",
-            mobile: "0773412362",
+            email: "sdileepa98@gmail.com",
+            mobile: "0773412262",
         },
-        // passenger rows (for seat table)
         passengers = [
             {
                 name: "DILEEPA SANDARUWAN",
@@ -121,15 +120,9 @@ const DownloadTicket = () => {
         selectedSeats = [],
         boardingPoint = {
             point: "matara",
-            landmark: "Next to CMBT Bus Stand/Opp",
-            address: "Address",
             time: "19:00",
         },
-        droppingPoint = {
-            point: "Colombo",
-            landmark: "Next to CMBT Bus Stand/Opp",
-            address: "Address",
-        },
+        // droppingPoint still exists in data but not shown now
         priceDetails = {},
         departureTime = "19:00",
         date = "2025-11-01",
@@ -139,6 +132,7 @@ const DownloadTicket = () => {
         pnr = "RBA30699",
     } = bookingDetails || {};
 
+    // derive fields
     const bookingNo =
         bookingNoFromState ||
         bookingNoShortFromState ||
@@ -147,6 +141,7 @@ const DownloadTicket = () => {
         "RB202511010004";
 
     const opName = operator?.name || bus?.operator || "Operator Name";
+    const busName = bus?.name || "—"; // <-- from your bus model
     const routeFrom = bus?.from || "Matara";
     const routeTo = bus?.to || "Colombo";
 
@@ -157,7 +152,7 @@ const DownloadTicket = () => {
 
     const totalPrice = Number(priceDetails?.totalPrice || 1285.2);
 
-    // for visual text: "1 November 2025"
+    // "1 November 2025" style
     const journeyDate =
         new Date(date).toLocaleDateString("en-GB", {
             day: "numeric",
@@ -165,18 +160,17 @@ const DownloadTicket = () => {
             year: "numeric",
         }) || "1 November 2025";
 
-    // top-right email-style timestamp (e.g. 05:14 pm)
+    // top-right timestamp (05:14 pm)
     const bookingTimestamp = new Date().toLocaleTimeString("en-GB", {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
     });
 
-    // pick reporting vs departure time
-    const reportingTime = boardingPoint?.time || departureTime || "—";
+    // we no longer show reporting time separately
     const departTime = departureTime || boardingPoint?.time || "—";
 
-    // QR code payload (not shown in UI yet, but can be used later)
+    // QR content (future scan usage)
     const qrText = `Ticket|${bookingNo}|${routeFrom}->${routeTo}|${date} ${departTime}|Seats:${passengers
         .map((p) => p.seat)
         .join(",")}|Pax:${paxCount}|Owner:${
@@ -407,17 +401,11 @@ const DownloadTicket = () => {
                     <div className="text-sm font-semibold">{journeyDate}</div>
                 </div>
 
-                {/* 4. SCHEDULE GRID */}
+                {/* 4. SCHEDULE GRID (updated: no Reporting Time) */}
                 <div
                     className="px-8 py-4 grid grid-cols-4 gap-4 text-center border-b"
                     style={{ borderColor: BRAND.line }}
                 >
-                    {/* Reporting Time */}
-                    <div>
-                        <div className="value">{reportingTime || "—"}</div>
-                        <div className="label">Reporting Time</div>
-                    </div>
-
                     {/* Departure Time */}
                     <div>
                         <div className="value">{departTime || "—"}</div>
@@ -430,21 +418,25 @@ const DownloadTicket = () => {
                         <div className="label">Number Of Passengers</div>
                     </div>
 
-                    {/* Bus Type / Operator */}
+                    {/* Operator Name */}
                     <div>
-                        <div className="value">
-                            {bus?.busType || opName || "—"}
-                        </div>
-                        <div className="label">Bus Type / Operator</div>
+                        <div className="value">{opName || "—"}</div>
+                        <div className="label">Operator Name</div>
+                    </div>
+
+                    {/* Bus Name */}
+                    <div>
+                        <div className="value">{busName || "—"}</div>
+                        <div className="label">Bus Name</div>
                     </div>
                 </div>
 
-                {/* 5. BOARDING / OPERATOR DETAILS */}
+                {/* 5. BOARDING DETAILS (updated: remove landmark/address) */}
                 <div
-                    className="px-8 py-4 grid grid-cols-5 gap-4 text-left border-b"
+                    className="px-8 py-4 grid grid-cols-3 gap-4 text-left border-b"
                     style={{ borderColor: BRAND.line }}
                 >
-                    {/* col 1 just header text */}
+                    {/* col 1 header */}
                     <div>
                         <div className="label">Boarding Point Details</div>
                     </div>
@@ -452,35 +444,17 @@ const DownloadTicket = () => {
                     {/* col 2 location */}
                     <div>
                         <div className="value">
-                            {boardingPoint.point || boardingPoint?.location || "—"}
+                            {boardingPoint.point || "—"}
                         </div>
                         <div className="label">Location</div>
                     </div>
 
-                    {/* col 3 landmark */}
+                    {/* col 3 time */}
                     <div>
                         <div className="value">
-                            {boardingPoint.landmark ||
-                                droppingPoint.landmark ||
-                                "—"}
+                            {boardingPoint.time || departTime || "—"}
                         </div>
-                        <div className="label">Landmark</div>
-                    </div>
-
-                    {/* col 4 address */}
-                    <div>
-                        <div className="value">
-                            {boardingPoint.address ||
-                                droppingPoint.address ||
-                                "—"}
-                        </div>
-                        <div className="label">Address</div>
-                    </div>
-
-                    {/* col 5 operator */}
-                    <div>
-                        <div className="value">{opName}</div>
-                        <div className="label">Operator Name</div>
+                        <div className="label">Boarding Time</div>
                     </div>
                 </div>
 
