@@ -1,4 +1,3 @@
-// src/api.js
 import axios from "axios";
 
 /** Resolve API base URL (Vite → CRA → fallback) */
@@ -86,9 +85,106 @@ export const getClientId = () => {
   }
 };
 
+/* =========================================================
+   NEW: legacy → split route rewriter
+   ---------------------------------------------------------
+   Your front end today calls things like:
+     GET  /buses?from=...
+     GET  /booking/availability/:busId?...
+     POST /booking/lock-seats
+     POST /bookings        (create booking)
+     GET  /bookings/me
+     DELETE /bookings/:id
+
+   Backend new world wants:
+     /public/buses
+     /public/booking/availability/:busId
+     /secure/booking/lock-seats
+     /secure/booking
+     /secure/booking/me
+     /secure/booking/:id
+
+   NOTE:
+   - apiClient.baseURL already ends with /api
+     so config.url is usually like "/buses", "/bookings", etc.
+   - We only rewrite paths that match these known patterns.
+========================================================= */
+function rewritePath(config) {
+  // normalize method and url
+  const method = (config.method || "get").toLowerCase();
+  let url = String(config.url || "");
+
+  // if full absolute URL to somewhere else, don't touch it
+  if (/^https?:\/\//i.test(url)) {
+    return config;
+  }
+
+  // ensure url starts with "/"
+  if (!url.startsWith("/")) {
+    url = "/" + url;
+  }
+
+  // 1) PUBLIC READS
+  // /buses        -> /public/buses
+  if (method === "get" && url.startsWith("/buses")) {
+    url = url.replace(/^\/buses/i, "/public/buses");
+  }
+
+  // /booking/availability/:busId -> /public/booking/availability/:busId
+  if (
+    method === "get" &&
+    url.startsWith("/booking/availability/")
+  ) {
+    url = url.replace(
+      /^\/booking\/availability\//i,
+      "/public/booking/availability/"
+    );
+  }
+
+  // 2) SECURE WRITES / PRIVATE
+  // lock seats: POST /booking/lock-seats -> /secure/booking/lock-seats
+  if (
+    method === "post" &&
+    /^\/booking\/lock-seats\/?$/i.test(url)
+  ) {
+    url = "/secure/booking/lock-seats";
+  }
+
+  // create booking: POST /bookings or /booking -> /secure/booking
+  if (
+    method === "post" &&
+    (/^\/bookings\/?$/i.test(url) || /^\/booking\/?$/i.test(url))
+  ) {
+    url = "/secure/booking";
+  }
+
+  // my bookings: GET /bookings/me or /booking/me -> /secure/booking/me
+  if (
+    method === "get" &&
+    (/^\/bookings\/me\/?$/i.test(url) || /^\/booking\/me\/?$/i.test(url))
+  ) {
+    url = "/secure/booking/me";
+  }
+
+  // cancel booking: DELETE /bookings/:id -> /secure/booking/:id
+  if (
+    method === "delete" &&
+    /^\/bookings\/[^/]+$/i.test(url)
+  ) {
+    url = url.replace(/^\/bookings\//i, "/secure/booking/");
+  }
+
+  // write it back
+  config.url = url;
+  return config;
+}
+
 /** Interceptors */
 apiClient.interceptors.request.use(
   (config) => {
+    // ✅ first rewrite legacy paths to /public /secure split
+    config = rewritePath(config);
+
     // Auth bearer
     const token =
       localStorage.getItem("token") || localStorage.getItem("authToken");
