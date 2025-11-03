@@ -413,9 +413,10 @@ const ConfirmBooking = () => {
 
   // 🆕 Detect PayHere "back to the site" with non-success status and restore draft
   const phParams = new URLSearchParams(location.search || "");
-  const phStatus = phParams.get("status_code") || phParams.get("status") || "";
+  const phStatusRaw = phParams.get("status_code") ?? phParams.get("status") ?? "";
+  const phStatus = String(phStatusRaw || "").trim();
   const cameBackFromGateway =
-    !!phStatus && phStatus !== "2" && !/^success$/i.test(phStatus || "");
+    !!phStatus && phStatus !== "2" && !/^success$/i.test(phStatus);
 
   useEffect(() => {
     // If user returns from PayHere without success and this page has no state, restore from draft
@@ -872,57 +873,68 @@ const ConfirmBooking = () => {
     return () => window.removeEventListener("beforeunload", handler);
   }, [saveConfirmDraft]);
 
+  // 🔒 Prevent rapid double submission
+  const submittingRef = useRef(false);
+
   const handleSubmit = useCallback(
     async (e) => {
       e.preventDefault();
 
-      // ✅ Inline validation first (shows messages + scroll)
-      if (!validateAll()) {
-        return;
-      }
-
-      if (holdExpired) {
-        // Try a quick re-lock attempt before blocking user
-        await acquireOrRefreshSeatLock();
-        if (holdExpired) {
-          alert("Your seat hold has expired. Please go back and reselect seats.");
-          return;
-        }
-      }
-
-      if (!termsAccepted) {
-        alert("Please agree to the Terms & Conditions.");
-        return;
-      }
-
-      // ✅ If not logged in, save draft and send to login with redirect back here
-      const token =
-        localStorage.getItem("token") || localStorage.getItem("authToken");
-      if (!token) {
-        saveConfirmDraft();
-        sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-        suppressAutoRelease?.();
-        navigate("/login?redirect=/confirm-booking", { replace: true });
-        return;
-      }
-
-      // ✅ Double-check the hold right before payment
-      const stillHeld = await verifyHoldAlive();
-      if (!stillHeld) {
-        setHoldExpired(true);
-        releaseSeats();
-        alert("Your seat hold has expired. Please go back and reselect seats.");
-        return;
-      }
-
-      // Keep the locks while we go to external gateway
-      sessionStorage.setItem("rb_skip_release_on_unmount", "1");
-      suppressAutoRelease();
-
-      // 🆕 Save a draft so "Back to the site" can restore this page cleanly
-      saveConfirmDraft();
+      if (submittingRef.current) return;
+      submittingRef.current = true;
 
       try {
+        // ✅ Inline validation first (shows messages + scroll)
+        if (!validateAll()) {
+          submittingRef.current = false;
+          return;
+        }
+
+        if (holdExpired) {
+          // Try a quick re-lock attempt before blocking user
+          await acquireOrRefreshSeatLock();
+          if (holdExpired) {
+            alert("Your seat hold has expired. Please go back and reselect seats.");
+            submittingRef.current = false;
+            return;
+          }
+        }
+
+        if (!termsAccepted) {
+          alert("Please agree to the Terms & Conditions.");
+          submittingRef.current = false;
+          return;
+        }
+
+        // ✅ If not logged in, save draft and send to login with redirect back here
+        const token =
+          localStorage.getItem("token") || localStorage.getItem("authToken");
+        if (!token) {
+          saveConfirmDraft();
+          sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+          suppressAutoRelease?.();
+          navigate("/login?redirect=/confirm-booking", { replace: true });
+          submittingRef.current = false;
+          return;
+        }
+
+        // ✅ Double-check the hold right before payment
+        const stillHeld = await verifyHoldAlive();
+        if (!stillHeld) {
+          setHoldExpired(true);
+          releaseSeats();
+          alert("Your seat hold has expired. Please go back and reselect seats.");
+          submittingRef.current = false;
+          return;
+        }
+
+        // Keep the locks while we go to external gateway
+        sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+        suppressAutoRelease();
+
+        // 🆕 Save a draft so "Back to the site" can restore this page cleanly
+        saveConfirmDraft();
+
         // ---- 1) Create booking (Pending) ----
         const payloadPassengers = passengers.map(({ seat, name, age, gender }) => ({
           seat,
@@ -953,6 +965,7 @@ const ConfirmBooking = () => {
         const booking = createRes?.booking;
         if (!booking?.bookingNo) {
           alert("Could not create booking. Please try again.");
+          submittingRef.current = false;
           return;
         }
 
@@ -1003,6 +1016,7 @@ const ConfirmBooking = () => {
 
         if (!ph?.payHereUrl || !ph?.payload) {
           alert("Payment gateway is unavailable. Please try again.");
+          submittingRef.current = false;
           return;
         }
 
@@ -1028,6 +1042,7 @@ const ConfirmBooking = () => {
             err?.message ||
             "Payment failed to initialize. Please try again."
         );
+        submittingRef.current = false;
       }
     },
     [
