@@ -1,5 +1,5 @@
 // src/pages/BookingPage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from "react-hot-toast";
 import BookingSteps from "../components/BookingSteps";
@@ -9,7 +9,18 @@ import SeatLegend from "../components/SeatLegend";
 import BookingPageSkeleton from "../components/BookingPageSkeleton";
 import PointSelection from "../components/PointSelection";
 // ✅ Use shared API client
-import apiClient from "../api";
+import apiClient, { getClientId } from "../api";
+
+/* ---------------- Small helpers (auth + keepalive) ---------------- */
+const getAuthToken = () =>
+  localStorage.getItem("token") ||
+  localStorage.getItem("authToken") ||
+  localStorage.getItem("jwt") ||
+  sessionStorage.getItem("token") ||
+  null;
+
+const buildAuthConfig = (token) =>
+  token ? { headers: { Authorization: `Bearer ${token}` } } : {};
 
 const BookingPage = () => {
   const { busId } = useParams();
@@ -35,6 +46,16 @@ const BookingPage = () => {
   const [basePrice, setBasePrice] = useState(0);
   const [convenienceFee, setConvenienceFee] = useState(0);
   const [totalPrice, setTotalPrice] = useState(0);
+
+  // keep latest for cleanup on unmount
+  const latestSeatsRef = useRef([]);
+  const latestBusRef = useRef(null);
+  useEffect(() => {
+    latestSeatsRef.current = selectedSeats.map(String);
+  }, [selectedSeats]);
+  useEffect(() => {
+    latestBusRef.current = bookingData.bus;
+  }, [bookingData.bus]);
 
   // Fetch bus + booked seats
   useEffect(() => {
@@ -142,32 +163,125 @@ const BookingPage = () => {
     bookingData,
   ]);
 
-  // Handle seat toggle
-  const handleSeatToggle = (seat) => {
+  /* ---------------- Lock / Release seats ---------------- */
+  const lockSeat = async (seatStr) => {
+    const token = getAuthToken();
+    const payload = {
+      busId,
+      date,
+      departureTime,
+      seats: [String(seatStr)],
+      clientId: getClientId(),
+    };
+    try {
+      const res = await apiClient.post(
+        "/bookings/lock",
+        payload,
+        buildAuthConfig(token)
+      );
+      return res?.data?.ok;
+    } catch (e) {
+      // allow guest fallback on 400/401, otherwise treat as failure
+      if (e?.response?.status === 400 || e?.response?.status === 401) {
+        return true; // skipped lock but keep optimistic UX
+      }
+      return false;
+    }
+  };
+
+  const releaseSeats = async (seatsToRelease) => {
+    if (!seatsToRelease?.length) return;
+    const token = getAuthToken();
+    const payload = {
+      busId,
+      date,
+      departureTime,
+      seats: seatsToRelease.map(String),
+      clientId: getClientId(),
+    };
+    try {
+      await apiClient.delete("/bookings/release", {
+        ...buildAuthConfig(token),
+        data: payload,
+      });
+    } catch {
+      /* no-op */
+    }
+  };
+
+  // Keepalive backup (fires on refresh/close)
+  const keepaliveReleaseAll = () => {
+    try {
+      const token = getAuthToken();
+      const baseURL =
+        (apiClient && apiClient.defaults && apiClient.defaults.baseURL) || "";
+      const url = (path) =>
+        baseURL ? `${baseURL.replace(/\/+$/, "")}${path}` : `${path}`;
+
+      const payload = {
+        busId,
+        date,
+        departureTime,
+        seats: latestSeatsRef.current.map(String),
+        clientId: getClientId(),
+      };
+
+      if (!payload.seats.length) return;
+
+      fetch(url("/bookings/release"), {
+        method: "DELETE",
+        keepalive: true,
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+    } catch {
+      /* swallow */
+    }
+  };
+
+  // Handle seat toggle (optimistic with server reconciliation)
+  const handleSeatToggle = async (seat) => {
     if (bookingData.bookedSeats.includes(String(seat))) return;
 
-    setSelectedSeats((prev) => {
-      const exists = prev.includes(seat);
-      const canAdd = !exists && prev.length < 4;
+    const seatStr = String(seat);
+    const already = selectedSeats.includes(seatStr);
 
-      const next = exists
-        ? prev.filter((s) => s !== seat)
-        : canAdd
-        ? [...prev, seat]
-        : (toast.error("You can select a maximum of 4 seats."), prev);
-
+    // UNSELECT: optimistic remove + release
+    if (already) {
+      setSelectedSeats((prev) => prev.filter((s) => s !== seatStr));
       setSelectedSeatGenders((g) => {
         const copy = { ...g };
-        if (exists) {
-          delete copy[String(seat)];
-        } else if (canAdd) {
-          if (!copy[String(seat)]) copy[String(seat)] = "M";
-        }
+        delete copy[seatStr];
         return copy;
       });
+      releaseSeats([seatStr]);
+      return;
+    }
 
-      return next;
-    });
+    // SELECT: guard for max 4
+    if (selectedSeats.length >= 4) {
+      toast.error("You can select a maximum of 4 seats.");
+      return;
+    }
+
+    // optimistic add
+    setSelectedSeats((prev) => [...prev, seatStr]);
+    setSelectedSeatGenders((g) => ({ ...g, [seatStr]: g[seatStr] || "M" }));
+
+    // try to lock; if fail, revert
+    const ok = await lockSeat(seatStr);
+    if (!ok) {
+      setSelectedSeats((prev) => prev.filter((s) => s !== seatStr));
+      setSelectedSeatGenders((g) => {
+        const copy = { ...g };
+        delete copy[seatStr];
+        return copy;
+      });
+      toast.error("Sorry, that seat was just locked by another user.");
+    }
   };
 
   const handleProceedToPayment = () => {
@@ -180,20 +294,68 @@ const BookingPage = () => {
       return;
     }
 
-    navigate("/confirm-booking", {
-      state: {
-        bus: bookingData.bus,
-        busId,
-        date,
-        departureTime,
-        selectedSeats,
-        seatGenders: selectedSeatGenders,
-        priceDetails: { basePrice, convenienceFee, totalPrice },
-        selectedBoardingPoint,
-        selectedDroppingPoint,
-      },
-    });
+    // prevent unmount cleanup from releasing seats during handoff
+    sessionStorage.setItem("rb_skip_release_on_unmount", "1");
+
+    const handoff = {
+      bus: bookingData.bus,
+      busId,
+      date,
+      departureTime,
+      selectedSeats,
+      seatGenders: selectedSeatGenders,
+      priceDetails: { basePrice, convenienceFee, totalPrice },
+      selectedBoardingPoint,
+      selectedDroppingPoint,
+      clientId: getClientId(),
+    };
+
+    // persist a restore copy (defensive)
+    try {
+      sessionStorage.setItem(
+        "rb_confirm_draft",
+        JSON.stringify({ ...handoff, formDraft: null, passengersDraft: null })
+      );
+      sessionStorage.setItem("rb_restore_payload", JSON.stringify(handoff));
+    } catch {}
+
+    navigate("/confirm-booking", { state: handoff });
   };
+
+  // Release on unmount (unless we intentionally hand off to confirm)
+  useEffect(() => {
+    const cleanup = () => {
+      const skip = sessionStorage.getItem("rb_skip_release_on_unmount");
+      if (skip === "1") {
+        sessionStorage.removeItem("rb_skip_release_on_unmount");
+        return;
+        // handoff owns the locks now
+      }
+      // best-effort API release + keepalive backup
+      const seatsToRelease = latestSeatsRef.current;
+      if (seatsToRelease.length) {
+        releaseSeats(seatsToRelease);
+        keepaliveReleaseAll();
+      }
+    };
+
+    const onPageHide = () => keepaliveReleaseAll();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") keepaliveReleaseAll();
+    };
+
+    window.addEventListener("pagehide", onPageHide);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("beforeunload", onPageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", onPageHide);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("beforeunload", onPageHide);
+      cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (bookingData.status === "loading") {
     return <BookingPageSkeleton />;
