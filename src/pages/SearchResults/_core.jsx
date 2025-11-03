@@ -1362,7 +1362,7 @@ export function SearchCoreProvider({ children }) {
             (s) => s !== seatStr
           ),
           seatGenders: Object.fromEntries(
-            Object.entries	prev[busKey].seatGenders).filter(
+            Object.entries(prev[busKey].seatGenders).filter(
               ([k]) => k !== seatStr
             )
           ),
