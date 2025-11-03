@@ -815,7 +815,7 @@ export function SearchCoreProvider({ children }) {
         };
 
         try {
-          fetch(url("/bookings/release"), {
+          fetch(url("/secure/booking/release-seats"), {
             method: "DELETE",
             keepalive: true,
             headers: {
@@ -840,7 +840,7 @@ export function SearchCoreProvider({ children }) {
           clientId: getClientId(),
         };
         try {
-          fetch(url("/bookings/release"), {
+          fetch(url("/secure/booking/release-seats"), {
             method: "DELETE",
             keepalive: true,
             headers: {
@@ -1362,7 +1362,7 @@ export function SearchCoreProvider({ children }) {
             (s) => s !== seatStr
           ),
           seatGenders: Object.fromEntries(
-            Object.entries(prev[busKey].seatGenders).filter(
+            Object.entries	prev[busKey].seatGenders).filter(
               ([k]) => k !== seatStr
             )
           ),
