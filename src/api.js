@@ -1,3 +1,4 @@
+// src/api.js
 import axios from "axios";
 
 /** Resolve API base URL (Vite → CRA → fallback) */
@@ -85,101 +86,9 @@ export const getClientId = () => {
   }
 };
 
-/* =========================================================
-   NEW: legacy → split route rewriter
-========================================================= */
-function rewritePath(config) {
-  const method = (config.method || "get").toLowerCase();
-  let url = String(config.url || "");
-
-  if (/^https?:\/\//i.test(url)) {
-    return config;
-  }
-  if (!url.startsWith("/")) {
-    url = "/" + url;
-  }
-
-  // 1) PUBLIC READS
-  if (method === "get" && url.startsWith("/buses")) {
-    url = url.replace(/^\/buses/i, "/public/buses");
-  }
-
-  // /booking/availability/:id OR /bookings/availability/:id -> /public/booking/availability/:id
-  if (
-    method === "get" &&
-    (/^\/booking\/availability\//i.test(url) ||
-      /^\/bookings\/availability\//i.test(url))
-  ) {
-    url = url
-      .replace(/^\/bookings\/availability\//i, "/public/booking/availability/")
-      .replace(/^\/booking\/availability\//i, "/public/booking/availability/");
-  }
-
-  // 2) SECURE WRITES / PRIVATE
-
-  // lock seats: POST /booking/lock-seats -> /secure/booking/lock-seats
-  if (method === "post" && /^\/booking\/lock-seats\/?$/i.test(url)) {
-    url = "/secure/booking/lock-seats";
-  }
-  // legacy lock: POST /bookings/lock -> /secure/booking/lock-seats
-  if (method === "post" && /^\/bookings\/lock\/?$/i.test(url)) {
-    url = "/secure/booking/lock-seats";
-  }
-  // extra legacy: POST /booking/lock -> /secure/booking/lock-seats
-  if (method === "post" && /^\/booking\/lock\/?$/i.test(url)) {
-    url = "/secure/booking/lock-seats";
-  }
-
-  // release seats:
-  // legacy DELETE /bookings/release -> /secure/booking/release-seats
-  if (method === "delete" && /^\/bookings\/release\/?$/i.test(url)) {
-    url = "/secure/booking/release-seats";
-  }
-  // extra legacy DELETE /booking/release -> /secure/booking/release-seats
-  if (method === "delete" && /^\/booking\/release\/?$/i.test(url)) {
-    url = "/secure/booking/release-seats";
-  }
-  // tolerate DELETE /secure/booking/release -> /secure/booking/release-seats
-  if (method === "delete" && /^\/secure\/booking\/release\/?$/i.test(url)) {
-    url = "/secure/booking/release-seats";
-  }
-
-  // create booking: POST /bookings or /booking -> /secure/booking
-  if (
-    method === "post" &&
-    (/^\/bookings\/?$/i.test(url) || /^\/booking\/?$/i.test(url))
-  ) {
-    url = "/secure/booking";
-  }
-
-  // my bookings: GET /bookings/me or /booking/me -> /secure/booking/me
-  if (
-    method === "get" &&
-    (/^\/bookings\/me\/?$/i.test(url) || /^\/booking\/me\/?$/i.test(url))
-  ) {
-    url = "/secure/booking/me";
-  }
-
-  // cancel booking: DELETE /bookings/:id or /booking/:id -> /secure/booking/:id
-  if (
-    method === "delete" &&
-    (/^\/bookings\/[^/]+$/i.test(url) || /^\/booking\/[^/]+$/i.test(url))
-  ) {
-    url = url
-      .replace(/^\/bookings\//i, "/secure/booking/")
-      .replace(/^\/booking\//i, "/secure/booking/");
-  }
-
-  config.url = url;
-  return config;
-}
-
 /** Interceptors */
 apiClient.interceptors.request.use(
   (config) => {
-    // ✅ Path compatibility first
-    config = rewritePath(config);
-
     // Auth bearer
     const token =
       localStorage.getItem("token") || localStorage.getItem("authToken");
@@ -200,7 +109,7 @@ apiClient.interceptors.request.use(
     // Add clientId ONLY in payload/params for the lock & booking APIs (no custom header)
     const clientId = getClientId();
 
-    // Normalize URL for matching
+    // Normalize URL for matching (strip base if axios was given an absolute URL)
     const rawUrl = String(config.url || "");
     let path;
     try {
@@ -209,16 +118,15 @@ apiClient.interceptors.request.use(
     } catch {
       const baseLower = API_BASE_URL.toLowerCase();
       const inLower = rawUrl.toLowerCase();
-      let p = inLower.startsWith(baseLower)
-        ? inLower.slice(baseLower.length)
-        : inLower;
+      let p = inLower.startsWith(baseLower) ? inLower.slice(baseLower.length) : inLower;
       if (!p.startsWith("/")) p = `/${p}`;
       path = p;
     }
 
-    // 🔒 Opt-in cookies for sensitive routes
+    // 🔒 Opt-in cookies only where needed (auth, bookings, admin, and payment)
+    // Includes PayHere-related paths to avoid issues on payment flows.
     const needsCookie =
-      /(\/auth|\/me|\/profile|\/bookings|\/booking|\/admin|\/payments|\/payment|\/payhere|\/checkout)(\/|$)/.test(
+      /(\/auth|\/me|\/profile|\/bookings|\/admin|\/payments|\/payment|\/payhere|\/checkout)(\/|$)/.test(
         path
       );
     config.withCredentials = !!needsCookie;
@@ -234,39 +142,26 @@ apiClient.interceptors.request.use(
       config.params = { ...(config.params || {}), clientId };
     };
 
-    // Seat lock & release (legacy paths)
+    // Seat lock & release
     if (path.includes("/bookings/lock") && method === "post") addToData();
     if (path.includes("/bookings/release") && method === "delete") addToData();
 
-    // Seat lock & release (new/secure + extra legacy)
-    if (/^\/secure\/booking\/lock-seats\/?$/i.test(path) && method === "post")
-      addToData();
-    if (/^\/secure\/booking\/release-seats\/?$/i.test(path) && method === "delete")
-      addToData();
-    if (/^\/booking\/lock\/?$/i.test(path) && method === "post") addToData();
-    if (/^\/booking\/release\/?$/i.test(path) && method === "delete")
-      addToData();
-    if (/^\/secure\/booking\/release\/?$/i.test(path) && method === "delete")
-      addToData();
-
-    // Lock remaining (both styles + public)
+    // Lock remaining (both styles: /lock-remaining and /lock/remaining)
     if (
       method === "get" &&
       (path.includes("/bookings/lock-remaining") ||
-        path.includes("/bookings/lock/remaining") ||
-        path.includes("/public/booking/lock-remaining"))
+        path.includes("/bookings/lock/remaining"))
     ) {
       addToParams();
     }
 
     // Ensure clientId is also sent when creating the booking
+    // Matches POST /bookings and POST /bookings/... (but not the lock/release endpoints already handled)
     if (
       method === "post" &&
-      (/^\/secure\/booking(\/|$)/i.test(path) ||
-        /(^|\/)bookings(\/|$)/.test(path) ||
-        /(^|\/)booking(\/|$)/.test(path)) &&
-      !path.includes("/lock") &&
-      !path.includes("/release")
+      /(^|\/)bookings(\/|$)/.test(path) &&
+      !path.includes("/bookings/lock") &&
+      !path.includes("/bookings/release")
     ) {
       addToData();
     }
@@ -280,6 +175,7 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.request.use(
   (config) => {
     try {
+      // Remove any x-client-id header injected elsewhere (CORS preflight will fail otherwise)
       if (config && config.headers) {
         const h = config.headers;
         const del = (k) =>
@@ -323,6 +219,7 @@ apiClient.interceptors.response.use(
     const status = error?.response?.status;
     const original = error?.config;
 
+    // Only handle refresh for our own API URLs
     const isOurApiCall = (() => {
       try {
         const full = new URL(original?.url || "", API_BASE_URL).toString();
@@ -343,14 +240,14 @@ apiClient.interceptors.response.use(
       original._retry = true;
       try {
         if (isRefreshing) {
-          await enqueueWait();
+          await enqueueWait(); // wait for ongoing refresh
         } else {
           isRefreshing = true;
-          await apiClient.post("/auth/refresh");
+          await apiClient.post("/auth/refresh"); // expects httpOnly refresh cookie
           isRefreshing = false;
           resolveWaiters();
         }
-        return apiClient(original);
+        return apiClient(original); // retry original request
       } catch (e) {
         isRefreshing = false;
         rejectWaiters(e);
