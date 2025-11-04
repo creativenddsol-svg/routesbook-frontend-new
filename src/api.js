@@ -106,8 +106,11 @@ apiClient.interceptors.request.use(
       }
     }
 
-    // Add clientId ONLY in payload/params for the lock & booking APIs (no custom header)
+    // Stable client identity
     const clientId = getClientId();
+    config.headers = config.headers || {};
+    // ✅ Always send header now that server CORS allows it
+    config.headers["X-Client-Id"] = clientId;
 
     // Normalize URL for matching (strip base if axios was given an absolute URL)
     const rawUrl = String(config.url || "");
@@ -123,10 +126,9 @@ apiClient.interceptors.request.use(
       path = p;
     }
 
-    // 🔒 Opt-in cookies only where needed (auth, bookings, admin, and payment)
-    // Includes PayHere-related paths to avoid issues on payment flows.
+    // 🔒 Opt-in cookies where needed (auth, bookings/booking, secure booking, admin, payments)
     const needsCookie =
-      /(\/auth|\/me|\/profile|\/bookings|\/admin|\/payments|\/payment|\/payhere|\/checkout)(\/|$)/.test(
+      /(\/auth|\/me|\/profile|\/bookings?|\/secure\/booking|\/admin|\/payments?|\/payment|\/payhere|\/checkout)(\/|$)/.test(
         path
       );
     config.withCredentials = !!needsCookie;
@@ -142,26 +144,42 @@ apiClient.interceptors.request.use(
       config.params = { ...(config.params || {}), clientId };
     };
 
-    // Seat lock & release
-    if (path.includes("/bookings/lock") && method === "post") addToData();
-    if (path.includes("/bookings/release") && method === "delete") addToData();
+    // ----- Seat lock & release (legacy + new secure paths) -----
+    // Lock seats: POST /api/bookings/lock ... OR /api/secure/booking/lock-seats
+    if (
+      method === "post" &&
+      (path.includes("/bookings/lock") || path.includes("/secure/booking/lock"))
+    ) {
+      addToData();
+    }
 
-    // Lock remaining (both styles: /lock-remaining and /lock/remaining)
+    // Release seats: DELETE/POST /api/bookings/release ... OR /api/secure/booking/release-seats
+    if (
+      (method === "delete" || method === "post") &&
+      (path.includes("/bookings/release") ||
+        path.includes("/secure/booking/release"))
+    ) {
+      addToData();
+    }
+
+    // Remaining time: GET /api/bookings/lock-remaining|/bookings/lock/remaining OR /api/secure/booking/lock-remaining
     if (
       method === "get" &&
       (path.includes("/bookings/lock-remaining") ||
-        path.includes("/bookings/lock/remaining"))
+        path.includes("/bookings/lock/remaining") ||
+        path.includes("/secure/booking/lock-remaining"))
     ) {
       addToParams();
     }
 
-    // Ensure clientId is also sent when creating the booking
-    // Matches POST /bookings and POST /bookings/... (but not the lock/release endpoints already handled)
+    // Create booking: POST /api/bookings ... OR /api/secure/booking (but not the lock/release endpoints already handled)
     if (
       method === "post" &&
-      /(^|\/)bookings(\/|$)/.test(path) &&
+      (/(^|\/)bookings?(\/|$)/.test(path) || /(\/secure\/booking)(\/|$)/.test(path)) &&
       !path.includes("/bookings/lock") &&
-      !path.includes("/bookings/release")
+      !path.includes("/bookings/release") &&
+      !path.includes("/secure/booking/lock") &&
+      !path.includes("/secure/booking/release")
     ) {
       addToData();
     }
@@ -171,19 +189,10 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
-/* 2nd request interceptor: CORS-safe guard — never send x-client-id as a header; keep Accept */
+/* 2nd request interceptor: keep Accept header; do NOT remove X-Client-Id anymore */
 apiClient.interceptors.request.use(
   (config) => {
     try {
-      // Remove any x-client-id header injected elsewhere (CORS preflight will fail otherwise)
-      if (config && config.headers) {
-        const h = config.headers;
-        const del = (k) =>
-          typeof h.delete === "function" ? h.delete(k) : delete h[k];
-        del("x-client-id");
-        del("X-Client-Id");
-        del("xClientId");
-      }
       if (!config.headers?.Accept) {
         config.headers = {
           ...(config.headers || {}),
