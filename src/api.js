@@ -146,12 +146,18 @@ function rewritePath(config) {
     url = "/secure/booking/lock-seats";
   }
 
-  // ⚠️ IMPORTANT: keep legacy release path EXACT (do not rewrite)
-  // DELETE /bookings/release  MUST stay as /bookings/release
-  // (your keepalive uses fetch to /secure/booking/release-seats separately)
-  // if (method === "delete" && /^\/bookings\/release\/?$/i.test(url)) {
-  //   url = "/secure/booking/release-seats";
-  // }
+  // ⚠️ Keep legacy release EXACT (works for search refresh/backflows):
+  // DELETE /bookings/release  -> do NOT rewrite.
+  // But normalize these variants to the real endpoint:
+  //   DELETE /booking/release           → /secure/booking/release-seats
+  //   DELETE /secure/booking/release    → /secure/booking/release-seats
+  if (method === "delete" && /^\/booking\/release\/?$/i.test(url)) {
+    url = "/secure/booking/release-seats";
+  }
+  if (method === "delete" && /^\/secure\/booking\/release\/?$/i.test(url)) {
+    url = "/secure/booking/release-seats";
+  }
+  // (do not touch /bookings/release)
 
   // create booking: POST /bookings or /booking -> /secure/booking
   if (
