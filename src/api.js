@@ -1,4 +1,3 @@
-// src/api.js
 import axios from "axios";
 
 /** Resolve API base URL (Vite → CRA → fallback) */
@@ -91,8 +90,11 @@ export const getClientId = () => {
    ---------------------------------------------------------
    Your front end today calls things like:
      GET  /buses?from=...
-     GET  /booking/availability/:busId?...
+     GET  /booking/availability/:busId
+     GET  /bookings/availability/:busId   (legacy)
      POST /booking/lock-seats
+     POST /bookings/lock                  (legacy)
+     DELETE /bookings/release             (legacy)
      POST /bookings        (create booking)
      GET  /bookings/me
      DELETE /bookings/:id
@@ -101,14 +103,10 @@ export const getClientId = () => {
      /public/buses
      /public/booking/availability/:busId
      /secure/booking/lock-seats
+     /secure/booking/release-seats
      /secure/booking
      /secure/booking/me
      /secure/booking/:id
-
-   NOTE:
-   - apiClient.baseURL already ends with /api
-     so config.url is usually like "/buses", "/bookings", etc.
-   - We only rewrite paths that match these known patterns.
 ========================================================= */
 function rewritePath(config) {
   // normalize method and url
@@ -131,44 +129,29 @@ function rewritePath(config) {
     url = url.replace(/^\/buses/i, "/public/buses");
   }
 
-  // /booking/availability/:busId -> /public/booking/availability/:busId
-  if (
-    method === "get" &&
-    url.startsWith("/booking/availability/")
-  ) {
-    url = url.replace(
-      /^\/booking\/availability\//i,
-      "/public/booking/availability/"
-    );
-  }
-
-  // ✅ also handle plural form used by UI: /bookings/availability/:busId
-  if (
-    method === "get" &&
-    url.startsWith("/bookings/availability/")
-  ) {
-    url = url.replace(
-      /^\/bookings\/availability\//i,
-      "/public/booking/availability/"
-    );
+  // /booking/availability/:busId  OR /bookings/availability/:busId -> /public/booking/availability/:busId
+  if (method === "get" && (/^\/booking\/availability\//i.test(url) || /^\/bookings\/availability\//i.test(url))) {
+    url = url
+      .replace(/^\/bookings\/availability\//i, "/public/booking/availability/")
+      .replace(/^\/booking\/availability\//i, "/public/booking/availability/");
   }
 
   // 2) SECURE WRITES / PRIVATE
   // lock seats: POST /booking/lock-seats -> /secure/booking/lock-seats
-  if (
-    method === "post" &&
-    /^\/booking\/lock-seats\/?$/i.test(url)
-  ) {
+  if (method === "post" && /^\/booking\/lock-seats\/?$/i.test(url)) {
+    url = "/secure/booking/lock-seats";
+  }
+  // legacy lock: POST /bookings/lock -> /secure/booking/lock-seats
+  if (method === "post" && /^\/bookings\/lock\/?$/i.test(url)) {
     url = "/secure/booking/lock-seats";
   }
 
-  // ✅ also handle legacy UI: POST /bookings/lock -> /secure/booking/lock-seats
-  if (
-    method === "post" &&
-    /^\/bookings\/lock\/?$/i.test(url)
-  ) {
-    url = "/secure/booking/lock-seats";
-  }
+  // ⚠️ IMPORTANT: keep legacy release path EXACT (do not rewrite)
+  // DELETE /bookings/release  MUST stay as /bookings/release
+  // (your keepalive uses fetch to /secure/booking/release-seats separately)
+  // if (method === "delete" && /^\/bookings\/release\/?$/i.test(url)) {
+  //   url = "/secure/booking/release-seats";
+  // }
 
   // create booking: POST /bookings or /booking -> /secure/booking
   if (
@@ -186,20 +169,11 @@ function rewritePath(config) {
     url = "/secure/booking/me";
   }
 
-  // cancel booking: DELETE /bookings/:id -> /secure/booking/:id
-  if (
-    method === "delete" &&
-    /^\/bookings\/[^/]+$/i.test(url)
-  ) {
-    url = url.replace(/^\/bookings\//i, "/secure/booking/");
-  }
-
-  // ✅ release seats: DELETE /bookings/release -> /secure/booking/release-seats
-  if (
-    method === "delete" &&
-    /^\/bookings\/release\/?$/i.test(url)
-  ) {
-    url = "/secure/booking/release-seats";
+  // cancel booking: DELETE /bookings/:id or /booking/:id -> /secure/booking/:id
+  if (method === "delete" && (/^\/bookings\/[^/]+$/i.test(url) || /^\/booking\/[^/]+$/i.test(url))) {
+    url = url
+      .replace(/^\/bookings\//i, "/secure/booking/")
+      .replace(/^\/booking\//i, "/secure/booking/");
   }
 
   // write it back
@@ -250,7 +224,7 @@ apiClient.interceptors.request.use(
     // 🔒 Opt-in cookies only where needed (auth, bookings, admin, and payment)
     // Includes PayHere-related paths to avoid issues on payment flows.
     const needsCookie =
-      /(\/auth|\/me|\/profile|\/bookings|\/admin|\/payments|\/payment|\/payhere|\/checkout)(\/|$)/.test(
+      /(\/auth|\/me|\/profile|\/bookings|\/booking|\/admin|\/payments|\/payment|\/payhere|\/checkout)(\/|$)/.test(
         path
       );
     config.withCredentials = !!needsCookie;
@@ -266,26 +240,33 @@ apiClient.interceptors.request.use(
       config.params = { ...(config.params || {}), clientId };
     };
 
-    // Seat lock & release
+    // Seat lock & release (legacy paths)
     if (path.includes("/bookings/lock") && method === "post") addToData();
     if (path.includes("/bookings/release") && method === "delete") addToData();
 
-    // Lock remaining (both styles: /lock-remaining and /lock/remaining)
+    // Seat lock & release (new secure paths)
+    if (/^\/secure\/booking\/lock-seats\/?$/i.test(path) && method === "post") addToData();
+    if (/^\/secure\/booking\/release-seats\/?$/i.test(path) && method === "delete") addToData();
+
+    // Lock remaining (both styles + public)
     if (
       method === "get" &&
       (path.includes("/bookings/lock-remaining") ||
-        path.includes("/bookings/lock/remaining"))
+        path.includes("/bookings/lock/remaining") ||
+        path.includes("/public/booking/lock-remaining"))
     ) {
       addToParams();
     }
 
     // Ensure clientId is also sent when creating the booking
-    // Matches POST /bookings and POST /bookings/... (but not the lock/release endpoints already handled)
+    // Matches POST /bookings, /booking and /secure/booking (but not the lock/release endpoints already handled)
     if (
       method === "post" &&
-      /(^|\/)bookings(\/|$)/.test(path) &&
-      !path.includes("/bookings/lock") &&
-      !path.includes("/bookings/release")
+      (/^\/secure\/booking(\/|$)/i.test(path) ||
+        /(^|\/)bookings(\/|$)/.test(path) ||
+        /(^|\/)booking(\/|$)/.test(path)) &&
+      !path.includes("/lock") &&
+      !path.includes("/release")
     ) {
       addToData();
     }
