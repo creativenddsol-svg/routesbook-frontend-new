@@ -815,7 +815,7 @@ export function SearchCoreProvider({ children }) {
         };
 
         try {
-          fetch(url("/secure/booking/release-seats"), {
+          fetch(url("/bookings/release"), {
             method: "DELETE",
             keepalive: true,
             headers: {
@@ -840,7 +840,7 @@ export function SearchCoreProvider({ children }) {
           clientId: getClientId(),
         };
         try {
-          fetch(url("/secure/booking/release-seats"), {
+          fetch(url("/bookings/release"), {
             method: "DELETE",
             keepalive: true,
             headers: {
