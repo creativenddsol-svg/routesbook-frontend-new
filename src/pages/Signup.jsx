@@ -282,11 +282,41 @@ export default function Signup() {
               </button>
             </div>
 
-            {/* EMAIL SIGNUP FORM + Google */}
+            {/* EMAIL SIGNUP FORM + Google (GIS first) */}
             {mode === "email" && (
               <>
+                {/* Google Sign-Up has priority */}
+                <GoogleSignInButton
+                  text="signup_with"
+                  size="large"
+                  shape="pill"
+                  theme="outline"
+                  onSuccess={() => {
+                    const pending = localStorage.getItem("pendingBooking");
+                    if (pending) {
+                      const { busId, date } = JSON.parse(pending);
+                      localStorage.removeItem("pendingBooking");
+                      navigate(`/book/${busId}?date=${date}`, {
+                        replace: true,
+                      });
+                      return;
+                    }
+                    navigate(redirect, { replace: true });
+                  }}
+                />
+
+                {/* Divider */}
+                <div className="flex items-center my-6">
+                  <div className="h-px bg-gray-200 flex-1" />
+                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
+                    or
+                  </span>
+                  <div className="h-px bg-gray-200 flex-1" />
+                </div>
+
+                {/* Email form follows */}
                 <form onSubmit={handleEmailSignup} className="space-y-4">
-                  {/* Full name now OPTIONAL */}
+                  {/* Full name now OPTIONAL (no placeholder) */}
                   <RowInput
                     id="fullName"
                     name="fullName"
@@ -294,7 +324,6 @@ export default function Signup() {
                     type="text"
                     value={formData.fullName}
                     onChange={handleChange}
-                    placeholder="e.g., Tharindu Perera"
                   />
 
                   <RowInput
@@ -356,35 +385,6 @@ export default function Signup() {
                     </Link>
                   </p>
                 </form>
-
-                {/* Divider */}
-                <div className="flex items-center my-6">
-                  <div className="h-px bg-gray-200 flex-1" />
-                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
-                    or
-                  </span>
-                  <div className="h-px bg-gray-200 flex-1" />
-                </div>
-
-                {/* Google Sign-Up (GIS) */}
-                <GoogleSignInButton
-                  text="signup_with"
-                  size="large"
-                  shape="pill"
-                  theme="outline"
-                  onSuccess={() => {
-                    const pending = localStorage.getItem("pendingBooking");
-                    if (pending) {
-                      const { busId, date } = JSON.parse(pending);
-                      localStorage.removeItem("pendingBooking");
-                      navigate(`/book/${busId}?date=${date}`, {
-                        replace: true,
-                      });
-                      return;
-                    }
-                    navigate(redirect, { replace: true });
-                  }}
-                />
               </>
             )}
 
@@ -404,7 +404,7 @@ export default function Signup() {
                       required
                     />
 
-                    {/* Optional: used only if the number is new */}
+                    {/* Optional: used only if the number is new (no placeholder) */}
                     <RowInput
                       id="fullNamePhone"
                       name="fullNamePhone"
@@ -412,7 +412,6 @@ export default function Signup() {
                       type="text"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="e.g., Tharindu Perera"
                     />
 
                     <button
