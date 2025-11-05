@@ -82,6 +82,17 @@ export default function MobileBottomSheet({ hideSteps }) {
 
   const showDropUp = currentMobileStep === 1 && selCount > 0;
 
+  // ----- Derived labels for details card -----
+  const operatorLabel =
+    selectedBus?.operator?.fullName ||
+    selectedBus?.operator?.email ||
+    selectedBus?.owner?.name ||
+    "Operator";
+  const seatsCount =
+    Array.isArray(selectedBus?.seatLayout) && selectedBus.seatLayout.length
+      ? `${selectedBus.seatLayout.length} seats`
+      : null;
+
   return createPortal(
     expandedBusId ? (
       <motion.div
@@ -174,6 +185,92 @@ export default function MobileBottomSheet({ hideSteps }) {
                   selectedSeatGenders={selectedBookingData.seatGenders || {}}
                 />
               </div>
+
+              {/* ==== NEW: Bus details card (Redbus-style) ==== */}
+              <div className="mt-2 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                <div className="p-4">
+                  <div className="flex items-start gap-3">
+                    {/* logo (if present) */}
+                    {selectedBus?.operatorLogo ? (
+                      <img
+                        src={selectedBus.operatorLogo}
+                        alt="operator"
+                        className="h-8 w-8 rounded-full object-cover border border-gray-200"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-gray-100 border border-gray-200" />
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[13px] text-gray-500 truncate">{operatorLabel}</p>
+                          <h4 className="text-sm font-semibold text-gray-900 truncate">
+                            {selectedBus.name}
+                          </h4>
+                        </div>
+                        {/* price block */}
+                        <div className="text-right">
+                          <div className="text-[10px] uppercase tracking-wide text-gray-500">Starts at</div>
+                          <div className="text-base font-bold text-gray-900 tabular-nums">
+                            Rs. {perSeat}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* tags / meta */}
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+                          {selectedBus.busType || "Bus"}
+                        </span>
+                        {seatsCount ? (
+                          <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+                            {seatsCount}
+                          </span>
+                        ) : null}
+                        {selectedBus?.features?.wifi ? (
+                          <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+                            Wi-Fi
+                          </span>
+                        ) : null}
+                        {selectedBus?.features?.chargingPort ? (
+                          <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
+                            Charging Port
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {/* times + route */}
+                      <div className="mt-3 grid grid-cols-3 items-center">
+                        <div className="text-sm font-medium text-gray-900">
+                          {selectedBus.departureTime}
+                        </div>
+                        <div className="text-center text-[11px] text-gray-500">
+                          {from} → {to}
+                        </div>
+                        <div className="text-right text-sm font-medium text-gray-900">
+                          {selectedBus.arrivalTime}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* divider */}
+                <div className="h-px bg-gray-100" />
+
+                {/* footer row (small tip / offer) */}
+                {selectedBus?.trendingOffer?.isActive ? (
+                  <div className="px-4 py-2 text-[12px] text-green-700 bg-green-50">
+                    {selectedBus.trendingOffer.message || "Offer available"}
+                  </div>
+                ) : (
+                  <div className="px-4 py-2 text-[12px] text-gray-500 bg-gray-50">
+                    Review points and proceed when ready.
+                  </div>
+                )}
+              </div>
+              {/* ==== END Bus details card ==== */}
             </div>
           )}
 
