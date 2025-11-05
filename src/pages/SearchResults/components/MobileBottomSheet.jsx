@@ -113,8 +113,6 @@ export default function MobileBottomSheet({ hideSteps }) {
   // ----- Redbus "drop-up" helpers -----
   const perSeat = getDisplayPrice(selectedBus, from, to);
   const selSeats = selectedBookingData.selectedSeats || [];
-  theSeatCount: {
-  }
   const selCount = selSeats.length;
   const subtotal =
     selectedBookingData.totalPrice && selectedBookingData.totalPrice > 0
@@ -134,11 +132,24 @@ export default function MobileBottomSheet({ hideSteps }) {
       ? `${selectedBus.seatLayout.length} seats`
       : null;
 
-  // Media & details (from AddBus/EditBus new fields)
-  const coverUrl = selectedBus?.cover; // string
-  const gallery = Array.isArray(selectedBus?.gallery)
-    ? selectedBus.gallery.filter(Boolean)
-    : [];
+  // ------- Robust media & details fallbacks -------
+  const imagesArray =
+    (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
+    (Array.isArray(selectedBus?.galleryPhotos) && selectedBus.galleryPhotos) ||
+    (Array.isArray(selectedBus?.images) && selectedBus.images) ||
+    (Array.isArray(selectedBus?.media?.gallery) && selectedBus.media.gallery) ||
+    [];
+
+  const coverUrl =
+    selectedBus?.cover ||
+    selectedBus?.coverPhoto ||
+    selectedBus?.coverImage ||
+    selectedBus?.images?.cover ||
+    selectedBus?.media?.cover ||
+    imagesArray[0] ||
+    null;
+
+  const gallery = imagesArray.filter(Boolean);
   const tags = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
   const detailsText = selectedBus?.details;
   const detailsHtml = selectedBus?.detailsHtml;
