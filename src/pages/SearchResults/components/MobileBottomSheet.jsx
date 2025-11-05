@@ -9,7 +9,7 @@ import SeatLegend from "../../../components/SeatLegend";
 import BookingSummary from "../../../components/BookingSummary";
 import PointSelection from "../../../components/PointSelection";
 
-import { useSearchCore, PALETTE } from "../_core"; // ✅ import PALETTE directly
+import { useSearchCore, PALETTE, getDisplayPrice } from "../_core"; // ✅ bring getDisplayPrice
 
 export default function MobileBottomSheet({ hideSteps }) {
   const {
@@ -71,6 +71,14 @@ export default function MobileBottomSheet({ hideSteps }) {
       setExpandedBusId(null);
     }
   };
+
+  // —— helpers for sticky bar (Redbus-style) ——
+  const perSeat = getDisplayPrice(selectedBus, from, to);
+  const selCount = selectedBookingData.selectedSeats.length;
+  const computedSubtotal =
+    selectedBookingData.totalPrice && selectedBookingData.totalPrice > 0
+      ? selectedBookingData.totalPrice
+      : perSeat * selCount;
 
   return createPortal(
     expandedBusId ? (
@@ -171,9 +179,11 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* Content */}
+        {/* Content (extra bottom padding on Step 1 so sticky bar never covers seats) */}
         <div
-          className="flex-1 overflow-y-auto px-4 pb-6 pt-3 bg-white"
+          className={`flex-1 overflow-y-auto px-4 pt-3 bg-white ${
+            currentMobileStep === 1 ? "pb-28" : "pb-6"
+          }`}
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           {/* STEP 1: Seats */}
@@ -189,19 +199,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                   bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
                   selectedSeatGenders={selectedBookingData.seatGenders || {}}
                 />
-              </div>
-              <div className="flex items-center justify-between text-sm text-gray-600">
-                <span>
-                  Selected: <b>{selectedBookingData.selectedSeats.length}</b>
-                </span>
-                <button
-                  onClick={() => setCurrentMobileStep(2)}
-                  className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                  style={{ background: PALETTE.primaryRed }}
-                  disabled={selectedBookingData.selectedSeats.length === 0}
-                >
-                  Proceed to Select Points
-                </button>
               </div>
             </div>
           )}
@@ -267,25 +264,59 @@ export default function MobileBottomSheet({ hideSteps }) {
                   droppingPoint={selectedBookingData.selectedDroppingPoint}
                 />
               </div>
-              {/* ✅ Single sticky button only */}
+
               <div className="border-t pt-3 bg-white">
                 <button
                   onClick={() => handleProceedToPayment(selectedBus)}
-                  className="w-full px-4 py-3 rounded-lg font-bold text-white disabled:opacity-60"
+                  className="w-full px-4 py-3 rounded-xl font-bold text-white disabled:opacity-60"
                   style={{ background: PALETTE.primaryRed }}
-                  disabled={
-                    selectedBookingData.selectedSeats.length === 0 ||
-                    !selectedBookingData.selectedBoardingPoint ||
-                    !selectedBookingData.selectedDroppingPoint ||
-                    selectedBookingData.totalPrice <= 0
-                  }
                 >
-                  Proceed to Payment
+                  Continue to Passenger Info
                 </button>
               </div>
             </div>
           )}
         </div>
+
+        {/* 🔴 Sticky CTA bar (Redbus-style) — only visible on Step 1 */}
+        {currentMobileStep === 1 && (
+          <div
+            className="sticky bottom-0 left-0 right-0 z-[10002] bg-white/95 backdrop-blur border-t"
+            style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+          >
+            <div className="px-4 py-3 flex items-center gap-3">
+              {/* Left: small summary pill(s) */}
+              <div className="flex-1 min-w-0">
+                {selCount > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+                      style={{ background: "#FEE2E2", color: PALETTE.primaryRed }}
+                    >
+                      {selCount} {selCount === 1 ? "seat" : "seats"} selected
+                    </span>
+                    <span className="text-sm font-semibold tabular-nums text-gray-900">
+                      Rs. {computedSubtotal}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-xs text-gray-500">
+                    Select at least one seat to continue
+                  </span>
+                )}
+              </div>
+
+              {/* Right: big red CTA */}
+              <button
+                onClick={() => setCurrentMobileStep(2)}
+                disabled={selCount === 0}
+                className="flex-shrink-0 px-4 py-3 rounded-xl font-bold text-white disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: PALETTE.primaryRed }}
+              >
+                Select boarding &amp; dropping points
+              </button>
+            </div>
+          </div>
+        )}
       </motion.div>
     ) : null,
     document.body
