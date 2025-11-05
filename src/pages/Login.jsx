@@ -188,14 +188,22 @@ export default function Login() {
       setIsExistingUser(Boolean(data?.isExistingUser));
       setStep("verify");
 
+      // ✅ use server-provided resend window (fallback 45s) and reset any stale timer key
+      sessionStorage.removeItem("rb-login-otp-resend");
       const seconds =
-        typeof data?.expiresInSec === "number" ? data.expiresInSec : 45;
+        typeof data?.resendInSec === "number" ? data.resendInSec : 45;
       startResendTimer("rb-login-otp-resend", seconds, setResendIn);
     } catch (err) {
       const msg =
         err?.response?.data?.message || err?.message || "Failed to send OTP";
       setError(msg);
       toast.error(msg);
+
+      // ✅ if rate limited, sync UI to server's retry hint
+      const retry = Number(err?.response?.data?.retryAfterSec);
+      if (!Number.isNaN(retry) && retry > 0) {
+        startResendTimer("rb-login-otp-resend", retry, setResendIn);
+      }
     } finally {
       setOtpLoading(false);
     }
@@ -219,6 +227,9 @@ export default function Login() {
 
       login(data.user, data.token);
       toast.success(isExistingUser ? "Logged in!" : "Account created!");
+
+      // ✅ clear any stored OTP resend timer after success
+      sessionStorage.removeItem("rb-login-otp-resend");
 
       const pending = localStorage.getItem("pendingBooking");
       if (pending) {
