@@ -47,7 +47,7 @@ const startResendTimer = (key, seconds, setResendIn) => {
 
 export default function Signup() {
   // —— page mode (mirror Login)
-  const [mode, setMode] = useState("email"); // "email" | "phone"
+  const [mode, setMode] = useState("phone"); // "email" | "phone"  ← default changed to phone
 
   // —— email signup state (fullName optional)
   const [formData, setFormData] = useState({
@@ -256,17 +256,7 @@ export default function Signup() {
           <SectionCard title="Create your Routesbook account">
             {/* Toggle (same buttons as Login) */}
             <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setMode("email")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-                  mode === "email" ? "text-white" : ""
-                }`}
-                style={{
-                  background: mode === "email" ? PALETTE.primary : "#E5E7EB",
-                }}
-              >
-                Email
-              </button>
+              {/* Phone first */}
               <button
                 onClick={() => setMode("phone")}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold ${
@@ -277,6 +267,18 @@ export default function Signup() {
                 }}
               >
                 Phone
+              </button>
+              {/* Email second */}
+              <button
+                onClick={() => setMode("email")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                  mode === "email" ? "text-white" : ""
+                }`}
+                style={{
+                  background: mode === "email" ? PALETTE.primary : "#E5E7EB",
+                }}
+              >
+                Email
               </button>
             </div>
 
