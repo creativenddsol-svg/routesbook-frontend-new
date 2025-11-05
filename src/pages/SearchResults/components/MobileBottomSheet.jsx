@@ -11,6 +11,45 @@ import PointSelection from "../../../components/PointSelection";
 
 import { useSearchCore, PALETTE, getDisplayPrice } from "../_core";
 
+/* ──────────────────────────────────────────────────────────────
+   Small local UI helpers (no external deps)
+   ────────────────────────────────────────────────────────────── */
+const Chip = ({ children }) => (
+  <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs">
+    {children}
+  </span>
+);
+
+const LabelValue = ({ label, value }) => {
+  if (!value) return null;
+  return (
+    <div className="min-w-0">
+      <div className="text-[11px] text-gray-500">{label}</div>
+      <div className="text-sm font-medium text-gray-900 truncate">{value}</div>
+    </div>
+  );
+};
+
+const GalleryRail = ({ images = [] }) => {
+  if (!images?.length) return null;
+  return (
+    <div className="mt-3">
+      <div className="text-sm font-semibold text-gray-800 mb-2">Gallery</div>
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
+        {images.map((src, i) => (
+          <img
+            key={i}
+            src={src}
+            alt={`gallery-${i}`}
+            className="h-20 w-28 flex-none rounded-lg object-cover border border-gray-200"
+            loading="lazy"
+          />
+        ))}
+      </div>
+    </div>
+  );
+};
+
 export default function MobileBottomSheet({ hideSteps }) {
   const {
     from,
@@ -74,6 +113,8 @@ export default function MobileBottomSheet({ hideSteps }) {
   // ----- Redbus "drop-up" helpers -----
   const perSeat = getDisplayPrice(selectedBus, from, to);
   const selSeats = selectedBookingData.selectedSeats || [];
+  theSeatCount: {
+  }
   const selCount = selSeats.length;
   const subtotal =
     selectedBookingData.totalPrice && selectedBookingData.totalPrice > 0
@@ -92,6 +133,16 @@ export default function MobileBottomSheet({ hideSteps }) {
     Array.isArray(selectedBus?.seatLayout) && selectedBus.seatLayout.length
       ? `${selectedBus.seatLayout.length} seats`
       : null;
+
+  // Media & details (from AddBus/EditBus new fields)
+  const coverUrl = selectedBus?.cover; // string
+  const gallery = Array.isArray(selectedBus?.gallery)
+    ? selectedBus.gallery.filter(Boolean)
+    : [];
+  const tags = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
+  const detailsText = selectedBus?.details;
+  const detailsHtml = selectedBus?.detailsHtml;
+  const specs = selectedBus?.specs || {}; // {make, model, year, registrationNo, busNo, seatCount}
 
   return createPortal(
     expandedBusId ? (
@@ -186,8 +237,21 @@ export default function MobileBottomSheet({ hideSteps }) {
                 />
               </div>
 
-              {/* ==== NEW: Bus details card (Redbus-style) ==== */}
+              {/* ==== NEW: Full bus details (cover, specs, tags, details, gallery) ==== */}
               <div className="mt-2 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
+                {/* Cover Photo (if any) */}
+                {coverUrl ? (
+                  <div className="w-full aspect-[16/9] bg-gray-100">
+                    <img
+                      src={coverUrl}
+                      alt="cover"
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                ) : null}
+
+                {/* Heading + price / meta */}
                 <div className="p-4">
                   <div className="flex items-start gap-3">
                     {/* logo (if present) */}
@@ -195,10 +259,10 @@ export default function MobileBottomSheet({ hideSteps }) {
                       <img
                         src={selectedBus.operatorLogo}
                         alt="operator"
-                        className="h-8 w-8 rounded-full object-cover border border-gray-200"
+                        className="h-9 w-9 rounded-full object-cover border border-gray-200"
                       />
                     ) : (
-                      <div className="h-8 w-8 rounded-full bg-gray-100 border border-gray-200" />
+                      <div className="h-9 w-9 rounded-full bg-gray-100 border border-gray-200" />
                     )}
 
                     <div className="flex-1 min-w-0">
@@ -209,35 +273,21 @@ export default function MobileBottomSheet({ hideSteps }) {
                             {selectedBus.name}
                           </h4>
                         </div>
-                        {/* price block */}
                         <div className="text-right">
                           <div className="text-[10px] uppercase tracking-wide text-gray-500">Starts at</div>
-                          <div className="text-base font-bold text-gray-900 tabular-nums">
-                            Rs. {perSeat}
-                          </div>
+                          <div className="text-base font-bold text-gray-900 tabular-nums">Rs. {perSeat}</div>
                         </div>
                       </div>
 
-                      {/* tags / meta */}
-                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-                        <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
-                          {selectedBus.busType || "Bus"}
-                        </span>
-                        {seatsCount ? (
-                          <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
-                            {seatsCount}
-                          </span>
-                        ) : null}
-                        {selectedBus?.features?.wifi ? (
-                          <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
-                            Wi-Fi
-                          </span>
-                        ) : null}
-                        {selectedBus?.features?.chargingPort ? (
-                          <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700">
-                            Charging Port
-                          </span>
-                        ) : null}
+                      {/* tags / quick meta */}
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        {selectedBus?.busType ? <Chip>{selectedBus.busType}</Chip> : null}
+                        {seatsCount ? <Chip>{seatsCount}</Chip> : null}
+                        {selectedBus?.features?.wifi ? <Chip>Wi-Fi</Chip> : null}
+                        {selectedBus?.features?.chargingPort ? <Chip>Charging Port</Chip> : null}
+                        {tags.map((t, i) => (
+                          <Chip key={i}>{t}</Chip>
+                        ))}
                       </div>
 
                       {/* times + route */}
@@ -252,6 +302,41 @@ export default function MobileBottomSheet({ hideSteps }) {
                           {selectedBus.arrivalTime}
                         </div>
                       </div>
+
+                      {/* Quick Specs */}
+                      {(specs?.make ||
+                        specs?.model ||
+                        specs?.year ||
+                        specs?.registrationNo ||
+                        specs?.busNo ||
+                        specs?.seatCount) && (
+                        <div className="mt-4 grid grid-cols-2 gap-3">
+                          <LabelValue label="Make" value={specs.make} />
+                          <LabelValue label="Model" value={specs.model} />
+                          <LabelValue label="Year" value={specs.year} />
+                          <LabelValue label="Registration No." value={specs.registrationNo} />
+                          <LabelValue label="Bus Number" value={specs.busNo} />
+                          <LabelValue label="Seat Count" value={specs.seatCount} />
+                        </div>
+                      )}
+
+                      {/* Details */}
+                      {(detailsHtml || detailsText) && (
+                        <div className="mt-4">
+                          <div className="text-sm font-semibold text-gray-800 mb-1">About this bus</div>
+                          {detailsHtml ? (
+                            <div
+                              className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-li:my-0 text-gray-700"
+                              dangerouslySetInnerHTML={{ __html: detailsHtml }}
+                            />
+                          ) : (
+                            <p className="text-sm text-gray-700 whitespace-pre-line">{detailsText}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Gallery */}
+                      <GalleryRail images={gallery} />
                     </div>
                   </div>
                 </div>
@@ -259,7 +344,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                 {/* divider */}
                 <div className="h-px bg-gray-100" />
 
-                {/* footer row (small tip / offer) */}
+                {/* footer row (offer / tip) */}
                 {selectedBus?.trendingOffer?.isActive ? (
                   <div className="px-4 py-2 text-[12px] text-green-700 bg-green-50">
                     {selectedBus.trendingOffer.message || "Offer available"}
@@ -270,7 +355,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                   </div>
                 )}
               </div>
-              {/* ==== END Bus details card ==== */}
+              {/* ==== END NEW block ==== */}
             </div>
           )}
 
