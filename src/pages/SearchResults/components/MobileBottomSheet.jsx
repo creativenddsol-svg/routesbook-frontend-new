@@ -10,6 +10,7 @@ import BookingSummary from "../../../components/BookingSummary";
 import PointSelection from "../../../components/PointSelection";
 
 import { useSearchCore, PALETTE, getDisplayPrice } from "../_core";
+import { API_ORIGIN } from "../../../api"; // ✅ used to build absolute image URLs
 
 /* ──────────────────────────────────────────────────────────────
    Small local UI helpers (no external deps)
@@ -43,12 +44,38 @@ const GalleryRail = ({ images = [] }) => {
             alt={`gallery-${i}`}
             className="h-20 w-28 flex-none rounded-lg object-cover border border-gray-200"
             loading="lazy"
+            onError={(e) => (e.currentTarget.style.display = "none")}
           />
         ))}
       </div>
     </div>
   );
 };
+
+/* ──────────────────────────────────────────────────────────────
+   Robust image URL normalizer (handles many DB shapes)
+   ────────────────────────────────────────────────────────────── */
+const isAbs = (s) => /^https?:\/\//i.test(s);
+const isProtocolRelative = (s) => /^\/\//.test(s);
+const isRootRelative = (s) => /^\//.test(s);
+
+function toAbsolute(src) {
+  if (!src) return null;
+  let s = typeof src === "string" ? src.trim() : src.url || "";
+
+  if (!s) return null;
+  if (isAbs(s)) return s;
+  if (isProtocolRelative(s)) return `https:${s}`;
+  if (isRootRelative(s)) return `${API_ORIGIN}${s}`;
+
+  // plain "images/foo.jpg" or "uploads/foo.png"
+  return `${API_ORIGIN}/${s.replace(/^\.\//, "")}`;
+}
+
+function normalizeGallery(list = []) {
+  const arr = (Array.isArray(list) ? list : []).map((item) => toAbsolute(item));
+  return arr.filter(Boolean);
+}
 
 export default function MobileBottomSheet({ hideSteps }) {
   const {
@@ -140,7 +167,7 @@ export default function MobileBottomSheet({ hideSteps }) {
     (Array.isArray(selectedBus?.media?.gallery) && selectedBus.media.gallery) ||
     [];
 
-  const coverUrl =
+  const coverRaw =
     selectedBus?.cover ||
     selectedBus?.coverPhoto ||
     selectedBus?.coverImage ||
@@ -149,7 +176,8 @@ export default function MobileBottomSheet({ hideSteps }) {
     imagesArray[0] ||
     null;
 
-  const gallery = imagesArray.filter(Boolean);
+  const coverUrl = toAbsolute(coverRaw);
+  const gallery = normalizeGallery(imagesArray);
   const tags = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
   const detailsText = selectedBus?.details;
   const detailsHtml = selectedBus?.detailsHtml;
@@ -258,6 +286,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                       alt="cover"
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      onError={(e) => (e.currentTarget.style.display = "none")}
                     />
                   </div>
                 ) : null}
@@ -268,9 +297,10 @@ export default function MobileBottomSheet({ hideSteps }) {
                     {/* logo (if present) */}
                     {selectedBus?.operatorLogo ? (
                       <img
-                        src={selectedBus.operatorLogo}
+                        src={toAbsolute(selectedBus.operatorLogo)}
                         alt="operator"
                         className="h-9 w-9 rounded-full object-cover border border-gray-200"
+                        onError={(e) => (e.currentTarget.style.display = "none")}
                       />
                     ) : (
                       <div className="h-9 w-9 rounded-full bg-gray-100 border border-gray-200" />
