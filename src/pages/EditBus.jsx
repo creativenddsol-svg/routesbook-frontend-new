@@ -1,11 +1,16 @@
 // src/pages/EditBus.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import apiClient from "../api";
 import SeatLayoutSelector from "../components/SeatLayoutSelector";
 import PointManager from "../components/PointManager";
 import PriceMatrix from "../components/PriceMatrix";
 import RotatedPointManager from "../components/RotatedPointManager"; // Make sure this is imported
+
+// ---- Tiny UI helpers (non-breaking) ----
+const LABEL = "block text-sm font-medium text-gray-700 mb-1";
+const INPUT =
+  "w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500";
 
 // small helper to sanitize [{time, point}] arrays
 const cleanPoints = (arr) =>
@@ -15,6 +20,22 @@ const cleanPoints = (arr) =>
       point: String(point || "").trim(),
     }))
     .filter((r) => r.time && r.point);
+
+// ---- NEW: local file -> base64 (for operatorLogo / offer image quick preview) ----
+const readFileAsDataURL = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+// ---- NEW: comma list parser (for tags, via, etc.) ----
+const parseCommaList = (val) =>
+  String(val || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
 
 const EditBus = () => {
   const { busId } = useParams();
@@ -56,6 +77,51 @@ const EditBus = () => {
     conductor: { name: "", mobile: "", altMobile: "" },
     owner: { name: "" },
     ownerNotifyMobile: "",
+
+    // ✅ NEW: Media (Cloudinary-style)
+    media: {
+      cover: { url: "", publicId: "" },
+      gallery: [], // [{url, publicId, caption}]
+    },
+
+    // ✅ NEW: Route meta
+    routeMeta: {
+      via: [],
+      distanceKm: "",
+      durationMin: "",
+    },
+
+    // ✅ NEW: Facilities (expanded)
+    facilities: {
+      ac: false,
+      recliner: false,
+      tv: false,
+      music: false,
+      blanket: false,
+      water: false,
+      restroom: false,
+      gps: false,
+      liveTracking: false,
+      luggage: false,
+      usb: false,
+      readingLight: false,
+      airSuspension: false,
+      extraTags: [],
+    },
+
+    // ✅ NEW: Vehicle details
+    vehicle: {
+      registrationNo: "",
+      year: "",
+      make: "",
+      model: "",
+      seatCount: "",
+    },
+
+    // ✅ NEW: Free-form details & tags
+    details: "",
+    detailsHtml: "",
+    tags: [],
   });
 
   // State for non-rotating bus points
@@ -66,13 +132,21 @@ const EditBus = () => {
   const [error, setError] = useState(null);
   const [operators, setOperators] = useState([]);
 
+  // ---- NEW: local upload UX state ----
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [isUploadingOfferImage, setIsUploadingOfferImage] = useState(false);
+
+  // ---- NEW: Cloudinary upload UX state ----
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
+
   useEffect(() => {
     const fetchBus = async () => {
       try {
         const res = await apiClient.get(`/buses/${busId}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
-        const bus = res.data;
+        const bus = res.data || {};
 
         const formattedDate = bus.date ? String(bus.date).split("T")[0] : "";
         const formattedExpiry = bus.trendingOffer?.expiry
@@ -82,11 +156,16 @@ const EditBus = () => {
           ? String(bus.rotationSchedule.startDate).split("T")[0]
           : "";
 
-        setForm({
+        setForm((prev) => ({
+          ...prev,
           ...bus,
           date: formattedDate,
-          seatLayout: bus.seatLayout?.join(", ") || "",
-          unavailableDates: bus.unavailableDates?.join(", ") || "",
+          seatLayout: Array.isArray(bus.seatLayout)
+            ? bus.seatLayout.join(", ")
+            : bus.seatLayout || "",
+          unavailableDates: Array.isArray(bus.unavailableDates)
+            ? bus.unavailableDates.join(", ")
+            : bus.unavailableDates || "",
           operatorLogo: bus.operatorLogo || "",
           operator: bus.operator?._id || bus.operator || "",
           features: bus.features || { wifi: false, chargingPort: false },
@@ -94,7 +173,7 @@ const EditBus = () => {
             isActive: bus.trendingOffer?.isActive ?? false,
             discountPercent: bus.trendingOffer?.discountPercent ?? 0,
             message: bus.trendingOffer?.message ?? "",
-            expiry: formattedExpiry,
+            expiry: formattedExpiry || "",
             imageUrl: bus.trendingOffer?.imageUrl || "",
           },
           convenienceFee:
@@ -105,7 +184,7 @@ const EditBus = () => {
           rotationSchedule: bus.rotationSchedule
             ? {
                 ...bus.rotationSchedule,
-                startDate: formattedRotationStart,
+                startDate: formattedRotationStart || "",
               }
             : {
                 isRotating: false,
@@ -123,7 +202,63 @@ const EditBus = () => {
             name: bus.owner?.name || "",
           },
           ownerNotifyMobile: bus.ownerNotifyMobile || "",
-        });
+
+          // ✅ NEW blocks with safe defaults
+          media: {
+            cover: bus.media?.cover || { url: "", publicId: "" },
+            gallery: Array.isArray(bus.media?.gallery) ? bus.media.gallery : [],
+          },
+          routeMeta: {
+            via: Array.isArray(bus.routeMeta?.via)
+              ? bus.routeMeta.via
+              : parseCommaList(bus.routeMeta?.via),
+            distanceKm:
+              bus.routeMeta?.distanceKm === undefined ||
+              bus.routeMeta?.distanceKm === null
+                ? ""
+                : String(bus.routeMeta.distanceKm),
+            durationMin:
+              bus.routeMeta?.durationMin === undefined ||
+              bus.routeMeta?.durationMin === null
+                ? ""
+                : String(bus.routeMeta.durationMin),
+          },
+          facilities: {
+            ac: !!bus.facilities?.ac,
+            recliner: !!bus.facilities?.recliner,
+            tv: !!bus.facilities?.tv,
+            music: !!bus.facilities?.music,
+            blanket: !!bus.facilities?.blanket,
+            water: !!bus.facilities?.water,
+            restroom: !!bus.facilities?.restroom,
+            gps: !!bus.facilities?.gps,
+            liveTracking: !!bus.facilities?.liveTracking,
+            luggage: !!bus.facilities?.luggage,
+            usb: !!bus.facilities?.usb,
+            readingLight: !!bus.facilities?.readingLight,
+            airSuspension: !!bus.facilities?.airSuspension,
+            extraTags: Array.isArray(bus.facilities?.extraTags)
+              ? bus.facilities.extraTags
+              : parseCommaList(bus.facilities?.extraTags),
+          },
+          vehicle: {
+            registrationNo: bus.vehicle?.registrationNo || "",
+            year:
+              bus.vehicle?.year === undefined || bus.vehicle?.year === null
+                ? ""
+                : String(bus.vehicle.year),
+            make: bus.vehicle?.make || "",
+            model: bus.vehicle?.model || "",
+            seatCount:
+              bus.vehicle?.seatCount === undefined ||
+              bus.vehicle?.seatCount === null
+                ? ""
+                : String(bus.vehicle.seatCount),
+          },
+          details: bus.details || "",
+          detailsHtml: bus.detailsHtml || "",
+          tags: Array.isArray(bus.tags) ? bus.tags : parseCommaList(bus.tags),
+        }));
 
         // Only set these for non-rotating buses
         if (!bus.rotationSchedule?.isRotating) {
@@ -204,6 +339,15 @@ const EditBus = () => {
         ...prev.trendingOffer,
         [name]: type === "checkbox" ? checked : value,
       },
+    }));
+  };
+
+  // ✅ NEW: Facilities toggle handler
+  const handleFacilitiesChange = (e) => {
+    const { name, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      facilities: { ...prev.facilities, [name]: checked },
     }));
   };
 
@@ -292,6 +436,111 @@ const EditBus = () => {
     }));
   };
 
+  // ---- NEW: Cloudinary uploads (cover / gallery) ----
+  const uploadToCloudinary = async (file, folder) => {
+    const fd = new FormData();
+    fd.append("image", file);
+    const res = await apiClient.post(
+      `/upload?folder=${encodeURIComponent(folder)}`,
+      fd,
+      {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+    return res.data; // { imageUrl, publicId }
+  };
+
+  const onPickCover = async (file) => {
+    if (!file) return;
+    try {
+      setIsUploadingCover(true);
+      const { imageUrl, publicId } = await uploadToCloudinary(
+        file,
+        "buses/covers"
+      );
+      setForm((prev) => ({
+        ...prev,
+        media: { ...prev.media, cover: { url: imageUrl, publicId } },
+      }));
+    } catch (e) {
+      alert("Cover upload failed.");
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
+  const onPickGallery = async (files) => {
+    if (!files?.length) return;
+    try {
+      setIsUploadingGallery(true);
+      const next = [];
+      for (const f of files) {
+        const { imageUrl, publicId } = await uploadToCloudinary(
+          f,
+          "buses/gallery"
+        );
+        next.push({ url: imageUrl, publicId, caption: "" });
+      }
+      setForm((prev) => ({
+        ...prev,
+        media: { ...prev.media, gallery: [...(prev.media.gallery || []), ...next] },
+      }));
+    } catch (e) {
+      alert("Gallery upload failed.");
+    } finally {
+      setIsUploadingGallery(false);
+    }
+  };
+
+  const removeGalleryItem = (idx) => {
+    setForm((prev) => {
+      const g = [...(prev.media.gallery || [])];
+      g.splice(idx, 1);
+      return { ...prev, media: { ...prev.media, gallery: g } };
+    });
+  };
+
+  // ---- NEW: Local PC quick uploads (operator logo / offer image) ----
+  const onPickOperatorLogo = async (file) => {
+    if (!file) return;
+    try {
+      setIsUploadingLogo(true);
+      if (file.size > 1.5 * 1024 * 1024) {
+        alert("Please choose an image smaller than 1.5 MB.");
+        return;
+      }
+      const dataUrl = await readFileAsDataURL(file);
+      setForm((prev) => ({ ...prev, operatorLogo: dataUrl }));
+    } catch {
+      alert("Failed to load image. Try a different file.");
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const onPickOfferImage = async (file) => {
+    if (!file) return;
+    try {
+      setIsUploadingOfferImage(true);
+      if (file.size > 1.5 * 1024 * 1024) {
+        alert("Please choose an image smaller than 1.5 MB.");
+        return;
+      }
+      const dataUrl = await readFileAsDataURL(file);
+      setForm((prev) => ({
+        ...prev,
+        trendingOffer: { ...prev.trendingOffer, imageUrl: dataUrl },
+      }));
+    } catch {
+      alert("Failed to load image. Try a different file.");
+    } finally {
+      setIsUploadingOfferImage(false);
+    }
+  };
+
   // --- Form Submission ---
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -337,6 +586,42 @@ const EditBus = () => {
             }))
           : [],
       },
+
+      // ✅ Normalize extra structured inputs (mirror AddBus)
+      routeMeta: {
+        via: Array.isArray(form.routeMeta.via)
+          ? form.routeMeta.via
+          : parseCommaList(form.routeMeta.via),
+        distanceKm:
+          form.routeMeta.distanceKm === "" || form.routeMeta.distanceKm === null
+            ? undefined
+            : Number(form.routeMeta.distanceKm),
+        durationMin:
+          form.routeMeta.durationMin === "" ||
+          form.routeMeta.durationMin === null
+            ? undefined
+            : Number(form.routeMeta.durationMin),
+      },
+      facilities: {
+        ...form.facilities,
+        extraTags: Array.isArray(form.facilities.extraTags)
+          ? form.facilities.extraTags
+          : parseCommaList(form.facilities.extraTags),
+      },
+      vehicle: {
+        registrationNo: form.vehicle.registrationNo,
+        year:
+          form.vehicle.year === "" || form.vehicle.year === null
+            ? undefined
+            : Number(form.vehicle.year),
+        make: form.vehicle.make,
+        model: form.vehicle.model,
+        seatCount:
+          form.vehicle.seatCount === "" || form.vehicle.seatCount === null
+            ? undefined
+            : Number(form.vehicle.seatCount),
+      },
+      tags: Array.isArray(form.tags) ? form.tags : parseCommaList(form.tags),
     };
 
     try {
@@ -350,6 +635,23 @@ const EditBus = () => {
       console.error("Update failed:", err);
     }
   };
+
+  const summary = useMemo(
+    () => ({
+      title: form.name || "Bus",
+      route: form.from && form.to ? `${form.from} → ${form.to}` : "Set route",
+      time:
+        form.departureTime && form.arrivalTime
+          ? `${form.departureTime} → ${form.arrivalTime}`
+          : "Set time",
+      type: form.busType,
+      price: form.price
+        ? `Rs. ${Number(form.price).toLocaleString()}`
+        : "Price not set",
+      available: form.isAvailable,
+    }),
+    [form]
+  );
 
   if (loading) return <div className="p-6 text-center text-lg">Loading...</div>;
   if (error)
@@ -368,32 +670,26 @@ const EditBus = () => {
           </legend>
           <div className="space-y-4 mt-2">
             <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label htmlFor="name" className={LABEL}>
                 Bus Name/Number
               </label>
               <input
                 id="name"
                 name="name"
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 value={form.name}
                 onChange={handleChange}
                 required
               />
             </div>
             <div>
-              <label
-                htmlFor="operator"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label htmlFor="operator" className={LABEL}>
                 Assign Operator
               </label>
               <select
                 id="operator"
                 name="operator"
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 value={form.operator}
                 onChange={handleChange}
                 required
@@ -406,32 +702,61 @@ const EditBus = () => {
                 ))}
               </select>
             </div>
+
+            {/* ----- Operator Logo: URL or Upload from PC (NEW) ----- */}
             <div>
-              <label
-                htmlFor="operatorLogo"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Operator Logo URL
+              <label htmlFor="operatorLogo" className={LABEL}>
+                Operator Logo (URL or upload)
               </label>
               <input
                 id="operatorLogo"
                 name="operatorLogo"
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
+                placeholder="https://.../logo.png"
                 value={form.operatorLogo}
                 onChange={handleChange}
               />
+              <div className="mt-2 flex items-center gap-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => onPickOperatorLogo(e.target.files?.[0])}
+                  className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                />
+                {isUploadingLogo && (
+                  <span className="text-xs text-gray-500">Loading…</span>
+                )}
+                {form.operatorLogo && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({ ...prev, operatorLogo: "" }))
+                    }
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              {form.operatorLogo ? (
+                <div className="mt-2">
+                  <img
+                    src={form.operatorLogo}
+                    alt="Operator Logo"
+                    className="h-16 w-auto rounded border border-gray-200"
+                  />
+                </div>
+              ) : null}
             </div>
+
             <div>
-              <label
-                htmlFor="busType"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label htmlFor="busType" className={LABEL}>
                 Bus Type
               </label>
               <select
                 id="busType"
                 name="busType"
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 value={form.busType}
                 onChange={handleChange}
               >
@@ -441,10 +766,16 @@ const EditBus = () => {
               </select>
             </div>
 
-            <SeatLayoutSelector
-              selectedLayout={form.seatLayout}
-              onLayoutChange={handleLayoutChange}
-            />
+            <div>
+              <label className={`${LABEL} mb-2`}>Seat Layout</label>
+              <SeatLayoutSelector
+                selectedLayout={form.seatLayout}
+                onLayoutChange={handleLayoutChange}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Tip: You can paste comma separated seats (e.g., A1, A2, B1…).
+              </p>
+            </div>
           </div>
         </fieldset>
 
@@ -455,17 +786,14 @@ const EditBus = () => {
           </legend>
           <div className="space-y-4 mt-2">
             <div>
-              <label
-                htmlFor="price"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label htmlFor="price" className={LABEL}>
                 Default Ticket Price (Rs.)
               </label>
               <input
                 id="price"
                 name="price"
                 type="number"
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 value={form.price}
                 onChange={handleChange}
                 required
@@ -477,34 +805,33 @@ const EditBus = () => {
               </label>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fee Type
-                  </label>
+                  <label className={LABEL}>Fee Type</label>
                   <select
                     name="amountType"
                     value={form.convenienceFee.amountType}
                     onChange={handleConvenienceFeeChange}
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                   >
                     <option value="fixed">Fixed (LKR)</option>
                     <option value="percentage">Percentage (%)</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fee Value
-                  </label>
+                  <label className={LABEL}>Fee Value</label>
                   <input
                     type="number"
                     name="value"
                     min="0"
                     step="0.01"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     value={form.convenienceFee.value}
                     onChange={handleConvenienceFeeChange}
                   />
                 </div>
               </div>
+              <p className="text-xs text-gray-500 mt-2">
+                Convenience fee will be added on top of ticket price.
+              </p>
             </div>
           </div>
         </fieldset>
@@ -518,86 +845,131 @@ const EditBus = () => {
               </legend>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                 <div>
-                  <label
-                    htmlFor="from"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                  <label htmlFor="from" className={LABEL}>
                     From
                   </label>
                   <input
                     id="from"
                     name="from"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     value={form.from}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="to"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                  <label htmlFor="to" className={LABEL}>
                     To
                   </label>
                   <input
                     id="to"
                     name="to"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     value={form.to}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="date"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                  <label htmlFor="date" className={LABEL}>
                     Date of Journey
                   </label>
                   <input
                     id="date"
                     name="date"
                     type="date"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     value={form.date}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="departureTime"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                  <label htmlFor="departureTime" className={LABEL}>
                     Departure Time
                   </label>
                   <input
                     id="departureTime"
                     name="departureTime"
                     type="time"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     value={form.departureTime}
                     onChange={handleChange}
                     required
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="arrivalTime"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                  <label htmlFor="arrivalTime" className={LABEL}>
                     Arrival Time
                   </label>
                   <input
                     id="arrivalTime"
                     name="arrivalTime"
                     type="time"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     value={form.arrivalTime}
                     onChange={handleChange}
                     required
+                  />
+                </div>
+              </div>
+
+              {/* ✅ NEW: Route details (via, distance, duration) */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="md:col-span-2">
+                  <label className={LABEL}>Via (comma separated)</label>
+                  <input
+                    className={INPUT}
+                    placeholder="Matara, Galle, Kalutara"
+                    value={
+                      Array.isArray(form.routeMeta.via)
+                        ? form.routeMeta.via.join(", ")
+                        : form.routeMeta.via
+                    }
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        routeMeta: { ...prev.routeMeta, via: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Distance (km)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={INPUT}
+                    placeholder="e.g., 180"
+                    value={form.routeMeta.distanceKm}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        routeMeta: {
+                          ...prev.routeMeta,
+                          distanceKm: e.target.value,
+                        },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Duration (minutes)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={INPUT}
+                    placeholder="e.g., 240"
+                    value={form.routeMeta.durationMin}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        routeMeta: {
+                          ...prev.routeMeta,
+                          durationMin: e.target.value,
+                        },
+                      }))
+                    }
                   />
                 </div>
               </div>
@@ -638,16 +1010,13 @@ const EditBus = () => {
           </legend>
           <div className="space-y-4 mt-2">
             <div>
-              <label
-                htmlFor="unavailableDates"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
+              <label htmlFor="unavailableDates" className={LABEL}>
                 Unavailable Dates (comma-separated)
               </label>
               <textarea
                 id="unavailableDates"
                 name="unavailableDates"
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 value={form.unavailableDates}
                 onChange={handleChange}
                 rows={2}
@@ -665,15 +1034,14 @@ const EditBus = () => {
                   setForm((p) => ({ ...p, isAvailable: e.target.checked }))
                 }
               />
-              <label
-                htmlFor="isAvailable"
-                className="ml-2 block text-sm text-gray-900"
-              >
+              <label htmlFor="isAvailable" className="ml-2 block text-sm text-gray-900">
                 Bus is currently available
               </label>
             </div>
+
+            {/* Keep legacy 'features' for backward compatibility */}
             <div className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">Features:</p>
+              <p className="text-sm font-medium text-gray-700">Basic Features:</p>
               <div className="flex items-center">
                 <input
                   id="wifi"
@@ -683,10 +1051,7 @@ const EditBus = () => {
                   checked={form.features.wifi}
                   onChange={(e) => handleCheckboxChange(e, "features")}
                 />
-                <label
-                  htmlFor="wifi"
-                  className="ml-2 block text-sm text-gray-900"
-                >
+                <label htmlFor="wifi" className="ml-2 block text-sm text-gray-900">
                   WiFi Available
                 </label>
               </div>
@@ -699,12 +1064,70 @@ const EditBus = () => {
                   checked={form.features.chargingPort}
                   onChange={(e) => handleCheckboxChange(e, "features")}
                 />
-                <label
-                  htmlFor="chargingPort"
-                  className="ml-2 block text-sm text-gray-900"
-                >
+                <label htmlFor="chargingPort" className="ml-2 block text-sm text-gray-900">
                   Charging Ports
                 </label>
+              </div>
+            </div>
+
+            {/* ✅ NEW: Expanded Facilities */}
+            <div className="space-y-2 mt-4">
+              <p className="text-sm font-medium text-gray-700">Facilities (expanded):</p>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {[
+                  "ac",
+                  "recliner",
+                  "tv",
+                  "music",
+                  "blanket",
+                  "water",
+                  "restroom",
+                  "gps",
+                  "liveTracking",
+                  "luggage",
+                  "usb",
+                  "readingLight",
+                  "airSuspension",
+                ].map((key) => (
+                  <label key={key} className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name={key}
+                      checked={!!form.facilities[key]}
+                      onChange={handleFacilitiesChange}
+                    />
+                    <span className="text-sm text-gray-700">{key}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+                <div>
+                  <label className={LABEL}>Extra Tags (comma separated)</label>
+                  <input
+                    className={INPUT}
+                    placeholder="Ladies seat, 2+2 layout"
+                    value={
+                      Array.isArray(form.facilities.extraTags)
+                        ? form.facilities.extraTags.join(", ")
+                        : form.facilities.extraTags
+                    }
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        facilities: { ...prev.facilities, extraTags: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Public Tags (comma separated)</label>
+                  <input
+                    className={INPUT}
+                    placeholder="Express, Highway"
+                    value={Array.isArray(form.tags) ? form.tags.join(", ") : form.tags}
+                    onChange={(e) => setForm((prev) => ({ ...prev, tags: e.target.value }))}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -725,78 +1148,89 @@ const EditBus = () => {
                 checked={form.trendingOffer.isActive}
                 onChange={handleTrendingOfferChange}
               />
-              <label
-                htmlFor="isActive"
-                className="ml-2 block text-sm text-gray-900"
-              >
+              <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">
                 Activate Trending Offer
               </label>
             </div>
             {form.trendingOffer.isActive && (
               <>
                 <div>
-                  <label
-                    htmlFor="discountPercent"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                  <label htmlFor="discountPercent" className={LABEL}>
                     Discount (%)
                   </label>
                   <input
                     id="discountPercent"
                     name="discountPercent"
                     type="number"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     value={form.trendingOffer.discountPercent}
                     onChange={handleTrendingOfferChange}
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="message"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                  <label htmlFor="message" className={LABEL}>
                     Offer Message
                   </label>
                   <input
                     id="message"
                     name="message"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     value={form.trendingOffer.message}
                     onChange={handleTrendingOfferChange}
                   />
                 </div>
                 <div>
-                  <label
-                    htmlFor="expiry"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
+                  <label htmlFor="expiry" className={LABEL}>
                     Offer Expiry Date
                   </label>
                   <input
                     id="expiry"
                     name="expiry"
                     type="date"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     value={form.trendingOffer.expiry}
                     onChange={handleTrendingOfferChange}
                   />
                 </div>
-                {/* ✅ NEW: Offer Image URL + tiny preview */}
+
+                {/* ✅ NEW: Offer Image URL + tiny preview OR local upload */}
                 <div>
-                  <label
-                    htmlFor="imageUrl"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Offer Image URL (optional)
+                  <label htmlFor="imageUrl" className={LABEL}>
+                    Offer Image (URL or upload)
                   </label>
                   <input
                     id="imageUrl"
                     name="imageUrl"
-                    className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                    className={INPUT}
                     placeholder="https://.../offer.png"
                     value={form.trendingOffer.imageUrl}
                     onChange={handleTrendingOfferChange}
                   />
+                  <div className="mt-2 flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => onPickOfferImage(e.target.files?.[0])}
+                      className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    />
+                    {isUploadingOfferImage && (
+                      <span className="text-xs text-gray-500">Loading…</span>
+                    )}
+                    {form.trendingOffer.imageUrl && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            trendingOffer: { ...prev.trendingOffer, imageUrl: "" },
+                          }))
+                        }
+                        className="text-sm text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                   {form.trendingOffer.imageUrl ? (
                     <div className="mt-2">
                       <img
@@ -833,29 +1267,25 @@ const EditBus = () => {
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Start Date
-                    </label>
+                    <label className={LABEL}>Start Date</label>
                     <input
                       type="date"
                       name="startDate"
                       value={form.rotationSchedule.startDate || ""}
                       onChange={handleRotationChange}
-                      className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                      className={INPUT}
                       required
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Rotation Length (days)
-                    </label>
+                    <label className={LABEL}>Rotation Length (days)</label>
                     <input
                       type="number"
                       name="rotationLength"
                       value={form.rotationSchedule.rotationLength || ""}
                       onChange={handleRotationChange}
                       placeholder="e.g., 2 for a 2-day cycle"
-                      className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                      className={INPUT}
                       required
                     />
                   </div>
@@ -904,7 +1334,7 @@ const EditBus = () => {
                                   e.target.value
                                 )
                               }
-                              className="border px-2 py-1 rounded-md w-full"
+                              className={INPUT}
                             />
                           </div>
                           <div>
@@ -922,12 +1352,12 @@ const EditBus = () => {
                                   e.target.value
                                 )
                               }
-                              className="border px-2 py-1 rounded-md w-full"
+                              className={INPUT}
                             />
                           </div>
                         </div>
 
-                        {/* Rotated Point Manager Integration */}
+                        {/* Rotated Point Manager Integration (inline per turn) */}
                         <div className="mt-4">
                           <RotatedPointManager
                             label="Boarding Points"
@@ -972,6 +1402,88 @@ const EditBus = () => {
           </div>
         </fieldset>
 
+        {/* ✅ NEW: Media (Cover + Gallery) */}
+        <fieldset className="border p-4 rounded-md">
+          <legend className="text-lg font-semibold text-gray-600 px-2">
+            Media
+          </legend>
+          <div className="space-y-4 mt-2">
+            <div>
+              <label className={LABEL}>Cover Photo</label>
+              <div className="mt-2 flex items-center gap-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => onPickCover(e.target.files?.[0])}
+                  className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                />
+                {isUploadingCover && (
+                  <span className="text-xs text-gray-500">Uploading…</span>
+                )}
+                {form.media?.cover?.url && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        media: { ...prev.media, cover: { url: "", publicId: "" } },
+                      }))
+                    }
+                    className="text-sm text-red-600 hover:underline"
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+              {form.media?.cover?.url && (
+                <div className="mt-3">
+                  <img
+                    src={form.media.cover.url}
+                    alt="Cover preview"
+                    className="h-28 w-auto rounded border border-gray-200"
+                  />
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className={LABEL}>Gallery Images</label>
+              <div className="mt-2 flex items-center gap-3">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => onPickGallery(e.target.files)}
+                  className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                />
+                {isUploadingGallery && (
+                  <span className="text-xs text-gray-500">Uploading…</span>
+                )}
+              </div>
+              {form.media?.gallery?.length > 0 && (
+                <div className="mt-3 grid grid-cols-3 gap-3">
+                  {form.media.gallery.map((g, idx) => (
+                    <div key={idx} className="relative">
+                      <img
+                        src={g.url}
+                        alt={`Gallery ${idx + 1}`}
+                        className="h-24 w-full object-cover rounded border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeGalleryItem(idx)}
+                        className="absolute -top-2 -right-2 bg-white border border-red-200 text-red-600 rounded-full px-2 py-0.5 text-xs shadow"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </fieldset>
+
         {/* ✅ NEW: Contacts (Admin) */}
         <fieldset className="border p-4 rounded-md">
           <legend className="text-lg font-semibold text-gray-600 px-2">
@@ -979,11 +1491,9 @@ const EditBus = () => {
           </legend>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Conductor Name
-              </label>
+              <label className={LABEL}>Conductor Name</label>
               <input
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 placeholder="e.g., Kamal Perera"
                 value={form.conductor.name}
                 onChange={(e) =>
@@ -995,11 +1505,9 @@ const EditBus = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Conductor Mobile
-              </label>
+              <label className={LABEL}>Conductor Mobile</label>
               <input
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 placeholder="0771234567"
                 value={form.conductor.mobile}
                 onChange={(e) =>
@@ -1011,31 +1519,24 @@ const EditBus = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Conductor Alt Mobile (optional)
-              </label>
+              <label className={LABEL}>Conductor Alt Mobile (optional)</label>
               <input
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 placeholder="0719876543"
                 value={form.conductor.altMobile}
                 onChange={(e) =>
                   setForm((prev) => ({
                     ...prev,
-                    conductor: {
-                      ...prev.conductor,
-                      altMobile: e.target.value,
-                    },
+                    conductor: { ...prev.conductor, altMobile: e.target.value },
                   }))
                 }
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Owner Name
-              </label>
+              <label className={LABEL}>Owner Name</label>
               <input
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 placeholder="Lakshan Transport (Pvt) Ltd"
                 value={form.owner.name}
                 onChange={(e) =>
@@ -1047,11 +1548,9 @@ const EditBus = () => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Owner Notify Mobile
-              </label>
+              <label className={LABEL}>Owner Notify Mobile</label>
               <input
-                className="w-full border border-gray-300 px-3 py-2 rounded-md shadow-sm"
+                className={INPUT}
                 placeholder="0777654321"
                 value={form.ownerNotifyMobile}
                 onChange={(e) =>
@@ -1068,13 +1567,161 @@ const EditBus = () => {
           </p>
         </fieldset>
 
+        {/* ✅ NEW: Free-form details */}
+        <fieldset className="border p-4 rounded-md">
+          <legend className="text-lg font-semibold text-gray-600 px-2">
+            Extra Details
+          </legend>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+            <div>
+              <label className={LABEL}>Details (plain/markdown)</label>
+              <textarea
+                rows={5}
+                className={INPUT}
+                placeholder="Write anything about this bus (policies, notes, highlights)…"
+                value={form.details}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, details: e.target.value }))
+                }
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Details HTML (optional)</label>
+              <textarea
+                rows={5}
+                className={INPUT}
+                placeholder="<p>Rich content with <strong>HTML</strong>…</p>"
+                value={form.detailsHtml}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, detailsHtml: e.target.value }))
+                }
+              />
+            </div>
+          </div>
+        </fieldset>
+
+        {/* ✅ NEW: Vehicle details */}
+        <fieldset className="border p-4 rounded-md">
+          <legend className="text-lg font-semibold text-gray-600 px-2">
+            Vehicle Details
+          </legend>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mt-2">
+            <div className="md:col-span-2">
+              <label className={LABEL}>Registration No</label>
+              <input
+                className={INPUT}
+                placeholder="ND-1234"
+                value={form.vehicle.registrationNo}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    vehicle: { ...prev.vehicle, registrationNo: e.target.value },
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Year</label>
+              <input
+                type="number"
+                className={INPUT}
+                placeholder="2019"
+                value={form.vehicle.year}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    vehicle: { ...prev.vehicle, year: e.target.value },
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Make</label>
+              <input
+                className={INPUT}
+                placeholder="Ashok Leyland"
+                value={form.vehicle.make}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    vehicle: { ...prev.vehicle, make: e.target.value },
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Model</label>
+              <input
+                className={INPUT}
+                placeholder="Viking"
+                value={form.vehicle.model}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    vehicle: { ...prev.vehicle, model: e.target.value },
+                  }))
+                }
+              />
+            </div>
+            <div>
+              <label className={LABEL}>Seat Count</label>
+              <input
+                type="number"
+                min="1"
+                className={INPUT}
+                placeholder="49"
+                value={form.vehicle.seatCount}
+                onChange={(e) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    vehicle: { ...prev.vehicle, seatCount: e.target.value },
+                  }))
+                }
+              />
+            </div>
+          </div>
+        </fieldset>
+
         <div className="pt-2">
           <button
+            type="button"
+            onClick={() => navigate("/admin/buses")}
+            className="w-full md:w-auto mr-3 bg-white border border-gray-300 text-gray-700 font-semibold px-4 py-2.5 rounded-md hover:bg-gray-50"
+          >
+            Cancel
+          </button>
+          <button
             type="submit"
-            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2.5 rounded-md shadow-sm"
+            className="w-full md:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2.5 rounded-md shadow-sm"
           >
             Update Bus
           </button>
+        </div>
+
+        {/* Right-side lightweight summary (mobile-friendly to keep page width consistent) */}
+        <div className="mt-4 p-4 border rounded-md">
+          <div className="flex flex-wrap items-center gap-3">
+            <span className="text-sm text-gray-500">Title:</span>
+            <span className="font-medium text-gray-900">{summary.title}</span>
+            <span className="text-sm text-gray-500">Route:</span>
+            <span className="font-medium text-gray-900">{summary.route}</span>
+            <span className="text-sm text-gray-500">Type:</span>
+            <span className="font-medium text-gray-900">{summary.type}</span>
+            <span className="text-sm text-gray-500">Time:</span>
+            <span className="font-medium text-gray-900">{summary.time}</span>
+            <span className="text-sm text-gray-500">Price:</span>
+            <span className="font-medium text-gray-900">{summary.price}</span>
+            <span className="text-sm text-gray-500">Available:</span>
+            <span
+              className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                summary.available
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-100 text-gray-700"
+              }`}
+            >
+              {summary.available ? "Yes" : "No"}
+            </span>
+          </div>
         </div>
       </form>
     </div>
