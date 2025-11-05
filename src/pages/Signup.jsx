@@ -47,11 +47,10 @@ const startResendTimer = (key, seconds, setResendIn) => {
 
 export default function Signup() {
   // —— page mode (mirror Login)
-  const [mode, setMode] = useState("phone"); // "email" | "phone"  ← default changed to phone
+  const [mode, setMode] = useState("phone"); // "email" | "phone"  ← default phone
 
-  // —— email signup state (fullName optional)
+  // —— email signup state
   const [formData, setFormData] = useState({
-    fullName: "",
     email: "",
     password: "",
   });
@@ -60,7 +59,6 @@ export default function Signup() {
 
   // —— phone unified OTP (login-or-signup) state
   const [mobile, setMobile] = useState("");
-  const [fullName, setFullName] = useState(""); // optional; used if number is new
   const [step, setStep] = useState("request"); // "request" | "verify"
   const [code, setCode] = useState("");
   const [otpLoading, setOtpLoading] = useState(false);
@@ -103,7 +101,7 @@ export default function Signup() {
     setError("");
   }, [mode]);
 
-  /* ================= EMAIL SIGNUP (fullName optional) ================= */
+  /* ================= EMAIL SIGNUP ================= */
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -117,7 +115,6 @@ export default function Signup() {
         email: formData.email.trim(),
         password: formData.password,
       };
-      if (formData.fullName.trim()) payload.fullName = formData.fullName.trim(); // optional
 
       const res = await apiClient.post("/auth/signup", payload);
       const token = res?.data?.token || null;
@@ -153,7 +150,7 @@ export default function Signup() {
     }
   };
 
-  /* ============ PHONE: UNIFIED OTP (login or signup) – same as Login ============ */
+  /* ============ PHONE: UNIFIED OTP (login or signup) ============ */
   const sendOtp = async (e) => {
     e?.preventDefault?.();
     setError("");
@@ -167,7 +164,6 @@ export default function Signup() {
     try {
       const mobileNorm = normalizeLkMobile(mobile);
       const payload = { mobile: mobileNorm };
-      if (fullName.trim()) payload.fullName = fullName.trim(); // only used if new
 
       const { data } = await apiClient.post(
         "/auth/otp/login-or-signup/request",
@@ -254,9 +250,8 @@ export default function Signup() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-6">
           <SectionCard title="Create your Routesbook account">
-            {/* Toggle (same buttons as Login) */}
+            {/* Toggle (phone first) */}
             <div className="flex gap-2 mb-4">
-              {/* Phone first */}
               <button
                 onClick={() => setMode("phone")}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold ${
@@ -268,7 +263,6 @@ export default function Signup() {
               >
                 Phone
               </button>
-              {/* Email second */}
               <button
                 onClick={() => setMode("email")}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold ${
@@ -282,31 +276,34 @@ export default function Signup() {
               </button>
             </div>
 
-            {/* EMAIL SIGNUP FORM + Google (GIS first) */}
+            {/* EMAIL SIGNUP (GIS first; no full-name field) */}
             {mode === "email" && (
               <>
-                {/* Google Sign-Up has priority */}
-                <GoogleSignInButton
-                  text="signup_with"
-                  size="large"
-                  shape="pill"
-                  theme="outline"
-                  onSuccess={() => {
-                    const pending = localStorage.getItem("pendingBooking");
-                    if (pending) {
-                      const { busId, date } = JSON.parse(pending);
-                      localStorage.removeItem("pendingBooking");
-                      navigate(`/book/${busId}?date=${date}`, {
-                        replace: true,
-                      });
-                      return;
-                    }
-                    navigate(redirect, { replace: true });
-                  }}
-                />
+                <div className="w-full flex">
+                  <div className="w-full">
+                    <GoogleSignInButton
+                      text="signup_with"
+                      size="large"
+                      shape="pill"
+                      theme="outline"
+                      onSuccess={() => {
+                        const pending = localStorage.getItem("pendingBooking");
+                        if (pending) {
+                          const { busId, date } = JSON.parse(pending);
+                          localStorage.removeItem("pendingBooking");
+                          navigate(`/book/${busId}?date=${date}`, {
+                            replace: true,
+                          });
+                          return;
+                        }
+                        navigate(redirect, { replace: true });
+                      }}
+                    />
+                  </div>
+                </div>
 
                 {/* Divider */}
-                <div className="flex items-center my-6">
+                <div className="flex items-center my-4">
                   <div className="h-px bg-gray-200 flex-1" />
                   <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
                     or
@@ -314,18 +311,7 @@ export default function Signup() {
                   <div className="h-px bg-gray-200 flex-1" />
                 </div>
 
-                {/* Email form follows */}
                 <form onSubmit={handleEmailSignup} className="space-y-4">
-                  {/* Full name now OPTIONAL (no placeholder) */}
-                  <RowInput
-                    id="fullName"
-                    name="fullName"
-                    label="Full name (optional)"
-                    type="text"
-                    value={formData.fullName}
-                    onChange={handleChange}
-                  />
-
                   <RowInput
                     id="email"
                     name="email"
@@ -388,7 +374,7 @@ export default function Signup() {
               </>
             )}
 
-            {/* PHONE: unified login-or-signup (same logic as Login) */}
+            {/* PHONE: unified login-or-signup (no full-name field) */}
             {mode === "phone" && (
               <div className="space-y-4">
                 {step === "request" && (
@@ -402,16 +388,6 @@ export default function Signup() {
                       onChange={(e) => setMobile(e.target.value)}
                       placeholder="077xxxxxxx or +9477xxxxxxx"
                       required
-                    />
-
-                    {/* Optional: used only if the number is new (no placeholder) */}
-                    <RowInput
-                      id="fullNamePhone"
-                      name="fullNamePhone"
-                      label="Full name (optional)"
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
                     />
 
                     <button
