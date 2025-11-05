@@ -89,6 +89,44 @@ const AddBus = () => {
       name: "",
     },
     ownerNotifyMobile: "",
+
+    // ✅ NEW: Media (Cloudinary) + richer info
+    media: {
+      cover: { url: "", publicId: "" },
+      gallery: [], // [{url, publicId, caption}]
+    },
+    routeMeta: {
+      via: [], // array of strings
+      distanceKm: "",
+      durationMin: "",
+    },
+    facilities: {
+      ac: false,
+      recliner: false,
+      tv: false,
+      music: false,
+      blanket: false,
+      water: false,
+      restroom: false,
+      gps: false,
+      liveTracking: false,
+      luggage: false,
+      usb: false,
+      readingLight: false,
+      airSuspension: false,
+      extraTags: [],
+    },
+    vehicle: {
+      registrationNo: "",
+      year: "",
+      make: "",
+      model: "",
+      seatCount: "",
+    },
+    // Free-form
+    details: "",
+    detailsHtml: "",
+    tags: [],
   });
 
   const [operators, setOperators] = useState([]);
@@ -105,6 +143,10 @@ const AddBus = () => {
   // ---- NEW: lightweight local upload states (optional)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingOfferImage, setIsUploadingOfferImage] = useState(false);
+
+  // ✅ NEW: Cloudinary upload states
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isUploadingGallery, setIsUploadingGallery] = useState(false);
 
   // ---- NEW: UI selection for rotated point manager
   const [selectedDayOffset, setSelectedDayOffset] = useState(null);
@@ -198,6 +240,22 @@ const AddBus = () => {
       features: { ...prev.features, [name]: checked },
     }));
   };
+
+  // ✅ NEW: Facilities change
+  const handleFacilitiesChange = (e) => {
+    const { name, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      facilities: { ...prev.facilities, [name]: checked },
+    }));
+  };
+
+  // ✅ NEW: Tags & via management
+  const parseCommaList = (val) =>
+    val
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
 
   // --- START: Rotating Schedule handlers (logic unchanged) ---
   const handleRotationChange = (e) => {
@@ -317,6 +375,63 @@ const AddBus = () => {
     }
   };
 
+  // ✅ NEW: Cloudinary uploaders for cover / gallery
+  const uploadToCloudinary = async (file, folder) => {
+    const fd = new FormData();
+    fd.append("image", file);
+    const res = await apiClient.post(`/upload?folder=${encodeURIComponent(folder)}`, fd, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+        "Content-Type": "multipart/form-data",
+      },
+    });
+    return res.data; // { imageUrl, publicId }
+  };
+
+  const onPickCover = async (file) => {
+    if (!file) return;
+    try {
+      setIsUploadingCover(true);
+      const { imageUrl, publicId } = await uploadToCloudinary(file, "buses/covers");
+      setForm((prev) => ({
+        ...prev,
+        media: { ...prev.media, cover: { url: imageUrl, publicId } },
+      }));
+    } catch (e) {
+      alert("Cover upload failed.");
+    } finally {
+      setIsUploadingCover(false);
+    }
+  };
+
+  const onPickGallery = async (files) => {
+    if (!files?.length) return;
+    try {
+      setIsUploadingGallery(true);
+      const next = [];
+      for (const f of files) {
+        const { imageUrl, publicId } = await uploadToCloudinary(f, "buses/gallery");
+        next.push({ url: imageUrl, publicId, caption: "" });
+      }
+      setForm((prev) => ({
+        ...prev,
+        media: { ...prev.media, gallery: [...prev.media.gallery, ...next] },
+      }));
+    } catch (e) {
+      alert("Gallery upload failed.");
+    } finally {
+      setIsUploadingGallery(false);
+    }
+  };
+
+  const removeGalleryItem = (idx) => {
+    setForm((prev) => {
+      const g = [...prev.media.gallery];
+      g.splice(idx, 1);
+      return { ...prev, media: { ...prev.media, gallery: g } };
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -370,6 +485,30 @@ const AddBus = () => {
             }))
           : [],
       },
+      // ✅ Normalize extra structured inputs
+      routeMeta: {
+        via: Array.isArray(form.routeMeta.via)
+          ? form.routeMeta.via
+          : parseCommaList(String(form.routeMeta.via || "")),
+        distanceKm:
+          form.routeMeta.distanceKm === "" ? undefined : Number(form.routeMeta.distanceKm),
+        durationMin:
+          form.routeMeta.durationMin === "" ? undefined : Number(form.routeMeta.durationMin),
+      },
+      facilities: {
+        ...form.facilities,
+        extraTags: Array.isArray(form.facilities.extraTags)
+          ? form.facilities.extraTags
+          : parseCommaList(String(form.facilities.extraTags || "")),
+      },
+      vehicle: {
+        registrationNo: form.vehicle.registrationNo,
+        year: form.vehicle.year ? Number(form.vehicle.year) : undefined,
+        make: form.vehicle.make,
+        model: form.vehicle.model,
+        seatCount: form.vehicle.seatCount ? Number(form.vehicle.seatCount) : undefined,
+      },
+      tags: Array.isArray(form.tags) ? form.tags : parseCommaList(String(form.tags || "")),
     };
     // --- END ---
 
@@ -656,6 +795,56 @@ const AddBus = () => {
                   <p className="text-xs text-gray-500 mt-1">
                     Comma separated. These dates will be blocked from booking.
                   </p>
+                </div>
+              </div>
+
+              {/* ✅ NEW: Route details */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                <div className="md:col-span-2">
+                  <label className={LABEL}>Via (comma separated)</label>
+                  <input
+                    className={INPUT}
+                    placeholder="Matara, Galle, Kalutara"
+                    value={Array.isArray(form.routeMeta.via) ? form.routeMeta.via.join(", ") : form.routeMeta.via}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        routeMeta: { ...prev.routeMeta, via: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Distance (km)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={INPUT}
+                    placeholder="e.g., 180"
+                    value={form.routeMeta.distanceKm}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        routeMeta: { ...prev.routeMeta, distanceKm: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Duration (minutes)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    className={INPUT}
+                    placeholder="e.g., 240"
+                    value={form.routeMeta.durationMin}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        routeMeta: { ...prev.routeMeta, durationMin: e.target.value },
+                      }))
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -963,6 +1152,223 @@ const AddBus = () => {
                       {/* ---- END New Offer Image block ---- */}
                     </div>
                   )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ✅ NEW: Media (Cover + Gallery via Cloudinary) */}
+          <section className={CARD}>
+            <div className={CARD_HEAD}>
+              <h2 className="text-base font-semibold text-gray-800">Media</h2>
+            </div>
+            <div className={CARD_BODY}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className={LABEL}>Cover Photo</label>
+                  <div className="mt-2 flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => onPickCover(e.target.files?.[0])}
+                      className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    />
+                    {isUploadingCover && (
+                      <span className="text-xs text-gray-500">Uploading…</span>
+                    )}
+                    {form.media.cover?.url && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setForm((prev) => ({
+                            ...prev,
+                            media: { ...prev.media, cover: { url: "", publicId: "" } },
+                          }))
+                        }
+                        className="text-sm text-red-600 hover:underline"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  {form.media.cover?.url && (
+                    <div className="mt-3">
+                      <img
+                        src={form.media.cover.url}
+                        alt="Cover preview"
+                        className="h-28 w-auto rounded border border-gray-200"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <label className={LABEL}>Gallery Images</label>
+                  <div className="mt-2 flex items-center gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => onPickGallery(e.target.files)}
+                      className="block w-full text-sm text-gray-700 file:mr-3 file:py-2 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
+                    />
+                    {isUploadingGallery && (
+                      <span className="text-xs text-gray-500">Uploading…</span>
+                    )}
+                  </div>
+                  {form.media.gallery?.length > 0 && (
+                    <div className="mt-3 grid grid-cols-3 gap-3">
+                      {form.media.gallery.map((g, idx) => (
+                        <div key={idx} className="relative">
+                          <img
+                            src={g.url}
+                            alt={`Gallery ${idx + 1}`}
+                            className="h-24 w-full object-cover rounded border border-gray-200"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeGalleryItem(idx)}
+                            className="absolute -top-2 -right-2 bg-white border border-red-200 text-red-600 rounded-full px-2 py-0.5 text-xs shadow"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ✅ NEW: Facilities (expanded) */}
+          <section className={CARD}>
+            <div className={CARD_HEAD}>
+              <h2 className="text-base font-semibold text-gray-800">Facilities</h2>
+            </div>
+            <div className={CARD_BODY}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {["ac","recliner","tv","music","blanket","water","restroom","gps","liveTracking","luggage","usb","readingLight","airSuspension"].map((key) => (
+                  <label key={key} className="inline-flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      name={key}
+                      checked={!!form.facilities[key]}
+                      onChange={handleFacilitiesChange}
+                    />
+                    <span className="text-sm text-gray-700">{key}</span>
+                  </label>
+                ))}
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className={LABEL}>Extra Tags (comma separated)</label>
+                  <input
+                    className={INPUT}
+                    placeholder="Ladies seat, 2+2 layout"
+                    value={Array.isArray(form.facilities.extraTags) ? form.facilities.extraTags.join(", ") : form.facilities.extraTags}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        facilities: { ...prev.facilities, extraTags: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Public Tags (comma separated)</label>
+                  <input
+                    className={INPUT}
+                    placeholder="Express, Highway"
+                    value={Array.isArray(form.tags) ? form.tags.join(", ") : form.tags}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, tags: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* ✅ NEW: Vehicle details */}
+          <section className={CARD}>
+            <div className={CARD_HEAD}>
+              <h2 className="text-base font-semibold text-gray-800">Vehicle Details</h2>
+            </div>
+            <div className={CARD_BODY}>
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="md:col-span-2">
+                  <label className={LABEL}>Registration No</label>
+                  <input
+                    className={INPUT}
+                    placeholder="ND-1234"
+                    value={form.vehicle.registrationNo}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        vehicle: { ...prev.vehicle, registrationNo: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Year</label>
+                  <input
+                    type="number"
+                    className={INPUT}
+                    placeholder="2019"
+                    value={form.vehicle.year}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        vehicle: { ...prev.vehicle, year: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Make</label>
+                  <input
+                    className={INPUT}
+                    placeholder="Ashok Leyland"
+                    value={form.vehicle.make}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        vehicle: { ...prev.vehicle, make: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Model</label>
+                  <input
+                    className={INPUT}
+                    placeholder="Viking"
+                    value={form.vehicle.model}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        vehicle: { ...prev.vehicle, model: e.target.value },
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className={LABEL}>Seat Count</label>
+                  <input
+                    type="number"
+                    min="1"
+                    className={INPUT}
+                    placeholder="49"
+                    value={form.vehicle.seatCount}
+                    onChange={(e) =>
+                      setForm((prev) => ({
+                        ...prev,
+                        vehicle: { ...prev.vehicle, seatCount: e.target.value },
+                      }))
+                    }
+                  />
                 </div>
               </div>
             </div>
@@ -1287,6 +1693,41 @@ const AddBus = () => {
               <p className="text-xs text-gray-500 mt-2">
                 These contacts are stored with the bus and can be used later for notifications.
               </p>
+            </div>
+          </section>
+
+          {/* ✅ NEW: Free-form details */}
+          <section className={CARD}>
+            <div className={CARD_HEAD}>
+              <h2 className="text-base font-semibold text-gray-800">Extra Details</h2>
+            </div>
+            <div className={CARD_BODY}>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-1">
+                  <label className={LABEL}>Details (plain/markdown)</label>
+                  <textarea
+                    rows={5}
+                    className={INPUT}
+                    placeholder="Write anything about this bus (policies, notes, highlights)…"
+                    value={form.details}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, details: e.target.value }))
+                    }
+                  />
+                </div>
+                <div className="md:col-span-1">
+                  <label className={LABEL}>Details HTML (optional)</label>
+                  <textarea
+                    rows={5}
+                    className={INPUT}
+                    placeholder="<p>Rich content with <strong>HTML</strong>…</p>"
+                    value={form.detailsHtml}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, detailsHtml: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
             </div>
           </section>
 
