@@ -46,8 +46,8 @@ const startResendTimer = (key, seconds, setResendIn) => {
 };
 
 export default function Login() {
-  // —— page mode
-  const [mode, setMode] = useState("email"); // "email" | "phone"
+  // —— page mode (phone first to match Signup)
+  const [mode, setMode] = useState("phone"); // "email" | "phone"
 
   // —— email login state
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -117,7 +117,7 @@ export default function Login() {
     return false;
   };
 
-  /* ================= EMAIL LOGIN (unchanged) ================= */
+  /* ================= EMAIL LOGIN ================= */
   const handleChange = (e) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -176,7 +176,6 @@ export default function Login() {
     setOtpLoading(true);
     try {
       const mobileNorm = normalizeLkMobile(mobile);
-      // ✅ unified endpoint — payload is ONLY the mobile (no name field on login)
       const payload = { mobile: mobileNorm };
 
       const { data } = await apiClient.post(
@@ -270,19 +269,8 @@ export default function Login() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-6">
           <SectionCard title="Sign in to Routesbook">
-            {/* Toggle */}
+            {/* Toggle (phone first to match Signup) */}
             <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setMode("email")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-                  mode === "email" ? "text-white" : ""
-                }`}
-                style={{
-                  background: mode === "email" ? PALETTE.primary : "#E5E7EB",
-                }}
-              >
-                Email
-              </button>
               <button
                 onClick={() => setMode("phone")}
                 className={`px-4 py-2 rounded-lg text-sm font-semibold ${
@@ -294,11 +282,64 @@ export default function Login() {
               >
                 Phone
               </button>
+              <button
+                onClick={() => setMode("email")}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
+                  mode === "email" ? "text-white" : ""
+                }`}
+                style={{
+                  background: mode === "email" ? PALETTE.primary : "#E5E7EB",
+                }}
+              >
+                Email
+              </button>
             </div>
 
-            {/* EMAIL LOGIN + Google */}
+            {/* EMAIL LOGIN (Google first) */}
             {mode === "email" && (
               <>
+                <GoogleSignInButton
+                  text="signin_with"
+                  size="large"
+                  shape="pill"
+                  theme="outline"
+                  onSuccess={() => {
+                    const pending = localStorage.getItem("pendingBooking");
+                    if (pending) {
+                      const { busId, date } = JSON.parse(pending);
+                      localStorage.removeItem("pendingBooking");
+                      navigate(`/book/${busId}?date=${date}`, {
+                        replace: true,
+                      });
+                      return;
+                    }
+                    // 🔁 If returning to ConfirmBooking, pass draft state
+                    if (redirect && redirect.startsWith("/confirm-booking")) {
+                      try {
+                        const raw = sessionStorage.getItem("rb_confirm_draft");
+                        const draft = raw ? JSON.parse(raw) : null;
+                        navigate("/confirm-booking", {
+                          replace: true,
+                          state: draft || undefined,
+                        });
+                        return;
+                      } catch {
+                        // fall through
+                      }
+                    }
+                    navigate(redirect, { replace: true });
+                  }}
+                />
+
+                {/* Divider */}
+                <div className="flex items-center my-4">
+                  <div className="h-px bg-gray-200 flex-1" />
+                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
+                    or
+                  </span>
+                  <div className="h-px bg-gray-200 flex-1" />
+                </div>
+
                 <form onSubmit={handleEmailLogin} className="space-y-4">
                   <RowInput
                     id="email"
@@ -370,52 +411,6 @@ export default function Login() {
                     </Link>
                   </p>
                 </form>
-
-                {/* Divider */}
-                <div className="flex items-center my-6">
-                  <div className="h-px bg-gray-200 flex-1" />
-                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
-                    or
-                  </span>
-                  <div className="h-px bg-gray-200 flex-1" />
-                </div>
-
-                {/* Google Sign-In */}
-                <GoogleSignInButton
-                  text="signin_with"
-                  size="large"
-                  shape="pill"
-                  theme="outline"
-                  onSuccess={() => {
-                    const pending = localStorage.getItem("pendingBooking");
-                    if (pending) {
-                      const { busId, date } = JSON.parse(pending);
-                      localStorage.removeItem("pendingBooking");
-                      navigate(`/book/${busId}?date=${date}`, {
-                        replace: true,
-                      });
-                      return;
-                    }
-                    // 🔁 If returning to ConfirmBooking, pass draft state
-                    if (
-                      redirect &&
-                      redirect.startsWith("/confirm-booking")
-                    ) {
-                      try {
-                        const raw = sessionStorage.getItem("rb_confirm_draft");
-                        const draft = raw ? JSON.parse(raw) : null;
-                        navigate("/confirm-booking", {
-                          replace: true,
-                          state: draft || undefined,
-                        });
-                        return;
-                      } catch {
-                        // fall through
-                      }
-                    }
-                    navigate(redirect, { replace: true });
-                  }}
-                />
               </>
             )}
 
