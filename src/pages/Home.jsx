@@ -1229,12 +1229,12 @@ const Home = () => {
               </div>
 
               <div className="p-4 flex items-center">
-                {/* ✅ FLAT RED PILL (desktop) */}
+                {/* ✅ SHAPE ONLY CHANGE: rounded-full → rounded-xl (desktop) */}
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleSearch}
-                  className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-semibold tracking-wide px-6 py-3 rounded-full shadow-none"
+                  className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-semibold tracking-wide px-6 py-3 rounded-xl shadow-none"
                   style={{ backgroundColor: PALETTE.primaryRed }}
                 >
                   <FaSearch />
@@ -1373,12 +1373,12 @@ const Home = () => {
 
               {/* SEARCH BUTTON */}
               <div className="p-3 border-t" style={{ borderColor: PALETTE.borderLight }}>
-                {/* ✅ FLAT RED PILL (mobile) */}
+                {/* ✅ SHAPE ONLY CHANGE: rounded-full → rounded-xl (mobile) */}
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleSearch}
-                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-semibold tracking-wide py-3 rounded-full shadow-none"
+                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-semibold tracking-wide py-3 rounded-xl shadow-none"
                   style={{ backgroundColor: PALETTE.primaryRed }}
                 >
                   <FaSearch />
@@ -1391,9 +1391,13 @@ const Home = () => {
       </div>
 
       {/* ===== Upcoming Holidays ===== */}
-      <div>
+      <div className="rb-pill-holidays">
         <HolidaysSection />
       </div>
+      {/* ✅ Force pill (full-curve) shape on Holidays cards only */}
+      <style>{`
+        .rb-pill-holidays .rounded-2xl { border-radius: 9999px !important; }
+      `}</style>
 
       {/* ===== Offers / Notices ===== */}
       <div className="-mt-8 sm:-mt-10 md:-mt-12 lg:-mt-16">
