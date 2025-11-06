@@ -18,10 +18,8 @@ const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4
 
 // Helper component for the navigation dots
 const Dots = ({ count, activeIndex, goToIndex }) => {
-  // Redbus-style: left "1/N" chip + right tiny dots
-  const safeIndex = Math.min(Math.max(0, activeIndex || 0), Math.max(0, (count || 1) - 1));
   const total = Math.max(1, count || 1);
-
+  const safeIndex = Math.min(Math.max(0, activeIndex || 0), total - 1);
   return (
     <div className="flex items-center justify-between mt-3 lg:hidden">
       {/* Left: counter chip */}
@@ -83,25 +81,22 @@ const NoticesSection = () => {
     return () => (live = false);
   }, []);
 
-  // --- Precise active index from scroll position (robust for any card width/gap) ---
+  // --- Center-based index detector (robust to any widths/gaps/DPR) ---
   const getIndexFromScroll = (el) => {
-    // each slide wrapper is direct child of the rail
-    const child = el.children?.[0];
-    if (!child) return 0;
-
-    // the actual slide width (not assumed 300)
-    const slideWidth = child.getBoundingClientRect().width;
-
-    // gap is computed from actual first two children positions if available
-    let gap = 16; // fallback to your 4 (16px)
-    if (el.children.length > 1) {
-      const a = el.children[0].getBoundingClientRect();
-      const b = el.children[1].getBoundingClientRect();
-      gap = Math.max(0, Math.round(b.left - a.right));
+    const center = el.scrollLeft + el.clientWidth / 2;
+    let best = 0;
+    let bestDist = Number.POSITIVE_INFINITY;
+    const kids = el.children || [];
+    for (let i = 0; i < kids.length; i++) {
+      const k = kids[i];
+      const mid = k.offsetLeft + k.offsetWidth / 2;
+      const d = Math.abs(mid - center);
+      if (d < bestDist) {
+        bestDist = d;
+        best = i;
+      }
     }
-
-    const step = slideWidth + gap;
-    return Math.round(el.scrollLeft / Math.max(1, step));
+    return best;
   };
 
   // Recalculate the active dot index on scroll
@@ -116,19 +111,12 @@ const NoticesSection = () => {
   const scrollToCard = useCallback((index) => {
     const el = railRef.current;
     if (!el || items.length === 0 || index < 0 || index >= items.length) return;
+    const target = el.children?.[index];
+    if (!target) return;
 
-    const child = el.children?.[0];
-    const slideWidth = child ? child.getBoundingClientRect().width : 300;
-
-    let gap = 16;
-    if (el.children.length > 1) {
-      const a = el.children[0].getBoundingClientRect();
-      const b = el.children[1].getBoundingClientRect();
-      gap = Math.max(0, Math.round(b.left - a.right));
-    }
-
+    // align so the target's left edge matches the rail's left padding
     el.scrollTo({
-      left: index * (slideWidth + gap),
+      left: target.offsetLeft,
       behavior: "smooth",
     });
 
