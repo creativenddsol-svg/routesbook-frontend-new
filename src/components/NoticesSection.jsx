@@ -16,8 +16,9 @@ const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8";
 const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
 
 /* ─────────────────────────────────────────────
-   Centered Redbus-style pager
-   — chip sits in the MIDDLE of dots, inside a fixed-height row
+   Centered Redbus-style pager (polished)
+   - Chip sits over the middle of the dots row
+   - Active dot darker and slightly larger
    ───────────────────────────────────────────── */
 const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
   const total = Math.max(1, count || 1);
@@ -25,10 +26,10 @@ const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
 
   return (
     <div className={`lg:hidden mt-4 flex justify-center ${className}`}>
-      {/* Fixed-height box prevents clipping under the card above */}
-      <div className="relative h-6 min-w-[96px] flex items-center justify-center z-10">
+      {/* Fixed-height lane to avoid clipping */}
+      <div className="relative h-6 min-w-[110px] flex items-center justify-center z-10">
         {/* Dots row */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-[6px]">
           {Array.from({ length: total }).map((_, i) => {
             const isActive = i === safeIndex;
             return (
@@ -36,20 +37,21 @@ const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
                 key={i}
                 onClick={() => goToIndex(i)}
                 aria-label={`Go to card ${i + 1}`}
-                className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${
-                  isActive ? "bg-gray-700 scale-110" : "bg-gray-300"
-                }`}
+                className={`rounded-full transition-transform duration-200
+                            ${isActive ? "bg-gray-700 scale-125" : "bg-gray-300"}
+                            ${isActive ? "h-[7px] w-[7px]" : "h-[6px] w-[6px]"}`}
               />
             );
           })}
         </div>
 
-        {/* Chip centered ON TOP of dots, fully inside the 24px row */}
+        {/* Chip centered ON the dots */}
         <span
           className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
-                     inline-flex items-center justify-center min-w-[36px] px-2 py-0.5
-                     text-[10px] font-semibold rounded-full
-                     bg-[var(--rb-primary,#D84E55)] text-white whitespace-nowrap z-10"
+                     inline-flex items-center justify-center min-w-[38px] px-2 py-[2px]
+                     text-[10px] font-semibold rounded-full whitespace-nowrap
+                     bg-[var(--rb-primary,#D84E55)] text-white
+                     shadow-[0_2px_6px_rgba(0,0,0,0.12)] ring-1 ring-red-100/60 outline outline-2 outline-white"
           aria-live="polite"
         >
           {safeIndex + 1}/{total}
@@ -214,7 +216,7 @@ const NoticesSection = () => {
         <div
           ref={railRef}
           onScroll={handleScroll}
-          className="flex gap-4 overflow-x-auto scroll-smooth pb-4 pl-4 hide-scrollbar snap-x snap-mandatory" // pb-4 for extra space
+          className="flex gap-4 overflow-x-auto scroll-smooth pb-4 pl-4 hide-scrollbar snap-x snap-mandatory"
           style={{ 
             WebkitOverflowScrolling: "touch",
             scrollPaddingLeft: "1rem"
@@ -230,7 +232,7 @@ const NoticesSection = () => {
           ))}
         </div>
 
-        {/* Centered pager with chip over the dots (fully visible) */}
+        {/* Centered pager with polished UI */}
         <Dots
           count={items.length}
           activeIndex={activeIndex}
