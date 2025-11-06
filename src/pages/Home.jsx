@@ -130,7 +130,7 @@ const CalendarPopover = ({
   if (!open || !anchorRef.current) return null;
 
   const rect = anchorRef.current.getBoundingClientRect();
-  const top = rect.bottom + 8; // ✅ fixed
+  const top = rect.bottom + 8;
   const width = 360;
   const maxLeft = Math.max(8, window.innerWidth - width - 8);
   const left = Math.min(rect.left, maxLeft);
@@ -187,7 +187,7 @@ const CalendarPopover = ({
               : "Select Date"}
           </div>
 
-          <div className="flex gap-2">
+        <div className="flex gap-2">
             <button
               onClick={() => setViewMonth(addMonths(viewMonth, -1))}
               className="w-8 h-8 rounded-full border hover:bg-gray-50"
@@ -1216,11 +1216,12 @@ const Home = () => {
               </div>
 
               <div className="p-4 flex items-center">
+                {/* ✅ FLAT RED PILL (desktop) */}
                 <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleSearch}
-                  className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-bold tracking-wider px-8 py-4 rounded-xl shadow-lg transition-all duration-300"
+                  className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-semibold tracking-wide px-6 py-3 rounded-full shadow-none"
                   style={{ backgroundColor: PALETTE.primaryRed }}
                 >
                   <FaSearch />
@@ -1357,21 +1358,19 @@ const Home = () => {
                 </div>
               </div>
 
-              {/* SEARCH ACTION — flat link-style */}
-              <div className="border-t" style={{ borderColor: PALETTE.borderLight }}>
-                <button
+              {/* SEARCH BUTTON */}
+              <div className="p-3 border-t" style={{ borderColor: PALETTE.borderLight }}>
+                {/* ✅ FLAT RED PILL (mobile) */}
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={handleSearch}
-                  className="
-                    w-full bg-transparent p-0 m-0
-                    rounded-none shadow-none ring-0 outline-none
-                    text-[15px] font-semibold tracking-wide text-[#D84E55]
-                    flex items-center justify-center gap-2
-                  "
-                  style={{ backgroundColor: "transparent" }}
+                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-semibold tracking-wide py-3 rounded-full shadow-none"
+                  style={{ backgroundColor: PALETTE.primaryRed }}
                 >
-                  <FaSearch className="opacity-80" />
+                  <FaSearch />
                   SEARCH BUSES
-                </button>
+                </motion.button>
               </div>
             </div>
           </motion.div>
@@ -1457,7 +1456,7 @@ const Home = () => {
                           </span>
                         </div>
                         <div className="mt-2">
-                          <span className="inline-flex items-center text:[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-white/70 border border-white/80">
+                          <span className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-white/70 border border-white/80">
                             Popular this week
                           </span>
                         </div>
