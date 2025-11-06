@@ -37,6 +37,13 @@ const parseCommaList = (val) =>
     .map((s) => s.trim())
     .filter(Boolean);
 
+// ---- NEW: parse minimal route stops (">" or "," separated) ----
+const parseStops = (val) =>
+  String(val || "")
+    .split(/>|,/g)
+    .map((s) => s.trim())
+    .filter(Boolean);
+
 const EditBus = () => {
   const { busId } = useParams();
   const navigate = useNavigate();
@@ -122,6 +129,9 @@ const EditBus = () => {
     details: "",
     detailsHtml: "",
     tags: [],
+
+    // ✅ NEW: Minimal ordered route stops text (matches AddBus)
+    routeStops: "",
   });
 
   // State for non-rotating bus points
@@ -258,6 +268,11 @@ const EditBus = () => {
           details: bus.details || "",
           detailsHtml: bus.detailsHtml || "",
           tags: Array.isArray(bus.tags) ? bus.tags : parseCommaList(bus.tags),
+
+          // ✅ NEW: routeStops text → join with " > " for a nice one-line edit UX
+          routeStops: Array.isArray(bus.routeStops)
+            ? bus.routeStops.join(" > ")
+            : String(bus.routeStops || ""),
         }));
 
         // Only set these for non-rotating buses
@@ -559,6 +574,10 @@ const EditBus = () => {
       ...form,
       seatLayout: seatArray,
       unavailableDates: unavailableArray,
+
+      // ✅ NEW: normalize ordered route stops for API
+      routeStops: parseStops(form.routeStops),
+
       // For non-rotating buses, send the top-level points & fares; otherwise keep them empty
       boardingPoints: !form.rotationSchedule.isRotating
         ? cleanPoints(boardingPoints)
@@ -971,6 +990,25 @@ const EditBus = () => {
                       }))
                     }
                   />
+                </div>
+
+                {/* ✅ NEW: Minimal ordered route stops */}
+                <div className="md:col-span-3">
+                  <label className={LABEL}>
+                    Minimal Route Stops (ordered) — use <code>&gt;</code> or commas
+                  </label>
+                  <input
+                    className={INPUT}
+                    placeholder="Matara Bus Stand > Nupe Junction > Rahula Junction"
+                    value={form.routeStops}
+                    onChange={(e) =>
+                      setForm((prev) => ({ ...prev, routeStops: e.target.value }))
+                    }
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    This is the compact list shown on the card. Example:{" "}
+                    <em>Matara Bus Stand &gt; Nupe Junction &gt; Rahula Junction</em>
+                  </p>
                 </div>
               </div>
             </fieldset>
