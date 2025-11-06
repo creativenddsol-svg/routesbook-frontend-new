@@ -130,7 +130,7 @@ const CalendarPopover = ({
   if (!open || !anchorRef.current) return null;
 
   const rect = anchorRef.current.getBoundingClientRect();
-  the top = rect.bottom + 8;
+  const top = rect.bottom + 8; // ✅ fixed
   const width = 360;
   const maxLeft = Math.max(8, window.innerWidth - width - 8);
   const left = Math.min(rect.left, maxLeft);
@@ -1457,7 +1457,7 @@ const Home = () => {
                           </span>
                         </div>
                         <div className="mt-2">
-                          <span className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-white/70 border border-white/80">
+                          <span className="inline-flex items-center text:[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-white/70 border border-white/80">
                             Popular this week
                           </span>
                         </div>
