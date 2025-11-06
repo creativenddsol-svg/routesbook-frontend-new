@@ -4,30 +4,30 @@ import { Link } from "react-router-dom";
 import { toImgURL } from "../api";
 
 /**
- * Wide banner card for “What’s new” (no-crop on mobile/desktop).
- * - Fixed wide aspect so cards never look square
- * - Centers image and uses max-* constraints to avoid any clipping
+ * Wide banner card for “What’s new”.
+ * - Uses the same wide aspect as your Admin preview (approx 360:170),
+ *   so it won’t look square on mobile rails.
+ * - Keeps object-cover to avoid letterboxing and match Notices look.
  */
 const WhatsNewCard = ({ item, linkTo }) => {
   const src = toImgURL(item?.imageUrl || item?.image || item?.cover || "");
   const alt = item?.title || "What's new";
 
   const CardInner = (
-    <div className="w-full rounded-xl overflow-hidden shadow-md bg-white">
-      {/* Wide aspect box; flex-center so the image can 'fit' without cropping */}
-      <div className="relative w-full aspect-[360/170] bg-white flex items-center justify-center">
+    <div className="w-full rounded-lg overflow-hidden shadow-md hover:shadow-lg transition-shadow duration-300 bg-white">
+      {/* Wide banner aspect (same feel as Admin preview) */}
+      <div className="relative w-full aspect-[360/170]">
         {src ? (
           <img
             src={src}
             alt={alt}
-            // ⬇️ Important: no fixed w/h; let it size naturally inside the box
-            className="max-w-full max-h-full object-contain select-none pointer-events-none"
+            className="w-full h-full object-cover"
             loading="lazy"
             decoding="async"
             draggable={false}
           />
         ) : (
-          <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-500 text-sm">
+          <div className="w-full h-full bg-gray-200 flex items-center justify-center text-gray-500 text-sm">
             No Image
           </div>
         )}
