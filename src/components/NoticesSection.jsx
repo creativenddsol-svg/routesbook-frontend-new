@@ -18,20 +18,36 @@ const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4
 
 // Helper component for the navigation dots
 const Dots = ({ count, activeIndex, goToIndex }) => {
+  // ⬇️ Updated to Redbus-style: left red "1/N" chip + right tiny gray dots
+  const safeIndex = Math.min(Math.max(0, activeIndex || 0), Math.max(0, (count || 1) - 1));
   return (
-    <div className="flex justify-center mt-4 space-x-2 lg:hidden">
-      {[...Array(count)].map((_, index) => (
-        <button
-          key={index}
-          onClick={() => goToIndex(index)}
-          className={`h-2 w-2 rounded-full transition-all ${
-            index === activeIndex
-              ? "bg-red-600 w-4" // Active dot is slightly wider
-              : "bg-gray-300 hover:bg-gray-400"
-          }`}
-          aria-label={`Go to slide ${index + 1}`}
-        />
-      ))}
+    <div className="flex items-center justify-between mt-3 lg:hidden">
+      {/* Left: counter chip */}
+      <span
+        className="inline-flex items-center justify-center min-w-[34px] px-2 py-0.5
+                   text-[10px] font-semibold rounded-full
+                   bg-[var(--rb-primary,#D84E55)] text-white"
+        aria-live="polite"
+      >
+        {safeIndex + 1}/{count || 1}
+      </span>
+
+      {/* Right: tiny dots */}
+      <div className="flex items-center gap-2">
+        {[...Array(count)].map((_, index) => {
+          const isActive = index === safeIndex;
+          return (
+            <button
+              key={index}
+              onClick={() => goToIndex(index)}
+              aria-label={`Go to slide ${index + 1}`}
+              className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${
+                isActive ? "bg-gray-700 scale-110" : "bg-gray-300"
+              }`}
+            />
+          );
+        })}
+      </div>
     </div>
   );
 };
@@ -167,7 +183,7 @@ const NoticesSection = () => {
             ))}
           </div>
         </div>
-      </div>
+      </div />
 
       {/* ---------- Mobile/Tablet: original horizontal rail ---------- */}
       <div className="lg:hidden w-full overflow-hidden">
@@ -194,7 +210,7 @@ const NoticesSection = () => {
           ))}
         </div>
 
-        {/* Tiny Navigation Dots */}
+        {/* Tiny Navigation Dots (now with red counter chip + dots) */}
         <div className={`${CONTAINER_MARGIN_X}`}>
           {items.length > 1 && (
             <Dots 
