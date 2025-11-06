@@ -81,47 +81,42 @@ const NoticesSection = () => {
     return () => (live = false);
   }, []);
 
-  // --- IntersectionObserver: pick the child most in view (rock-solid on all DPR/zooms) ---
-  useEffect(() => {
-    const rail = railRef.current;
-    if (!rail || items.length === 0) return;
+  // --- Scroll-based: choose the child with the largest visible width inside the rail ---
+  const updateActiveIndex = useCallback(() => {
+    const el = railRef.current;
+    if (!el || items.length === 0) return;
 
-    const kids = Array.from(rail.children || []);
-    if (kids.length === 0) return;
+    const railRect = el.getBoundingClientRect();
+    const kids = el.children || [];
+    let best = 0;
+    let bestRatio = -1;
 
-    let frame = null;
-
-    const io = new IntersectionObserver(
-      (entries) => {
-        // pick the entry with largest intersectionRatio
-        let bestIdx = 0;
-        let bestRatio = -1;
-        for (const e of entries) {
-          const idx = kids.indexOf(e.target);
-          if (idx !== -1 && e.intersectionRatio > bestRatio) {
-            bestRatio = e.intersectionRatio;
-            bestIdx = idx;
-          }
-        }
-        // schedule state update on rAF to avoid thrashing
-        if (frame) cancelAnimationFrame(frame);
-        frame = requestAnimationFrame(() => {
-          setActiveIndex((prev) => (prev === bestIdx ? prev : bestIdx));
-        });
-      },
-      {
-        root: rail,
-        threshold: [0, 0.25, 0.5, 0.75, 1],
+    for (let i = 0; i < kids.length; i++) {
+      const r = kids[i].getBoundingClientRect();
+      const visibleWidth = Math.max(
+        0,
+        Math.min(r.right, railRect.right) - Math.max(r.left, railRect.left)
+      );
+      const ratio = visibleWidth / Math.max(1, r.width);
+      if (ratio > bestRatio) {
+        bestRatio = ratio;
+        best = i;
       }
-    );
-
-    kids.forEach((el) => io.observe(el));
-    return () => {
-      kids.forEach((el) => io.unobserve(el));
-      io.disconnect();
-      if (frame) cancelAnimationFrame(frame);
-    };
+    }
+    setActiveIndex(best);
   }, [items.length]);
+
+  // Keep index synced on resize too
+  useEffect(() => {
+    const onResize = () => updateActiveIndex();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [updateActiveIndex]);
+
+  // Call once after items render
+  useEffect(() => {
+    updateActiveIndex();
+  }, [items.length, updateActiveIndex]);
 
   // Scroll to a specific index
   const scrollToCard = useCallback((index) => {
@@ -132,7 +127,6 @@ const NoticesSection = () => {
     if (target && typeof target.scrollIntoView === "function") {
       target.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
     } else {
-      // fallback
       el.scrollTo({ left: target?.offsetLeft || 0, behavior: "smooth" });
     }
   }, [items.length]);
@@ -205,6 +199,7 @@ const NoticesSection = () => {
         {/* Horizontal scroll rail */}
         <div
           ref={railRef}
+          onScroll={updateActiveIndex}
           className="flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-4 hide-scrollbar snap-x snap-mandatory"
           style={{ 
             WebkitOverflowScrolling: "touch",
