@@ -470,7 +470,7 @@ export default function Desktop() {
                                 >
                                   {detailsOpen[busKey]
                                     ? "Hide details"
-                                    : "Why book this bus?"}
+                                    : "Know more details?"}
                                 </button>
                               </div>
 
