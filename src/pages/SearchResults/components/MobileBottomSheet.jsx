@@ -142,7 +142,7 @@ export default function MobileBottomSheet({ hideSteps }) {
   // ----- Redbus "drop-up" helpers -----
   const perSeat = getDisplayPrice(selectedBus, from, to);
   const selSeats = selectedBookingData.selectedSeats || [];
-  the const selCount = selSeats.length;
+  const selCount = selSeats.length;
   const subtotal =
     selectedBookingData.totalPrice && selectedBookingData.totalPrice > 0
       ? selectedBookingData.totalPrice
