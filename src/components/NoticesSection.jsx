@@ -16,7 +16,7 @@ const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8";
 // ✅ Use the SAME container as the Home.jsx search bar section
 const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
 
-// Helper component for the navigation dots
+// Helper component for the navigation dots (Redbus-style)
 const Dots = ({ count, activeIndex, goToIndex }) => {
   const total = Math.max(1, count || 1);
   const safeIndex = Math.min(Math.max(0, activeIndex || 0), total - 1);
@@ -81,58 +81,61 @@ const NoticesSection = () => {
     return () => (live = false);
   }, []);
 
-  // --- Center-based index detector (robust to any widths/gaps/DPR) ---
-  const getIndexFromScroll = (el) => {
-    const center = el.scrollLeft + el.clientWidth / 2;
-    let best = 0;
-    let bestDist = Number.POSITIVE_INFINITY;
-    const kids = el.children || [];
-    for (let i = 0; i < kids.length; i++) {
-      const k = kids[i];
-      const mid = k.offsetLeft + k.offsetWidth / 2;
-      const d = Math.abs(mid - center);
-      if (d < bestDist) {
-        bestDist = d;
-        best = i;
-      }
-    }
-    return best;
-  };
+  // --- IntersectionObserver: pick the child most in view (rock-solid on all DPR/zooms) ---
+  useEffect(() => {
+    const rail = railRef.current;
+    if (!rail || items.length === 0) return;
 
-  // Recalculate the active dot index on scroll
-  const updateActiveIndex = useCallback(() => {
-    const el = railRef.current;
-    if (!el || items.length === 0) return;
-    const newIdx = getIndexFromScroll(el);
-    setActiveIndex(Math.max(0, Math.min(newIdx, items.length - 1)));
+    const kids = Array.from(rail.children || []);
+    if (kids.length === 0) return;
+
+    let frame = null;
+
+    const io = new IntersectionObserver(
+      (entries) => {
+        // pick the entry with largest intersectionRatio
+        let bestIdx = 0;
+        let bestRatio = -1;
+        for (const e of entries) {
+          const idx = kids.indexOf(e.target);
+          if (idx !== -1 && e.intersectionRatio > bestRatio) {
+            bestRatio = e.intersectionRatio;
+            bestIdx = idx;
+          }
+        }
+        // schedule state update on rAF to avoid thrashing
+        if (frame) cancelAnimationFrame(frame);
+        frame = requestAnimationFrame(() => {
+          setActiveIndex((prev) => (prev === bestIdx ? prev : bestIdx));
+        });
+      },
+      {
+        root: rail,
+        threshold: [0, 0.25, 0.5, 0.75, 1],
+      }
+    );
+
+    kids.forEach((el) => io.observe(el));
+    return () => {
+      kids.forEach((el) => io.unobserve(el));
+      io.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
   }, [items.length]);
 
   // Scroll to a specific index
   const scrollToCard = useCallback((index) => {
     const el = railRef.current;
     if (!el || items.length === 0 || index < 0 || index >= items.length) return;
+
     const target = el.children?.[index];
-    if (!target) return;
-
-    // align so the target's left edge matches the rail's left padding
-    el.scrollTo({
-      left: target.offsetLeft,
-      behavior: "smooth",
-    });
-
-    setActiveIndex(index);
-    setTimeout(updateActiveIndex, 350);
-  }, [items.length, updateActiveIndex]);
-
-  // Set up scroll listener on mount
-  useEffect(() => {
-    updateActiveIndex(); 
-    const el = railRef.current;
-    if (el) {
-      el.addEventListener('scroll', updateActiveIndex, { passive: true });
-      return () => el.removeEventListener('scroll', updateActiveIndex);
+    if (target && typeof target.scrollIntoView === "function") {
+      target.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+    } else {
+      // fallback
+      el.scrollTo({ left: target?.offsetLeft || 0, behavior: "smooth" });
     }
-  }, [items, updateActiveIndex]);
+  }, [items.length]);
 
   if (loading) {
     return (
@@ -197,12 +200,11 @@ const NoticesSection = () => {
         </div>
       </div>
 
-      {/* ---------- Mobile/Tablet: original horizontal rail ---------- */}
+      {/* ---------- Mobile/Tablet: horizontal rail with pager ---------- */}
       <div className="lg:hidden w-full overflow-hidden">
         {/* Horizontal scroll rail */}
         <div
           ref={railRef}
-          onScroll={updateActiveIndex}
           className="flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-4 hide-scrollbar snap-x snap-mandatory"
           style={{ 
             WebkitOverflowScrolling: "touch",
