@@ -8,13 +8,16 @@ import {
   FaRoute,
   FaChevronLeft,
   FaExchangeAlt,
+  FaSearch,
 } from "react-icons/fa";
 
 import {
+  // shared context + helpers from _core
   useSearchCore,
   PALETTE,
   calculateDuration,
   getDisplayPrice,
+  getReadableDate,
 } from "./_core";
 
 import BookingDeadlineTimer from "./components/BookingDeadlineTimer";
@@ -24,8 +27,8 @@ import SpecialNoticesSection from "./components/SpecialNoticesSection";
 import SeatLayout from "../../components/SeatLayout";
 import SeatLegend from "../../components/SeatLegend";
 import BookingSummary from "../../components/BookingSummary";
-import PointSelection from "./components/PointSelection"; // keep same path as your project
-import { API_ORIGIN } from "../../api";
+// ✅ FIXED: real location is src/components/PointSelection.jsx
+import PointSelection from "../../components/PointSelection";
 
 /* ————————————————————————————————
    Small skeleton while loading
@@ -56,51 +59,15 @@ const itemVariants = {
   visible: { y: 0, opacity: 1 },
 };
 
-/* ──────────────────────────────────────────────────────────────
-   Helpers reused from mobile sheet (robust absolute image URLs)
-   (kept local to avoid cross-file imports)
-   ────────────────────────────────────────────────────────────── */
-const isAbs = (s) => /^https?:\/\//i.test(s || "");
-const isProtocolRelative = (s) => /^\/\//.test(s || "");
-const isRootRelative = (s) => /^\//.test(s || "");
-
-function toAbsolute(src) {
-  if (!src) return null;
-  let s = typeof src === "string" ? src.trim() : src.url || "";
-  if (!s) return null;
-  if (isAbs(s)) return s;
-  if (isProtocolRelative(s)) return `https:${s}`;
-  if (isRootRelative(s)) return `${API_ORIGIN}${s}`;
-  return `${API_ORIGIN}/${s.replace(/^\.\//, "")}`;
-}
-
-function normalizeGallery(list = []) {
-  const arr = (Array.isArray(list) ? list : []).map((item) => toAbsolute(item));
-  return arr.filter(Boolean);
-}
-
-const Chip = ({ children }) => (
-  <span className="px-2 py-1 rounded-full bg-gray-100 border border-gray-200 text-gray-700 text-xs">
-    {children}
-  </span>
-);
-
-const LabelValue = ({ label, value }) => {
-  if (!value) return null;
-  return (
-    <div className="min-w-0">
-      <div className="text-[11px] text-gray-500">{label}</div>
-      <div className="text-sm font-medium text-gray-900 truncate">{value}</div>
-    </div>
-  );
-};
-
 export default function Desktop() {
   const {
     // routing/search context
     navigate,
     from,
     to,
+    searchDate,
+    setSearchDate,
+    searchDateParam,
 
     // options + inputs
     fromOptions,
@@ -111,6 +78,9 @@ export default function Desktop() {
     setSearchTo,
     dateInputRef,
     handleDateContainerClick,
+    handleModifySearch,
+    todayStr,
+    tomorrowStr,
 
     // data
     loading,
@@ -137,14 +107,12 @@ export default function Desktop() {
     handleBoardingPointSelect,
     handleDroppingPointSelect,
     handleProceedToPayment,
-    searchDateParam,
   } = useSearchCore();
 
-  // per-bus "More details" toggle (only affects the details panel under seat layout)
-  const [detailsOpenByBus, setDetailsOpenByBus] = useState({});
-  const isDetailsOpen = (busKey) => !!detailsOpenByBus[busKey];
+  // ✅ NEW: per-bus "More details" toggle (desktop)
+  const [detailsOpen, setDetailsOpen] = useState({});
   const toggleDetails = (busKey) =>
-    setDetailsOpenByBus((p) => ({ ...p, [busKey]: !p[busKey] }));
+    setDetailsOpen((p) => ({ ...p, [busKey]: !p[busKey] }));
 
   const selectStyles = {
     control: (p) => ({
@@ -190,10 +158,10 @@ export default function Desktop() {
     }),
   };
 
-  const filterPanelTopOffset = useMemo(
-    () => stickySearchCardOwnHeight + 16,
-    [stickySearchCardOwnHeight]
-  );
+  const filterPanelTopOffset = useMemo(() => {
+    // keep the sidebar just below the sticky search card
+    return stickySearchCardOwnHeight + 16;
+  }, [stickySearchCardOwnHeight]);
 
   const renderCards = () => {
     if (loading) {
@@ -285,60 +253,21 @@ export default function Desktop() {
             typeof bus.originalPrice === "number" &&
             bus.originalPrice > displayPrice;
 
-          // derive media/details (stable by bus identity)
-          const {
-            coverUrl,
-            gallery,
-            tags,
-            detailsText,
-            detailsHtml,
-            specs,
-            seatsCount,
-            operatorLabel,
-          } = useMemo(() => {
-            const imagesArray =
-              (Array.isArray(bus?.gallery) && bus.gallery) ||
-              (Array.isArray(bus?.galleryPhotos) && bus.galleryPhotos) ||
-              (Array.isArray(bus?.images) && bus.images) ||
-              (Array.isArray(bus?.media?.gallery) && bus.media.gallery) ||
-              [];
+          // ✅ cover photo (if available)
+          const coverUrl =
+            bus?.media?.cover?.url ||
+            bus?.coverPhoto ||
+            null;
 
-            const coverRaw =
-              bus?.cover ||
-              bus?.coverPhoto ||
-              bus?.coverImage ||
-              bus?.images?.cover ||
-              bus?.media?.cover ||
-              imagesArray[0] ||
-              null;
-
-            const _coverUrl = toAbsolute(coverRaw);
-            const _gallery = Object.freeze(normalizeGallery(imagesArray));
-            const _tags = Array.isArray(bus?.tags) ? bus.tags : [];
-            const _detailsText = bus?.details ?? null;
-            const _detailsHtml = bus?.detailsHtml ?? null;
-            const _specs = bus?.specs || {};
-            const _seatsCount =
-              Array.isArray(bus?.seatLayout) && bus?.seatLayout?.length
-                ? `${bus.seatLayout.length} seats`
-                : null;
-            const _operatorLabel =
-              bus?.operator?.fullName ||
-              bus?.operator?.email ||
-              bus?.owner?.name ||
-              "Operator";
-
-            return {
-              coverUrl: _coverUrl,
-              gallery: _gallery,
-              tags: _tags,
-              detailsText: _detailsText,
-              detailsHtml: _detailsHtml,
-              specs: _specs,
-              seatsCount: _seatsCount,
-              operatorLabel: _operatorLabel,
-            };
-          }, [bus?._id]);
+          // helper to render facilities as small chips
+          const facilityChip = (label) => (
+            <span
+              key={label}
+              className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 border mr-1 mb-1"
+            >
+              {label}
+            </span>
+          );
 
           return (
             <motion.div
@@ -476,7 +405,6 @@ export default function Desktop() {
                   </div>
                 </div>
 
-                {/* Expanded section */}
                 {expandedBusId === busKey && (
                   <AnimatePresence>
                     <motion.div
@@ -486,10 +414,9 @@ export default function Desktop() {
                       transition={{ duration: 0.3, ease: "easeInOut" }}
                       className="mt-6 border-t pt-6 border-gray-200"
                     >
-                      <div className="grid grid-cols-12 gap-5 items-start">
-                        {/* Left: Seat layout with our new Cover + Details block below */}
-                        <div className="col-span-12 md:col-span-7 flex flex-col gap-4">
-                          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200">
+                      <div className="grid grid-cols-2 gap-4 items-start">
+                        <div className="col-span-1 flex flex-col gap-4">
+                          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 h-full">
                             <SeatLegend />
                             <SeatLayout
                               seatLayout={bus.seatLayout}
@@ -505,216 +432,174 @@ export default function Desktop() {
                             />
                           </div>
 
-                          {/* ==== NEW: Cover + Details block (desktop) ==== */}
-                          {coverUrl && (
-                            <div className="rounded-2xl border border-gray-200 bg-white overflow-hidden">
-                              {/* Cover only initially */}
-                              <div className="w-full aspect-[16/9] bg-gray-100">
+                          {/* ✅ NEW: Cover + More details (initial: only cover) */}
+                          {(coverUrl || bus.details || bus.detailsHtml) && (
+                            <div className="bg-white p-3 rounded-lg border border-gray-200">
+                              {coverUrl && (
                                 <img
                                   src={coverUrl}
-                                  alt="cover"
-                                  className="w-full h-full object-cover"
-                                  loading="lazy"
-                                  decoding="async"
-                                  onError={(e) =>
-                                    (e.currentTarget.style.display = "none")
-                                  }
+                                  alt={`${bus.name} cover`}
+                                  className="w-full h-44 object-cover rounded-md border"
                                 />
+                              )}
+                              <div className="mt-3">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleDetails(busKey)}
+                                  className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                                >
+                                  {detailsOpen[busKey]
+                                    ? "Hide details"
+                                    : "More details"}
+                                </button>
                               </div>
 
-                              <div className="p-4">
-                                <div className="flex items-center justify-between gap-4">
-                                  <div className="min-w-0">
-                                    <p className="text-[13px] text-gray-500 truncate">
-                                      {operatorLabel}
-                                    </p>
-                                    <h4 className="text-sm font-semibold text-gray-900 truncate">
-                                      {bus.name}
-                                    </h4>
-                                  </div>
-
-                                  {/* Reg No. */}
-                                  <div className="text-right">
-                                    <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                                      Reg. No.
-                                    </div>
-                                    <div className="text-base font-bold text-gray-900 tabular-nums">
-                                      {bus?.vehicle?.registrationNo ||
-                                        bus?.specs?.registrationNo ||
-                                        bus?.registrationNo ||
-                                        bus?.regNo ||
-                                        "—"}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Chips row */}
-                                <div className="mt-2 flex flex-wrap items-center gap-2">
-                                  {bus?.busType ? (
-                                    <Chip>{bus.busType}</Chip>
-                                  ) : null}
-                                  {seatsCount ? <Chip>{seatsCount}</Chip> : null}
-                                  {bus?.features?.wifi ? (
-                                    <Chip>Wi-Fi</Chip>
-                                  ) : null}
-                                  {bus?.features?.chargingPort ? (
-                                    <Chip>Charging Port</Chip>
-                                  ) : null}
-                                  {tags.map((t, i) => (
-                                    <Chip key={i}>{t}</Chip>
-                                  ))}
-                                </div>
-
-                                {/* Times + route */}
-                                <div className="mt-3 grid grid-cols-3 items-center">
-                                  <div className="text-sm font-medium text-gray-900">
-                                    {bus.departureTime}
-                                  </div>
-                                  <div className="text-center text-[11px] text-gray-500">
-                                    {from} → {to}
-                                  </div>
-                                  <div className="text-right text-sm font-medium text-gray-900">
-                                    {bus.arrivalTime}
-                                  </div>
-                                </div>
-
-                                {/* Toggle button */}
-                                <div className="mt-4">
-                                  <button
-                                    type="button"
-                                    onClick={() => toggleDetails(busKey)}
-                                    className="text-sm font-semibold text-red-600 hover:text-red-700"
+                              <AnimatePresence>
+                                {detailsOpen[busKey] && (
+                                  <motion.div
+                                    initial={{ opacity: 0, height: 0 }}
+                                    animate={{ opacity: 1, height: "auto" }}
+                                    exit={{ opacity: 0, height: 0 }}
+                                    transition={{ duration: 0.25 }}
+                                    className="mt-3 text-sm text-gray-700"
                                   >
-                                    {isDetailsOpen(busKey)
-                                      ? "Hide details"
-                                      : "More details"}
-                                  </button>
-                                </div>
-
-                                {/* Expanded details */}
-                                <AnimatePresence initial={false}>
-                                  {isDetailsOpen(busKey) && (
-                                    <motion.div
-                                      initial={{ opacity: 0, height: 0 }}
-                                      animate={{
-                                        opacity: 1,
-                                        height: "auto",
-                                      }}
-                                      exit={{ opacity: 0, height: 0 }}
-                                      transition={{
-                                        duration: 0.25,
-                                        ease: "easeInOut",
-                                      }}
-                                      className="mt-4"
-                                    >
-                                      {/* Quick specs */}
-                                      {(specs?.make ||
-                                        specs?.model ||
-                                        specs?.year ||
-                                        specs?.registrationNo ||
-                                        specs?.busNo ||
-                                        specs?.seatCount ||
-                                        bus?.vehicle?.seatCount ||
-                                        bus?.vehicle?.make ||
-                                        bus?.vehicle?.model ||
-                                        bus?.vehicle?.year) && (
-                                        <div className="grid grid-cols-2 gap-3 mb-4">
-                                          <LabelValue
-                                            label="Make"
-                                            value={
-                                              specs.make || bus?.vehicle?.make
-                                            }
-                                          />
-                                          <LabelValue
-                                            label="Model"
-                                            value={
-                                              specs.model ||
-                                              bus?.vehicle?.model
-                                            }
-                                          />
-                                        <LabelValue
-                                            label="Year"
-                                            value={specs.year || bus?.vehicle?.year}
-                                          />
-                                          <LabelValue
-                                            label="Registration No."
-                                            value={
-                                              specs.registrationNo ||
-                                              bus?.vehicle?.registrationNo ||
-                                              bus?.registrationNo ||
-                                              bus?.regNo
-                                            }
-                                          />
-                                          <LabelValue
-                                            label="Bus Number"
-                                            value={specs.busNo}
-                                          />
-                                          <LabelValue
-                                            label="Seat Count"
-                                            value={
-                                              specs.seatCount ||
-                                              bus?.vehicle?.seatCount
-                                            }
-                                          />
-                                        </div>
-                                      )}
-
-                                      {/* About / details */}
-                                      {(detailsHtml || detailsText) && (
-                                        <div className="mb-4">
-                                          <div className="text-sm font-semibold text-gray-800 mb-1">
-                                            About this bus
-                                          </div>
-                                          {detailsHtml ? (
-                                            <div
-                                              className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-li:my-0 text-gray-700"
-                                              dangerouslySetInnerHTML={{
-                                                __html: detailsHtml,
-                                              }}
-                                            />
-                                          ) : (
-                                            <p className="text-sm text-gray-700 whitespace-pre-line">
-                                              {detailsText}
+                                    {/* Route meta */}
+                                    {(bus?.routeMeta?.via?.length ||
+                                      bus?.routeMeta?.distanceKm ||
+                                      bus?.routeMeta?.durationMin) && (
+                                      <div className="mb-3">
+                                        {Array.isArray(bus?.routeMeta?.via) &&
+                                          bus.routeMeta.via.length > 0 && (
+                                            <p className="mb-1">
+                                              <span className="font-medium">
+                                                Via:
+                                              </span>{" "}
+                                              {bus.routeMeta.via.join(", ")}
                                             </p>
                                           )}
+                                        {(bus?.routeMeta?.distanceKm ||
+                                          bus?.routeMeta?.durationMin) && (
+                                          <p className="mb-1">
+                                            {bus?.routeMeta?.distanceKm ? (
+                                              <span className="mr-3">
+                                                <span className="font-medium">
+                                                  Distance:
+                                                </span>{" "}
+                                                {bus.routeMeta.distanceKm} km
+                                              </span>
+                                            ) : null}
+                                            {bus?.routeMeta?.durationMin ? (
+                                              <span>
+                                                <span className="font-medium">
+                                                  Duration:
+                                                </span>{" "}
+                                                {bus.routeMeta.durationMin} min
+                                              </span>
+                                            ) : null}
+                                          </p>
+                                        )}
+                                      </div>
+                                    )}
+
+                                    {/* Facilities (expanded) */}
+                                    {bus?.facilities && (
+                                      <div className="mb-3">
+                                        <p className="font-medium mb-1">
+                                          Facilities
+                                        </p>
+                                        <div>
+                                          {Object.entries(bus.facilities)
+                                            .filter(
+                                              ([k, v]) =>
+                                                typeof v === "boolean" && v
+                                            )
+                                            .map(([k]) =>
+                                              facilityChip(k.replace(/([A-Z])/g, " $1"))
+                                            )}
+                                          {Array.isArray(
+                                            bus.facilities?.extraTags
+                                          ) &&
+                                            bus.facilities.extraTags.map((t) =>
+                                              facilityChip(t)
+                                            )}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Vehicle */}
+                                    {bus?.vehicle &&
+                                      (bus.vehicle.registrationNo ||
+                                        bus.vehicle.make ||
+                                        bus.vehicle.model ||
+                                        bus.vehicle.seatCount) && (
+                                        <div className="mb-3">
+                                          <p className="font-medium mb-1">
+                                            Vehicle
+                                          </p>
+                                          <p className="text-gray-700">
+                                            {[
+                                              bus.vehicle.registrationNo,
+                                              bus.vehicle.make,
+                                              bus.vehicle.model,
+                                              bus.vehicle.seatCount
+                                                ? `${bus.vehicle.seatCount} seats`
+                                                : null,
+                                            ]
+                                              .filter(Boolean)
+                                              .join(" • ")}
+                                          </p>
                                         </div>
                                       )}
 
-                                      {/* Gallery */}
-                                      {gallery?.length > 0 && (
-                                        <>
-                                          <div className="text-sm font-semibold text-gray-800 mb-2">
-                                            Gallery
+                                    {/* Details text/html */}
+                                    {bus.details && (
+                                      <div className="mb-3">
+                                        <p className="font-medium mb-1">
+                                          About this bus
+                                        </p>
+                                        <p className="text-gray-700 whitespace-pre-line">
+                                          {bus.details}
+                                        </p>
+                                      </div>
+                                    )}
+                                    {bus.detailsHtml && (
+                                      <div
+                                        className="prose prose-sm max-w-none"
+                                        dangerouslySetInnerHTML={{
+                                          __html: bus.detailsHtml,
+                                        }}
+                                      />
+                                    )}
+
+                                    {/* Gallery */}
+                                    {Array.isArray(bus?.media?.gallery) &&
+                                      bus.media.gallery.length > 0 && (
+                                        <div className="mt-3">
+                                          <p className="font-medium mb-2">
+                                            Photos
+                                          </p>
+                                          <div className="grid grid-cols-3 gap-2">
+                                            {bus.media.gallery
+                                              .slice(0, 6)
+                                              .map((g, i) => (
+                                                <img
+                                                  key={i}
+                                                  src={g.url}
+                                                  alt={`Bus ${i + 1}`}
+                                                  className="w-full h-20 object-cover rounded border"
+                                                />
+                                              ))}
                                           </div>
-                                          <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1">
-                                            {gallery.map((src, i) => (
-                                              <img
-                                                key={i}
-                                                src={src}
-                                                alt={`gallery-${i}`}
-                                                className="h-24 w-32 flex-none rounded-lg object-cover border border-gray-200"
-                                                loading="lazy"
-                                                decoding="async"
-                                                onError={(e) =>
-                                                  (e.currentTarget.style.display =
-                                                    "none")
-                                                }
-                                              />
-                                            ))}
-                                          </div>
-                                        </>
+                                        </div>
                                       )}
-                                    </motion.div>
-                                  )}
-                                </AnimatePresence>
-                              </div>
+                                  </motion.div>
+                                )}
+                              </AnimatePresence>
                             </div>
                           )}
-                          {/* ==== /NEW block ==== */}
                         </div>
 
-                        {/* Right: Points + Summary (unchanged) */}
-                        <div className="col-span-12 md:col-span-5 flex flex-col gap-4">
+                        <div className="col-span-1 flex flex-col gap-4">
                           <div className="w-full mx-auto xs:max-w-xs sm:max-w-sm">
                             <PointSelection
                               boardingPoints={bus.boardingPoints}
@@ -799,7 +684,7 @@ export default function Desktop() {
               className="text-2xl font-bold"
               style={{ color: PALETTE.textDark }}
             >
-              {from}
+              {from}{" "}
               <FaExchangeAlt className="inline-block mx-2 text-gray-500" /> {to}
             </h1>
             {!loading && !fetchError && (
@@ -819,27 +704,188 @@ export default function Desktop() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <div className="bg-white border border-gray-300 rounded-3xl">
-            {/* keep your existing sticky search controls here */}
-            {/* omitted for brevity – unchanged from your current file */}
+            <div className="hidden lg:flex rounded-2xl">
+              <div
+                className="relative flex-1 p-4 flex items-center border-r"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
+                <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
+                <div className="w-full">
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
+                    From
+                  </label>
+                  <Select
+                    options={fromOptions}
+                    value={
+                      searchFrom
+                        ? { value: searchFrom, label: searchFrom }
+                        : null
+                    }
+                    onChange={(s) => setSearchFrom(s?.value || "")}
+                    placeholder="Select departure"
+                    isClearable
+                    styles={selectStyles}
+                    menuPortalTarget={document.body}
+                    components={{
+                      DropdownIndicator: () => null,
+                      IndicatorSeparator: () => null,
+                    }}
+                  />
+                </div>
+                <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2 z-20">
+                  <button
+                    className="bg-white p-2 rounded-full shadow-lg"
+                    style={{ border: `2px solid ${PALETTE.borderLight}` }}
+                    title="Swap locations"
+                    onClick={() => {
+                      setSearchFrom(searchTo);
+                      setSearchTo(searchFrom);
+                    }}
+                  >
+                    <FaExchangeAlt style={{ color: PALETTE.textLight }} />
+                  </button>
+                </div>
+              </div>
+
+              <div
+                className="flex-1 p-4 flex items-center border-r"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
+                <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
+                <div className="w-full">
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
+                    To
+                  </label>
+                  <Select
+                    options={toOptions}
+                    value={
+                      searchTo ? { value: searchTo, label: searchTo } : null
+                    }
+                    onChange={(s) => setSearchTo(s?.value || "")}
+                    placeholder="Select destination"
+                    isClearable
+                    styles={selectStyles}
+                    menuPortalTarget={document.body}
+                    components={{
+                      DropdownIndicator: () => null,
+                      IndicatorSeparator: () => null,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="flex-1 p-4 flex items-center">
+                <div className="mr-4">
+                  <svg
+                    width="22"
+                    height="22"
+                    viewBox="0 0 24 24"
+                    className="text-gray-400"
+                  >
+                    <path fill="currentColor" d="M7 11h5v5H7z" />
+                    <path
+                      fill="currentColor"
+                      d="M19 4h-1V2h-2v2H8V2H6v2H5a3 3 0 0 0-3 3v11a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3V7a3 3 0 0 0-3-3m1 14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V10h16z"
+                    />
+                  </svg>
+                </div>
+                <div className="w-full">
+                  <label
+                    className="block text-xs font-medium uppercase tracking-wider"
+                    style={{ color: PALETTE.textLight }}
+                  >
+                    Date of Journey
+                  </label>
+                  <div
+                    onClick={handleDateContainerClick}
+                    className="cursor-pointer"
+                  >
+                    <span
+                      className="text-lg font-medium"
+                      style={{ color: PALETTE.textDark }}
+                    >
+                      {getReadableDate(searchDate)}
+                    </span>
+                  </div>
+                  <div className="mt-1">
+                    <button
+                      onClick={() => setSearchDate(todayStr)}
+                      className="text-xs font-medium mr-3 hover:underline"
+                      style={{
+                        color:
+                          searchDate === todayStr
+                            ? PALETTE.primaryRed
+                            : PALETTE.accentBlue,
+                      }}
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => setSearchDate(tomorrowStr)}
+                      className="text-xs font-medium hover:underline"
+                      style={{
+                        color:
+                          searchDate === tomorrowStr
+                            ? PALETTE.primaryRed
+                            : PALETTE.accentBlue,
+                      }}
+                    >
+                      Tomorrow
+                    </button>
+                  </div>
+                </div>
+                <input
+                  ref={dateInputRef}
+                  type="date"
+                  value={searchDate}
+                  onChange={(e) => setSearchDate(e.target.value)}
+                  min={todayStr}
+                  className="absolute opacity-0 pointer-events-none"
+                />
+              </div>
+
+              <div className="p-3 flex items-center">
+                <button
+                  onClick={handleModifySearch}
+                  className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-bold tracking-wider px-8 py-3 rounded-xl shadow-lg"
+                  style={{ backgroundColor: PALETTE.primaryRed }}
+                >
+                  <FaSearch /> SEARCH
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4 mb-10">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Sidebar filters */}
-          <div className="hidden lg:block lg:col-span-1">
-            <div className="relative" style={{ top: filterPanelTopOffset }}>
-              <FilterPanel sortBy={sortBy} setSortBy={setSortBy} />
-              <div className="mt-6">
-                <SpecialNoticesSection />
-              </div>
-            </div>
-          </div>
+      {/* Page content */}
+      <div className="flex-1 w-full pb-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
+            {/* Sidebar filters (desktop) */}
+            <aside
+              className="hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 sticky"
+              style={{ top: `${filterPanelTopOffset}px`, zIndex: 20 }}
+            >
+              <FilterPanel
+                isMobile={false}
+                sortBy={sortBy}
+                setSortBy={setSortBy}
+              />
+            </aside>
 
-          {/* Results */}
-          <div className="lg:col-span-3">{renderCards()}</div>
+            {/* Main column */}
+            <main className="lg:col-span-3 space-y-5">
+              <SpecialNoticesSection />
+              <AnimatePresence>{renderCards()}</AnimatePresence>
+            </main>
+          </div>
         </div>
       </div>
     </div>
