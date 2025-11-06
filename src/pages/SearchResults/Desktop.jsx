@@ -29,6 +29,7 @@ import SeatLegend from "../../components/SeatLegend";
 import BookingSummary from "../../components/BookingSummary";
 // ✅ FIXED: real location is src/components/PointSelection.jsx
 import PointSelection from "../../components/PointSelection";
+import { API_ORIGIN } from "../../api"; // ✅ for absolute image URLs
 
 /* ————————————————————————————————
    Small skeleton while loading
@@ -58,6 +59,28 @@ const itemVariants = {
   hidden: { y: 16, opacity: 0 },
   visible: { y: 0, opacity: 1 },
 };
+
+/* ──────────────────────────────────────────────────────────────
+   Robust image URL normalizer (same behavior as mobile sheet)
+   ────────────────────────────────────────────────────────────── */
+const isAbs = (s) => /^https?:\/\//i.test(s);
+const isProtocolRelative = (s) => /^\/\//.test(s);
+const isRootRelative = (s) => /^\//.test(s);
+
+function toAbsolute(src) {
+  if (!src) return null;
+  const s = typeof src === "string" ? src.trim() : src.url || "";
+  if (!s) return null;
+  if (isAbs(s)) return s;
+  if (isProtocolRelative(s)) return `https:${s}`;
+  if (isRootRelative(s)) return `${API_ORIGIN}${s}`;
+  return `${API_ORIGIN}/${s.replace(/^\.\//, "")}`;
+}
+
+function normalizeGallery(list = []) {
+  const arr = (Array.isArray(list) ? list : []).map((item) => toAbsolute(item));
+  return arr.filter(Boolean);
+}
 
 export default function Desktop() {
   const {
@@ -253,9 +276,34 @@ export default function Desktop() {
             typeof bus.originalPrice === "number" &&
             bus.originalPrice > displayPrice;
 
-          // ✅ cover photo (if available)
-          const coverUrl =
-            bus?.media?.cover?.url || bus?.coverPhoto || null;
+          // ✅ Media (memoized once per bus; stable across availability polling)
+          const { coverUrl, gallery } = useMemo(() => {
+            const coverRaw =
+              bus?.media?.cover?.url ||
+              bus?.cover ||
+              bus?.coverPhoto ||
+              bus?.coverImage ||
+              bus?.images?.cover ||
+              null;
+
+            const galleryRaw =
+              (Array.isArray(bus?.media?.gallery) && bus.media.gallery) ||
+              (Array.isArray(bus?.galleryPhotos) && bus.galleryPhotos) ||
+              (Array.isArray(bus?.gallery) && bus.gallery) ||
+              (Array.isArray(bus?.images) && bus.images) ||
+              [];
+
+            const normalized = Object.freeze(
+              normalizeGallery(
+                galleryRaw.map((g) => (typeof g === "string" ? g : g?.url))
+              )
+            );
+
+            return {
+              coverUrl: toAbsolute(coverRaw),
+              gallery: normalized,
+            };
+          }, [busKey]);
 
           // helper to render facilities as small chips
           const facilityChip = (label) => (
@@ -266,6 +314,29 @@ export default function Desktop() {
               {label}
             </span>
           );
+
+          // ✅ Memoize the photo grid so it doesn't rebuild on seat/availability changes
+          const photosGrid = useMemo(() => {
+            if (!gallery?.length) return null;
+            return (
+              <div className="mt-3">
+                <p className="font-medium mb-2">Photos</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {gallery.slice(0, 6).map((src, i) => (
+                    <img
+                      key={i}
+                      src={src}
+                      alt={`Bus ${i + 1}`}
+                      className="w-full h-20 object-cover rounded border"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => (e.currentTarget.style.display = "none")}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          }, [gallery]);
 
           return (
             <motion.div
@@ -281,9 +352,12 @@ export default function Desktop() {
                       <div className="w-16 h-16 flex items-center justify-center">
                         {bus.operatorLogo ? (
                           <img
-                            src={bus.operatorLogo}
+                            src={toAbsolute(bus.operatorLogo)}
                             alt={`${bus.name} logo`}
                             className="w-full h-full object-contain"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => (e.currentTarget.style.display = "none")}
                           />
                         ) : (
                           <FaBus className="text-3xl text-gray-500" />
@@ -436,16 +510,21 @@ export default function Desktop() {
                             />
                           </div>
 
-                          {/* ✅ NEW: Cover + expandable “Why book this bus?” details */}
+                          {/* ✅ Cover + expandable “Why book this bus?” details */}
                           {(coverUrl || bus.details || bus.detailsHtml) && (
                             <div className="bg-white p-3 rounded-lg border border-gray-200">
                               {/* Title row with logo */}
                               <div className="flex items-center gap-2 mb-2">
                                 {bus.operatorLogo ? (
                                   <img
-                                    src={bus.operatorLogo}
+                                    src={toAbsolute(bus.operatorLogo)}
                                     alt="operator"
                                     className="w-6 h-6 object-contain rounded"
+                                    loading="lazy"
+                                    decoding="async"
+                                    onError={(e) =>
+                                      (e.currentTarget.style.display = "none")
+                                    }
                                   />
                                 ) : (
                                   <FaBus className="text-gray-500" />
@@ -460,6 +539,11 @@ export default function Desktop() {
                                   src={coverUrl}
                                   alt={`${bus.name} cover`}
                                   className="w-full h-44 object-cover rounded-md border"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onError={(e) =>
+                                    (e.currentTarget.style.display = "none")
+                                  }
                                 />
                               )}
                               <div className="mt-3">
@@ -622,27 +706,8 @@ export default function Desktop() {
                                       />
                                     )}
 
-                                    {/* Gallery */}
-                                    {Array.isArray(bus?.media?.gallery) &&
-                                      bus.media.gallery.length > 0 && (
-                                        <div className="mt-3">
-                                          <p className="font-medium mb-2">
-                                            Photos
-                                          </p>
-                                          <div className="grid grid-cols-3 gap-2">
-                                            {bus.media.gallery
-                                              .slice(0, 6)
-                                              .map((g, i) => (
-                                                <img
-                                                  key={i}
-                                                  src={g.url}
-                                                  alt={`Bus ${i + 1}`}
-                                                  className="w-full h-20 object-cover rounded border"
-                                                />
-                                              ))}
-                                          </div>
-                                        </div>
-                                      )}
+                                    {/* Gallery (memoized content) */}
+                                    {photosGrid}
                                   </motion.div>
                                 )}
                               </AnimatePresence>
