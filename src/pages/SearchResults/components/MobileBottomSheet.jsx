@@ -98,14 +98,15 @@ export default function MobileBottomSheet({ hideSteps }) {
     releaseSeats,
   } = useSearchCore();
 
-  // -------- resolve selected bus (id + time encoded in expandedBusId) --------
-  const selectedBus = useMemo(() => {
-    if (!expandedBusId) return null;
+  // -------- resolve selected bus (id + time encoded in expandedBusId) WITHOUT hooks --------
+  let selectedBus = null;
+  if (expandedBusId) {
     const lastDash = expandedBusId.lastIndexOf("-");
     const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
     const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
-    return buses.find((b) => b._id === id && b.departureTime === time) || null;
-  }, [expandedBusId, buses]);
+    selectedBus =
+      buses.find((b) => b._id === id && b.departureTime === time) || null;
+  }
 
   const selectedAvailability = expandedBusId
     ? availability[expandedBusId] || {}
@@ -128,8 +129,6 @@ export default function MobileBottomSheet({ hideSteps }) {
   const setCurrentMobileStep = (n) =>
     setMobileSheetStepByBus((prev) => ({ ...prev, [expandedBusId]: n }));
 
-  if (!selectedBus) return null;
-
   const handleCloseSheet = () => {
     const seats = busSpecificBookingData[expandedBusId]?.selectedSeats || [];
     if (seats.length) {
@@ -139,37 +138,30 @@ export default function MobileBottomSheet({ hideSteps }) {
     }
   };
 
-  // ----- Redbus "drop-up" helpers -----
-  const perSeat = getDisplayPrice(selectedBus, from, to);
-  const selSeats = selectedBookingData.selectedSeats || [];
-  const selCount = selSeats.length;
-  const subtotal =
-    selectedBookingData.totalPrice && selectedBookingData.totalPrice > 0
-      ? selectedBookingData.totalPrice
-      : perSeat * selCount;
-
-  const showDropUp = currentMobileStep === 1 && selCount > 0;
-
-  // ----- Derived labels for details card -----
+  // ----- Derived labels (safe even if selectedBus is null) -----
   const operatorLabel =
     selectedBus?.operator?.fullName ||
     selectedBus?.operator?.email ||
     selectedBus?.owner?.name ||
     "Operator";
   const seatsCount =
-    Array.isArray(selectedBus?.seatLayout) && selectedBus.seatLayout.length
+    Array.isArray(selectedBus?.seatLayout) && selectedBus?.seatLayout?.length
       ? `${selectedBus.seatLayout.length} seats`
       : null;
 
-  // ------- Robust media & details fallbacks (memoized once per bus open) -------
-  const {
-    coverUrl,
-    gallery,
-    tags,
-    detailsText,
-    detailsHtml,
-    specs,
-  } = useMemo(() => {
+  // ------- Media & details — call hook UNCONDITIONALLY to satisfy rules-of-hooks -------
+  const { coverUrl, gallery, tags, detailsText, detailsHtml, specs } = useMemo(() => {
+    if (!selectedBus) {
+      return {
+        coverUrl: null,
+        gallery: [],
+        tags: [],
+        detailsText: null,
+        detailsHtml: null,
+        specs: {},
+      };
+    }
+
     const imagesArray =
       (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
       (Array.isArray(selectedBus?.galleryPhotos) && selectedBus.galleryPhotos) ||
@@ -189,8 +181,8 @@ export default function MobileBottomSheet({ hideSteps }) {
     const coverUrlLocal = toAbsolute(coverRaw);
     const galleryLocal = Object.freeze(normalizeGallery(imagesArray)); // stable reference
     const tagsLocal = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
-    const detailsTextLocal = selectedBus?.details;
-    const detailsHtmlLocal = selectedBus?.detailsHtml;
+    const detailsTextLocal = selectedBus?.details ?? null;
+    const detailsHtmlLocal = selectedBus?.detailsHtml ?? null;
     const specsLocal = selectedBus?.specs || {}; // {make, model, year, registrationNo, busNo, seatCount}
 
     return {
@@ -201,8 +193,22 @@ export default function MobileBottomSheet({ hideSteps }) {
       detailsHtml: detailsHtmlLocal,
       specs: specsLocal,
     };
-    // ✅ depend ONLY on bus identity so availability polling won't recompute media
-  }, [selectedBus?._id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedBus?. _id]); // depend only on bus identity
+
+  // ✅ Now it's safe to return early; all hooks have already executed.
+  if (!selectedBus) return null;
+
+  // ----- Redbus "drop-up" helpers -----
+  const perSeat = getDisplayPrice(selectedBus, from, to);
+  const selSeats = selectedBookingData.selectedSeats || [];
+  const selCount = selSeats.length;
+  const subtotal =
+    selectedBookingData.totalPrice && selectedBookingData.totalPrice > 0
+      ? selectedBookingData.totalPrice
+      : perSeat * selCount;
+
+  const showDropUp = currentMobileStep === 1 && selCount > 0;
 
   return createPortal(
     expandedBusId ? (
@@ -458,7 +464,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                   disabled={
                     !selectedBookingData.selectedBoardingPoint ||
                     !selectedBookingData.selectedDroppingPoint ||
-                    selCount === 0
+                    (selectedBookingData.selectedSeats || []).length === 0
                   }
                 >
                   Proceed
