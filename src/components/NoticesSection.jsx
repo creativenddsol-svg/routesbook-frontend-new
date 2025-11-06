@@ -3,7 +3,6 @@ import React, {
   useEffect,
   useRef,
   useState,
-  useMemo,
   useCallback,
 } from "react";
 import apiClient from "../api";
@@ -16,37 +15,40 @@ const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8";
 // ✅ Use the SAME container as the Home.jsx search bar section
 const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
 
-// Helper component for the navigation dots (Redbus-style)
-const Dots = ({ count, activeIndex, goToIndex }) => {
+/* ─────────────────────────────────────────────
+   Centered Redbus-style pager (chip + dots)
+   ───────────────────────────────────────────── */
+const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
   const total = Math.max(1, count || 1);
   const safeIndex = Math.min(Math.max(0, activeIndex || 0), total - 1);
   return (
-    <div className="flex items-center justify-between mt-3 lg:hidden">
-      {/* Left: counter chip */}
-      <span
-        className="inline-flex items-center justify-center min-w-[36px] px-2 py-0.5
-                   text-[10px] font-semibold rounded-full
-                   bg-[var(--rb-primary,#D84E55)] text-white whitespace-nowrap"
-        aria-live="polite"
-      >
-        {safeIndex + 1}/{total}
-      </span>
-
-      {/* Right: tiny dots */}
-      <div className="flex items-center gap-2">
-        {Array.from({ length: total }).map((_, index) => {
-          const isActive = index === safeIndex;
-          return (
-            <button
-              key={index}
-              onClick={() => goToIndex(index)}
-              aria-label={`Go to slide ${index + 1}`}
-              className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${
-                isActive ? "bg-gray-700 scale-110" : "bg-gray-300"
-              }`}
-            />
-          );
-        })}
+    <div className={`lg:hidden mt-3 flex justify-center ${className}`}>
+      <div className="inline-flex items-center gap-3">
+        {/* chip */}
+        <span
+          className="inline-flex items-center justify-center min-w-[36px] px-2 py-0.5
+                     text-[10px] font-semibold rounded-full
+                     bg-[var(--rb-primary,#D84E55)] text-white whitespace-nowrap"
+          aria-live="polite"
+        >
+          {safeIndex + 1}/{total}
+        </span>
+        {/* dots */}
+        <div className="flex items-center gap-2">
+          {Array.from({ length: total }).map((_, i) => {
+            const isActive = i === safeIndex;
+            return (
+              <button
+                key={i}
+                onClick={() => goToIndex(i)}
+                aria-label={`Go to card ${i + 1}`}
+                className={`h-1.5 w-1.5 rounded-full transition-all duration-200 ${
+                  isActive ? "bg-gray-700 scale-110" : "bg-gray-300"
+                }`}
+              />
+            );
+          })}
+        </div>
       </div>
     </div>
   );
@@ -64,6 +66,7 @@ const NoticesSection = () => {
   
   const [activeIndex, setActiveIndex] = useState(0); 
   const railRef = useRef(null);
+  const scrollStopTimer = useRef(null);
 
   useEffect(() => {
     let live = true;
@@ -78,33 +81,41 @@ const NoticesSection = () => {
         if (live) setLoading(false);
       }
     })();
-    return () => (live = false);
+    return () => { live = false; };
   }, []);
 
-  // --- Scroll-based: choose the child with the largest visible width inside the rail ---
-  const updateActiveIndex = useCallback(() => {
-    const el = railRef.current;
-    if (!el || items.length === 0) return;
-
+  /* --- Most-visible slide calculator (robust for any width/gap/DPR) --- */
+  const calcMostVisibleIndex = (el) => {
     const railRect = el.getBoundingClientRect();
     const kids = el.children || [];
-    let best = 0;
+    let bestIdx = 0;
     let bestRatio = -1;
 
     for (let i = 0; i < kids.length; i++) {
       const r = kids[i].getBoundingClientRect();
-      const visibleWidth = Math.max(
-        0,
-        Math.min(r.right, railRect.right) - Math.max(r.left, railRect.left)
-      );
-      const ratio = visibleWidth / Math.max(1, r.width);
+      const visibleW = Math.max(0, Math.min(r.right, railRect.right) - Math.max(r.left, railRect.left));
+      const ratio = visibleW / Math.max(1, r.width);
       if (ratio > bestRatio) {
         bestRatio = ratio;
-        best = i;
+        bestIdx = i;
       }
     }
-    setActiveIndex(best);
+    return bestIdx;
+  };
+
+  const updateActiveIndex = useCallback(() => {
+    const el = railRef.current;
+    if (!el || items.length === 0) return;
+    const idx = calcMostVisibleIndex(el);
+    setActiveIndex((prev) => (prev === idx ? prev : idx));
   }, [items.length]);
+
+  // Debounce scroll end (so momentum/snap ends update the chip cleanly)
+  const handleScroll = useCallback(() => {
+    updateActiveIndex();
+    if (scrollStopTimer.current) clearTimeout(scrollStopTimer.current);
+    scrollStopTimer.current = setTimeout(updateActiveIndex, 120);
+  }, [updateActiveIndex]);
 
   // Keep index synced on resize too
   useEffect(() => {
@@ -124,7 +135,7 @@ const NoticesSection = () => {
     if (!el || items.length === 0 || index < 0 || index >= items.length) return;
 
     const target = el.children?.[index];
-    if (target && typeof target.scrollIntoView === "function") {
+    if (target?.scrollIntoView) {
       target.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
     } else {
       el.scrollTo({ left: target?.offsetLeft || 0, behavior: "smooth" });
@@ -135,7 +146,6 @@ const NoticesSection = () => {
     return (
       <section className="w-full py-8 sm:py-12">
         <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
-          {/* ✅ FIX: Final title name and reduced boldness (font-semibold) */}
           <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
             Deals and Offers
           </h2>
@@ -169,7 +179,6 @@ const NoticesSection = () => {
     <section className="w-full py-8 sm:py-12">
       {/* Header (aligned with screen edge padding) */}
       <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
-        {/* ✅ FIX: Final title name and reduced boldness (font-semibold) */}
         <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
           Deals and Offers
         </h2>
@@ -194,12 +203,12 @@ const NoticesSection = () => {
         </div>
       </div>
 
-      {/* ---------- Mobile/Tablet: horizontal rail with pager ---------- */}
+      {/* ---------- Mobile/Tablet: horizontal rail with centered pager ---------- */}
       <div className="lg:hidden w-full overflow-hidden">
         {/* Horizontal scroll rail */}
         <div
           ref={railRef}
-          onScroll={updateActiveIndex}
+          onScroll={handleScroll}
           className="flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-4 hide-scrollbar snap-x snap-mandatory"
           style={{ 
             WebkitOverflowScrolling: "touch",
@@ -216,16 +225,13 @@ const NoticesSection = () => {
           ))}
         </div>
 
-        {/* Pager: red 1/N chip + tiny dots */}
-        <div className={`${CONTAINER_MARGIN_X}`}>
-          {items.length > 1 && (
-            <Dots 
-              count={items.length} 
-              activeIndex={activeIndex} 
-              goToIndex={scrollToCard} 
-            />
-          )}
-        </div>
+        {/* Centered pager: red 1/N chip + dots together */}
+        <Dots
+          count={items.length}
+          activeIndex={activeIndex}
+          goToIndex={scrollToCard}
+          className={CONTAINER_MARGIN_X}
+        />
       </div>
 
       {/* Hide scrollbar */}
