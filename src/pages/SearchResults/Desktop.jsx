@@ -82,6 +82,455 @@ function normalizeGallery(list = []) {
   return arr.filter(Boolean);
 }
 
+/* ————————————————————————————————
+   Child card component (prevents hooks-in-loop)
+——————————————————————————————— */
+function BusCard({
+  bus,
+  busKey,
+  from,
+  to,
+  searchDateParam,
+  availabilityEntry,
+  expandedBusId,
+  busSpecificBookingData,
+  handleToggleSeatLayout,
+  handleSeatToggle,
+  handleBoardingPointSelect,
+  handleDroppingPointSelect,
+  handleProceedToPayment,
+  fetchData,
+}) {
+  const displayPrice = getDisplayPrice(bus, from, to);
+
+  // Timer within 12h window
+  let timerProps = null;
+  if (searchDateParam && bus.departureTime) {
+    const now = new Date();
+    const [h, m] = bus.departureTime.split(":").map(Number);
+    const [yy, mm, dd] = searchDateParam.split("-").map(Number);
+    const dep = new Date(yy, mm - 1, dd, h, m).getTime();
+    const diffHrs = (dep - now.getTime()) / (1000 * 60 * 60);
+    if (diffHrs > 0 && diffHrs <= 12) {
+      timerProps = {
+        deadlineTimestamp: dep - 60 * 60 * 1000,
+        departureTimestamp: dep,
+        onDeadline: fetchData,
+      };
+    }
+  }
+
+  const a = availabilityEntry;
+  const availableSeats = a?.available;
+  const availableWindowSeats = a?.window;
+  const isSoldOut = availableSeats === 0;
+
+  const currentBusBookingData = busSpecificBookingData[busKey] || {
+    selectedSeats: [],
+    seatGenders: {},
+    selectedBoardingPoint: bus.boardingPoints?.[0] || null,
+    selectedDroppingPoint: bus.droppingPoints?.[0] || null,
+    basePrice: 0,
+    convenienceFee: 0,
+    totalPrice: 0,
+  };
+
+  const hasStrike =
+    typeof bus.originalPrice === "number" && bus.originalPrice > displayPrice;
+
+  // ✅ Memoize media per-bus
+  const { coverUrl, gallery } = useMemo(() => {
+    const coverRaw =
+      bus?.media?.cover?.url ||
+      bus?.cover ||
+      bus?.coverPhoto ||
+      bus?.coverImage ||
+      bus?.images?.cover ||
+      null;
+
+    const galleryRaw =
+      (Array.isArray(bus?.media?.gallery) && bus.media.gallery) ||
+      (Array.isArray(bus?.galleryPhotos) && bus.galleryPhotos) ||
+      (Array.isArray(bus?.gallery) && bus.gallery) ||
+      (Array.isArray(bus?.images) && bus.images) ||
+      [];
+
+    const normalized = Object.freeze(
+      normalizeGallery(galleryRaw.map((g) => (typeof g === "string" ? g : g?.url)))
+    );
+
+    return {
+      coverUrl: toAbsolute(coverRaw),
+      gallery: normalized,
+    };
+  }, [busKey, bus]);
+
+  // Local details toggle per card
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
+  // facility chip
+  const facilityChip = (label) => (
+    <span
+      key={label}
+      className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 border mr-1 mb-1"
+    >
+      {label}
+    </span>
+  );
+
+  // Memoized photos grid
+  const photosGrid = useMemo(() => {
+    if (!gallery?.length) return null;
+    return (
+      <div className="mt-3">
+        <p className="font-medium mb-2">Photos</p>
+        <div className="grid grid-cols-3 gap-2">
+          {gallery.slice(0, 6).map((src, i) => (
+            <img
+              key={i}
+              src={src}
+              alt={`Bus ${i + 1}`}
+              className="w-full h-20 object-cover rounded border"
+              loading="lazy"
+              decoding="async"
+              onError={(e) => (e.currentTarget.style.display = "none")}
+            />
+          ))}
+        </div>
+      </div>
+    );
+  }, [gallery]);
+
+  return (
+    <motion.div
+      variants={itemVariants}
+      className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md mb-4"
+    >
+      {/* Desktop card */}
+      <div className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+          <div className="md:col-span-2">
+            <div className="flex items-center gap-4 mb-3">
+              <div className="w-16 h-16 flex items-center justify-center">
+                {bus.operatorLogo ? (
+                  <img
+                    src={toAbsolute(bus.operatorLogo)}
+                    alt={`${bus.name} logo`}
+                    className="w-full h-full object-contain"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => (e.currentTarget.style.display = "none")}
+                  />
+                ) : (
+                  <FaBus className="text-3xl text-gray-500" />
+                )}
+              </div>
+              <div>
+                <h3 className="text-base font-semibold text-gray-900">
+                  {bus.name}
+                </h3>
+                {/* ✅ NEW: Owner name (desktop, like mobile) */}
+                {bus?.owner?.name ? (
+                  <p className="text-xs text-gray-600 mt-0.5">
+                    Owner: <span className="font-medium">{bus.owner.name}</span>
+                  </p>
+                ) : null}
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-sm font-medium text-gray-600">
+                    {bus.busType}
+                  </p>
+                </div>
+                {bus.liveTracking && (
+                  <p className="text-xs font-medium mt-1 flex items-center gap-1 text-gray-500">
+                    <FaRoute /> Live Tracking
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="mb-1">
+              <div className="flex items-center">
+                <div className="flex flex-col min-w-[84px]">
+                  <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                    Departs
+                  </span>
+                  <span className="text-xl font-semibold tabular-nums text-gray-900">
+                    {bus.departureTime}
+                  </span>
+                </div>
+                <div className="flex-1 mx-3">
+                  <div className="h-[2px] w-full rounded bg-gray-200" />
+                </div>
+                <div className="flex flex-col min-w-[84px] text-right">
+                  <span className="text-[11px] uppercase tracking-wide text-gray-500">
+                    Arrives
+                  </span>
+                  <span className="text-xl font-semibold tabular-nums text-gray-900">
+                    {bus.arrivalTime}
+                  </span>
+                </div>
+              </div>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-600">
+                <span className="inline-flex items-center gap-1">
+                  <FaClock /> {calculateDuration(bus.departureTime, bus.arrivalTime)}
+                </span>
+                {typeof availableSeats === "number" && <span>{availableSeats} seats</span>}
+                {typeof availableWindowSeats === "number" && availableWindowSeats > 0 && (
+                  <span>{availableWindowSeats} window</span>
+                )}
+              </div>
+            </div>
+
+            {timerProps && <BookingDeadlineTimer {...timerProps} />}
+          </div>
+
+          <div className="flex flex-col items-start md:items-end">
+            <p
+              className="text-sm font-medium"
+              style={{
+                color:
+                  typeof availableSeats === "number" && availableSeats > 0
+                    ? "#EF4444"
+                    : "#9CA3AF",
+              }}
+            >
+              {isSoldOut
+                ? "Sold Out"
+                : availableSeats == null
+                ? "Checking..."
+                : `${availableSeats} Seats Left`}
+            </p>
+
+            <div className="mt-2 inline-block text-right">
+              {hasStrike && <div className="text-xs line-through text-gray-400">Rs. {bus.originalPrice}</div>}
+              <div className="leading-tight">
+                <span className="text-[11px] font-medium mr-1 align-top text-gray-500">Rs.</span>
+                <span className="text-2xl font-bold tabular-nums text-gray-900">{displayPrice}</span>
+              </div>
+              <div className="text-[11px] font-medium mt-0.5 text-gray-500">Onwards</div>
+            </div>
+
+            <button
+              onClick={() => handleToggleSeatLayout(bus)}
+              disabled={isSoldOut}
+              className="w-full md:w-auto mt-3 px-6 py-2.5 text-white font-semibold rounded-full transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ backgroundColor: isSoldOut ? "#9CA3AF" : "#DC2626" }}
+            >
+              {isSoldOut ? "Sold Out" : expandedBusId === busKey ? "Hide Seats" : "View seats"}
+            </button>
+          </div>
+        </div>
+
+        {expandedBusId === busKey && (
+          <AnimatePresence>
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="mt-6 border-t pt-6 border-gray-200"
+            >
+              <div className="grid grid-cols-2 gap-4 items-start">
+                <div className="col-span-1 flex flex-col gap-4">
+                  <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 h-full">
+                    <SeatLegend />
+                    <SeatLayout
+                      seatLayout={bus.seatLayout}
+                      bookedSeats={[...(a?.bookedSeats || [])]}
+                      selectedSeats={currentBusBookingData.selectedSeats}
+                      onSeatClick={(seat) => handleSeatToggle(bus, seat)}
+                      bookedSeatGenders={a?.seatGenderMap || {}}
+                      selectedSeatGenders={{}}
+                    />
+                  </div>
+
+                  {/* ✅ Cover + expandable “Why book this bus?” details */}
+                  {(coverUrl || bus.details || bus.detailsHtml) && (
+                    <div className="bg-white p-3 rounded-lg border border-gray-200">
+                      {/* Title row with logo */}
+                      <div className="flex items-center gap-2 mb-2">
+                        {bus.operatorLogo ? (
+                          <img
+                            src={toAbsolute(bus.operatorLogo)}
+                            alt="operator"
+                            className="w-6 h-6 object-contain rounded"
+                            loading="lazy"
+                            decoding="async"
+                            onError={(e) => (e.currentTarget.style.display = "none")}
+                          />
+                        ) : (
+                          <FaBus className="text-gray-500" />
+                        )}
+                        <h4 className="text-sm font-semibold text-gray-900">Why book this bus?</h4>
+                      </div>
+
+                      {coverUrl && (
+                        <img
+                          src={coverUrl}
+                          alt={`${bus.name} cover`}
+                          className="w-full h-44 object-cover rounded-md border"
+                          loading="lazy"
+                          decoding="async"
+                          onError={(e) => (e.currentTarget.style.display = "none")}
+                        />
+                      )}
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={() => setDetailsOpen((v) => !v)}
+                          className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
+                        >
+                          {detailsOpen ? "Hide details" : "Know more details"}
+                        </button>
+                      </div>
+
+                      <AnimatePresence>
+                        {detailsOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: "auto" }}
+                            exit={{ opacity: 0, height: 0 }}
+                            transition={{ duration: 0.25 }}
+                            className="mt-3 text-sm text-gray-700"
+                          >
+                            {/* Owner inline (mirrors mobile) */}
+                            {bus?.owner?.name ? (
+                              <p className="mb-2">
+                                <span className="font-medium">Owner:</span> {bus.owner.name}
+                              </p>
+                            ) : null}
+
+                            {/* Route meta */}
+                            {(bus?.routeMeta?.via?.length ||
+                              bus?.routeMeta?.distanceKm ||
+                              bus?.routeMeta?.durationMin) && (
+                              <div className="mb-3">
+                                {Array.isArray(bus?.routeMeta?.via) && bus.routeMeta.via.length > 0 && (
+                                  <p className="mb-1">
+                                    <span className="font-medium">Via:</span> {bus.routeMeta.via.join(", ")}
+                                  </p>
+                                )}
+                                {(bus?.routeMeta?.distanceKm || bus?.routeMeta?.durationMin) && (
+                                  <p className="mb-1">
+                                    {bus?.routeMeta?.distanceKm ? (
+                                      <span className="mr-3">
+                                        <span className="font-medium">Distance:</span>{" "}
+                                        {bus.routeMeta.distanceKm} km
+                                      </span>
+                                    ) : null}
+                                    {bus?.routeMeta?.durationMin ? (
+                                      <span>
+                                        <span className="font-medium">Duration:</span>{" "}
+                                        {bus.routeMeta.durationMin} min
+                                      </span>
+                                    ) : null}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+
+                            {/* Facilities (expanded) */}
+                            {bus?.facilities && (
+                              <div className="mb-3">
+                                <p className="font-medium mb-1">Facilities</p>
+                                <div>
+                                  {Object.entries(bus.facilities)
+                                    .filter(([k, v]) => typeof v === "boolean" && v)
+                                    .map(([k]) => facilityChip(k.replace(/([A-Z])/g, " $1")))}
+                                  {Array.isArray(bus.facilities?.extraTags) &&
+                                    bus.facilities.extraTags.map((t) => facilityChip(t))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Vehicle */}
+                            {bus?.vehicle &&
+                              (bus.vehicle.registrationNo ||
+                                bus.vehicle.make ||
+                                bus.vehicle.model ||
+                                bus.vehicle.seatCount) && (
+                                <div className="mb-3">
+                                  <p className="font-medium mb-1">Vehicle</p>
+                                  <p className="text-gray-700">
+                                    {[
+                                      bus.vehicle.registrationNo ? (
+                                        <span key="reg" className="font-semibold">
+                                          {bus.vehicle.registrationNo}
+                                        </span>
+                                      ) : null,
+                                      bus.vehicle.make,
+                                      bus.vehicle.model,
+                                      bus.vehicle.seatCount ? `${bus.vehicle.seatCount} seats` : null,
+                                    ]
+                                      .filter(Boolean)
+                                      .map((node, i) =>
+                                        typeof node === "string" ? (
+                                          <span key={i}>{i > 0 ? " • " : ""}{node}</span>
+                                        ) : (
+                                          <span key={i}>{i > 0 ? " • " : ""}{node}</span>
+                                        )
+                                      )}
+                                  </p>
+                                </div>
+                              )}
+
+                            {/* Details text/html */}
+                            {bus.details && (
+                              <div className="mb-3">
+                                <p className="font-medium mb-1">About this bus</p>
+                                <p className="text-gray-700 whitespace-pre-line">{bus.details}</p>
+                              </div>
+                            )}
+                            {bus.detailsHtml && (
+                              <div
+                                className="prose prose-sm max-w-none"
+                                dangerouslySetInnerHTML={{ __html: bus.detailsHtml }}
+                              />
+                            )}
+
+                            {/* Gallery (memoized content) */}
+                            {photosGrid}
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  )}
+                </div>
+
+                <div className="col-span-1 flex flex-col gap-4">
+                  <div className="w-full mx-auto xs:max-w-xs sm:max-w-sm">
+                    <PointSelection
+                      boardingPoints={bus.boardingPoints}
+                      droppingPoints={bus.droppingPoints}
+                      selectedBoardingPoint={currentBusBookingData.selectedBoardingPoint}
+                      setSelectedBoardingPoint={(p) => handleBoardingPointSelect(bus, p)}
+                      selectedDroppingPoint={currentBusBookingData.selectedDroppingPoint}
+                      setSelectedDroppingPoint={(p) => handleDroppingPointSelect(bus, p)}
+                    />
+                  </div>
+                  <div className="w-full mx-auto xs:max-w-xs sm:max-w-sm">
+                    <BookingSummary
+                      bus={bus}
+                      selectedSeats={currentBusBookingData.selectedSeats}
+                      date={searchDateParam}
+                      basePrice={currentBusBookingData.basePrice}
+                      convenienceFee={currentBusBookingData.convenienceFee}
+                      totalPrice={currentBusBookingData.totalPrice}
+                      onProceed={() => handleProceedToPayment(bus)}
+                      boardingPoint={currentBusBookingData.selectedBoardingPoint}
+                      droppingPoint={currentBusBookingData.selectedDroppingPoint}
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+        )}
+      </div>
+    </motion.div>
+  );
+}
+
 export default function Desktop() {
   const {
     // routing/search context
@@ -188,17 +637,12 @@ export default function Desktop() {
 
   const renderCards = () => {
     if (loading) {
-      return Array.from({ length: 5 }).map((_, i) => (
-        <BusCardSkeleton key={i} />
-      ));
+      return Array.from({ length: 5 }).map((_, i) => <BusCardSkeleton key={i} />);
     }
     if (fetchError) {
       return (
         <div className="text-center p-10 bg-white rounded-2xl shadow">
-          <h3
-            className="text-2xl font-bold mb-2"
-            style={{ color: PALETTE.textDark }}
-          >
+          <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
             Oops! Something went wrong.
           </h3>
           <p className="mb-6" style={{ color: PALETTE.textLight }}>
@@ -217,13 +661,8 @@ export default function Desktop() {
     if (!visibleBuses.length) {
       return (
         <div className="text-center p-10 bg-white rounded-2xl shadow">
-          <h3
-            className="text-2xl font-bold mb-2"
-            style={{ color: PALETTE.textDark }}
-          >
-            {activeFilterCount
-              ? "No Buses Match Your Filters"
-              : "No Buses Available"}
+          <h3 className="text-2xl font-bold mb-2" style={{ color: PALETTE.textDark }}>
+            {activeFilterCount ? "No Buses Match Your Filters" : "No Buses Available"}
           </h3>
           <p className="mb-6" style={{ color: PALETTE.textLight }}>
             {activeFilterCount
@@ -238,530 +677,26 @@ export default function Desktop() {
       <motion.div variants={listVariants} initial="hidden" animate="visible">
         {visibleBuses.map((bus) => {
           const busKey = `${bus._id}-${bus.departureTime}`;
-          const displayPrice = getDisplayPrice(bus, from, to);
-
-          // Timer within 12h window
-          let timerProps = null;
-          if (searchDateParam && bus.departureTime) {
-            const now = new Date();
-            const [h, m] = bus.departureTime.split(":").map(Number);
-            const [yy, mm, dd] = searchDateParam.split("-").map(Number);
-            const dep = new Date(yy, mm - 1, dd, h, m).getTime();
-            const diffHrs = (dep - now.getTime()) / (1000 * 60 * 60);
-            if (diffHrs > 0 && diffHrs <= 12) {
-              timerProps = {
-                deadlineTimestamp: dep - 60 * 60 * 1000,
-                departureTimestamp: dep,
-                onDeadline: fetchData,
-              };
-            }
-          }
-
-          const a = availability?.[busKey];
-          const availableSeats = a?.available;
-          const availableWindowSeats = a?.window;
-          const isSoldOut = availableSeats === 0;
-
-          const currentBusBookingData = busSpecificBookingData[busKey] || {
-            selectedSeats: [],
-            seatGenders: {},
-            selectedBoardingPoint: bus.boardingPoints?.[0] || null,
-            selectedDroppingPoint: bus.droppingPoints?.[0] || null,
-            basePrice: 0,
-            convenienceFee: 0,
-            totalPrice: 0,
-          };
-
-          const hasStrike =
-            typeof bus.originalPrice === "number" &&
-            bus.originalPrice > displayPrice;
-
-          // ✅ Media (memoized once per bus; stable across availability polling)
-          const { coverUrl, gallery } = useMemo(() => {
-            const coverRaw =
-              bus?.media?.cover?.url ||
-              bus?.cover ||
-              bus?.coverPhoto ||
-              bus?.coverImage ||
-              bus?.images?.cover ||
-              null;
-
-            const galleryRaw =
-              (Array.isArray(bus?.media?.gallery) && bus.media.gallery) ||
-              (Array.isArray(bus?.galleryPhotos) && bus.galleryPhotos) ||
-              (Array.isArray(bus?.gallery) && bus.gallery) ||
-              (Array.isArray(bus?.images) && bus.images) ||
-              [];
-
-            const normalized = Object.freeze(
-              normalizeGallery(
-                galleryRaw.map((g) => (typeof g === "string" ? g : g?.url))
-              )
-            );
-
-            return {
-              coverUrl: toAbsolute(coverRaw),
-              gallery: normalized,
-            };
-          }, [busKey]);
-
-          // helper to render facilities as small chips
-          const facilityChip = (label) => (
-            <span
-              key={label}
-              className="inline-block text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-700 border mr-1 mb-1"
-            >
-              {label}
-            </span>
-          );
-
-          // ✅ Memoize the photo grid so it doesn't rebuild on seat/availability changes
-          const photosGrid = useMemo(() => {
-            if (!gallery?.length) return null;
-            return (
-              <div className="mt-3">
-                <p className="font-medium mb-2">Photos</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {gallery.slice(0, 6).map((src, i) => (
-                    <img
-                      key={i}
-                      src={src}
-                      alt={`Bus ${i + 1}`}
-                      className="w-full h-20 object-cover rounded border"
-                      loading="lazy"
-                      decoding="async"
-                      onError={(e) => (e.currentTarget.style.display = "none")}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          }, [gallery]);
+          const availabilityEntry = availability?.[busKey];
 
           return (
-            <motion.div
+            <BusCard
               key={busKey}
-              variants={itemVariants}
-              className="bg-white rounded-xl border border-gray-200 overflow-hidden hover:shadow-md mb-4"
-            >
-              {/* Desktop card */}
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                  <div className="md:col-span-2">
-                    <div className="flex items-center gap-4 mb-3">
-                      <div className="w-16 h-16 flex items-center justify-center">
-                        {bus.operatorLogo ? (
-                          <img
-                            src={toAbsolute(bus.operatorLogo)}
-                            alt={`${bus.name} logo`}
-                            className="w-full h-full object-contain"
-                            loading="lazy"
-                            decoding="async"
-                            onError={(e) => (e.currentTarget.style.display = "none")}
-                          />
-                        ) : (
-                          <FaBus className="text-3xl text-gray-500" />
-                        )}
-                      </div>
-                      <div>
-                        <h3 className="text-base font-semibold text-gray-900">
-                          {bus.name}
-                        </h3>
-                        {/* ✅ NEW: Owner name (desktop, like mobile) */}
-                        {bus?.owner?.name ? (
-                          <p className="text-xs text-gray-600 mt-0.5">
-                            Owner: <span className="font-medium">{bus.owner.name}</span>
-                          </p>
-                        ) : null}
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-sm font-medium text-gray-600">
-                            {bus.busType}
-                          </p>
-                        </div>
-                        {bus.liveTracking && (
-                          <p className="text-xs font-medium mt-1 flex items-center gap-1 text-gray-500">
-                            <FaRoute /> Live Tracking
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="mb-1">
-                      <div className="flex items-center">
-                        <div className="flex flex-col min-w-[84px]">
-                          <span className="text-[11px] uppercase tracking-wide text-gray-500">
-                            Departs
-                          </span>
-                          <span className="text-xl font-semibold tabular-nums text-gray-900">
-                            {bus.departureTime}
-                          </span>
-                        </div>
-                        <div className="flex-1 mx-3">
-                          <div className="h-[2px] w-full rounded bg-gray-200" />
-                        </div>
-                        <div className="flex flex-col min-w-[84px] text-right">
-                          <span className="text-[11px] uppercase tracking-wide text-gray-500">
-                            Arrives
-                          </span>
-                          <span className="text-xl font-semibold tabular-nums text-gray-900">
-                            {bus.arrivalTime}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-gray-600">
-                        <span className="inline-flex items-center gap-1">
-                          <FaClock />{" "}
-                          {calculateDuration(
-                            bus.departureTime,
-                            bus.arrivalTime
-                          )}
-                        </span>
-                        {typeof availableSeats === "number" && (
-                          <span>{availableSeats} seats</span>
-                        )}
-                        {typeof availableWindowSeats === "number" &&
-                          availableWindowSeats > 0 && (
-                            <span>{availableWindowSeats} window</span>
-                          )}
-                      </div>
-                    </div>
-
-                    {timerProps && <BookingDeadlineTimer {...timerProps} />}
-                  </div>
-
-                  <div className="flex flex-col items-start md:items-end">
-                    <p
-                      className="text-sm font-medium"
-                      style={{
-                        color:
-                          typeof availableSeats === "number" &&
-                          availableSeats > 0
-                            ? "#EF4444"
-                            : "#9CA3AF",
-                      }}
-                    >
-                      {isSoldOut
-                        ? "Sold Out"
-                        : availableSeats == null
-                        ? "Checking..."
-                        : `${availableSeats} Seats Left`}
-                    </p>
-
-                    <div className="mt-2 inline-block text-right">
-                      {hasStrike && (
-                        <div className="text-xs line-through text-gray-400">
-                          Rs. {bus.originalPrice}
-                        </div>
-                      )}
-                      <div className="leading-tight">
-                        <span className="text-[11px] font-medium mr-1 align-top text-gray-500">
-                          Rs.
-                        </span>
-                        <span className="text-2xl font-bold tabular-nums text-gray-900">
-                          {displayPrice}
-                        </span>
-                      </div>
-                      <div className="text-[11px] font-medium mt-0.5 text-gray-500">
-                        Onwards
-                      </div>
-                    </div>
-
-                    <button
-                      onClick={() => handleToggleSeatLayout(bus)}
-                      disabled={isSoldOut}
-                      className="w-full md:w-auto mt-3 px-6 py-2.5 text-white font-semibold rounded-full transition-all duration-300 disabled:opacity-60 disabled:cursor-not-allowed"
-                      style={{
-                        backgroundColor: isSoldOut ? "#9CA3AF" : "#DC2626",
-                      }}
-                    >
-                      {isSoldOut
-                        ? "Sold Out"
-                        : expandedBusId === busKey
-                        ? "Hide Seats"
-                        : "View seats"}
-                    </button>
-                  </div>
-                </div>
-
-                {expandedBusId === busKey && (
-                  <AnimatePresence>
-                    <motion.div
-                      initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: "auto" }}
-                      exit={{ opacity: 0, height: 0 }}
-                      transition={{ duration: 0.3, ease: "easeInOut" }}
-                      className="mt-6 border-t pt-6 border-gray-200"
-                    >
-                      <div className="grid grid-cols-2 gap-4 items-start">
-                        <div className="col-span-1 flex flex-col gap-4">
-                          <div className="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 h-full">
-                            <SeatLegend />
-                            <SeatLayout
-                              seatLayout={bus.seatLayout}
-                              bookedSeats={[...(a?.bookedSeats || [])]}
-                              selectedSeats={
-                                currentBusBookingData.selectedSeats
-                              }
-                              onSeatClick={(seat) =>
-                                handleSeatToggle(bus, seat)
-                              }
-                              bookedSeatGenders={a?.seatGenderMap || {}}
-                              selectedSeatGenders={{}}
-                            />
-                          </div>
-
-                          {/* ✅ Cover + expandable “Why book this bus?” details */}
-                          {(coverUrl || bus.details || bus.detailsHtml) && (
-                            <div className="bg-white p-3 rounded-lg border border-gray-200">
-                              {/* Title row with logo */}
-                              <div className="flex items-center gap-2 mb-2">
-                                {bus.operatorLogo ? (
-                                  <img
-                                    src={toAbsolute(bus.operatorLogo)}
-                                    alt="operator"
-                                    className="w-6 h-6 object-contain rounded"
-                                    loading="lazy"
-                                    decoding="async"
-                                    onError={(e) =>
-                                      (e.currentTarget.style.display = "none")
-                                    }
-                                  />
-                                ) : (
-                                  <FaBus className="text-gray-500" />
-                                )}
-                                <h4 className="text-sm font-semibold text-gray-900">
-                                  Why book this bus?
-                                </h4>
-                              </div>
-
-                              {coverUrl && (
-                                <img
-                                  src={coverUrl}
-                                  alt={`${bus.name} cover`}
-                                  className="w-full h-44 object-cover rounded-md border"
-                                  loading="lazy"
-                                  decoding="async"
-                                  onError={(e) =>
-                                    (e.currentTarget.style.display = "none")
-                                  }
-                                />
-                              )}
-                              <div className="mt-3">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleDetails(busKey)}
-                                  className="text-sm font-semibold text-indigo-600 hover:text-indigo-700"
-                                >
-                                  {detailsOpen[busKey]
-                                    ? "Hide details"
-                                    : "Know more details"}
-                                </button>
-                              </div>
-
-                              <AnimatePresence>
-                                {detailsOpen[busKey] && (
-                                  <motion.div
-                                    initial={{ opacity: 0, height: 0 }}
-                                    animate={{ opacity: 1, height: "auto" }}
-                                    exit={{ opacity: 0, height: 0 }}
-                                    transition={{ duration: 0.25 }}
-                                    className="mt-3 text-sm text-gray-700"
-                                  >
-                                    {/* Owner inline (mirrors mobile) */}
-                                    {bus?.owner?.name ? (
-                                      <p className="mb-2">
-                                        <span className="font-medium">
-                                          Owner:
-                                        </span>{" "}
-                                        {bus.owner.name}
-                                      </p>
-                                    ) : null}
-
-                                    {/* Route meta */}
-                                    {(bus?.routeMeta?.via?.length ||
-                                      bus?.routeMeta?.distanceKm ||
-                                      bus?.routeMeta?.durationMin) && (
-                                      <div className="mb-3">
-                                        {Array.isArray(bus?.routeMeta?.via) &&
-                                          bus.routeMeta.via.length > 0 && (
-                                            <p className="mb-1">
-                                              <span className="font-medium">
-                                                Via:
-                                              </span>{" "}
-                                              {bus.routeMeta.via.join(", ")}
-                                            </p>
-                                          )}
-                                        {(bus?.routeMeta?.distanceKm ||
-                                          bus?.routeMeta?.durationMin) && (
-                                          <p className="mb-1">
-                                            {bus?.routeMeta?.distanceKm ? (
-                                              <span className="mr-3">
-                                                <span className="font-medium">
-                                                  Distance:
-                                                </span>{" "}
-                                                {bus.routeMeta.distanceKm} km
-                                              </span>
-                                            ) : null}
-                                            {bus?.routeMeta?.durationMin ? (
-                                              <span>
-                                                <span className="font-medium">
-                                                  Duration:
-                                                </span>{" "}
-                                                {bus.routeMeta.durationMin} min
-                                              </span>
-                                            ) : null}
-                                          </p>
-                                        )}
-                                      </div>
-                                    )}
-
-                                    {/* Facilities (expanded) */}
-                                    {bus?.facilities && (
-                                      <div className="mb-3">
-                                        <p className="font-medium mb-1">
-                                          Facilities
-                                        </p>
-                                        <div>
-                                          {Object.entries(bus.facilities)
-                                            .filter(
-                                              ([k, v]) =>
-                                                typeof v === "boolean" && v
-                                            )
-                                            .map(([k]) =>
-                                              facilityChip(
-                                                k.replace(/([A-Z])/g, " $1")
-                                              )
-                                            )}
-                                          {Array.isArray(
-                                            bus.facilities?.extraTags
-                                          ) &&
-                                            bus.facilities.extraTags.map((t) =>
-                                              facilityChip(t)
-                                            )}
-                                        </div>
-                                      </div>
-                                    )}
-
-                                    {/* Vehicle */}
-                                    {bus?.vehicle &&
-                                      (bus.vehicle.registrationNo ||
-                                        bus.vehicle.make ||
-                                        bus.vehicle.model ||
-                                        bus.vehicle.seatCount) && (
-                                        <div className="mb-3">
-                                          <p className="font-medium mb-1">
-                                            Vehicle
-                                          </p>
-                                          <p className="text-gray-700">
-                                            {[
-                                              bus.vehicle.registrationNo ? (
-                                                <span
-                                                  key="reg"
-                                                  className="font-semibold"
-                                                >
-                                                  {bus.vehicle.registrationNo}
-                                                </span>
-                                              ) : null,
-                                              bus.vehicle.make,
-                                              bus.vehicle.model,
-                                              bus.vehicle.seatCount
-                                                ? `${bus.vehicle.seatCount} seats`
-                                                : null,
-                                            ]
-                                              .filter(Boolean)
-                                              .map((node, i) =>
-                                                typeof node === "string" ? (
-                                                  <span key={i}>
-                                                    {i > 0 ? " • " : ""}
-                                                    {node}
-                                                  </span>
-                                                ) : (
-                                                  <span key={i}>
-                                                    {i > 0 ? " • " : ""}
-                                                    {node}
-                                                  </span>
-                                                )
-                                              )}
-                                          </p>
-                                        </div>
-                                      )}
-
-                                    {/* Details text/html */}
-                                    {bus.details && (
-                                      <div className="mb-3">
-                                        <p className="font-medium mb-1">
-                                          About this bus
-                                        </p>
-                                        <p className="text-gray-700 whitespace-pre-line">
-                                          {bus.details}
-                                        </p>
-                                      </div>
-                                    )}
-                                    {bus.detailsHtml && (
-                                      <div
-                                        className="prose prose-sm max-w-none"
-                                        dangerouslySetInnerHTML={{
-                                          __html: bus.detailsHtml,
-                                        }}
-                                      />
-                                    )}
-
-                                    {/* Gallery (memoized content) */}
-                                    {photosGrid}
-                                  </motion.div>
-                                )}
-                              </AnimatePresence>
-                            </div>
-                          )}
-                        </div>
-
-                        <div className="col-span-1 flex flex-col gap-4">
-                          <div className="w-full mx-auto xs:max-w-xs sm:max-w-sm">
-                            <PointSelection
-                              boardingPoints={bus.boardingPoints}
-                              droppingPoints={bus.droppingPoints}
-                              selectedBoardingPoint={
-                                currentBusBookingData.selectedBoardingPoint
-                              }
-                              setSelectedBoardingPoint={(p) =>
-                                handleBoardingPointSelect(bus, p)
-                              }
-                              selectedDroppingPoint={
-                                currentBusBookingData.selectedDroppingPoint
-                              }
-                              setSelectedDroppingPoint={(p) =>
-                                handleDroppingPointSelect(bus, p)
-                              }
-                            />
-                          </div>
-                          <div className="w-full mx-auto xs:max-w-xs sm:max-w-sm">
-                            <BookingSummary
-                              bus={bus}
-                              selectedSeats={
-                                currentBusBookingData.selectedSeats
-                              }
-                              date={searchDateParam}
-                              basePrice={currentBusBookingData.basePrice}
-                              convenienceFee={
-                                currentBusBookingData.convenienceFee
-                              }
-                              totalPrice={currentBusBookingData.totalPrice}
-                              onProceed={() => handleProceedToPayment(bus)}
-                              boardingPoint={
-                                currentBusBookingData.selectedBoardingPoint
-                              }
-                              droppingPoint={
-                                currentBusBookingData.selectedDroppingPoint
-                              }
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  </AnimatePresence>
-                )}
-              </div>
-            </motion.div>
+              bus={bus}
+              busKey={busKey}
+              from={from}
+              to={to}
+              searchDateParam={searchDateParam}
+              availabilityEntry={availabilityEntry}
+              expandedBusId={expandedBusId}
+              busSpecificBookingData={busSpecificBookingData}
+              handleToggleSeatLayout={handleToggleSeatLayout}
+              handleSeatToggle={handleSeatToggle}
+              handleBoardingPointSelect={handleBoardingPointSelect}
+              handleDroppingPointSelect={handleDroppingPointSelect}
+              handleProceedToPayment={handleProceedToPayment}
+              fetchData={fetchData}
+            />
           );
         })}
       </motion.div>
@@ -999,7 +934,13 @@ export default function Desktop() {
             {/* Main column */}
             <main className="lg:col-span-3 space-y-5">
               <SpecialNoticesSection />
-              <AnimatePresence>{renderCards()}</AnimatePresence>
+              <AnimatePresence>
+                {loading
+                  ? Array.from({ length: 5 }).map((_, i) => (
+                      <BusCardSkeleton key={i} />
+                    ))
+                  : renderCards()}
+              </AnimatePresence>
             </main>
           </div>
         </div>
