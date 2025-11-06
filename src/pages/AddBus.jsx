@@ -1,4 +1,3 @@
-// src/pages/AddBus.jsx
 import { useState, useEffect, useMemo } from "react";
 // ✅ use the shared API client instead of axios
 import apiClient from "../api";
@@ -1384,7 +1383,7 @@ const AddBus = () => {
                       }))
                     }
                   />
-                </div }
+                </div>
                 <div>
                   <label className={LABEL}>Seat Count</label>
                   <input
