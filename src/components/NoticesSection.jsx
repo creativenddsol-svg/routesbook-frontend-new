@@ -18,23 +18,25 @@ const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4
 
 // Helper component for the navigation dots
 const Dots = ({ count, activeIndex, goToIndex }) => {
-  // ⬇️ Redbus-style: left red "1/N" chip + right tiny gray dots
+  // Redbus-style: left "1/N" chip + right tiny dots
   const safeIndex = Math.min(Math.max(0, activeIndex || 0), Math.max(0, (count || 1) - 1));
+  const total = Math.max(1, count || 1);
+
   return (
     <div className="flex items-center justify-between mt-3 lg:hidden">
       {/* Left: counter chip */}
       <span
-        className="inline-flex items-center justify-center min-w-[34px] px-2 py-0.5
+        className="inline-flex items-center justify-center min-w-[36px] px-2 py-0.5
                    text-[10px] font-semibold rounded-full
-                   bg-[var(--rb-primary,#D84E55)] text-white"
+                   bg-[var(--rb-primary,#D84E55)] text-white whitespace-nowrap"
         aria-live="polite"
       >
-        {safeIndex + 1}/{count || 1}
+        {safeIndex + 1}/{total}
       </span>
 
       {/* Right: tiny dots */}
       <div className="flex items-center gap-2">
-        {[...Array(count)].map((_, index) => {
+        {Array.from({ length: total }).map((_, index) => {
           const isActive = index === safeIndex;
           return (
             <button
@@ -81,17 +83,33 @@ const NoticesSection = () => {
     return () => (live = false);
   }, []);
 
+  // --- Precise active index from scroll position (robust for any card width/gap) ---
+  const getIndexFromScroll = (el) => {
+    // each slide wrapper is direct child of the rail
+    const child = el.children?.[0];
+    if (!child) return 0;
+
+    // the actual slide width (not assumed 300)
+    const slideWidth = child.getBoundingClientRect().width;
+
+    // gap is computed from actual first two children positions if available
+    let gap = 16; // fallback to your 4 (16px)
+    if (el.children.length > 1) {
+      const a = el.children[0].getBoundingClientRect();
+      const b = el.children[1].getBoundingClientRect();
+      gap = Math.max(0, Math.round(b.left - a.right));
+    }
+
+    const step = slideWidth + gap;
+    return Math.round(el.scrollLeft / Math.max(1, step));
+  };
+
   // Recalculate the active dot index on scroll
   const updateActiveIndex = useCallback(() => {
     const el = railRef.current;
     if (!el || items.length === 0) return;
-
-    // Card width + gap = 316.
-    const cardScrollWidth = el.firstChild?.offsetWidth ? el.firstChild.offsetWidth + 16 : 316;
-
-    const newIndex = Math.round(el.scrollLeft / cardScrollWidth);
-    
-    setActiveIndex(Math.max(0, Math.min(newIndex, items.length - 1)));
+    const newIdx = getIndexFromScroll(el);
+    setActiveIndex(Math.max(0, Math.min(newIdx, items.length - 1)));
   }, [items.length]);
 
   // Scroll to a specific index
@@ -99,17 +117,23 @@ const NoticesSection = () => {
     const el = railRef.current;
     if (!el || items.length === 0 || index < 0 || index >= items.length) return;
 
-    const cardWidth = el.firstChild?.offsetWidth || 300;
-    const gap = 16;
-    
+    const child = el.children?.[0];
+    const slideWidth = child ? child.getBoundingClientRect().width : 300;
+
+    let gap = 16;
+    if (el.children.length > 1) {
+      const a = el.children[0].getBoundingClientRect();
+      const b = el.children[1].getBoundingClientRect();
+      gap = Math.max(0, Math.round(b.left - a.right));
+    }
+
     el.scrollTo({
-      left: index * (cardWidth + gap),
+      left: index * (slideWidth + gap),
       behavior: "smooth",
     });
 
-    setActiveIndex(index); 
-    
-    setTimeout(updateActiveIndex, 350); 
+    setActiveIndex(index);
+    setTimeout(updateActiveIndex, 350);
   }, [items.length, updateActiveIndex]);
 
   // Set up scroll listener on mount
@@ -117,7 +141,7 @@ const NoticesSection = () => {
     updateActiveIndex(); 
     const el = railRef.current;
     if (el) {
-      el.addEventListener('scroll', updateActiveIndex);
+      el.addEventListener('scroll', updateActiveIndex, { passive: true });
       return () => el.removeEventListener('scroll', updateActiveIndex);
     }
   }, [items, updateActiveIndex]);
@@ -183,7 +207,7 @@ const NoticesSection = () => {
             ))}
           </div>
         </div>
-      </div> {/* <-- FIXED: proper closing tag (not self-closing) */}
+      </div>
 
       {/* ---------- Mobile/Tablet: original horizontal rail ---------- */}
       <div className="lg:hidden w-full overflow-hidden">
@@ -191,18 +215,15 @@ const NoticesSection = () => {
         <div
           ref={railRef}
           onScroll={updateActiveIndex}
-          // ✅ FIX: Using pl-4 on the rail for the perfect mobile padding.
           className="flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-4 hide-scrollbar snap-x snap-mandatory"
           style={{ 
             WebkitOverflowScrolling: "touch",
-            // ✅ Added: ensures the first snapped card respects the left padding
             scrollPaddingLeft: "1rem"
           }}
         >
           {items.map((n, index) => (
             <div 
               key={n._id} 
-              // ✅ FIX: Added pr-4 to the LAST card's wrapper to provide end padding.
               className={`w-[300px] flex-shrink-0 snap-start ${index === items.length - 1 ? 'pr-4' : ''}`}
             >
               <NoticeCard notice={n} linkTo="/notices" />
@@ -210,7 +231,7 @@ const NoticesSection = () => {
           ))}
         </div>
 
-        {/* Tiny Navigation Dots (red counter chip + dots) */}
+        {/* Pager: red 1/N chip + tiny dots */}
         <div className={`${CONTAINER_MARGIN_X}`}>
           {items.length > 1 && (
             <Dots 
