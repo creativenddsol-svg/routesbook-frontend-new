@@ -187,7 +187,7 @@ const CalendarPopover = ({
               : "Select Date"}
           </div>
 
-        <div className="flex gap-2">
+          <div className="flex gap-2">
             <button
               onClick={() => setViewMonth(addMonths(viewMonth, -1))}
               className="w-8 h-8 rounded-full border hover:bg-gray-50"
@@ -1052,10 +1052,23 @@ const Home = () => {
       {/* ===== Search Widget ===== */}
       <div className={`${SECTION_WRAP}`}>
         <div className={`${SECTION_INNER} relative z-20 mt-4 lg:-mt-32`}>
-          <div className="lg:hidden text-left pb-2 px-4 pt-4">
+          {/* ==== MOBILE HEADER (brand on the right) ==== */}
+          <div className="lg:hidden flex items-center justify-between pb-2 px-4 pt-4">
             <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}>
               Get Your Bus Tickets
             </h2>
+            <span
+              className="text-lg font-extrabold tracking-tight"
+              style={{
+                color: PALETTE.primaryRed,
+                // Mont-like stack; if Mont is loaded it will use it,
+                // otherwise falls back cleanly.
+                fontFamily:
+                  "'Mont', 'Montserrat', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'",
+              }}
+            >
+              Routesbook
+            </span>
           </div>
 
           <motion.div
