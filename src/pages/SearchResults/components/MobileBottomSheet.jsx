@@ -183,7 +183,7 @@ export default function MobileBottomSheet({ hideSteps }) {
     const tagsLocal = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
     const detailsTextLocal = selectedBus?.details ?? null;
     const detailsHtmlLocal = selectedBus?.detailsHtml ?? null;
-    const specsLocal = selectedBus?.specs || {}; // {make, model, year, registrationNo, busNo, seatCount}
+    const specsLocal = selectedBus?.specs || {}; // optional legacy spec object
 
     return {
       coverUrl: coverUrlLocal,
@@ -193,8 +193,8 @@ export default function MobileBottomSheet({ hideSteps }) {
       detailsHtml: detailsHtmlLocal,
       specs: specsLocal,
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedBus?. _id]); // depend only on bus identity
+    // ✅ depend ONLY on bus identity
+  }, [selectedBus?._id]); // ← fixed the space typo here
 
   // ✅ Now it's safe to return early; all hooks have already executed.
   if (!selectedBus) return null;
@@ -303,7 +303,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                 />
               </div>
 
-              {/* ==== NEW: Full bus details (cover, specs, tags, details, gallery) ==== */}
+              {/* ==== Full bus details (cover, specs, tags, details, gallery) ==== */}
               <div className="mt-2 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
                 {/* Cover Photo (if any) */}
                 {coverUrl ? (
@@ -319,7 +319,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                   </div>
                 ) : null}
 
-                {/* Heading + meta (reg. no. instead of price) */}
+                {/* Heading + meta (Reg. No. instead of price) */}
                 <div className="p-4">
                   <div className="flex items-start gap-3">
                     {/* logo (if present) */}
@@ -344,13 +344,15 @@ export default function MobileBottomSheet({ hideSteps }) {
                             {selectedBus.name}
                           </h4>
                         </div>
-                        {/* 🔁 Replaced price with Government Registration Number */}
+
+                        {/* 🔁 Show Government Registration Number */}
                         <div className="text-right">
                           <div className="text-[10px] uppercase tracking-wide text-gray-500">Reg. No.</div>
                           <div className="text-base font-bold text-gray-900 tabular-nums">
-                            {selectedBus?.specs?.registrationNo ||
-                              selectedBus?.registrationNo ||
-                              selectedBus?.regNo ||
+                            {selectedBus?.vehicle?.registrationNo || // ← primary location
+                              selectedBus?.specs?.registrationNo || // legacy/alt
+                              selectedBus?.registrationNo ||         // legacy/alt
+                              selectedBus?.regNo ||                  // legacy/alt
                               "—"}
                           </div>
                         </div>
@@ -386,14 +388,29 @@ export default function MobileBottomSheet({ hideSteps }) {
                         specs?.year ||
                         specs?.registrationNo ||
                         specs?.busNo ||
-                        specs?.seatCount) && (
+                        specs?.seatCount ||
+                        selectedBus?.vehicle?.seatCount ||
+                        selectedBus?.vehicle?.make ||
+                        selectedBus?.vehicle?.model ||
+                        selectedBus?.vehicle?.year) && (
                         <div className="mt-4 grid grid-cols-2 gap-3">
-                          <LabelValue label="Make" value={specs.make} />
-                          <LabelValue label="Model" value={specs.model} />
-                          <LabelValue label="Year" value={specs.year} />
-                          <LabelValue label="Registration No." value={specs.registrationNo} />
+                          <LabelValue label="Make" value={specs.make || selectedBus?.vehicle?.make} />
+                          <LabelValue label="Model" value={specs.model || selectedBus?.vehicle?.model} />
+                          <LabelValue label="Year" value={specs.year || selectedBus?.vehicle?.year} />
+                          <LabelValue
+                            label="Registration No."
+                            value={
+                              specs.registrationNo ||
+                              selectedBus?.vehicle?.registrationNo ||
+                              selectedBus?.registrationNo ||
+                              selectedBus?.regNo
+                            }
+                          />
                           <LabelValue label="Bus Number" value={specs.busNo} />
-                          <LabelValue label="Seat Count" value={specs.seatCount} />
+                          <LabelValue
+                            label="Seat Count"
+                            value={specs.seatCount || selectedBus?.vehicle?.seatCount}
+                          />
                         </div>
                       )}
 
@@ -432,7 +449,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                   </div>
                 )}
               </div>
-              {/* ==== END NEW block ==== */}
+              {/* ==== END details block ==== */}
             </div>
           )}
 
@@ -522,7 +539,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                 </div>
 
                 <div className="px-4 pb-4 pt-2">
-                  {/* top row: seat chips + price */}
+                  {/* top row: seat chips + total */}
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex flex-wrap gap-1.5">
