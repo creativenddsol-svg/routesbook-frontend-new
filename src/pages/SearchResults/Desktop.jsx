@@ -255,9 +255,7 @@ export default function Desktop() {
 
           // ✅ cover photo (if available)
           const coverUrl =
-            bus?.media?.cover?.url ||
-            bus?.coverPhoto ||
-            null;
+            bus?.media?.cover?.url || bus?.coverPhoto || null;
 
           // helper to render facilities as small chips
           const facilityChip = (label) => (
@@ -295,7 +293,13 @@ export default function Desktop() {
                         <h3 className="text-base font-semibold text-gray-900">
                           {bus.name}
                         </h3>
-                        <div className="flex items-center gap-2">
+                        {/* ✅ NEW: Owner name (desktop, like mobile) */}
+                        {bus?.owner?.name ? (
+                          <p className="text-xs text-gray-600 mt-0.5">
+                            Owner: <span className="font-medium">{bus.owner.name}</span>
+                          </p>
+                        ) : null}
+                        <div className="flex items-center gap-2 mt-0.5">
                           <p className="text-sm font-medium text-gray-600">
                             {bus.busType}
                           </p>
@@ -432,9 +436,25 @@ export default function Desktop() {
                             />
                           </div>
 
-                          {/* ✅ NEW: Cover + More details (initial: only cover) */}
+                          {/* ✅ NEW: Cover + expandable “Why book this bus?” details */}
                           {(coverUrl || bus.details || bus.detailsHtml) && (
                             <div className="bg-white p-3 rounded-lg border border-gray-200">
+                              {/* Title row with logo */}
+                              <div className="flex items-center gap-2 mb-2">
+                                {bus.operatorLogo ? (
+                                  <img
+                                    src={bus.operatorLogo}
+                                    alt="operator"
+                                    className="w-6 h-6 object-contain rounded"
+                                  />
+                                ) : (
+                                  <FaBus className="text-gray-500" />
+                                )}
+                                <h4 className="text-sm font-semibold text-gray-900">
+                                  Why book this bus?
+                                </h4>
+                              </div>
+
                               {coverUrl && (
                                 <img
                                   src={coverUrl}
@@ -450,7 +470,7 @@ export default function Desktop() {
                                 >
                                   {detailsOpen[busKey]
                                     ? "Hide details"
-                                    : "More details"}
+                                    : "Why book this bus?"}
                                 </button>
                               </div>
 
@@ -463,6 +483,16 @@ export default function Desktop() {
                                     transition={{ duration: 0.25 }}
                                     className="mt-3 text-sm text-gray-700"
                                   >
+                                    {/* Owner inline (mirrors mobile) */}
+                                    {bus?.owner?.name ? (
+                                      <p className="mb-2">
+                                        <span className="font-medium">
+                                          Owner:
+                                        </span>{" "}
+                                        {bus.owner.name}
+                                      </p>
+                                    ) : null}
+
                                     {/* Route meta */}
                                     {(bus?.routeMeta?.via?.length ||
                                       bus?.routeMeta?.distanceKm ||
@@ -514,7 +544,9 @@ export default function Desktop() {
                                                 typeof v === "boolean" && v
                                             )
                                             .map(([k]) =>
-                                              facilityChip(k.replace(/([A-Z])/g, " $1"))
+                                              facilityChip(
+                                                k.replace(/([A-Z])/g, " $1")
+                                              )
                                             )}
                                           {Array.isArray(
                                             bus.facilities?.extraTags
@@ -538,7 +570,14 @@ export default function Desktop() {
                                           </p>
                                           <p className="text-gray-700">
                                             {[
-                                              bus.vehicle.registrationNo,
+                                              bus.vehicle.registrationNo ? (
+                                                <span
+                                                  key="reg"
+                                                  className="font-semibold"
+                                                >
+                                                  {bus.vehicle.registrationNo}
+                                                </span>
+                                              ) : null,
                                               bus.vehicle.make,
                                               bus.vehicle.model,
                                               bus.vehicle.seatCount
@@ -546,7 +585,19 @@ export default function Desktop() {
                                                 : null,
                                             ]
                                               .filter(Boolean)
-                                              .join(" • ")}
+                                              .map((node, i) =>
+                                                typeof node === "string" ? (
+                                                  <span key={i}>
+                                                    {i > 0 ? " • " : ""}
+                                                    {node}
+                                                  </span>
+                                                ) : (
+                                                  <span key={i}>
+                                                    {i > 0 ? " • " : ""}
+                                                    {node}
+                                                  </span>
+                                                )
+                                              )}
                                           </p>
                                         </div>
                                       )}
