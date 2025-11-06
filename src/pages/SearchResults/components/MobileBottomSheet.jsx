@@ -142,7 +142,7 @@ export default function MobileBottomSheet({ hideSteps }) {
   // ----- Redbus "drop-up" helpers -----
   const perSeat = getDisplayPrice(selectedBus, from, to);
   const selSeats = selectedBookingData.selectedSeats || [];
-  const selCount = selSeats.length;
+  the const selCount = selSeats.length;
   const subtotal =
     selectedBookingData.totalPrice && selectedBookingData.totalPrice > 0
       ? selectedBookingData.totalPrice
@@ -313,7 +313,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                   </div>
                 ) : null}
 
-                {/* Heading + price / meta */}
+                {/* Heading + meta (reg. no. instead of price) */}
                 <div className="p-4">
                   <div className="flex items-start gap-3">
                     {/* logo (if present) */}
@@ -338,9 +338,15 @@ export default function MobileBottomSheet({ hideSteps }) {
                             {selectedBus.name}
                           </h4>
                         </div>
+                        {/* 🔁 Replaced price with Government Registration Number */}
                         <div className="text-right">
-                          <div className="text-[10px] uppercase tracking-wide text-gray-500">Starts at</div>
-                          <div className="text-base font-bold text-gray-900 tabular-nums">Rs. {perSeat}</div>
+                          <div className="text-[10px] uppercase tracking-wide text-gray-500">Reg. No.</div>
+                          <div className="text-base font-bold text-gray-900 tabular-nums">
+                            {selectedBus?.specs?.registrationNo ||
+                              selectedBus?.registrationNo ||
+                              selectedBus?.regNo ||
+                              "—"}
+                          </div>
                         </div>
                       </div>
 
