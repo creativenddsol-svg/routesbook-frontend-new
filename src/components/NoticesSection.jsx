@@ -18,7 +18,7 @@ const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4
 
 // Helper component for the navigation dots
 const Dots = ({ count, activeIndex, goToIndex }) => {
-  // ⬇️ Updated to Redbus-style: left red "1/N" chip + right tiny gray dots
+  // ⬇️ Redbus-style: left red "1/N" chip + right tiny gray dots
   const safeIndex = Math.min(Math.max(0, activeIndex || 0), Math.max(0, (count || 1) - 1));
   return (
     <div className="flex items-center justify-between mt-3 lg:hidden">
@@ -183,7 +183,7 @@ const NoticesSection = () => {
             ))}
           </div>
         </div>
-      </div />
+      </div> {/* <-- FIXED: proper closing tag (not self-closing) */}
 
       {/* ---------- Mobile/Tablet: original horizontal rail ---------- */}
       <div className="lg:hidden w-full overflow-hidden">
@@ -210,7 +210,7 @@ const NoticesSection = () => {
           ))}
         </div>
 
-        {/* Tiny Navigation Dots (now with red counter chip + dots) */}
+        {/* Tiny Navigation Dots (red counter chip + dots) */}
         <div className={`${CONTAINER_MARGIN_X}`}>
           {items.length > 1 && (
             <Dots 
