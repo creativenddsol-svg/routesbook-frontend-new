@@ -16,24 +16,18 @@ const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8";
 const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
 
 /* ─────────────────────────────────────────────
-   Centered Redbus-style pager (chip + dots)
+   Centered Redbus-style pager
+   — chip OVER the middle of the dots row
    ───────────────────────────────────────────── */
 const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
   const total = Math.max(1, count || 1);
   const safeIndex = Math.min(Math.max(0, activeIndex || 0), total - 1);
+
   return (
     <div className={`lg:hidden mt-3 flex justify-center ${className}`}>
-      <div className="inline-flex items-center gap-3">
-        {/* chip */}
-        <span
-          className="inline-flex items-center justify-center min-w-[36px] px-2 py-0.5
-                     text-[10px] font-semibold rounded-full
-                     bg-[var(--rb-primary,#D84E55)] text-white whitespace-nowrap"
-          aria-live="polite"
-        >
-          {safeIndex + 1}/{total}
-        </span>
-        {/* dots */}
+      {/* Relative wrapper so we can overlay the chip */}
+      <div className="relative inline-flex items-center">
+        {/* Dots row (clickable) */}
         <div className="flex items-center gap-2">
           {Array.from({ length: total }).map((_, i) => {
             const isActive = i === safeIndex;
@@ -49,6 +43,17 @@ const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
             );
           })}
         </div>
+
+        {/* Chip centered ON TOP of dots */}
+        <span
+          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+                     inline-flex items-center justify-center min-w-[36px] px-2 py-0.5
+                     text-[10px] font-semibold rounded-full
+                     bg-[var(--rb-primary,#D84E55)] text-white whitespace-nowrap"
+          aria-live="polite"
+        >
+          {safeIndex + 1}/{total}
+        </span>
       </div>
     </div>
   );
@@ -225,7 +230,7 @@ const NoticesSection = () => {
           ))}
         </div>
 
-        {/* Centered pager: red 1/N chip + dots together */}
+        {/* Centered pager with chip over the dots */}
         <Dots
           count={items.length}
           activeIndex={activeIndex}
