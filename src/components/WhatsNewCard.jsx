@@ -16,13 +16,13 @@ const WhatsNewCard = ({ item, linkTo }) => {
     <div className="w-full rounded-lg overflow-hidden">
       {/* Pure image, fixed height, now using responsive height h-40 sm:h-48 */}
       {/* ✅ FIX: Updated height to match NoticeCard for better consistency. */}
-      <div className="relative w-full h-40 sm:h-48"> 
+      <div className="relative w-full h-40 sm:h-48">
         {src ? (
           <img
             src={src}
             alt={alt}
-            // The combination of parent 'overflow-hidden' and these classes fixes image edge issues
-            className="w-full h-full object-cover" 
+            // ✅ Mobile shows full image (object-contain); desktop keeps the previous fill look.
+            className="w-full h-full object-contain md:object-cover object-center"
             loading="lazy"
             decoding="async"
             draggable={false}
