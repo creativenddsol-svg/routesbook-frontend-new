@@ -750,6 +750,17 @@ const EditBus = () => {
             </div>
 
             <div>
+              <label className={`${LABEL} mb-2`}>Seat Layout</label>
+              <SeatLayoutSelector
+                selectedLayout={form.seatLayout}
+                onLayoutChange={handleLayoutChange}
+              />
+              <p className="text-xs text-gray-500 mt-2">
+                Tip: You can paste comma separated seats (e.g., A1, A2, B1…).
+              </p>
+            </div>
+
+            <div>
               <label htmlFor="busType" className={LABEL}>
                 Bus Type
               </label>
@@ -764,17 +775,6 @@ const EditBus = () => {
                 <option value="Non-AC">Non-AC</option>
                 <option value="Sleeper">Sleeper</option>
               </select>
-            </div>
-
-            <div>
-              <label className={`${LABEL} mb-2`}>Seat Layout</label>
-              <SeatLayoutSelector
-                selectedLayout={form.seatLayout}
-                onLayoutChange={handleLayoutChange}
-              />
-              <p className="text-xs text-gray-500 mt-2">
-                Tip: You can paste comma separated seats (e.g., A1, A2, B1…).
-              </p>
             </div>
           </div>
         </fieldset>
