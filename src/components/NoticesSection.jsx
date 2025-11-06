@@ -17,17 +17,17 @@ const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4
 
 /* ─────────────────────────────────────────────
    Centered Redbus-style pager
-   — chip OVER the middle of the dots row
+   — chip sits in the MIDDLE of dots, inside a fixed-height row
    ───────────────────────────────────────────── */
 const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
   const total = Math.max(1, count || 1);
   const safeIndex = Math.min(Math.max(0, activeIndex || 0), total - 1);
 
   return (
-    <div className={`lg:hidden mt-3 flex justify-center ${className}`}>
-      {/* Relative wrapper so we can overlay the chip */}
-      <div className="relative inline-flex items-center">
-        {/* Dots row (clickable) */}
+    <div className={`lg:hidden mt-4 flex justify-center ${className}`}>
+      {/* Fixed-height box prevents clipping under the card above */}
+      <div className="relative h-6 min-w-[96px] flex items-center justify-center z-10">
+        {/* Dots row */}
         <div className="flex items-center gap-2">
           {Array.from({ length: total }).map((_, i) => {
             const isActive = i === safeIndex;
@@ -44,12 +44,12 @@ const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
           })}
         </div>
 
-        {/* Chip centered ON TOP of dots */}
+        {/* Chip centered ON TOP of dots, fully inside the 24px row */}
         <span
           className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
                      inline-flex items-center justify-center min-w-[36px] px-2 py-0.5
                      text-[10px] font-semibold rounded-full
-                     bg-[var(--rb-primary,#D84E55)] text-white whitespace-nowrap"
+                     bg-[var(--rb-primary,#D84E55)] text-white whitespace-nowrap z-10"
           aria-live="polite"
         >
           {safeIndex + 1}/{total}
@@ -214,7 +214,7 @@ const NoticesSection = () => {
         <div
           ref={railRef}
           onScroll={handleScroll}
-          className="flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-4 hide-scrollbar snap-x snap-mandatory"
+          className="flex gap-4 overflow-x-auto scroll-smooth pb-4 pl-4 hide-scrollbar snap-x snap-mandatory" // pb-4 for extra space
           style={{ 
             WebkitOverflowScrolling: "touch",
             scrollPaddingLeft: "1rem"
@@ -230,7 +230,7 @@ const NoticesSection = () => {
           ))}
         </div>
 
-        {/* Centered pager with chip over the dots */}
+        {/* Centered pager with chip over the dots (fully visible) */}
         <Dots
           count={items.length}
           activeIndex={activeIndex}
