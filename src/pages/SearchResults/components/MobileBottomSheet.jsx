@@ -31,7 +31,8 @@ const LabelValue = ({ label, value }) => {
   );
 };
 
-const GalleryRail = ({ images = [] }) => {
+// ⬇️ Make GalleryRail memoized so it doesn't re-render unless `images` reference changes
+const GalleryRail = React.memo(({ images = [] }) => {
   if (!images?.length) return null;
   return (
     <div className="mt-3">
@@ -44,13 +45,14 @@ const GalleryRail = ({ images = [] }) => {
             alt={`gallery-${i}`}
             className="h-20 w-28 flex-none rounded-lg object-cover border border-gray-200"
             loading="lazy"
+            decoding="async"
             onError={(e) => (e.currentTarget.style.display = "none")}
           />
         ))}
       </div>
     </div>
   );
-};
+});
 
 /* ──────────────────────────────────────────────────────────────
    Robust image URL normalizer (handles many DB shapes)
@@ -159,29 +161,48 @@ export default function MobileBottomSheet({ hideSteps }) {
       ? `${selectedBus.seatLayout.length} seats`
       : null;
 
-  // ------- Robust media & details fallbacks -------
-  const imagesArray =
-    (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
-    (Array.isArray(selectedBus?.galleryPhotos) && selectedBus.galleryPhotos) ||
-    (Array.isArray(selectedBus?.images) && selectedBus.images) ||
-    (Array.isArray(selectedBus?.media?.gallery) && selectedBus.media.gallery) ||
-    [];
+  // ------- Robust media & details fallbacks (memoized once per bus open) -------
+  const {
+    coverUrl,
+    gallery,
+    tags,
+    detailsText,
+    detailsHtml,
+    specs,
+  } = useMemo(() => {
+    const imagesArray =
+      (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
+      (Array.isArray(selectedBus?.galleryPhotos) && selectedBus.galleryPhotos) ||
+      (Array.isArray(selectedBus?.images) && selectedBus.images) ||
+      (Array.isArray(selectedBus?.media?.gallery) && selectedBus.media.gallery) ||
+      [];
 
-  const coverRaw =
-    selectedBus?.cover ||
-    selectedBus?.coverPhoto ||
-    selectedBus?.coverImage ||
-    selectedBus?.images?.cover ||
-    selectedBus?.media?.cover ||
-    imagesArray[0] ||
-    null;
+    const coverRaw =
+      selectedBus?.cover ||
+      selectedBus?.coverPhoto ||
+      selectedBus?.coverImage ||
+      selectedBus?.images?.cover ||
+      selectedBus?.media?.cover ||
+      imagesArray[0] ||
+      null;
 
-  const coverUrl = toAbsolute(coverRaw);
-  const gallery = normalizeGallery(imagesArray);
-  const tags = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
-  const detailsText = selectedBus?.details;
-  const detailsHtml = selectedBus?.detailsHtml;
-  const specs = selectedBus?.specs || {}; // {make, model, year, registrationNo, busNo, seatCount}
+    const coverUrlLocal = toAbsolute(coverRaw);
+    const galleryLocal = Object.freeze(normalizeGallery(imagesArray)); // stable reference
+    const tagsLocal = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
+    const detailsTextLocal = selectedBus?.details;
+    const detailsHtmlLocal = selectedBus?.detailsHtml;
+    const specsLocal = selectedBus?.specs || {}; // {make, model, year, registrationNo, busNo, seatCount}
+
+    return {
+      coverUrl: coverUrlLocal,
+      gallery: galleryLocal,
+      tags: tagsLocal,
+      detailsText: detailsTextLocal,
+      detailsHtml: detailsHtmlLocal,
+      specs: specsLocal,
+    };
+    // ✅ depend ONLY on bus identity so availability polling won't recompute media
+  }, [selectedBus?._id]);
 
   return createPortal(
     expandedBusId ? (
@@ -286,6 +307,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                       alt="cover"
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      decoding="async"
                       onError={(e) => (e.currentTarget.style.display = "none")}
                     />
                   </div>
@@ -300,6 +322,8 @@ export default function MobileBottomSheet({ hideSteps }) {
                         src={toAbsolute(selectedBus.operatorLogo)}
                         alt="operator"
                         className="h-9 w-9 rounded-full object-cover border border-gray-200"
+                        loading="lazy"
+                        decoding="async"
                         onError={(e) => (e.currentTarget.style.display = "none")}
                       />
                     ) : (
