@@ -1,3 +1,4 @@
+// src/pages/AddBus.jsx
 import { useState, useEffect, useMemo } from "react";
 // ✅ use the shared API client instead of axios
 import apiClient from "../api";
@@ -37,13 +38,6 @@ const cleanPoints = (arr) =>
       point: String(point || "").trim(),
     }))
     .filter((r) => r.time && r.point);
-
-// ✅ NEW: parse minimal route stops from a single input (">" or "," separated)
-const parseStops = (val) =>
-  String(val || "")
-    .split(/>|,/g)
-    .map((s) => s.trim())
-    .filter(Boolean);
 
 const AddBus = () => {
   const navigate = useNavigate();
@@ -133,9 +127,6 @@ const AddBus = () => {
     details: "",
     detailsHtml: "",
     tags: [],
-
-    // ✅ NEW: Minimal ordered route stops (single text field in UI)
-    routeStops: "",
   });
 
   const [operators, setOperators] = useState([]);
@@ -468,9 +459,6 @@ const AddBus = () => {
       ...form,
       seatLayout: seatArray,
       unavailableDates: unavailableArray,
-      // ✅ NEW: add minimal ordered route stops (backend expects array of strings)
-      routeStops: parseStops(form.routeStops),
-
       // only include top-level points & fares when NOT rotating
       boardingPoints: !form.rotationSchedule.isRotating
         ? cleanPoints(boardingPoints)
@@ -857,24 +845,6 @@ const AddBus = () => {
                       }))
                     }
                   />
-                </div>
-
-                {/* ✅ NEW: Minimal ordered route stops (single field) */}
-                <div className="md:col-span-3">
-                  <label className={LABEL}>
-                    Minimal Route Stops (ordered) — use <code>&gt;</code> or commas
-                  </label>
-                  <input
-                    className={INPUT}
-                    placeholder="Matara Bus Stand > Nupe Junction > Rahula Junction"
-                    value={form.routeStops}
-                    onChange={(e) =>
-                      setForm((prev) => ({ ...prev, routeStops: e.target.value }))
-                    }
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    This is the compact list shown on the card. Example: <em>Matara Bus Stand &gt; Nupe Junction &gt; Rahula Junction</em>
-                  </p>
                 </div>
               </div>
             </div>
