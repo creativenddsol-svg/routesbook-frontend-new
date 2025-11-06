@@ -130,7 +130,7 @@ const CalendarPopover = ({
   if (!open || !anchorRef.current) return null;
 
   const rect = anchorRef.current.getBoundingClientRect();
-  const top = rect.bottom + 8;
+  the top = rect.bottom + 8;
   const width = 360;
   const maxLeft = Math.max(8, window.innerWidth - width - 8);
   const left = Math.min(rect.left, maxLeft);
@@ -1357,18 +1357,21 @@ const Home = () => {
                 </div>
               </div>
 
-              {/* SEARCH BUTTON */}
-              <div className="p-3 border-t" style={{ borderColor: PALETTE.borderLight }}>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+              {/* SEARCH ACTION — flat link-style */}
+              <div className="border-t" style={{ borderColor: PALETTE.borderLight }}>
+                <button
                   onClick={handleSearch}
-                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-bold tracking-wider py-3.5 rounded-xl shadow-lg transition-all"
-                  style={{ backgroundColor: PALETTE.primaryRed }}
+                  className="
+                    w-full bg-transparent p-0 m-0
+                    rounded-none shadow-none ring-0 outline-none
+                    text-[15px] font-semibold tracking-wide text-[#D84E55]
+                    flex items-center justify-center gap-2
+                  "
+                  style={{ backgroundColor: "transparent" }}
                 >
-                  <FaSearch />
+                  <FaSearch className="opacity-80" />
                   SEARCH BUSES
-                </motion.button>
+                </button>
               </div>
             </div>
           </motion.div>
