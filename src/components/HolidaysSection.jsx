@@ -220,7 +220,7 @@ const HolidaysSection = () => {
           {items.map((h, index) => (
             <div
               key={h._id}
-              className={`w-[220px] flex-shrink-0 snap-start ${index === items.length - 1 ? "pr-4" : ""}`}
+              className={`w-[calc((100vw-2rem)/2)] flex-shrink-0 snap-start ${index === items.length - 1 ? "pr-4" : ""}`}
             >
               <div className="relative group rounded-2xl overflow-hidden">
                 <HolidayChipCard holiday={h} />
