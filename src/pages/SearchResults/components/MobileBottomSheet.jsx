@@ -505,7 +505,7 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* 🔻 Redbus-style DROP-UP — now FLUSH to bottom (no outer margins) */}
+        {/* 🔻 Redbus-style DROP-UP — FLUSH (no curves/border/shadow) */}
         <AnimatePresence>
           {showDropUp && (
             <motion.div
@@ -516,9 +516,9 @@ export default function MobileBottomSheet({ hideSteps }) {
               transition={{ type: "spring", stiffness: 420, damping: 36 }}
               className="fixed left-0 right-0 bottom-0 z-[10002]"
             >
-              {/* Full-width container; only top rounded; border-top; shadow up */}
+              {/* ⛔ No rounded corners, borders, or shadows */}
               <div
-                className="w-full rounded-t-2xl bg-white border-t border-gray-200 shadow-[0_-10px_24px_rgba(0,0,0,0.12)]"
+                className="w-full bg-white"
                 style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
               >
                 {/* drag handle */}
