@@ -130,7 +130,6 @@ const CalendarPopover = ({
   if (!open || !anchorRef.current) return null;
 
   const rect = anchorRef.current.getBoundingClientRect();
-  the:
   const top = rect.bottom + 8;
   const width = 360;
   const maxLeft = Math.max(8, window.innerWidth - width - 8);
