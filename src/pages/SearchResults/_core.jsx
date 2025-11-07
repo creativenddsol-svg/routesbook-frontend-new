@@ -893,7 +893,7 @@ export function SearchCoreProvider({ children }) {
       } catch (err) {
         console.error("Failed to fetch special notices:", err);
       } finally {
-        setNoticesLoading(false);
+               setNoticesLoading(false);
       }
     };
     fetchSpecialNotices();
@@ -1228,8 +1228,8 @@ export function SearchCoreProvider({ children }) {
         [busKey]: {
           selectedSeats: [],
           seatGenders: {},
-          selectedBoardingPoint: bus.boardingPoints?.[0] || null,
-          selectedDroppingPoint: bus.droppingPoints?.[0] || null,
+          selectedBoardingPoint: null,            // ← changed
+          selectedDroppingPoint: null,            // ← changed
           basePrice: 0,
           convenienceFee: 0,
           totalPrice: 0,
@@ -1578,8 +1578,8 @@ export function SearchCoreProvider({ children }) {
     busSpecificBookingData[expandedBusId]) || {
     selectedSeats: [],
     seatGenders: {},
-    selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
-    selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+    selectedBoardingPoint: null,            // ← changed
+    selectedDroppingPoint: null,            // ← changed
     basePrice: 0,
     convenienceFee: 0,
     totalPrice: 0,
