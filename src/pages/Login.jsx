@@ -297,7 +297,7 @@ export default function Login() {
 
             {/* EMAIL LOGIN (Google first) */}
             {mode === "email" && (
-              <>
+              <div className="text-[16px] md:text-base">
                 <GoogleSignInButton
                   text="signin_with"
                   size="large"
@@ -411,12 +411,12 @@ export default function Login() {
                     </Link>
                   </p>
                 </form>
-              </>
+              </div>
             )}
 
             {/* PHONE: unified login-or-signup (no name field) */}
             {mode === "phone" && (
-              <div className="space-y-4">
+              <div className="space-y-4 text-[16px] md:text-base">
                 {step === "request" && (
                   <form onSubmit={sendOtp} className="space-y-4">
                     <RowInput
@@ -424,6 +424,7 @@ export default function Login() {
                       name="mobile"
                       label="Mobile number"
                       type="tel"
+                      inputMode="tel"
                       value={mobile}
                       onChange={(e) => setMobile(e.target.value)}
                       placeholder="077xxxxxxx or +9477xxxxxxx"
