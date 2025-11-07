@@ -284,7 +284,7 @@ export default function MobileBottomSheet({ hideSteps }) {
         {/* Content — add bottom padding ONLY when drop-up is visible */}
         <div
           className={`flex-1 overflow-y-auto px-4 pt-3 bg-white ${
-            showDropUp ? "pb-6" : currentMobileStep === 1 ? "pb-6" : "pb-6"
+            showDropUp ? "pb-36" : currentMobileStep === 1 ? "pb-6" : "pb-6"
           }`}
           style={{ WebkitOverflowScrolling: "touch" }}
         >
@@ -450,9 +450,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                 )}
               </div>
               {/* ==== END details block ==== */}
-
-              {/* spacer so content never hides behind the fixed bottom bar */}
-              {showDropUp && <div className="h-[88px] sm:h-[96px]" />}
             </div>
           )}
 
@@ -522,40 +519,61 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* 🔻 Redbus-style bottom action bar (edge-to-edge) */}
+        {/* 🔻 Redbus-style DROP-UP (only Step 1 and only when ≥1 seat selected) */}
         <AnimatePresence>
           {showDropUp && (
             <motion.div
-              key="rb-bottombar"
+              key="rb-dropup"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 420, damping: 36 }}
-              className="fixed inset-x-0 bottom-0 z-[10002]"
+              className="fixed left-0 right-0 bottom-0 z-[10002]"
+              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             >
-              <div
-                className="bg-white border-t shadow-[0_-6px_24px_rgba(0,0,0,0.08)] px-4 pt-3"
-                style={{ paddingBottom: "max(14px, env(safe-area-inset-bottom))" }}
-              >
-                <div className="max-w-lg mx-auto flex items-center gap-3">
-                  {/* LEFT: selected seats + total */}
-                  <div className="flex-1 leading-tight">
-                    <div className="text-[11px] text-gray-500">
-                      {selCount} {selCount === 1 ? "seat" : "seats"} selected
+              {/* shadow + rounded top, Redbus-like */}
+              <div className="mx-3 mb-3 rounded-2xl border border-gray-200 bg-white shadow-lg">
+                {/* drag handle */}
+                <div className="pt-2 flex justify-center">
+                  <span className="h-1.5 w-12 rounded-full bg-gray-300" />
+                </div>
+
+                <div className="px-4 pb-4 pt-2">
+                  {/* TOP ROW -> left: seats, right: total */}
+                  <div className="flex items-start justify-between gap-3">
+                    {/* left: seats */}
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-gray-500 mb-1">
+                        {selCount} {selCount === 1 ? "seat" : "seats"} selected
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {selSeats.map((s) => (
+                          <span
+                            key={s}
+                            className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 border border-gray-200 text-gray-700"
+                          >
+                            {s}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                    <div className="text-lg font-bold text-gray-900">
-                      Rs. {(subtotal || 0).toLocaleString()}
+
+                    {/* right: total */}
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-wide text-gray-500">
+                        Total
+                      </div>
+                      <div className="text-lg font-bold tabular-nums text-gray-900">
+                        Rs. {subtotal}
+                      </div>
                     </div>
                   </div>
 
-                  {/* RIGHT: CTA */}
+                  {/* CENTERED CTA */}
                   <button
-                    type="button"
                     onClick={() => setCurrentMobileStep(2)}
-                    className="flex-1 sm:flex-none sm:w-auto whitespace-nowrap 
-                               rounded-xl px-4 py-3 font-semibold text-white 
-                               shadow-md active:shadow-none transition"
-                    style={{ backgroundColor: "#D84E55" }}
+                    className="mt-3 w-11/12 mx-auto block px-4 py-3 rounded-xl font-bold text-white"
+                    style={{ background: PALETTE.primaryRed }}
                   >
                     Select boarding &amp; dropping points
                   </button>
