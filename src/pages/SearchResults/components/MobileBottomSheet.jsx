@@ -31,7 +31,7 @@ const LabelValue = ({ label, value }) => {
   );
 };
 
-// ⬇️ Make GalleryRail memoized so it doesn't re-render unless `images` reference changes
+// ⬇️ Memoized gallery rail
 const GalleryRail = React.memo(({ images = [] }) => {
   if (!images?.length) return null;
   return (
@@ -55,7 +55,7 @@ const GalleryRail = React.memo(({ images = [] }) => {
 });
 
 /* ──────────────────────────────────────────────────────────────
-   Robust image URL normalizer (handles many DB shapes)
+   Robust image URL normalizer
    ────────────────────────────────────────────────────────────── */
 const isAbs = (s) => /^https?:\/\//i.test(s);
 const isProtocolRelative = (s) => /^\/\//.test(s);
@@ -69,8 +69,6 @@ function toAbsolute(src) {
   if (isAbs(s)) return s;
   if (isProtocolRelative(s)) return `https:${s}`;
   if (isRootRelative(s)) return `${API_ORIGIN}${s}`;
-
-  // plain "images/foo.jpg" or "uploads/foo.png"
   return `${API_ORIGIN}/${s.replace(/^\.\//, "")}`;
 }
 
@@ -98,7 +96,7 @@ export default function MobileBottomSheet({ hideSteps }) {
     releaseSeats,
   } = useSearchCore();
 
-  // -------- resolve selected bus (id + time encoded in expandedBusId) WITHOUT hooks --------
+  // ----- Resolve selected bus (no hooks) -----
   let selectedBus = null;
   if (expandedBusId) {
     const lastDash = expandedBusId.lastIndexOf("-");
@@ -138,7 +136,7 @@ export default function MobileBottomSheet({ hideSteps }) {
     }
   };
 
-  // ----- Derived labels (safe even if selectedBus is null) -----
+  // ----- Labels -----
   const operatorLabel =
     selectedBus?.operator?.fullName ||
     selectedBus?.operator?.email ||
@@ -149,7 +147,7 @@ export default function MobileBottomSheet({ hideSteps }) {
       ? `${selectedBus.seatLayout.length} seats`
       : null;
 
-  // ------- Media & details — call hook UNCONDITIONALLY to satisfy rules-of-hooks -------
+  // ----- Media & details (memo) -----
   const { coverUrl, gallery, tags, detailsText, detailsHtml, specs } = useMemo(() => {
     if (!selectedBus) {
       return {
@@ -179,27 +177,26 @@ export default function MobileBottomSheet({ hideSteps }) {
       null;
 
     const coverUrlLocal = toAbsolute(coverRaw);
-    const galleryLocal = Object.freeze(normalizeGallery(imagesArray)); // stable reference
+    const galleryLocal = Object.freeze(normalizeGallery(imagesArray));
     const tagsLocal = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
     const detailsTextLocal = selectedBus?.details ?? null;
     const detailsHtmlLocal = selectedBus?.detailsHtml ?? null;
-    const specsLocal = selectedBus?.specs || {}; // optional legacy spec object
+    const specsLocal = selectedBus?.specs || {};
 
     return {
       coverUrl: coverUrlLocal,
       gallery: galleryLocal,
       tags: tagsLocal,
       detailsText: detailsTextLocal,
+      detailsHtmlLocal,
       detailsHtml: detailsHtmlLocal,
       specs: specsLocal,
     };
-    // ✅ depend ONLY on bus identity
-  }, [selectedBus?._id]); // ← fixed the space typo here
+  }, [selectedBus?._id]);
 
-  // ✅ Now it's safe to return early; all hooks have already executed.
   if (!selectedBus) return null;
 
-  // ----- Redbus "drop-up" helpers -----
+  // ----- Drop-up helpers -----
   const perSeat = getDisplayPrice(selectedBus, from, to);
   const selSeats = selectedBookingData.selectedSeats || [];
   const selCount = selSeats.length;
@@ -281,10 +278,10 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* Content — add bottom padding ONLY when drop-up is visible */}
+        {/* Content — add bottom padding when drop-up visible (slightly larger now) */}
         <div
           className={`flex-1 overflow-y-auto px-4 pt-3 bg-white ${
-            showDropUp ? "pb-36" : currentMobileStep === 1 ? "pb-6" : "pb-6"
+            showDropUp ? "pb-40" : "pb-6"
           }`}
           style={{ WebkitOverflowScrolling: "touch" }}
         >
@@ -303,9 +300,8 @@ export default function MobileBottomSheet({ hideSteps }) {
                 />
               </div>
 
-              {/* ==== Full bus details (cover, specs, tags, details, gallery) ==== */}
+              {/* ==== Details card (cover, specs, tags, details, gallery) ==== */}
               <div className="mt-2 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                {/* Cover Photo (if any) */}
                 {coverUrl ? (
                   <div className="w-full aspect-[16/9] bg-gray-100">
                     <img
@@ -319,10 +315,8 @@ export default function MobileBottomSheet({ hideSteps }) {
                   </div>
                 ) : null}
 
-                {/* Heading + meta (Reg. No. instead of price) */}
                 <div className="p-4">
                   <div className="flex items-start gap-3">
-                    {/* logo (if present) */}
                     {selectedBus?.operatorLogo ? (
                       <img
                         src={toAbsolute(selectedBus.operatorLogo)}
@@ -345,7 +339,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                           </h4>
                         </div>
 
-                        {/* 🔁 Show Government Registration Number */}
                         <div className="text-right">
                           <div className="text-[10px] uppercase tracking-wide text-gray-500">Reg. No.</div>
                           <div className="text-base font-bold text-gray-900 tabular-nums">
@@ -358,7 +351,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                         </div>
                       </div>
 
-                      {/* tags / quick meta */}
                       <div className="mt-2 flex flex-wrap items-center gap-2">
                         {selectedBus?.busType ? <Chip>{selectedBus.busType}</Chip> : null}
                         {seatsCount ? <Chip>{seatsCount}</Chip> : null}
@@ -369,7 +361,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                         ))}
                       </div>
 
-                      {/* times + route */}
                       <div className="mt-3 grid grid-cols-3 items-center">
                         <div className="text-sm font-medium text-gray-900">
                           {selectedBus.departureTime}
@@ -382,7 +373,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                         </div>
                       </div>
 
-                      {/* Quick Specs */}
                       {(specs?.make ||
                         specs?.model ||
                         specs?.year ||
@@ -414,7 +404,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                         </div>
                       )}
 
-                      {/* Details */}
                       {(detailsHtml || detailsText) && (
                         <div className="mt-4">
                           <div className="text-sm font-semibold text-gray-800 mb-1">About this bus</div>
@@ -429,16 +418,13 @@ export default function MobileBottomSheet({ hideSteps }) {
                         </div>
                       )}
 
-                      {/* Gallery */}
                       <GalleryRail images={gallery} />
                     </div>
                   </div>
                 </div>
 
-                {/* divider */}
                 <div className="h-px bg-gray-100" />
 
-                {/* footer row (offer / tip) */}
                 {selectedBus?.trendingOffer?.isActive ? (
                   <div className="px-4 py-2 text-[12px] text-green-700 bg-green-50">
                     {selectedBus.trendingOffer.message || "Offer available"}
@@ -519,7 +505,7 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* 🔻 Redbus-style DROP-UP (only Step 1 and only when ≥1 seat selected) */}
+        {/* 🔻 Redbus-style DROP-UP — now FLUSH to bottom (no outer margins) */}
         <AnimatePresence>
           {showDropUp && (
             <motion.div
@@ -529,19 +515,20 @@ export default function MobileBottomSheet({ hideSteps }) {
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 420, damping: 36 }}
               className="fixed left-0 right-0 bottom-0 z-[10002]"
-              style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
             >
-              {/* shadow + rounded top, Redbus-like */}
-              <div className="mx-3 mb-3 rounded-2xl border border-gray-200 bg-white shadow-lg">
+              {/* Full-width container; only top rounded; border-top; shadow up */}
+              <div
+                className="w-full rounded-t-2xl bg-white border-t border-gray-200 shadow-[0_-10px_24px_rgba(0,0,0,0.12)]"
+                style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+              >
                 {/* drag handle */}
                 <div className="pt-2 flex justify-center">
                   <span className="h-1.5 w-12 rounded-full bg-gray-300" />
                 </div>
 
-                <div className="px-4 pb-4 pt-2">
-                  {/* TOP ROW -> left: seats, right: total */}
+                <div className="px-4 pt-2">
+                  {/* TOP ROW: left seats, right total */}
                   <div className="flex items-start justify-between gap-3">
-                    {/* left: seats */}
                     <div className="flex-1 min-w-0">
                       <div className="text-xs text-gray-500 mb-1">
                         {selCount} {selCount === 1 ? "seat" : "seats"} selected
@@ -558,14 +545,9 @@ export default function MobileBottomSheet({ hideSteps }) {
                       </div>
                     </div>
 
-                    {/* right: total */}
                     <div className="text-right">
-                      <div className="text-[10px] uppercase tracking-wide text-gray-500">
-                        Total
-                      </div>
-                      <div className="text-lg font-bold tabular-nums text-gray-900">
-                        Rs. {subtotal}
-                      </div>
+                      <div className="text-[10px] uppercase tracking-wide text-gray-500">Total</div>
+                      <div className="text-lg font-bold tabular-nums text-gray-900">Rs. {subtotal}</div>
                     </div>
                   </div>
 
