@@ -69,6 +69,8 @@ const SinglePointList = ({ points, selectedPoint, onSelect, mode }) => {
                 <span
                   className="w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors duration-200"
                   style={{ borderColor: selected ? PALETTE.primary : "#D1D5DB" }}
+                  aria-checked={selected}
+                  role="radio"
                 >
                   {selected ? (
                     <span
@@ -81,7 +83,7 @@ const SinglePointList = ({ points, selectedPoint, onSelect, mode }) => {
                 <input
                   type="radio"
                   name={`point-${mode}`}
-                  checked={selected}
+                  checked={!!selected}
                   onChange={() => {}}
                   className="hidden"
                 />
