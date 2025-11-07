@@ -112,3 +112,24 @@ a {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ======= MOBILE INPUT ZOOM FIX (iOS/Android) ======= */
+/* Keep focused form controls at >=16px to prevent browser auto-zoom */
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+/* Prevent Safari text autosizing oddities */
+html { -webkit-text-size-adjust: 100%; }
+
+/* (Optional) Slightly larger tap target for better accessibility on mobile */
+@media (max-width: 640px) {
+  input, select, textarea {
+    /* Padding only; does not affect your Tailwind utilities */
+    padding-top: 0.625rem;  /* ~10px */
+    padding-bottom: 0.625rem;
+  }
+}
