@@ -462,112 +462,22 @@ export default function MobileBottomSheet({ hideSteps }) {
             </div>
           )}
 
-          {/* STEP 3: Summary — refreshed to match Steps 1–2 styling */}
+          {/* STEP 3: Summary */}
           {currentMobileStep === 3 && (
-            <div className="space-y-3">
-              {/* Compact meta header (same tone as details/points cards) */}
-              <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-                <div className="p-4">
-                  <div className="flex items-start gap-3">
-                    {selectedBus?.operatorLogo ? (
-                      <img
-                        src={toAbsolute(selectedBus.operatorLogo)}
-                        alt="operator"
-                        className="h-9 w-9 rounded-full object-cover border border-gray-200"
-                        loading="lazy"
-                        decoding="async"
-                        onError={(e) => (e.currentTarget.style.display = "none")}
-                      />
-                    ) : (
-                      <div className="h-9 w-9 rounded-full bg-gray-100 border border-gray-200" />
-                    )}
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[13px] text-gray-500 truncate">
-                            {operatorLabel}
-                          </p>
-                          <h4 className="text-sm font-semibold text-gray-900 truncate">
-                            {selectedBus.name}
-                          </h4>
-                        </div>
-
-                        {/* Date pill + total */}
-                        <div className="text-right">
-                          <div className="inline-flex items-center px-2 py-1 rounded-full text-[11px] bg-amber-50 border border-amber-200 text-amber-800">
-                            {searchDateParam}
-                          </div>
-                          <div className="mt-2 text-[10px] uppercase tracking-wide text-gray-500">Total</div>
-                          <div className="text-base font-bold text-gray-900 tabular-nums">
-                            Rs. {subtotal}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Route & time row */}
-                      <div className="mt-2 grid grid-cols-3 items-center">
-                        <div className="text-sm font-medium text-gray-900">
-                          {selectedBus.departureTime}
-                        </div>
-                        <div className="text-center text-[11px] text-gray-500 truncate">
-                          {from} → {to}
-                        </div>
-                        <div className="text-right text-sm font-medium text-gray-900">
-                          {selectedBus.arrivalTime}
-                        </div>
-                      </div>
-
-                      {/* Selected seats & points chips */}
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        {selSeats?.length
-                          ? selSeats.map((s) => (
-                              <span
-                                key={s}
-                                className="px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 border border-gray-200 text-gray-700"
-                              >
-                                Seat {s}
-                              </span>
-                            ))
-                          : null}
-
-                        {selectedBookingData.selectedBoardingPoint?.point ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 border border-emerald-200 text-emerald-700">
-                            {selectedBookingData.selectedBoardingPoint.time} •{" "}
-                            {selectedBookingData.selectedBoardingPoint.point}
-                          </span>
-                        ) : null}
-
-                        {selectedBookingData.selectedDroppingPoint?.point ? (
-                          <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-indigo-50 border border-indigo-200 text-indigo-700">
-                            {selectedBookingData.selectedDroppingPoint.time} •{" "}
-                            {selectedBookingData.selectedDroppingPoint.point}
-                          </span>
-                        ) : null}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Divider before detailed list/amounts */}
-                <div className="h-px bg-gray-100" />
-
-                {/* Keep your existing summary renderer for line items & totals */}
-                <div className="p-4">
-                  <BookingSummary
-                    bus={selectedBus}
-                    selectedSeats={selSeats}
-                    date={searchDateParam}
-                    basePrice={selectedBookingData.basePrice}
-                    convenienceFee={selectedBookingData.convenienceFee}
-                    totalPrice={selectedBookingData.totalPrice}
-                    boardingPoint={selectedBookingData.selectedBoardingPoint}
-                    droppingPoint={selectedBookingData.selectedDroppingPoint}
-                  />
-                </div>
+            <div className="flex flex-col h-full">
+              <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+                <BookingSummary
+                  bus={selectedBus}
+                  selectedSeats={selSeats}
+                  date={searchDateParam}
+                  basePrice={selectedBookingData.basePrice}
+                  convenienceFee={selectedBookingData.convenienceFee}
+                  totalPrice={selectedBookingData.totalPrice}
+                  boardingPoint={selectedBookingData.selectedBoardingPoint}
+                  droppingPoint={selectedBookingData.selectedDroppingPoint}
+                />
               </div>
 
-              {/* Footer CTA (kept as before) */}
               <div className="border-t pt-3 bg-white">
                 <button
                   onClick={() => handleProceedToPayment(selectedBus)}
@@ -662,7 +572,8 @@ export default function MobileBottomSheet({ hideSteps }) {
                     <div className="flex-1 min-w-0">
                       <div className="text-xs text-gray-500 mb-1">Points selected</div>
                       <div className="text-sm text-gray-900 truncate">
-                        {selectedBookingData.selectedBoardingPoint?.point} →{" "}
+                        {selectedBookingData.selectedBoardingPoint?.point} →
+                        {" "}
                         {selectedBookingData.selectedDroppingPoint?.point}
                       </div>
                     </div>
