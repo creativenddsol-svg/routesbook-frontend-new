@@ -110,12 +110,13 @@ export default function MobileBottomSheet({ hideSteps }) {
     ? availability[expandedBusId] || {}
     : {};
 
+  // ❗ Default to NULL for both points (no auto-select)
   const selectedBookingData =
     (expandedBusId && busSpecificBookingData[expandedBusId]) || {
       selectedSeats: [],
       seatGenders: {},
-      selectedBoardingPoint: selectedBus?.boardingPoints?.[0] || null,
-      selectedDroppingPoint: selectedBus?.droppingPoints?.[0] || null,
+      selectedBoardingPoint: null,
+      selectedDroppingPoint: null,
       basePrice: 0,
       convenienceFee: 0,
       totalPrice: 0,
@@ -278,7 +279,7 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* Content — add bottom padding when drop-up visible (slightly larger now) */}
+        {/* Content — add bottom padding when drop-up visible */}
         <div
           className={`flex-1 overflow-y-auto px-4 pt-3 bg-white ${
             showDropUp ? "pb-40" : "pb-6"
@@ -505,7 +506,7 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* 🔻 Redbus-style DROP-UP — FLUSH (no curves/border/shadow) */}
+        {/* 🔻 Redbus-style DROP-UP — FLUSH (no curves/border/shadow), covers full width */}
         <AnimatePresence>
           {showDropUp && (
             <motion.div
@@ -521,7 +522,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                 className="w-full bg-white"
                 style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
               >
-                {/* drag handle */}
+                {/* (Keep small drag handle like Redbus) */}
                 <div className="pt-2 flex justify-center">
                   <span className="h-1.5 w-12 rounded-full bg-gray-300" />
                 </div>
