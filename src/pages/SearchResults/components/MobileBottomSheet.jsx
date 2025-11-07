@@ -206,7 +206,12 @@ export default function MobileBottomSheet({ hideSteps }) {
       ? selectedBookingData.totalPrice
       : perSeat * selCount;
 
-  const showDropUp = currentMobileStep === 1 && selCount > 0;
+  const hasPoints =
+    !!selectedBookingData.selectedBoardingPoint &&
+    !!selectedBookingData.selectedDroppingPoint;
+
+  const showDropUpSeats = currentMobileStep === 1 && selCount > 0;
+  const showDropUpPoints = currentMobileStep === 2 && hasPoints && selCount > 0;
 
   return createPortal(
     expandedBusId ? (
@@ -279,10 +284,10 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* Content — add bottom padding when drop-up visible */}
+        {/* Content — add bottom padding when any drop-up visible */}
         <div
           className={`flex-1 overflow-y-auto px-4 pt-3 bg-white ${
-            showDropUp ? "pb-40" : "pb-6"
+            showDropUpSeats || showDropUpPoints ? "pb-40" : "pb-6"
           }`}
           style={{ WebkitOverflowScrolling: "touch" }}
         >
@@ -453,27 +458,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                   setSelectedDroppingPoint={(p) => handleDroppingPointSelect(selectedBus, p)}
                 />
               </div>
-              <div className="flex items-center justify-between border-t pt-3 bg-white">
-                <button
-                  onClick={() => setCurrentMobileStep(1)}
-                  className="px-4 py-2 rounded-lg font-bold"
-                  style={{ color: PALETTE.textLight, background: "#F3F4F6" }}
-                >
-                  Back
-                </button>
-                <button
-                  onClick={() => setCurrentMobileStep(3)}
-                  className="px-4 py-2 rounded-lg font-bold text-white disabled:opacity-60"
-                  style={{ background: PALETTE.primaryRed }}
-                  disabled={
-                    !selectedBookingData.selectedBoardingPoint ||
-                    !selectedBookingData.selectedDroppingPoint ||
-                    (selectedBookingData.selectedSeats || []).length === 0
-                  }
-                >
-                  Proceed
-                </button>
-              </div>
+              {/* ❌ Removed old Back/Proceed footer — replaced by drop-up */}
             </div>
           )}
 
@@ -506,29 +491,26 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* 🔻 Redbus-style DROP-UP — FLUSH (no curves/border/shadow), covers full width */}
+        {/* 🔻 Redbus-style DROP-UP — FLUSH (no curves/border/shadow), seats step */}
         <AnimatePresence>
-          {showDropUp && (
+          {showDropUpSeats && (
             <motion.div
-              key="rb-dropup"
+              key="rb-dropup-seats"
               initial={{ y: "100%" }}
               animate={{ y: 0 }}
               exit={{ y: "100%" }}
               transition={{ type: "spring", stiffness: 420, damping: 36 }}
               className="fixed left-0 right-0 bottom-0 z-[10002]"
             >
-              {/* ⛔ No rounded corners, borders, or shadows */}
               <div
                 className="w-full bg-white"
                 style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
               >
-                {/* (Keep small drag handle like Redbus) */}
                 <div className="pt-2 flex justify-center">
                   <span className="h-1.5 w-12 rounded-full bg-gray-300" />
                 </div>
 
                 <div className="px-4 pt-2">
-                  {/* TOP ROW: left seats, right total */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="text-xs text-gray-500 mb-1">
@@ -552,13 +534,62 @@ export default function MobileBottomSheet({ hideSteps }) {
                     </div>
                   </div>
 
-                  {/* CENTERED CTA */}
                   <button
                     onClick={() => setCurrentMobileStep(2)}
                     className="mt-3 w-11/12 mx-auto block px-4 py-3 rounded-xl font-bold text-white"
                     style={{ background: PALETTE.primaryRed }}
                   >
                     Select boarding &amp; dropping points
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* 🔻 Redbus-style DROP-UP — FLUSH, points step */}
+        <AnimatePresence>
+          {showDropUpPoints && (
+            <motion.div
+              key="rb-dropup-points"
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", stiffness: 420, damping: 36 }}
+              className="fixed left-0 right-0 bottom-0 z-[10002]"
+            >
+              <div
+                className="w-full bg-white"
+                style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+              >
+                <div className="pt-2 flex justify-center">
+                  <span className="h-1.5 w-12 rounded-full bg-gray-300" />
+                </div>
+
+                <div className="px-4 pt-2">
+                  {/* Top row shows selected points (compact) and total */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs text-gray-500 mb-1">Points selected</div>
+                      <div className="text-sm text-gray-900 truncate">
+                        {selectedBookingData.selectedBoardingPoint?.point} →
+                        {" "}
+                        {selectedBookingData.selectedDroppingPoint?.point}
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] uppercase tracking-wide text-gray-500">Total</div>
+                      <div className="text-lg font-bold tabular-nums text-gray-900">Rs. {subtotal}</div>
+                    </div>
+                  </div>
+
+                  {/* CTA mirrors seats step style */}
+                  <button
+                    onClick={() => setCurrentMobileStep(3)}
+                    className="mt-3 w-11/12 mx-auto block px-4 py-3 rounded-xl font-bold text-white"
+                    style={{ background: PALETTE.primaryRed }}
+                  >
+                    Check booking summary
                   </button>
                 </div>
               </div>
