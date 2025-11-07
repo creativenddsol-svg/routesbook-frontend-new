@@ -130,6 +130,7 @@ const CalendarPopover = ({
   if (!open || !anchorRef.current) return null;
 
   const rect = anchorRef.current.getBoundingClientRect();
+  the:
   const top = rect.bottom + 8;
   const width = 360;
   const maxLeft = Math.max(8, window.innerWidth - width - 8);
@@ -1061,8 +1062,6 @@ const Home = () => {
               className="text-lg font-extrabold tracking-tight"
               style={{
                 color: PALETTE.primaryRed,
-                // Mont-like stack; if Mont is loaded it will use it,
-                // otherwise falls back cleanly.
                 fontFamily:
                   "'Mont', 'Montserrat', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'",
               }}
@@ -1488,111 +1487,123 @@ const Home = () => {
         </section>
       </div>
 
-      {/* ===== Guide / How to Book ===== */}
+      {/* ===== NEW: RedBus-style Info (Why Choose + How to Book + Offers + FAQ) ===== */}
       <div className={`${SECTION_WRAP}`}>
         <section className={`${SECTION_INNER} py-16`}>
-          <div className="bg-white p-8 md:p-12 rounded-2xl shadow-lg border border-gray-100">
-            <h2
-              className="font-heading text-3xl font-bold mb-4"
-              style={{ color: PALETTE.textDark }}
-            >
-              Online Bus Ticket Booking on Routesbook
-            </h2>
-            <p
-              className="mb-4 text-base leading-relaxed"
-              style={{ color: PALETTE.textLight }}
-            >
-              Routesbook is your new and reliable companion for booking bus
-              tickets online. Designed for simplicity and convenience, Routesbook
-              offers a smooth and secure booking experience across a growing
-              network of trusted bus operators. Whether you're traveling across
-              cities or planning a local trip, Routesbook provides a wide range
-              of affordable travel options and modern features for every
-              passenger.
-            </p>
-            <p
-              className="mb-8 text-base leading-relaxed"
-              style={{ color: PALETTE.textLight }}
-            >
-              Partnering with emerging private bus operators and transport
-              services, Routesbook ensures comfortable journeys with a variety of
-              bus types like AC, Non-AC, Sleeper, Seater, Semi-Sleeper, and
-              Luxury coaches. As a newly launched platform, we’re committed to
-              providing transparent pricing, secure payment methods, and
-              exceptional customer service.
-            </p>
-
-            <h3
-              className="font-heading text-2xl font-bold mb-6"
-              style={{ color: PALETTE.textDark }}
-            >
-              How to Book Bus Tickets on Routesbook?
-            </h3>
-            <p className="mb-8 text-base" style={{ color: PALETTE.textLight }}>
-              Booking your journey on Routesbook is simple and user-friendly.
-              Just follow these quick steps:
-            </p>
-
-            <ul className="space-y-5">
-              {[
-                {
-                  t: "Enter Travel Details:",
-                  d: "Select your departure city, destination, and travel date to view available bus services.",
-                },
-                {
-                  t: "Search Buses:",
-                  d: "Filter results by bus type, fare, timing, boarding & dropping points, seat availability, and onboard amenities.",
-                },
-                {
-                  t: "Choose Your Seat:",
-                  d: "Pick your preferred seat and boarding/dropping points. Review the fare and proceed to book.",
-                },
-                {
-                  t: "Enter Passenger Information:",
-                  d: "Fill in passenger name, contact number, and any other required details.",
-                },
-                {
-                  t: "Make Payment:",
-                  d: "Complete your booking securely using a range of payment options.",
-                },
-                {
-                  t: "Get Ticket Confirmation:",
-                  d: "Receive your digital ticket via email and SMS instantly after payment.",
-                },
-              ].map((step, idx) => (
-                <li key={idx} className="flex items-start">
-                  <FaArrowRight
-                    className="text-sm mr-4 mt-1.5 shrink-0"
-                    style={{ color: PALETTE.primaryRed }}
-                  />
-                  <span style={{ color: PALETTE.textLight }}>
-                    <strong
-                      className="font-semibold"
-                      style={{ color: PALETTE.textDark }}
-                    >
-                      {step.t}
-                    </strong>{" "}
-                    {step.d}
+          <div className="grid md:grid-cols-2 gap-6 md:gap-8">
+            {/* WHY CHOOSE */}
+            <div className="rounded-2xl border bg-white p-6 md:p-8 shadow-sm border-gray-100">
+              <h2 className="text-xl md:text-2xl font-semibold text-gray-900">
+                Why choose Routesbook.lk?
+              </h2>
+              <ul className="mt-5 space-y-4 text-[15px] leading-7 text-gray-700">
+                <li className="flex gap-3">
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
+                    <FaBolt className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
                   </span>
+                  <p><span className="font-medium text-gray-900">Real-time seats</span> — pick your exact seat before you pay.</p>
                 </li>
-              ))}
-            </ul>
+                <li className="flex gap-3">
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
+                    <FaShieldAlt className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
+                  </span>
+                  <p><span className="font-medium text-gray-900">Secure payments</span> — cards & mobile wallets via trusted gateway.</p>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
+                    <FaMapMarkerAlt className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
+                  </span>
+                  <p><span className="font-medium text-gray-900">Boarding & drop points</span> — choose the closest stops with exact times.</p>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
+                    <FaMobileAlt className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
+                  </span>
+                  <p><span className="font-medium text-gray-900">Instant e-ticket</span> — QR/PNR via SMS & email, also in <b>My Bookings</b>.</p>
+                </li>
+                <li className="flex gap-3">
+                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
+                    <FaChair className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
+                  </span>
+                  <p><span className="font-medium text-gray-900">Comfort filters</span> — sort by time, price, bus type, and operator.</p>
+                </li>
+              </ul>
+            </div>
 
-            <p
-              className="mt-8 mb-4 text-base leading-relaxed"
-              style={{ color: PALETTE.textLight }}
-            >
-              With Routesbook, every ticket booked comes with the assurance of a
-              secure transaction, access to verified operators, and a
-              customer-first support team to assist you at every step.
+            {/* HOW TO BOOK */}
+            <div className="rounded-2xl border bg-white p-6 md:p-8 shadow-sm border-gray-100">
+              <h2 className="text-xl md:text-2xl font-semibold text-gray-900">
+                How to book
+              </h2>
+              <ol className="mt-5 space-y-4 text-[15px] leading-7 text-gray-700">
+                {[
+                  "Search your route and date, tap ‘Search Buses’.",
+                  "Compare buses—filter by time, price, operator.",
+                  "Pick your seats on the live seat map.",
+                  "Choose boarding & drop points.",
+                  "Enter passenger details.",
+                  "Pay securely.",
+                  "Get your QR e-ticket instantly.",
+                ].map((step, i) => (
+                  <li key={i} className="flex gap-3">
+                    <span className="mt-0.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-gray-100 text-gray-700 text-xs font-medium">
+                      {i + 1}
+                    </span>
+                    <p>{step}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </div>
+
+          {/* OFFERS */}
+          <div className="mt-8 rounded-2xl border bg-white p-6 md:p-8 shadow-sm border-gray-100">
+            <h3 className="text-lg md:text-xl font-semibold text-gray-900">Exclusive offers on Routesbook</h3>
+            <p className="mt-3 text-[15px] leading-7 text-gray-700">
+              Save with seasonal deals and partner promotions. Apply coupons on the payment page and watch the fare update instantly.
             </p>
-            <p
-              className="text-base leading-relaxed font-medium"
-              style={{ color: PALETTE.textLight }}
-            >
-              Start your journey the smart way with Routesbook — where your
-              route, your seat, and your journey are just a few clicks away.
-            </p>
+          </div>
+
+          {/* FAQ (native details/summary for simplicity) */}
+          <div className="mt-8 rounded-2xl border bg-white p-6 md:p-8 shadow-sm border-gray-100">
+            <h3 className="text-lg md:text-xl font-semibold text-gray-900">FAQs</h3>
+            <div className="mt-4 space-y-3">
+              <details className="group rounded-lg border border-gray-100 p-4">
+                <summary className="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-900">
+                  Do I need to print my ticket?
+                  <span className="ml-3 text-gray-400 group-open:rotate-90 transition">
+                    <FaArrowRight />
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm text-gray-700">
+                  No. Your QR/PNR e-ticket on your phone is enough.
+                </p>
+              </details>
+
+              <details className="group rounded-lg border border-gray-100 p-4">
+                <summary className="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-900">
+                  Can I cancel or reschedule?
+                  <span className="ml-3 text-gray-400 group-open:rotate-90 transition">
+                    <FaArrowRight />
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm text-gray-700">
+                  Yes—based on the operator’s policy. Exact rules are shown before payment.
+                </p>
+              </details>
+
+              <details className="group rounded-lg border border-gray-100 p-4">
+                <summary className="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-900">
+                  What if my payment fails?
+                  <span className="ml-3 text-gray-400 group-open:rotate-90 transition">
+                    <FaArrowRight />
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm text-gray-700">
+                  Any deducted amount is auto-refunded by the gateway. You’ll receive a reference for support.
+                </p>
+              </details>
+            </div>
           </div>
         </section>
       </div>
