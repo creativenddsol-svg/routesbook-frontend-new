@@ -82,60 +82,26 @@ export default function MobileBottomSheet({ hideSteps }) {
     from,
     to,
     searchDateParam,
-    buses,
-    availability,
     expandedBusId,
     setExpandedBusId,
-    busSpecificBookingData,
-    mobileSheetStepByBus,
-    setMobileSheetStepByBus,
     handleSeatToggle,
     handleBoardingPointSelect,
     handleDroppingPointSelect,
     handleProceedToPayment,
-    releaseSeats,
+
+    // ✅ precomputed from core – no re-deriving here
+    selectedBus,
+    selectedAvailability,
+    selectedBookingData,
+    currentMobileStep,
+    setCurrentMobileStep,
+
+    // ✅ safe global release helper
+    releaseAllSelectedSeats,
   } = useSearchCore();
 
-  // ----- Resolve selected bus (no hooks) -----
-  let selectedBus = null;
-  if (expandedBusId) {
-    const lastDash = expandedBusId.lastIndexOf("-");
-    const id = lastDash >= 0 ? expandedBusId.slice(0, lastDash) : expandedBusId;
-    const time = lastDash >= 0 ? expandedBusId.slice(lastDash + 1) : "";
-    selectedBus =
-      buses.find((b) => b._id === id && b.departureTime === time) || null;
-  }
-
-  const selectedAvailability = expandedBusId
-    ? availability[expandedBusId] || {}
-    : {};
-
-  // ❗ Default to NULL for both points (no auto-select)
-  const selectedBookingData =
-    (expandedBusId && busSpecificBookingData[expandedBusId]) || {
-      selectedSeats: [],
-      seatGenders: {},
-      selectedBoardingPoint: null,
-      selectedDroppingPoint: null,
-      basePrice: 0,
-      convenienceFee: 0,
-      totalPrice: 0,
-    };
-
-  const currentMobileStep =
-    (expandedBusId && mobileSheetStepByBus[expandedBusId]) || 1;
-
-  const setCurrentMobileStep = (n) =>
-    setMobileSheetStepByBus((prev) => ({ ...prev, [expandedBusId]: n }));
-
-  const handleCloseSheet = () => {
-    const seats = busSpecificBookingData[expandedBusId]?.selectedSeats || [];
-    if (seats.length) {
-      releaseSeats(selectedBus, seats).finally(() => setExpandedBusId(null));
-    } else {
-      setExpandedBusId(null);
-    }
-  };
+  // ❗ If nothing is selected, don’t render sheet at all
+  if (!expandedBusId || !selectedBus) return null;
 
   // ----- Labels -----
   const operatorLabel =
@@ -193,9 +159,15 @@ export default function MobileBottomSheet({ hideSteps }) {
       detailsHtml: detailsHtmlLocal,
       specs: specsLocal,
     };
-  }, [selectedBus?._id]);
+  }, [selectedBus]);
 
-  if (!selectedBus) return null;
+  // ----- Close handler: releases all tracked locks via core helper -----
+  const handleCloseSheet = () => {
+    // use core’s consolidated release function to avoid per-bus manual logic
+    releaseAllSelectedSeats(true).finally(() => {
+      setExpandedBusId(null);
+    });
+  };
 
   // ----- Drop-up helpers -----
   const perSeat = getDisplayPrice(selectedBus, from, to);
@@ -572,8 +544,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                     <div className="flex-1 min-w-0">
                       <div className="text-xs text-gray-500 mb-1">Points selected</div>
                       <div className="text-sm text-gray-900 truncate">
-                        {selectedBookingData.selectedBoardingPoint?.point} →
-                        {" "}
+                        {selectedBookingData.selectedBoardingPoint?.point} →{" "}
                         {selectedBookingData.selectedDroppingPoint?.point}
                       </div>
                     </div>
