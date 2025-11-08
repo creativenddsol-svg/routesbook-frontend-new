@@ -278,6 +278,8 @@ const RowInput = ({
       onChange={onChange}
       onBlur={onBlur}
       autoComplete={autoComplete}
+      autoCapitalize="off"        // ✅ prevent iOS auto-cap
+      autoCorrect="off"           // ✅ prevent iOS autocorrect zoom quirks
       inputMode={inputMode}
       enterKeyHint={enterKeyHint}
       placeholder={placeholder}
@@ -289,6 +291,7 @@ const RowInput = ({
       style={{
         borderColor: error ? "#DC2626" : PALETTE.border,
         color: PALETTE.text,
+        fontSize: 16,            // ✅ critical: prevent mobile zoom-on-focus
       }}
     />
     {error ? (
@@ -1120,7 +1123,7 @@ const ConfirmBooking = () => {
   return (
     <div
       ref={pageTopRef}
-      className="min-h-screen"
+      className="min-h-screen text-[16px] md:text-base"   // ✅ ensure stable base size on mobile
       style={{ background: PALETTE.bg }}
     >
       {/* Matte top bar */}
