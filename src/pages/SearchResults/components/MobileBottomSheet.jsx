@@ -88,6 +88,7 @@ export default function MobileBottomSheet({ hideSteps }) {
     handleBoardingPointSelect,
     handleDroppingPointSelect,
     handleProceedToPayment,
+    handleToggleSeatLayout, // ✅ use same close logic as core seat layout
 
     // ✅ precomputed from core – no re-deriving here
     selectedBus,
@@ -96,7 +97,7 @@ export default function MobileBottomSheet({ hideSteps }) {
     currentMobileStep,
     setCurrentMobileStep,
 
-    // ✅ safe global release helper
+    // ✅ safe global release helper (still available if ever needed)
     releaseAllSelectedSeats,
   } = useSearchCore();
 
@@ -115,58 +116,59 @@ export default function MobileBottomSheet({ hideSteps }) {
       : null;
 
   // ----- Media & details (memo) -----
-  const { coverUrl, gallery, tags, detailsText, detailsHtml, specs } = useMemo(() => {
-    if (!selectedBus) {
+  const { coverUrl, gallery, tags, detailsText, detailsHtml, specs } =
+    useMemo(() => {
+      if (!selectedBus) {
+        return {
+          coverUrl: null,
+          gallery: [],
+          tags: [],
+          detailsText: null,
+          detailsHtml: null,
+          specs: {},
+        };
+      }
+
+      const imagesArray =
+        (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
+        (Array.isArray(selectedBus?.galleryPhotos) &&
+          selectedBus.galleryPhotos) ||
+        (Array.isArray(selectedBus?.images) && selectedBus.images) ||
+        (Array.isArray(selectedBus?.media?.gallery) &&
+          selectedBus.media.gallery) ||
+        [];
+
+      const coverRaw =
+        selectedBus?.cover ||
+        selectedBus?.coverPhoto ||
+        selectedBus?.coverImage ||
+        selectedBus?.images?.cover ||
+        selectedBus?.media?.cover ||
+        imagesArray[0] ||
+        null;
+
+      const coverUrlLocal = toAbsolute(coverRaw);
+      const galleryLocal = Object.freeze(normalizeGallery(imagesArray));
+      const tagsLocal = Array.isArray(selectedBus?.tags)
+        ? selectedBus.tags
+        : [];
+      const detailsTextLocal = selectedBus?.details ?? null;
+      const detailsHtmlLocal = selectedBus?.detailsHtml ?? null;
+      const specsLocal = selectedBus?.specs || {};
+
       return {
-        coverUrl: null,
-        gallery: [],
-        tags: [],
-        detailsText: null,
-        detailsHtml: null,
-        specs: {},
+        coverUrl: coverUrlLocal,
+        gallery: galleryLocal,
+        tags: tagsLocal,
+        detailsText: detailsTextLocal,
+        detailsHtml: detailsHtmlLocal,
+        specs: specsLocal,
       };
-    }
+    }, [selectedBus]);
 
-    const imagesArray =
-      (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
-      (Array.isArray(selectedBus?.galleryPhotos) && selectedBus.galleryPhotos) ||
-      (Array.isArray(selectedBus?.images) && selectedBus.images) ||
-      (Array.isArray(selectedBus?.media?.gallery) && selectedBus.media.gallery) ||
-      [];
-
-    const coverRaw =
-      selectedBus?.cover ||
-      selectedBus?.coverPhoto ||
-      selectedBus?.coverImage ||
-      selectedBus?.images?.cover ||
-      selectedBus?.media?.cover ||
-      imagesArray[0] ||
-      null;
-
-    const coverUrlLocal = toAbsolute(coverRaw);
-    const galleryLocal = Object.freeze(normalizeGallery(imagesArray));
-    const tagsLocal = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
-    const detailsTextLocal = selectedBus?.details ?? null;
-    const detailsHtmlLocal = selectedBus?.detailsHtml ?? null;
-    const specsLocal = selectedBus?.specs || {};
-
-    return {
-      coverUrl: coverUrlLocal,
-      gallery: galleryLocal,
-      tags: tagsLocal,
-      detailsText: detailsTextLocal,
-      detailsHtmlLocal,
-      detailsHtml: detailsHtmlLocal,
-      specs: specsLocal,
-    };
-  }, [selectedBus]);
-
-  // ----- Close handler: releases all tracked locks via core helper -----
+  // ----- Close handler: use core's unified toggle (releases this bus's seats + collapse) -----
   const handleCloseSheet = () => {
-    // use core’s consolidated release function to avoid per-bus manual logic
-    releaseAllSelectedSeats(true).finally(() => {
-      setExpandedBusId(null);
-    });
+    handleToggleSeatLayout(selectedBus);
   };
 
   // ----- Drop-up helpers -----
@@ -198,7 +200,8 @@ export default function MobileBottomSheet({ hideSteps }) {
           <div className="flex items-center justify-between">
             <button
               onClick={() => {
-                if (currentMobileStep > 1) setCurrentMobileStep(currentMobileStep - 1);
+                if (currentMobileStep > 1)
+                  setCurrentMobileStep(currentMobileStep - 1);
                 else handleCloseSheet();
               }}
               className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
@@ -208,7 +211,10 @@ export default function MobileBottomSheet({ hideSteps }) {
             </button>
 
             <div className="min-w-0 px-2 text-center">
-              <h3 className="text-base font-semibold truncate" style={{ color: PALETTE.textDark }}>
+              <h3
+                className="text-base font-semibold truncate"
+                style={{ color: PALETTE.textDark }}
+              >
                 {selectedBus.name}
               </h3>
               <p className="text-xs text-gray-500 truncate">
@@ -237,7 +243,9 @@ export default function MobileBottomSheet({ hideSteps }) {
                   >
                     <span
                       className={`inline-flex items-center justify-center w-6 h-6 rounded-full border text-[12px] font-bold mb-1 ${
-                        active ? "bg-red-500 text-white border-red-500" : "bg-white text-gray-500 border-gray-300"
+                        active
+                          ? "bg-red-500 text-white border-red-500"
+                          : "bg-white text-gray-500 border-gray-300"
                       }`}
                     >
                       {n}
@@ -247,7 +255,11 @@ export default function MobileBottomSheet({ hideSteps }) {
                         active ? "text-red-500 font-semibold" : "text-gray-500"
                       }`}
                     >
-                      {n === 1 ? "Select seats" : n === 2 ? "Board/Drop point" : "Passenger info"}
+                      {n === 1
+                        ? "Select seats"
+                        : n === 2
+                        ? "Board/Drop point"
+                        : "Passenger info"}
                     </span>
                   </button>
                 );
@@ -311,14 +323,18 @@ export default function MobileBottomSheet({ hideSteps }) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-3">
                         <div className="min-w-0">
-                          <p className="text-[13px] text-gray-500 truncate">{operatorLabel}</p>
+                          <p className="text-[13px] text-gray-500 truncate">
+                            {operatorLabel}
+                          </p>
                           <h4 className="text-sm font-semibold text-gray-900 truncate">
                             {selectedBus.name}
                           </h4>
                         </div>
 
                         <div className="text-right">
-                          <div className="text-[10px] uppercase tracking-wide text-gray-500">Reg. No.</div>
+                          <div className="text-[10px] uppercase tracking-wide text-gray-500">
+                            Reg. No.
+                          </div>
                           <div className="text-base font-bold text-gray-900 tabular-nums">
                             {selectedBus?.vehicle?.registrationNo ||
                               selectedBus?.specs?.registrationNo ||
@@ -330,10 +346,16 @@ export default function MobileBottomSheet({ hideSteps }) {
                       </div>
 
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        {selectedBus?.busType ? <Chip>{selectedBus.busType}</Chip> : null}
+                        {selectedBus?.busType ? (
+                          <Chip>{selectedBus.busType}</Chip>
+                        ) : null}
                         {seatsCount ? <Chip>{seatsCount}</Chip> : null}
-                        {selectedBus?.features?.wifi ? <Chip>Wi-Fi</Chip> : null}
-                        {selectedBus?.features?.chargingPort ? <Chip>Charging Port</Chip> : null}
+                        {selectedBus?.features?.wifi ? (
+                          <Chip>Wi-Fi</Chip>
+                        ) : null}
+                        {selectedBus?.features?.chargingPort ? (
+                          <Chip>Charging Port</Chip>
+                        ) : null}
                         {tags.map((t, i) => (
                           <Chip key={i}>{t}</Chip>
                         ))}
@@ -362,9 +384,18 @@ export default function MobileBottomSheet({ hideSteps }) {
                         selectedBus?.vehicle?.model ||
                         selectedBus?.vehicle?.year) && (
                         <div className="mt-4 grid grid-cols-2 gap-3">
-                          <LabelValue label="Make" value={specs.make || selectedBus?.vehicle?.make} />
-                          <LabelValue label="Model" value={specs.model || selectedBus?.vehicle?.model} />
-                          <LabelValue label="Year" value={specs.year || selectedBus?.vehicle?.year} />
+                          <LabelValue
+                            label="Make"
+                            value={specs.make || selectedBus?.vehicle?.make}
+                          />
+                          <LabelValue
+                            label="Model"
+                            value={specs.model || selectedBus?.vehicle?.model}
+                          />
+                          <LabelValue
+                            label="Year"
+                            value={specs.year || selectedBus?.vehicle?.year}
+                          />
                           <LabelValue
                             label="Registration No."
                             value={
@@ -374,24 +405,34 @@ export default function MobileBottomSheet({ hideSteps }) {
                               selectedBus?.regNo
                             }
                           />
-                          <LabelValue label="Bus Number" value={specs.busNo} />
+                          <LabelValue
+                            label="Bus Number"
+                            value={specs.busNo}
+                          />
                           <LabelValue
                             label="Seat Count"
-                            value={specs.seatCount || selectedBus?.vehicle?.seatCount}
+                            value={
+                              specs.seatCount ||
+                              selectedBus?.vehicle?.seatCount
+                            }
                           />
                         </div>
                       )}
 
                       {(detailsHtml || detailsText) && (
                         <div className="mt-4">
-                          <div className="text-sm font-semibold text-gray-800 mb-1">About this bus</div>
+                          <div className="text-sm font-semibold text-gray-800 mb-1">
+                            About this bus
+                          </div>
                           {detailsHtml ? (
                             <div
                               className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-li:my-0 text-gray-700"
                               dangerouslySetInnerHTML={{ __html: detailsHtml }}
                             />
                           ) : (
-                            <p className="text-sm text-gray-700 whitespace-pre-line">{detailsText}</p>
+                            <p className="text-sm text-gray-700 whitespace-pre-line">
+                              {detailsText}
+                            </p>
                           )}
                         </div>
                       )}
@@ -424,10 +465,18 @@ export default function MobileBottomSheet({ hideSteps }) {
                 <PointSelection
                   boardingPoints={selectedBus.boardingPoints}
                   droppingPoints={selectedBus.droppingPoints}
-                  selectedBoardingPoint={selectedBookingData.selectedBoardingPoint}
-                  setSelectedBoardingPoint={(p) => handleBoardingPointSelect(selectedBus, p)}
-                  selectedDroppingPoint={selectedBookingData.selectedDroppingPoint}
-                  setSelectedDroppingPoint={(p) => handleDroppingPointSelect(selectedBus, p)}
+                  selectedBoardingPoint={
+                    selectedBookingData.selectedBoardingPoint
+                  }
+                  setSelectedBoardingPoint={(p) =>
+                    handleBoardingPointSelect(selectedBus, p)
+                  }
+                  selectedDroppingPoint={
+                    selectedBookingData.selectedDroppingPoint
+                  }
+                  setSelectedDroppingPoint={(p) =>
+                    handleDroppingPointSelect(selectedBus, p)
+                  }
                 />
               </div>
               {/* ❌ Removed old Back/Proceed footer — replaced by drop-up */}
@@ -476,7 +525,9 @@ export default function MobileBottomSheet({ hideSteps }) {
             >
               <div
                 className="w-full bg-white"
-                style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+                style={{
+                  paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)",
+                }}
               >
                 <div className="pt-2 flex justify-center">
                   <span className="h-1.5 w-12 rounded-full bg-gray-300" />
@@ -501,8 +552,12 @@ export default function MobileBottomSheet({ hideSteps }) {
                     </div>
 
                     <div className="text-right">
-                      <div className="text-[10px] uppercase tracking-wide text-gray-500">Total</div>
-                      <div className="text-lg font-bold tabular-nums text-gray-900">Rs. {subtotal}</div>
+                      <div className="text-[10px] uppercase tracking-wide text-gray-500">
+                        Total
+                      </div>
+                      <div className="text-lg font-bold tabular-nums text-gray-900">
+                        Rs. {subtotal}
+                      </div>
                     </div>
                   </div>
 
@@ -532,7 +587,9 @@ export default function MobileBottomSheet({ hideSteps }) {
             >
               <div
                 className="w-full bg-white"
-                style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
+                style={{
+                  paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)",
+                }}
               >
                 <div className="pt-2 flex justify-center">
                   <span className="h-1.5 w-12 rounded-full bg-gray-300" />
@@ -542,15 +599,21 @@ export default function MobileBottomSheet({ hideSteps }) {
                   {/* Top row shows selected points (compact) and total */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
-                      <div className="text-xs text-gray-500 mb-1">Points selected</div>
+                      <div className="text-xs text-gray-500 mb-1">
+                        Points selected
+                      </div>
                       <div className="text-sm text-gray-900 truncate">
                         {selectedBookingData.selectedBoardingPoint?.point} →{" "}
                         {selectedBookingData.selectedDroppingPoint?.point}
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="text-[10px] uppercase tracking-wide text-gray-500">Total</div>
-                      <div className="text-lg font-bold tabular-nums text-gray-900">Rs. {subtotal}</div>
+                      <div className="text-[10px] uppercase tracking-wide text-gray-500">
+                        Total
+                      </div>
+                      <div className="text-lg font-bold tabular-nums text-gray-900">
+                        Rs. {subtotal}
+                      </div>
                     </div>
                   </div>
 
