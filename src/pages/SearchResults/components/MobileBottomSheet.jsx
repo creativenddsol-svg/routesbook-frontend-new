@@ -95,9 +95,6 @@ export default function MobileBottomSheet({ hideSteps }) {
     selectedBookingData,
     currentMobileStep,
     setCurrentMobileStep,
-
-    // ✅ safe global release helper
-    releaseAllSelectedSeats,
   } = useSearchCore();
 
   // ❗ If nothing is selected, don’t render sheet at all
@@ -117,7 +114,8 @@ export default function MobileBottomSheet({ hideSteps }) {
   // ----- Media & details (plain derived values, no hooks) -----
   const imagesArray =
     (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
-    (Array.isArray(selectedBus?.galleryPhotos) && selectedBus.galleryPhotos) ||
+    (Array.isArray(selectedBus?.galleryPhotos) &&
+      selectedBus.galleryPhotos) ||
     (Array.isArray(selectedBus?.images) && selectedBus.images) ||
     (Array.isArray(selectedBus?.media?.gallery) &&
       selectedBus.media.gallery) ||
@@ -139,30 +137,19 @@ export default function MobileBottomSheet({ hideSteps }) {
   const detailsHtml = selectedBus?.detailsHtml ?? null;
   const specs = selectedBus?.specs || {};
 
-  // ----- Back & close handlers (no Promise.prototype.finally) -----
+  // ----- Back & close handlers (❗ no releasing seats here) -----
   const handleBack = () => {
     if (currentMobileStep > 1) {
       setCurrentMobileStep(currentMobileStep - 1);
-      return;
-    }
-    try {
-      // close sheet from step 1
-      releaseAllSelectedSeats(true);
-    } catch (e) {
-      // ignore errors, still close UI
-    } finally {
+    } else {
+      // from step 1: simply close sheet, keep selections & locks
       setExpandedBusId(null);
     }
   };
 
   const handleCloseIcon = () => {
-    try {
-      releaseAllSelectedSeats(true);
-    } catch (e) {
-      // ignore
-    } finally {
-      setExpandedBusId(null);
-    }
+    // Close sheet, keep current selection & locks
+    setExpandedBusId(null);
   };
 
   // ----- Drop-up helpers -----
