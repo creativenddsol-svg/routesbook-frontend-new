@@ -1,4 +1,3 @@
-// src/pages/SearchResults/_core.jsx
 // Shared logic provider (state, effects, handlers, utils) for Search Results.
 // Mobile.jsx and Desktop.jsx consume this via useSearchCore().
 
@@ -733,12 +732,27 @@ export function SearchCoreProvider({ children }) {
     return buses ? [...buses] : [];
   }, [buses]);
 
+  const hasAnySelectedSeats = useMemo(
+    () =>
+      Object.values(busSpecificBookingData || {}).some(
+        (data) =>
+          data &&
+          Array.isArray(data.selectedSeats) &&
+          data.selectedSeats.length > 0
+      ),
+    [busSpecificBookingData]
+  );
+
   // 🆕 prevent overlapping polls
   const pollInFlightRef = useRef(false);
 
   /* 🆕 near real-time polling to reflect other users' locks without page refresh */
   useEffect(() => {
     if (!buses.length) return;
+
+    // 🆕 Only poll when a card is open or there are selected seats
+    if (!expandedBusId && !hasAnySelectedSeats) return;
+
     let stopped = false;
 
     const tick = async () => {
@@ -780,7 +794,14 @@ export function SearchCoreProvider({ children }) {
       stopped = true;
       clearInterval(id);
     };
-  }, [buses, visibleForPolling, page, expandedBusId, refreshAvailability]);
+  }, [
+    buses,
+    visibleForPolling,
+    page,
+    expandedBusId,
+    hasAnySelectedSeats,
+    refreshAvailability,
+  ]);
 
   /* ---------------- 🆕 Keepalive release for refresh/close ---------------- */
   const releaseAllSelectedSeatsKeepalive = () => {
@@ -1054,6 +1075,7 @@ export function SearchCoreProvider({ children }) {
 
       const seatData = {};
       const items = res.data || [];
+
 
       // concurrency-limited availability fan-out
       for (let i = 0; i < items.length; i += MAX_INIT_AVAIL_CONCURRENCY) {
