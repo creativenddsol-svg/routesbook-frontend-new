@@ -1,12 +1,20 @@
 // src/hooks/useSeatLockBackGuard.js
 import { useEffect, useRef } from "react";
-import apiClient from "../api";
+import apiClient, { getClientId } from "../api";
 
 /**
  * Intercepts browser Back when a seat lock is active.
  * If user confirms, releases the lock then runs onConfirmBack().
  * Otherwise, stays on the page (re-arms the guard).
  */
+
+const getAuthToken = () =>
+  localStorage.getItem("token") ||
+  localStorage.getItem("authToken") ||
+  localStorage.getItem("jwt") ||
+  sessionStorage.getItem("token") ||
+  null;
+
 export default function useSeatLockBackGuard({
   enabled,                 // boolean: arm only when lock is active
   busId,
@@ -28,10 +36,16 @@ export default function useSeatLockBackGuard({
     }
 
     const releaseLock = async () => {
-      const token = localStorage.getItem("token");
+      const token = getAuthToken();
       try {
         await apiClient.delete("/bookings/release", {
-          data: { busId, date, departureTime, seats: seats.map(String) },
+          data: {
+            busId,
+            date,
+            departureTime,
+            seats: seats.map(String),
+            clientId: getClientId(),       // ✅ keep in sync with _core.jsx
+          },
           headers: token ? { Authorization: `Bearer ${token}` } : undefined,
         });
       } catch {
