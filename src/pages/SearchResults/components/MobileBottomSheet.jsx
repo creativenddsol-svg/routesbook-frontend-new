@@ -1,5 +1,5 @@
 // src/pages/SearchResults/components/MobileBottomSheet.jsx
-import React, { useMemo } from "react";
+import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
 import { FaChevronLeft, FaTimes } from "react-icons/fa";
@@ -88,7 +88,6 @@ export default function MobileBottomSheet({ hideSteps }) {
     handleBoardingPointSelect,
     handleDroppingPointSelect,
     handleProceedToPayment,
-    handleToggleSeatLayout, // ✅ use same close logic as core seat layout
 
     // ✅ precomputed from core – no re-deriving here
     selectedBus,
@@ -97,7 +96,7 @@ export default function MobileBottomSheet({ hideSteps }) {
     currentMobileStep,
     setCurrentMobileStep,
 
-    // ✅ safe global release helper (still available if ever needed)
+    // ✅ safe global release helper
     releaseAllSelectedSeats,
   } = useSearchCore();
 
@@ -115,60 +114,55 @@ export default function MobileBottomSheet({ hideSteps }) {
       ? `${selectedBus.seatLayout.length} seats`
       : null;
 
-  // ----- Media & details (memo) -----
-  const { coverUrl, gallery, tags, detailsText, detailsHtml, specs } =
-    useMemo(() => {
-      if (!selectedBus) {
-        return {
-          coverUrl: null,
-          gallery: [],
-          tags: [],
-          detailsText: null,
-          detailsHtml: null,
-          specs: {},
-        };
-      }
+  // ----- Media & details (plain derived values, no hooks) -----
+  const imagesArray =
+    (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
+    (Array.isArray(selectedBus?.galleryPhotos) && selectedBus.galleryPhotos) ||
+    (Array.isArray(selectedBus?.images) && selectedBus.images) ||
+    (Array.isArray(selectedBus?.media?.gallery) &&
+      selectedBus.media.gallery) ||
+    [];
 
-      const imagesArray =
-        (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
-        (Array.isArray(selectedBus?.galleryPhotos) &&
-          selectedBus.galleryPhotos) ||
-        (Array.isArray(selectedBus?.images) && selectedBus.images) ||
-        (Array.isArray(selectedBus?.media?.gallery) &&
-          selectedBus.media.gallery) ||
-        [];
+  const coverRaw =
+    selectedBus?.cover ||
+    selectedBus?.coverPhoto ||
+    selectedBus?.coverImage ||
+    selectedBus?.images?.cover ||
+    selectedBus?.media?.cover ||
+    imagesArray[0] ||
+    null;
 
-      const coverRaw =
-        selectedBus?.cover ||
-        selectedBus?.coverPhoto ||
-        selectedBus?.coverImage ||
-        selectedBus?.images?.cover ||
-        selectedBus?.media?.cover ||
-        imagesArray[0] ||
-        null;
+  const coverUrl = toAbsolute(coverRaw);
+  const gallery = Object.freeze(normalizeGallery(imagesArray));
+  const tags = Array.isArray(selectedBus?.tags) ? selectedBus.tags : [];
+  const detailsText = selectedBus?.details ?? null;
+  const detailsHtml = selectedBus?.detailsHtml ?? null;
+  const specs = selectedBus?.specs || {};
 
-      const coverUrlLocal = toAbsolute(coverRaw);
-      const galleryLocal = Object.freeze(normalizeGallery(imagesArray));
-      const tagsLocal = Array.isArray(selectedBus?.tags)
-        ? selectedBus.tags
-        : [];
-      const detailsTextLocal = selectedBus?.details ?? null;
-      const detailsHtmlLocal = selectedBus?.detailsHtml ?? null;
-      const specsLocal = selectedBus?.specs || {};
+  // ----- Back & close handlers (no Promise.prototype.finally) -----
+  const handleBack = () => {
+    if (currentMobileStep > 1) {
+      setCurrentMobileStep(currentMobileStep - 1);
+      return;
+    }
+    try {
+      // close sheet from step 1
+      releaseAllSelectedSeats(true);
+    } catch (e) {
+      // ignore errors, still close UI
+    } finally {
+      setExpandedBusId(null);
+    }
+  };
 
-      return {
-        coverUrl: coverUrlLocal,
-        gallery: galleryLocal,
-        tags: tagsLocal,
-        detailsText: detailsTextLocal,
-        detailsHtml: detailsHtmlLocal,
-        specs: specsLocal,
-      };
-    }, [selectedBus]);
-
-  // ----- Close handler: use core's unified toggle (releases this bus's seats + collapse) -----
-  const handleCloseSheet = () => {
-    handleToggleSeatLayout(selectedBus);
+  const handleCloseIcon = () => {
+    try {
+      releaseAllSelectedSeats(true);
+    } catch (e) {
+      // ignore
+    } finally {
+      setExpandedBusId(null);
+    }
   };
 
   // ----- Drop-up helpers -----
@@ -199,11 +193,7 @@ export default function MobileBottomSheet({ hideSteps }) {
         <div className="pt-3 pb-2 px-4 border-b bg-white">
           <div className="flex items-center justify-between">
             <button
-              onClick={() => {
-                if (currentMobileStep > 1)
-                  setCurrentMobileStep(currentMobileStep - 1);
-                else handleCloseSheet();
-              }}
+              onClick={handleBack}
               className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
               aria-label="Back"
             >
@@ -223,7 +213,7 @@ export default function MobileBottomSheet({ hideSteps }) {
             </div>
 
             <button
-              onClick={handleCloseSheet}
+              onClick={handleCloseIcon}
               className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
               aria-label="Close"
             >
@@ -252,7 +242,9 @@ export default function MobileBottomSheet({ hideSteps }) {
                     </span>
                     <span
                       className={`text-[11px] sm:text-[12px] truncate w-full text-center ${
-                        active ? "text-red-500 font-semibold" : "text-gray-500"
+                        active
+                          ? "text-red-500 font-semibold"
+                          : "text-gray-500"
                       }`}
                     >
                       {n === 1
@@ -282,7 +274,9 @@ export default function MobileBottomSheet({ hideSteps }) {
               <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
                 <SeatLayout
                   seatLayout={selectedBus.seatLayout}
-                  bookedSeats={[...(selectedAvailability?.bookedSeats || [])]}
+                  bookedSeats={[
+                    ...(selectedAvailability?.bookedSeats || []),
+                  ]}
                   selectedSeats={selSeats}
                   onSeatClick={(seat) => handleSeatToggle(selectedBus, seat)}
                   bookedSeatGenders={selectedAvailability?.seatGenderMap || {}}
@@ -300,7 +294,9 @@ export default function MobileBottomSheet({ hideSteps }) {
                       className="w-full h-full object-cover"
                       loading="lazy"
                       decoding="async"
-                      onError={(e) => (e.currentTarget.style.display = "none")}
+                      onError={(e) =>
+                        (e.currentTarget.style.display = "none")
+                      }
                     />
                   </div>
                 ) : null}
@@ -314,7 +310,9 @@ export default function MobileBottomSheet({ hideSteps }) {
                         className="h-9 w-9 rounded-full object-cover border border-gray-200"
                         loading="lazy"
                         decoding="async"
-                        onError={(e) => (e.currentTarget.style.display = "none")}
+                        onError={(e) =>
+                          (e.currentTarget.style.display = "none")
+                        }
                       />
                     ) : (
                       <div className="h-9 w-9 rounded-full bg-gray-100 border border-gray-200" />
@@ -337,7 +335,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                           </div>
                           <div className="text-base font-bold text-gray-900 tabular-nums">
                             {selectedBus?.vehicle?.registrationNo ||
-                              selectedBus?.specs?.registrationNo ||
+                              specs.registrationNo ||
                               selectedBus?.registrationNo ||
                               selectedBus?.regNo ||
                               "—"}
@@ -405,10 +403,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                               selectedBus?.regNo
                             }
                           />
-                          <LabelValue
-                            label="Bus Number"
-                            value={specs.busNo}
-                          />
+                          <LabelValue label="Bus Number" value={specs.busNo} />
                           <LabelValue
                             label="Seat Count"
                             value={
@@ -427,7 +422,9 @@ export default function MobileBottomSheet({ hideSteps }) {
                           {detailsHtml ? (
                             <div
                               className="prose prose-sm max-w-none prose-p:my-2 prose-ul:my-2 prose-li:my-0 text-gray-700"
-                              dangerouslySetInnerHTML={{ __html: detailsHtml }}
+                              dangerouslySetInnerHTML={{
+                                __html: detailsHtml,
+                              }}
                             />
                           ) : (
                             <p className="text-sm text-gray-700 whitespace-pre-line">
@@ -479,7 +476,7 @@ export default function MobileBottomSheet({ hideSteps }) {
                   }
                 />
               </div>
-              {/* ❌ Removed old Back/Proceed footer — replaced by drop-up */}
+              {/* ❌ Old footer removed – using drop-up instead */}
             </div>
           )}
 
@@ -512,7 +509,7 @@ export default function MobileBottomSheet({ hideSteps }) {
           )}
         </div>
 
-        {/* 🔻 Redbus-style DROP-UP — FLUSH (no curves/border/shadow), seats step */}
+        {/* 🔻 Redbus-style DROP-UP — FLUSH, seats step */}
         <AnimatePresence>
           {showDropUpSeats && (
             <motion.div
@@ -596,7 +593,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                 </div>
 
                 <div className="px-4 pt-2">
-                  {/* Top row shows selected points (compact) and total */}
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="text-xs text-gray-500 mb-1">
@@ -617,7 +613,6 @@ export default function MobileBottomSheet({ hideSteps }) {
                     </div>
                   </div>
 
-                  {/* CTA mirrors seats step style */}
                   <button
                     onClick={() => setCurrentMobileStep(3)}
                     className="mt-3 w-11/12 mx-auto block px-4 py-3 rounded-xl font-bold text-white"
