@@ -2,7 +2,7 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createPortal } from "react-dom";
-import { FaChevronLeft, FaTimes } from "react-icons/fa";
+import { FaChevronLeft } from "react-icons/fa";
 
 import SeatLayout from "../../../components/SeatLayout";
 import SeatLegend from "../../../components/SeatLegend";
@@ -95,6 +95,9 @@ export default function MobileBottomSheet({ hideSteps }) {
     selectedBookingData,
     currentMobileStep,
     setCurrentMobileStep,
+
+    // ✅ safe global release helper
+    releaseAllSelectedSeats,
   } = useSearchCore();
 
   // ❗ If nothing is selected, don’t render sheet at all
@@ -114,8 +117,7 @@ export default function MobileBottomSheet({ hideSteps }) {
   // ----- Media & details (plain derived values, no hooks) -----
   const imagesArray =
     (Array.isArray(selectedBus?.gallery) && selectedBus.gallery) ||
-    (Array.isArray(selectedBus?.galleryPhotos) &&
-      selectedBus.galleryPhotos) ||
+    (Array.isArray(selectedBus?.galleryPhotos) && selectedBus.galleryPhotos) ||
     (Array.isArray(selectedBus?.images) && selectedBus.images) ||
     (Array.isArray(selectedBus?.media?.gallery) &&
       selectedBus.media.gallery) ||
@@ -137,19 +139,20 @@ export default function MobileBottomSheet({ hideSteps }) {
   const detailsHtml = selectedBus?.detailsHtml ?? null;
   const specs = selectedBus?.specs || {};
 
-  // ----- Back & close handlers (❗ no releasing seats here) -----
+  // ----- Back handler (single control: back/close) -----
   const handleBack = () => {
     if (currentMobileStep > 1) {
       setCurrentMobileStep(currentMobileStep - 1);
-    } else {
-      // from step 1: simply close sheet, keep selections & locks
+      return;
+    }
+    try {
+      // close sheet from step 1
+      releaseAllSelectedSeats(true);
+    } catch (e) {
+      // ignore errors, still close UI
+    } finally {
       setExpandedBusId(null);
     }
-  };
-
-  const handleCloseIcon = () => {
-    // Close sheet, keep current selection & locks
-    setExpandedBusId(null);
   };
 
   // ----- Drop-up helpers -----
@@ -181,7 +184,7 @@ export default function MobileBottomSheet({ hideSteps }) {
           <div className="flex items-center justify-between">
             <button
               onClick={handleBack}
-              className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
+              className="p-2 -ml-2 rounded-full hover:bg-gray-100 active:bg-gray-200 text-gray-800"
               aria-label="Back"
             >
               <FaChevronLeft />
@@ -199,13 +202,8 @@ export default function MobileBottomSheet({ hideSteps }) {
               </p>
             </div>
 
-            <button
-              onClick={handleCloseIcon}
-              className="p-2 -mr-2 rounded-full hover:bg-gray-100 active:bg-gray-200"
-              aria-label="Close"
-            >
-              <FaTimes />
-            </button>
+            {/* Right side empty to keep title centered */}
+            <div className="w-8" />
           </div>
 
           {!hideSteps && (
