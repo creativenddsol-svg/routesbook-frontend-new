@@ -1263,15 +1263,7 @@ export function SearchCoreProvider({ children }) {
   const handleToggleSeatLayout = async (bus) => {
     const busKey = `${bus._id}-${bus.departureTime}`;
     if (expandedBusId === busKey) {
-      const seatsToRelease =
-        busSpecificBookingData[busKey]?.selectedSeats || [];
-      if (seatsToRelease.length) {
-        try {
-          await releaseSeats(bus, seatsToRelease);
-        } catch (e) {
-          console.warn("Release on close failed:", e);
-        }
-      }
+      // 🔕 No release call here (we haven't locked yet in selection phase)
       setExpandedBusId(null);
     } else {
       // ✅ Switching cards – do NOT release seats from other cards.
@@ -1304,7 +1296,7 @@ export function SearchCoreProvider({ children }) {
 
     if (!alreadySelected && unavailable.includes(seatStr)) return;
 
-    // 🆕 If we're about to SELECT on this bus, first release any selections on other buses.
+    // 🆕 If we're about to SELECT on this bus, first release any selections on other buses (UI-only clear)
     if (!alreadySelected) {
       const hasOtherSelections = Object.entries(
         busSpecificBookingData || {}
@@ -1314,7 +1306,7 @@ export function SearchCoreProvider({ children }) {
       }
     }
 
-    // UNSELECT (optimistic)
+    // UNSELECT (UI only)
     if (alreadySelected) {
       setBusSpecificBookingData((prev) => ({
         ...prev,
@@ -1330,12 +1322,10 @@ export function SearchCoreProvider({ children }) {
           ),
         },
       }));
-      // Fire-and-forget release
-      releaseSeats(bus, [seatStr]).catch(() => {});
       return;
     }
 
-    // SELECT (optimistic)
+    // SELECT (UI only)
     if (currentBusData.selectedSeats.length >= 4) {
       toast.error("🚫 You can select a maximum of 4 seats.");
       return;
@@ -1352,52 +1342,6 @@ export function SearchCoreProvider({ children }) {
         },
       },
     }));
-
-    setLocking((v) => ({ ...v, [lkKey]: true }));
-    try {
-      const resp = await lockSeat(bus, seatStr);
-      if (!resp?.ok) {
-        // revert on failure
-        setBusSpecificBookingData((prev) => ({
-          ...prev,
-          [busKey]: {
-            ...prev[busKey],
-            selectedSeats: prev[busKey].selectedSeats.filter(
-              (s) => s !== seatStr
-            ),
-            seatGenders: Object.fromEntries(
-              Object.entries(prev[busKey].seatGenders).filter(
-                ([k]) => k !== seatStr
-              )
-            ),
-          },
-        }));
-        toast.error("Sorry, that seat was just locked by another user.");
-      }
-    } catch (e) {
-      // revert on error
-      setBusSpecificBookingData((prev) => ({
-        ...prev,
-        [busKey]: {
-          ...prev[busKey],
-          selectedSeats: prev[busKey].selectedSeats.filter(
-            (s) => s !== seatStr
-          ),
-          seatGenders: Object.fromEntries(
-            Object.entries(prev[busKey].seatGenders).filter(
-              ([k]) => k !== seatStr
-            )
-          ),
-        },
-      }));
-      toast.error("Seat lock failed. Please try again.");
-    } finally {
-      setLocking((v) => {
-        const c = { ...v };
-        delete c[lkKey];
-        return c;
-      });
-    }
   };
 
   const handleBoardingPointSelect = (bus, point) => {
@@ -1484,7 +1428,7 @@ export function SearchCoreProvider({ children }) {
     }
   }, [expandedBusId, busSpecificBookingData, buses, from, to]);
 
-  const handleProceedToPayment = (bus) => {
+  const handleProceedToPayment = async (bus) => {
     const busKey = `${bus._id}-${bus.departureTime}`;
     const busData = busSpecificBookingData[busKey];
 
@@ -1513,6 +1457,46 @@ export function SearchCoreProvider({ children }) {
     }
     if (totalPrice <= 0 && selectedSeats.length > 0) {
       toast.error("Price could not be determined. Please re-select points.");
+      return;
+    }
+
+    // 🔒 Start lock now (bulk) before navigating
+    const token = getAuthToken();
+    try {
+      const payload = {
+        busId: bus._id,
+        date: searchDateParam,
+        departureTime: bus.departureTime,
+        seats: selectedSeats.map(String),
+        seatGenders: seatGenders || {},
+        clientId: getClientId(),
+      };
+      const res = await apiClient.post(
+        "/bookings/lock",
+        payload,
+        buildAuthConfig(token)
+      );
+
+      if (!res?.data?.ok) {
+        toast.error("Could not lock your seats. Please try again.");
+        return;
+      }
+
+      // store locks locally for cleanup hooks
+      addToRegistry(bus, searchDateParam, selectedSeats);
+      // force update availability for this bus
+      await refreshAvailability([bus], { force: true });
+    } catch (err) {
+      if (err?.response?.status === 409) {
+        const taken = err?.response?.data?.seatsTaken || [];
+        toast.error(
+          taken.length
+            ? `Some seats were just taken: ${taken.join(", ")}`
+            : "Some seats were just taken. Please re-select."
+        );
+      } else {
+        toast.error("Seat lock failed. Please check your connection.");
+      }
       return;
     }
 
