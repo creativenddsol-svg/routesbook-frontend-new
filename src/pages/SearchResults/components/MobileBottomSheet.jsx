@@ -145,14 +145,8 @@ export default function MobileBottomSheet({ hideSteps }) {
       setCurrentMobileStep(currentMobileStep - 1);
       return;
     }
-    try {
-      // close sheet from step 1
-      releaseAllSelectedSeats(true);
-    } catch (e) {
-      // ignore errors, still close UI
-    } finally {
-      setExpandedBusId(null);
-    }
+    // close sheet from step 1, keep current locks & selections
+    setExpandedBusId(null);
   };
 
   // ----- Drop-up helpers -----
