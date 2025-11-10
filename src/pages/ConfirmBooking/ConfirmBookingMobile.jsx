@@ -1,4 +1,4 @@
-// src/pages/ConfirmBooking/ConfirmBookingMobile.jsx 
+// src/pages/ConfirmBooking/ConfirmBookingMobile.jsx
 import React from "react";
 import {
   PALETTE,
@@ -367,39 +367,41 @@ const ConfirmBookingMobile = ({
         <div className="sm:hidden h-24" />
       </div>
 
-      {/* Mobile sticky bottom-sheet CTA */}
+      {/* 🔻 Mobile sticky bottom-sheet CTA (redbus-style) */}
       <div
-        className="fixed inset-x-0 bottom-0 z-40 sm:hidden"
+        className="fixed left-0 right-0 bottom-0 z-[10002] sm:hidden"
         style={{
-          paddingBottom: "env(safe-area-inset-bottom)",
+          paddingBottom: "calc(env(safe-area-inset-bottom))",
         }}
       >
-        <div className="max-w-6xl mx-auto px-4 pb-3">
-          <div
-            className="rounded-2xl shadow-lg border flex items-center gap-3 px-4 py-3 bg-white"
-            style={{ borderColor: PALETTE.border }}
-          >
-            <div className="flex-1">
-              <p
-                className="text-[11px] font-medium"
-                style={{ color: PALETTE.textSubtle }}
-              >
-                Payable Amount
-              </p>
-              <p
-                className="text-base font-extrabold tabular-nums"
-                style={{ color: PALETTE.text }}
-              >
-                Rs. {prices.total.toFixed(2)}
-              </p>
+        <div className="w-full bg-white">
+          {/* grab handle, to visually match MobileBottomSheet */}
+          <div className="pt-2 flex justify-center">
+            <span className="h-1.5 w-12 rounded-full bg-gray-300" />
+          </div>
+
+          <div className="max-w-6xl mx-auto px-4 pt-2 pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs text-gray-500 mb-1">
+                  Payable Amount
+                </div>
+                <div
+                  className="text-base font-extrabold tabular-nums"
+                  style={{ color: PALETTE.text }}
+                >
+                  Rs. {prices.total.toFixed(2)}
+                </div>
+              </div>
             </div>
+
             <button
               type="button"
               disabled={!termsAccepted || holdExpired}
               onClick={() => {
                 handleSubmit({ preventDefault: () => {} });
               }}
-              className="px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+              className="mt-3 w-11/12 mx-auto block px-4 py-3 rounded-xl font-bold text-white shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
               style={{ background: PALETTE.primary }}
             >
               Proceed to Pay
