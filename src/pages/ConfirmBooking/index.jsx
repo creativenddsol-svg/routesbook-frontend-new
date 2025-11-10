@@ -1,12 +1,12 @@
 // src/pages/ConfirmBooking/index.jsx
 import React from "react";
-import { PALETTE, useConfirmBookingCore } from "./_core";
+import { PALETTE, useConfirmBookingCore } from "./core";
 import ConfirmBookingMobile from "./ConfirmBookingMobile";
 import ConfirmBookingDesktop from "./ConfirmBookingDesktop";
 
 const ConfirmBooking = () => {
   // 🔁 All original logic (state, effects, seat lock, submit, etc.)
-  // will live inside this hook in ./_core.jsx
+  // now lives inside this hook in ./core.jsx
   const core = useConfirmBookingCore();
 
   const { missingData, bus, date, navigate } = core;
