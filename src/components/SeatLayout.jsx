@@ -5,9 +5,9 @@ import { FaMale, FaFemale } from "react-icons/fa";
 
 /* ---------- Matte palette (selected = blue) ---------- */
 const PALETTE = {
-  blue: "#2DC492",
-  blueBorder: "#22A57D",
-  blueHoverTint: "#D8FFF0",
+  blue: "#4C6EF5",
+  blueBorder: "#3F5ED8",
+  blueHoverTint: "#EEF2FF",
   border: "#E5E7EB",
   text: "#1A1A1A",
   textSubtle: "#6B7280",
@@ -34,8 +34,8 @@ const Seat = ({
     : isLocked
     ? "bg-[#FEE2E2] text-[#B91C1C] border-[#FCA5A5] cursor-not-allowed"
     : isSelected
-    ? "bg-[#2DC492] text-white border-[#22A57D] shadow-sm"
-    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#D8FFF0] hover:border-[#2DC492]";
+    ? "bg-[#4C6EF5] text-white border-[#3F5ED8] shadow-sm"
+    : "bg-white text-[#1A1A1A] border-[#E5E7EB] hover:bg-[#EEF2FF] hover:border-[#4C6EF5]";
 
   const disabled = isBooked || isLocked;
 
@@ -46,7 +46,7 @@ const Seat = ({
     : isLocked
     ? "bg-[#FCA5A5]"
     : isSelected
-    ? "bg-[#22A57D]"
+    ? "bg-[#3F5ED8]"
     : "bg-gray-300";
 
   return (
@@ -63,7 +63,7 @@ const Seat = ({
         rounded-xl flex items-center justify-center
         transition-transform duration-100
         active:scale-95 focus-visible:outline-none
-        focus-visible:ring-2 focus-visible:ring-[#2DC492]/60
+        focus-visible:ring-2 focus-visible:ring-[#4C6EF5]/60
         disabled:opacity-90
       "
       style={{ WebkitTapHighlightColor: "transparent" }}
