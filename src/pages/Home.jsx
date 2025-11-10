@@ -1380,7 +1380,7 @@ const Home = () => {
                   style={{ backgroundColor: PALETTE.primaryRed }}
                 >
                   <FaSearch />
-                  SEARCH BUSES
+                  Search Buses
                 </motion.button>
               </div>
             </div>
