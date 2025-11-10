@@ -1,4 +1,4 @@
-// src/pages/ConfirmBooking/ConfirmBookingMobile.jsx
+// src/pages/ConfirmBooking/ConfirmBookingMobile.jsx 
 import React from "react";
 import {
   PALETTE,
@@ -363,38 +363,51 @@ const ConfirmBookingMobile = ({
           ) : null}
         </div>
 
-        {/* Inline mobile CTA */}
-        <SectionCard>
-          <div className="sm:hidden mt-2">
+        {/* Spacer so content isn't hidden behind sticky bottom sheet */}
+        <div className="sm:hidden h-24" />
+      </div>
+
+      {/* Mobile sticky bottom-sheet CTA */}
+      <div
+        className="fixed inset-x-0 bottom-0 z-40 sm:hidden"
+        style={{
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+      >
+        <div className="max-w-6xl mx-auto px-4 pb-3">
+          <div
+            className="rounded-2xl shadow-lg border flex items-center gap-3 px-4 py-3 bg-white"
+            style={{ borderColor: PALETTE.border }}
+          >
+            <div className="flex-1">
+              <p
+                className="text-[11px] font-medium"
+                style={{ color: PALETTE.textSubtle }}
+              >
+                Payable Amount
+              </p>
+              <p
+                className="text-base font-extrabold tabular-nums"
+                style={{ color: PALETTE.text }}
+              >
+                Rs. {prices.total.toFixed(2)}
+              </p>
+            </div>
             <button
               type="button"
               disabled={!termsAccepted || holdExpired}
               onClick={() => {
                 handleSubmit({ preventDefault: () => {} });
               }}
+              className="px-4 py-3 rounded-xl text-sm font-semibold text-white shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ background: PALETTE.primary }}
             >
-              <span
-                className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-                style={{ background: PALETTE.primary }}
-              >
-                Proceed to Pay
-              </span>
+              Proceed to Pay
             </button>
-            <p
-              className="mt-2 text-center text-xs"
-              style={{ color: PALETTE.textSubtle }}
-            >
-              Payable Amount:{" "}
-              <span
-                className="font-bold tabular-nums"
-                style={{ color: PALETTE.text }}
-              >
-                Rs. {prices.total.toFixed(2)}
-              </span>
-            </p>
           </div>
-        </SectionCard>
+        </div>
       </div>
+
       {/* ⛔ NOTE: desktop sticky CTA is intentionally NOT rendered here,
           because index.jsx already shows this component only on mobile (sm:hidden). */}
     </div>
