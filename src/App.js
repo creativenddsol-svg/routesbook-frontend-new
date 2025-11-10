@@ -14,7 +14,8 @@ import SearchResults from "./pages/SearchResults";
 import DownloadTicket from "./pages/DownloadTicket";
 import Payment from "./pages/Payment";
 import BookingPage from "./pages/BookingPage";
-import ConfirmBooking from "./pages/ConfirmBooking"; // ✅ now points to the folder with index.jsx
+// ⬇️ point to the new split version (folder with index.jsx)
+import ConfirmBooking from "./pages/ConfirmBooking/index.jsx";
 import MyBookings from "./pages/MyBookings";
 import Profile from "./pages/Profiles";
 import AllOperators from "./pages/AllOperators";
