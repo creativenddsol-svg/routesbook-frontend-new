@@ -136,6 +136,9 @@ const AdminBookings = () => {
   const [newDate, setNewDate] = useState("");
   const [newSeats, setNewSeats] = useState("");
 
+  /* NEW: view-details UI */
+  const [detailsBooking, setDetailsBooking] = useState(null);
+
   /* Cancel token */
   const abortRef = useRef(null);
 
@@ -649,6 +652,13 @@ const AdminBookings = () => {
                     <td className="border px-3 py-2">{b.paymentStatus || "-"}</td>
                     <td className="border px-3 py-2">{b.status || "-"}</td>
                     <td className="border px-3 py-2 text-center space-x-2">
+                      {/* NEW: View details button */}
+                      <button
+                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
+                        onClick={() => setDetailsBooking(b)}
+                      >
+                        View
+                      </button>
                       <button
                         className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                         onClick={() => cancelBooking(b._id)}
@@ -683,6 +693,117 @@ const AdminBookings = () => {
           </tbody>
         </table>
       </div>
+
+      {/* NEW: Booking details card */}
+      {detailsBooking && (
+        <div className="mt-6 p-6 border bg-white rounded shadow-sm">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-lg font-bold mb-1">
+                👁️ Booking details – {detailsBooking.bookingNo || "-"}
+              </h3>
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold">Bus:</span>{" "}
+                {detailsBooking.busName || detailsBooking.bus?.name || "-"}
+              </p>
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold">Route:</span>{" "}
+                {(detailsBooking.routeFrom && detailsBooking.routeTo)
+                  ? `${detailsBooking.routeFrom} → ${detailsBooking.routeTo}`
+                  : detailsBooking.bus?.from && detailsBooking.bus?.to
+                  ? `${detailsBooking.bus.from} → ${detailsBooking.bus.to}`
+                  : "-"}
+              </p>
+              <p className="text-sm text-gray-700">
+                <span className="font-semibold">Date & time:</span>{" "}
+                {detailsBooking.departureAt
+                  ? new Date(detailsBooking.departureAt).toLocaleString()
+                  : detailsBooking.date || "-"}
+              </p>
+            </div>
+            <button
+              className="text-sm px-3 py-1 rounded border bg-gray-50 hover:bg-gray-100"
+              onClick={() => setDetailsBooking(null)}
+            >
+              Close ✕
+            </button>
+          </div>
+
+          {/* Contact / main passenger */}
+          <h4 className="mt-4 mb-2 text-sm font-semibold text-gray-800">
+            Main passenger / contact
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 text-sm">
+            <div>
+              <span className="font-semibold">Name: </span>
+              {detailsBooking.passengerInfo?.fullName ||
+                detailsBooking.userName ||
+                detailsBooking.user?.name ||
+                "-"}
+            </div>
+            <div>
+              <span className="font-semibold">Phone: </span>
+              {detailsBooking.passengerInfo?.phone || "-"}
+            </div>
+            <div>
+              <span className="font-semibold">Email: </span>
+              {detailsBooking.passengerInfo?.email ||
+                detailsBooking.userEmail ||
+                detailsBooking.user?.email ||
+                "-"}
+            </div>
+            <div>
+              <span className="font-semibold">NIC: </span>
+              {detailsBooking.passengerInfo?.nic || "-"}
+            </div>
+            <div>
+              <span className="font-semibold">Seats: </span>
+              {Array.isArray(detailsBooking.selectedSeats) &&
+              detailsBooking.selectedSeats.length
+                ? detailsBooking.selectedSeats.join(", ")
+                : "-"}
+            </div>
+          </div>
+
+          {/* Per-seat passengers */}
+          {Array.isArray(detailsBooking.passengers) &&
+            detailsBooking.passengers.length > 0 && (
+              <>
+                <h4 className="mt-6 mb-2 text-sm font-semibold text-gray-800">
+                  Seat wise passengers
+                </h4>
+                <div className="overflow-auto">
+                  <table className="w-full text-xs md:text-sm border">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="border px-2 py-1 text-left">#</th>
+                        <th className="border px-2 py-1 text-left">Seat</th>
+                        <th className="border px-2 py-1 text-left">Name</th>
+                        <th className="border px-2 py-1 text-left">Age</th>
+                        <th className="border px-2 py-1 text-left">Gender</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {detailsBooking.passengers.map((p, idx) => (
+                        <tr key={idx}>
+                          <td className="border px-2 py-1">{idx + 1}</td>
+                          <td className="border px-2 py-1">{p.seat || "-"}</td>
+                          <td className="border px-2 py-1">{p.name || "-"}</td>
+                          <td className="border px-2 py-1">
+                            {typeof p.age === "number" ? p.age : p.age || "-"}
+                          </td>
+                          <td className="border px-2 py-1">
+                            {p.gender === "F" ? "Female" : p.gender === "M" ? "Male" : "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+        </div>
+      )}
 
       {/* Reschedule Modal (simple inline card for now) */}
       {rescheduleData && (
