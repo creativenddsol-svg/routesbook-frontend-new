@@ -7,19 +7,18 @@ const AdminBookingDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+
   // if we came from /admin/bookings we already passed booking in state
   const [booking, setBooking] = useState(location.state?.booking || null);
   const [loading, setLoading] = useState(!location.state?.booking);
   const [error, setError] = useState("");
 
-  // try to fetch single booking if we didn't get it via state
+  // fetch single booking if user opened this URL directly
   useEffect(() => {
-    if (booking) return; // already have data
+    if (booking) return;
     const run = async () => {
       try {
         setLoading(true);
-        // NOTE: if your backend does NOT have this endpoint yet,
-        // add GET /api/admin/bookings/:id on the server.
         const res = await apiClient.get(`/admin/bookings/${id}`, {
           headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         });
@@ -34,19 +33,20 @@ const AdminBookingDetails = () => {
     run();
   }, [id, booking]);
 
+  // normalize seats so it works for both selectedSeats and seats[]
   const seats =
     (booking?.selectedSeats && booking.selectedSeats.length
       ? booking.selectedSeats
       : Array.isArray(booking?.seats)
-      ? booking.seats.map((s) => (typeof s === "string" ? s : s?.no)).filter(Boolean)
+      ? booking.seats
+          .map((s) => (typeof s === "string" ? s : s?.no))
+          .filter(Boolean)
       : []) || [];
 
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold">
-          Admin – Booking Details
-        </h2>
+        <h2 className="text-2xl font-bold">Admin – Booking Details</h2>
         <button
           onClick={() => navigate(-1)}
           className="px-4 py-2 rounded bg-gray-100 hover:bg-gray-200 border text-sm"
@@ -60,15 +60,14 @@ const AdminBookingDetails = () => {
 
       {!loading && booking && (
         <div className="space-y-6">
+          {/* top booking summary */}
           <div className="border rounded-lg bg-white p-5 shadow-sm">
             <h3 className="text-lg font-semibold mb-1">
               {booking.bookingNo ? `Booking – ${booking.bookingNo}` : "Booking details"}
             </h3>
             <p className="text-sm text-gray-600 mb-3">
               Created:{" "}
-              {booking.createdAt
-                ? new Date(booking.createdAt).toLocaleString()
-                : "-"}
+              {booking.createdAt ? new Date(booking.createdAt).toLocaleString() : "-"}
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
@@ -105,6 +104,7 @@ const AdminBookingDetails = () => {
             </div>
           </div>
 
+          {/* main passenger */}
           <div className="border rounded-lg bg-white p-5 shadow-sm">
             <h4 className="text-base font-semibold mb-3">Main passenger / contact</h4>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
@@ -121,6 +121,7 @@ const AdminBookingDetails = () => {
               </p>
               <p>
                 <span className="font-semibold">Email:</span>{" "}
+                {/* ✅ now backend stores passengerInfo.email, so this will show the confirm-booking email first */}
                 {booking.passengerInfo?.email ||
                   booking.userEmail ||
                   booking.user?.email ||
@@ -133,11 +134,10 @@ const AdminBookingDetails = () => {
             </div>
           </div>
 
+          {/* per-seat passengers */}
           {Array.isArray(booking.passengers) && booking.passengers.length > 0 && (
             <div className="border rounded-lg bg-white p-5 shadow-sm">
-              <h4 className="text-base font-semibold mb-3">
-                Seat-wise passengers
-              </h4>
+              <h4 className="text-base font-semibold mb-3">Seat-wise passengers</h4>
               <div className="overflow-auto">
                 <table className="w-full text-sm border">
                   <thead>
