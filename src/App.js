@@ -28,6 +28,7 @@ import AdminBusList from "./pages/AdminBusList";
 import AddBus from "./pages/AddBus";
 import EditBus from "./pages/EditBus";
 import AdminBookings from "./pages/AdminBookings";
+import AdminBookingDetails from "./pages/AdminBookingDetails"; // ✅ NEW
 import AdminBusAvailability from "./pages/AdminBusAvailability";
 import AdminAuditLogs from "./pages/AdminAuditLogs";
 import AdminSpecialNotices from "./pages/AdminSpecialNotices";
@@ -144,6 +145,15 @@ const App = () => (
             element={
               <AdminRoute>
                 <AdminBookings />
+              </AdminRoute>
+            }
+          />
+          {/* ✅ NEW: admin booking details page */}
+          <Route
+            path="/admin/bookings/:id"
+            element={
+              <AdminRoute>
+                <AdminBookingDetails />
               </AdminRoute>
             }
           />
