@@ -134,7 +134,7 @@ const AdminBookings = () => {
   /* reschedule */
   const [rescheduleData, setRescheduleData] = useState(null);
   const [newDate, setNewDate] = useState("");
-  the_bookings__pagesize_now_() const [newSeats, setNewSeats] = useState("");
+  const [newSeats, setNewSeats] = useState("");
 
   const abortRef = useRef(null);
 
@@ -329,11 +329,6 @@ const AdminBookings = () => {
     }
   };
 
-  const totalPages = useMemo(
-    () => Math.max(1, Math.ceil(total / pageSize)),
-    [total, pageSize]
-  );
-
   const HeaderCell = ({ label, field }) => (
     <th className="border px-3 py-2 bg-gray-100 sticky top-0 z-10">
       <SortButton label={label} field={field} sort={sort} setSort={setSort} />
@@ -343,12 +338,11 @@ const AdminBookings = () => {
   /* -------- EXPORT TO EXCEL -------- */
   const handleExport = async () => {
     try {
-      // get ALL rows for current filter in one go
       const res = await apiClient.get("/admin/bookings", {
         params: {
           ...queryParams,
           page: 1,
-          pageSize: 10000, // big number to get all
+          pageSize: 10000,
         },
         headers: {
           Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -407,7 +401,8 @@ const AdminBookings = () => {
           Name: mainName,
           "Contact (Email/Phone)": contact,
           NIC: b.passengerInfo?.nic || "",
-          "Total Amount": typeof b.totalAmount === "number" ? b.totalAmount : "",
+          "Total Amount":
+            typeof b.totalAmount === "number" ? b.totalAmount : "",
         };
       });
 
@@ -426,7 +421,6 @@ const AdminBookings = () => {
       <h2 className="text-2xl font-bold mb-4">📄 All User Bookings</h2>
 
       {/* ------- START filters block ------- */}
-      {/* ... filters block exactly as before ... */}
       <div className="rounded-xl border bg-white shadow-sm p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-8 gap-3">
           <input
