@@ -1,6 +1,7 @@
 // src/pages/AdminBookings.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 import apiClient from "../api";
 
 /* ---------- Small utilities ---------- */
@@ -133,7 +134,7 @@ const AdminBookings = () => {
   /* reschedule */
   const [rescheduleData, setRescheduleData] = useState(null);
   const [newDate, setNewDate] = useState("");
-  const [newSeats, setNewSeats] = useState("");
+  the_bookings__pagesize_now_() const [newSeats, setNewSeats] = useState("");
 
   const abortRef = useRef(null);
 
@@ -143,7 +144,8 @@ const AdminBookings = () => {
   }, [debouncedFilter]);
 
   const queryParams = useMemo(() => {
-    const { date, from, to, userEmail, status, paymentStatus, timeBasis } = debouncedFilter;
+    const { date, from, to, userEmail, status, paymentStatus, timeBasis } =
+      debouncedFilter;
     const clean = {};
     if (date) clean.date = date;
     if (from) clean.from = from;
@@ -184,8 +186,10 @@ const AdminBookings = () => {
       arr = arr.filter((b) => {
         const t =
           basis === "created"
-            ? (safeDate(b.createdAt) || safeDate(b.created_at) || safeDate(b.created))
-            : (safeDate(b.departureAt) || safeDate(b.date));
+            ? safeDate(b.createdAt) ||
+              safeDate(b.created_at) ||
+              safeDate(b.created)
+            : safeDate(b.departureAt) || safeDate(b.date);
         if (!t) return false;
         return t >= from && t < to;
       });
@@ -196,8 +200,15 @@ const AdminBookings = () => {
       const q = qRaw.toLowerCase();
       const rbNorm = normalizeRBInput(qRaw)?.toLowerCase() || null;
       arr = arr.filter((b) => {
-        const contact =
-          (b.userEmail || b.user?.email || b.user?.mobile || b.user?.phone || "").toLowerCase();
+        const contact = (
+          b.userEmail ||
+          b.user?.email ||
+          b.passengerInfo?.email ||
+          b.user?.mobile ||
+          b.user?.phone ||
+          b.passengerInfo?.phone ||
+          ""
+        ).toLowerCase();
         const emailOk = contact.includes(q);
         const bn = (b.bookingNo || "").toLowerCase();
         const bns = (b.bookingNoShort || "").toLowerCase();
@@ -329,11 +340,93 @@ const AdminBookings = () => {
     </th>
   );
 
+  /* -------- EXPORT TO EXCEL -------- */
+  const handleExport = async () => {
+    try {
+      // get ALL rows for current filter in one go
+      const res = await apiClient.get("/admin/bookings", {
+        params: {
+          ...queryParams,
+          page: 1,
+          pageSize: 10000, // big number to get all
+        },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+      });
+
+      const data = Array.isArray(res.data)
+        ? res.data
+        : Array.isArray(res.data.items)
+        ? res.data.items
+        : [];
+
+      const sheetData = data.map((b, idx) => {
+        const seats = Array.isArray(b.seats)
+          ? b.seats
+              .map((s) => (typeof s === "string" ? s : s?.no))
+              .filter(Boolean)
+              .join(", ")
+          : Array.isArray(b.selectedSeats)
+          ? b.selectedSeats.join(", ")
+          : "";
+
+        const route =
+          b.routeFrom && b.routeTo
+            ? `${b.routeFrom} → ${b.routeTo}`
+            : b.bus?.from && b.bus?.to
+            ? `${b.bus.from} → ${b.bus.to}`
+            : "";
+
+        const contact =
+          b.passengerInfo?.email ||
+          b.userEmail ||
+          b.user?.email ||
+          b.passengerInfo?.phone ||
+          b.user?.mobile ||
+          b.user?.phone ||
+          "";
+
+        const mainName =
+          b.passengerInfo?.fullName || b.userName || b.user?.name || "";
+
+        return {
+          "#": idx + 1,
+          "Booking No": b.bookingNo || "",
+          "Created At": b.createdAt
+            ? new Date(b.createdAt).toLocaleString()
+            : "",
+          Bus: b.busName || b.bus?.name || "",
+          Route: route,
+          "Departure / Date": b.departureAt
+            ? new Date(b.departureAt).toLocaleString()
+            : b.date || "",
+          Seats: seats,
+          "Payment Status": b.paymentStatus || "",
+          Status: b.status || "",
+          Name: mainName,
+          "Contact (Email/Phone)": contact,
+          NIC: b.passengerInfo?.nic || "",
+          "Total Amount": typeof b.totalAmount === "number" ? b.totalAmount : "",
+        };
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.json_to_sheet(sheetData);
+      XLSX.utils.book_append_sheet(wb, ws, "Bookings");
+      XLSX.writeFile(wb, "bookings.xlsx");
+    } catch (err) {
+      console.error("Export failed", err);
+      alert("Failed to export Excel.");
+    }
+  };
+
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-4">📄 All User Bookings</h2>
 
       {/* ------- START filters block ------- */}
+      {/* ... filters block exactly as before ... */}
       <div className="rounded-xl border bg-white shadow-sm p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-8 gap-3">
           <input
@@ -480,7 +573,11 @@ const AdminBookings = () => {
                 const rb = buildRB(bnDate, bnSeq);
                 if (rb) {
                   setPage(1);
-                  setFilter((f) => ({ ...f, userEmail: rb, date: bnDate || f.date }));
+                  setFilter((f) => ({
+                    ...f,
+                    userEmail: rb,
+                    date: bnDate || f.date,
+                  }));
                 }
               }
             }}
@@ -492,7 +589,11 @@ const AdminBookings = () => {
               const rb = buildRB(bnDate, bnSeq);
               if (rb) {
                 setPage(1);
-                setFilter((f) => ({ ...f, userEmail: rb, date: bnDate || f.date }));
+                setFilter((f) => ({
+                  ...f,
+                  userEmail: rb,
+                  date: bnDate || f.date,
+                }));
               }
             }}
           >
@@ -514,11 +615,17 @@ const AdminBookings = () => {
       {/* ------- END filters block ------- */}
 
       {/* top toolbar */}
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
         <div className="text-sm text-gray-600">
           {loading ? "Loading…" : `Total: ${total.toLocaleString()}`}
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleExport}
+            className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm"
+          >
+            Export to Excel
+          </button>
           <label className="text-sm text-gray-600">Rows:</label>
           <select
             className="border px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -547,7 +654,9 @@ const AdminBookings = () => {
           <button
             className="border px-2 py-1 rounded disabled:opacity-50"
             onClick={() => setPage((p) => p + 1)}
-            disabled={page >= Math.max(1, Math.ceil(total / pageSize)) || loading}
+            disabled={
+              page >= Math.max(1, Math.ceil(total / pageSize)) || loading
+            }
           >
             Next
           </button>
@@ -560,7 +669,6 @@ const AdminBookings = () => {
           <thead>
             <tr>
               <HeaderCell label="User" field="userName" />
-              {/* 👇 changed label */}
               <HeaderCell label="Email / Phone" field="userEmail" />
               <HeaderCell label="Booking No" field="bookingNo" />
               <HeaderCell label="Bus" field="busName" />
@@ -587,13 +695,19 @@ const AdminBookings = () => {
               ))
             ) : err ? (
               <tr>
-                <td colSpan={10} className="border px-3 py-6 text-center text-red-700">
+                <td
+                  colSpan={10}
+                  className="border px-3 py-6 text-center text-red-700"
+                >
                   {err}
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td colSpan={10} className="border px-3 py-6 text-center text-gray-600">
+                <td
+                  colSpan={10}
+                  className="border px-3 py-6 text-center text-gray-600"
+                >
                   No bookings found for your filters.
                 </td>
               </tr>
@@ -609,11 +723,12 @@ const AdminBookings = () => {
                   ? new Date(b.departureAt).toLocaleString()
                   : b.date || "-";
                 const seats = Array.isArray(b.seats)
-                  ? b.seats.map((s) => (typeof s === "string" ? s : s?.no)).filter(Boolean)
+                  ? b.seats
+                      .map((s) => (typeof s === "string" ? s : s?.no))
+                      .filter(Boolean)
                   : Array.isArray(b.selectedSeats)
                   ? b.selectedSeats
                   : [];
-                // 👇 unified contact value (email first, then phone)
                 const contactValue =
                   b.userEmail ||
                   b.user?.email ||
@@ -709,7 +824,6 @@ const AdminBookings = () => {
             <strong>Bus:</strong>{" "}
             {rescheduleData.busName || rescheduleData.bus?.name || "-"}
           </p>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
             <div>
               <label className="text-xs text-gray-600">New date</label>
@@ -732,7 +846,6 @@ const AdminBookings = () => {
               />
             </div>
           </div>
-
           <div className="flex gap-3 mt-4">
             <button
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
