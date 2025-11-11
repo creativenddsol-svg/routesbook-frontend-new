@@ -196,7 +196,9 @@ const AdminBookings = () => {
       const q = qRaw.toLowerCase();
       const rbNorm = normalizeRBInput(qRaw)?.toLowerCase() || null;
       arr = arr.filter((b) => {
-        const emailOk = (b.userEmail || b.user?.email || "").toLowerCase().includes(q);
+        const contact =
+          (b.userEmail || b.user?.email || b.user?.mobile || b.user?.phone || "").toLowerCase();
+        const emailOk = contact.includes(q);
         const bn = (b.bookingNo || "").toLowerCase();
         const bns = (b.bookingNoShort || "").toLowerCase();
         const byBN =
@@ -331,9 +333,6 @@ const AdminBookings = () => {
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-4">📄 All User Bookings</h2>
 
-      {/* filters card (same as before) */}
-      {/* ... keep the entire filters block from your current file ... */}
-      {/* I’m not repeating it here since it’s unchanged except the bottom details part is removed */}
       {/* ------- START filters block ------- */}
       <div className="rounded-xl border bg-white shadow-sm p-4 mb-4">
         <div className="grid grid-cols-1 md:grid-cols-8 gap-3">
@@ -374,7 +373,7 @@ const AdminBookings = () => {
               setFilter((f) => ({ ...f, userEmail: e.target.value }));
             }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-            placeholder="User Email or Booking No (RB…)"
+            placeholder="User Email / Phone / RB"
           />
           <select
             value={filter.status}
@@ -414,7 +413,9 @@ const AdminBookings = () => {
           >
             <option value="">Hour from</option>
             {HOUR_OPTIONS.map((h) => (
-              <option key={h.value} value={h.value}>{h.label}</option>
+              <option key={h.value} value={h.value}>
+                {h.label}
+              </option>
             ))}
           </select>
           <select
@@ -427,7 +428,9 @@ const AdminBookings = () => {
           >
             <option value="">Hour to</option>
             {HOUR_OPTIONS.map((h) => (
-              <option key={h.value} value={h.value}>{h.label}</option>
+              <option key={h.value} value={h.value}>
+                {h.label}
+              </option>
             ))}
           </select>
         </div>
@@ -451,8 +454,14 @@ const AdminBookings = () => {
         </div>
 
         <div className="flex flex-wrap items-end gap-2 mt-4">
-          <span className="text-sm font-medium text-gray-700">Quick booking search:</span>
-          <input value="RB" disabled className="border px-3 py-2 rounded w-16 bg-gray-100 text-gray-600" />
+          <span className="text-sm font-medium text-gray-700">
+            Quick booking search:
+          </span>
+          <input
+            value="RB"
+            disabled
+            className="border px-3 py-2 rounded w-16 bg-gray-100 text-gray-600"
+          />
           <input
             type="date"
             value={bnDate}
@@ -551,7 +560,8 @@ const AdminBookings = () => {
           <thead>
             <tr>
               <HeaderCell label="User" field="userName" />
-              <HeaderCell label="Email" field="userEmail" />
+              {/* 👇 changed label */}
+              <HeaderCell label="Email / Phone" field="userEmail" />
               <HeaderCell label="Booking No" field="bookingNo" />
               <HeaderCell label="Bus" field="busName" />
               <HeaderCell label="Route" field="routeFrom" />
@@ -559,7 +569,9 @@ const AdminBookings = () => {
               <HeaderCell label="Seats" field="seatsCount" />
               <HeaderCell label="Payment" field="paymentStatus" />
               <HeaderCell label="Status" field="status" />
-              <th className="border px-3 py-2 bg-gray-100 sticky top-0 z-10">Actions</th>
+              <th className="border px-3 py-2 bg-gray-100 sticky top-0 z-10">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -588,34 +600,49 @@ const AdminBookings = () => {
             ) : (
               rows.map((b) => {
                 const route =
-                  (b.routeFrom && b.routeTo)
+                  b.routeFrom && b.routeTo
                     ? `${b.routeFrom} → ${b.routeTo}`
                     : b.bus?.from && b.bus?.to
-                      ? `${b.bus.from} → ${b.bus.to}`
-                      : "-";
+                    ? `${b.bus.from} → ${b.bus.to}`
+                    : "-";
                 const dateText = b.departureAt
                   ? new Date(b.departureAt).toLocaleString()
                   : b.date || "-";
                 const seats = Array.isArray(b.seats)
                   ? b.seats.map((s) => (typeof s === "string" ? s : s?.no)).filter(Boolean)
                   : Array.isArray(b.selectedSeats)
-                    ? b.selectedSeats
-                    : [];
+                  ? b.selectedSeats
+                  : [];
+                // 👇 unified contact value (email first, then phone)
+                const contactValue =
+                  b.userEmail ||
+                  b.user?.email ||
+                  b.passengerInfo?.email ||
+                  b.user?.mobile ||
+                  b.user?.phone ||
+                  b.passengerInfo?.phone ||
+                  "-";
+
                 return (
                   <tr key={b._id} className="hover:bg-gray-50">
-                    <td className="border px-3 py-2">{b.userName || b.user?.name || "-"}</td>
-                    <td className="border px-3 py-2">{b.userEmail || b.user?.email || "-"}</td>
+                    <td className="border px-3 py-2">
+                      {b.userName || b.user?.name || "-"}
+                    </td>
+                    <td className="border px-3 py-2">{contactValue}</td>
                     <td className="border px-3 py-2">{b.bookingNo || "-"}</td>
-                    <td className="border px-3 py-2">{b.busName || b.bus?.name || "-"}</td>
+                    <td className="border px-3 py-2">
+                      {b.busName || b.bus?.name || "-"}
+                    </td>
                     <td className="border px-3 py-2">{route}</td>
                     <td className="border px-3 py-2">{dateText}</td>
                     <td className="border px-3 py-2">
                       {seats && seats.length ? seats.join(", ") : "-"}
                     </td>
-                    <td className="border px-3 py-2">{b.paymentStatus || "-"}</td>
+                    <td className="border px-3 py-2">
+                      {b.paymentStatus || "-"}
+                    </td>
                     <td className="border px-3 py-2">{b.status || "-"}</td>
                     <td className="border px-3 py-2 text-center space-x-2">
-                      {/* ✅ go to new details page */}
                       <button
                         className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
                         onClick={() =>
@@ -638,15 +665,20 @@ const AdminBookings = () => {
                           setRescheduleData(b);
                           setNewDate(
                             b.departureAt
-                              ? new Date(b.departureAt).toISOString().slice(0, 10)
-                              : (b.date || "")
+                              ? new Date(b.departureAt)
+                                  .toISOString()
+                                  .slice(0, 10)
+                              : b.date || ""
                           );
-                          const s =
-                            Array.isArray(b.seats)
-                              ? b.seats.map((x) => (typeof x === "string" ? x : x?.no)).filter(Boolean)
-                              : Array.isArray(b.selectedSeats)
-                                ? b.selectedSeats
-                                : [];
+                          const s = Array.isArray(b.seats)
+                            ? b.seats
+                                .map((x) =>
+                                  typeof x === "string" ? x : x?.no
+                                )
+                                .filter(Boolean)
+                            : Array.isArray(b.selectedSeats)
+                            ? b.selectedSeats
+                            : [];
                           setNewSeats(s.join(", "));
                         }}
                       >
@@ -661,16 +693,23 @@ const AdminBookings = () => {
         </table>
       </div>
 
-      {/* keep the inline reschedule block */}
+      {/* reschedule inline card */}
       {rescheduleData && (
         <div className="mt-6 p-6 border bg-gray-50 rounded shadow-sm">
           <h3 className="text-lg font-bold mb-2">✏️ Reschedule Booking</h3>
           <p className="text-sm text-gray-700">
-            <strong>User:</strong> {rescheduleData.userEmail || rescheduleData.user?.email || "-"}
+            <strong>User:</strong>{" "}
+            {rescheduleData.userEmail ||
+              rescheduleData.user?.email ||
+              rescheduleData.user?.mobile ||
+              rescheduleData.user?.phone ||
+              "-"}
           </p>
           <p className="text-sm text-gray-700">
-            <strong>Bus:</strong> {rescheduleData.busName || rescheduleData.bus?.name || "-"}
+            <strong>Bus:</strong>{" "}
+            {rescheduleData.busName || rescheduleData.bus?.name || "-"}
           </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
             <div>
               <label className="text-xs text-gray-600">New date</label>
@@ -682,7 +721,9 @@ const AdminBookings = () => {
               />
             </div>
             <div>
-              <label className="text-xs text-gray-600">New seats (comma-separated)</label>
+              <label className="text-xs text-gray-600">
+                New seats (comma-separated)
+              </label>
               <input
                 type="text"
                 value={newSeats}
@@ -691,6 +732,7 @@ const AdminBookings = () => {
               />
             </div>
           </div>
+
           <div className="flex gap-3 mt-4">
             <button
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
