@@ -1,8 +1,7 @@
 // src/pages/AdminBookings.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-// ⬇️ Lazy-load XLSX inside handler to avoid blocking first paint
-// import * as XLSX from "xlsx";
+// ⬇️ XLSX is lazy-loaded inside handleExport
 import apiClient from "../api";
 
 /* ---------- Small utilities ---------- */
@@ -138,9 +137,9 @@ const AdminBookings = () => {
   const [newSeats, setNewSeats] = useState("");
 
   const abortRef = useRef(null);
-  const reqIdRef = useRef(0); // ⬅️ guard against stale responses
+  const reqIdRef = useRef(0); // guard against stale responses
 
-  // Reset to first page only when the *debounced* filter changes
+  // Reset to first page when debounced filter changes
   useEffect(() => {
     setPage(1);
   }, [debouncedFilter]);
@@ -151,18 +150,19 @@ const AdminBookings = () => {
   }, [debouncedFilter]);
 
   const queryParams = useMemo(() => {
-    const { date, from, to, userEmail, status, paymentStatus, timeBasis } =
-      debouncedFilter;
+    const { date, from, to, userEmail, status, paymentStatus, timeBasis } = debouncedFilter;
     const clean = {};
     if (date) clean.date = date;
     if (from) clean.from = from;
     if (to) clean.to = to;
+
     const rbGuess = normalizeRBInput(userEmail) || null;
     if (rbGuess) {
       clean.bookingNo = rbGuess;
     } else if (userEmail) {
       clean.userEmail = userEmail;
     }
+
     if (status) clean.status = status;
     if (paymentStatus) clean.paymentStatus = paymentStatus;
 
@@ -193,9 +193,7 @@ const AdminBookings = () => {
       arr = arr.filter((b) => {
         const t =
           basis === "created"
-            ? safeDate(b.createdAt) ||
-              safeDate(b.created_at) ||
-              safeDate(b.created)
+            ? safeDate(b.createdAt) || safeDate(b.created_at) || safeDate(b.created)
             : safeDate(b.departureAt) || safeDate(b.date);
         if (!t) return false;
         return t >= from && t < to;
@@ -227,6 +225,7 @@ const AdminBookings = () => {
       });
     }
 
+    // default sort newest first
     arr.sort((a, b) => {
       const da = getCreatedAtForSort(a);
       const db = getCreatedAtForSort(b);
@@ -256,9 +255,7 @@ const AdminBookings = () => {
     try {
       const res = await apiClient.get("/admin/bookings", {
         params: queryParams,
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
         signal: controller.signal,
       });
 
@@ -355,14 +352,12 @@ const AdminBookings = () => {
     </th>
   );
 
-  /* -------- EXPORT TO EXCEL (now 1 row per passenger/seat) -------- */
+  /* -------- EXPORT TO EXCEL (1 row per passenger/seat) -------- */
   const handleExport = async () => {
     try {
-      // ⬇️ Lazy load XLSX so the admin page loads faster initially
       const XLSXmod = await import("xlsx");
       const XLSX = XLSXmod.default || XLSXmod;
 
-      // Pull a larger page to export many rows at once
       const res = await apiClient.get("/admin/bookings", {
         params: { ...queryParams, page: 1, pageSize: 10000 },
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -397,8 +392,7 @@ const AdminBookings = () => {
           b.user?.phone ||
           "";
 
-        const mainName =
-          b.passengerInfo?.fullName || b.userName || b.user?.name || "";
+        const mainName = b.passengerInfo?.fullName || b.userName || b.user?.name || "";
 
         const base = {
           "Booking No": b.bookingNo || "",
@@ -418,8 +412,7 @@ const AdminBookings = () => {
         const seatAlloc = Array.isArray(b.seatAllocations) ? b.seatAllocations : [];
 
         if (passengers.length > 0) {
-          // 1 row per passenger
-          passengers.forEach((p, i) => {
+          passengers.forEach((p) => {
             rowsForSheet.push({
               "#": idx + 1,
               ...base,
@@ -431,8 +424,7 @@ const AdminBookings = () => {
             });
           });
         } else if (seatAlloc.length > 0) {
-          // Fallback: no passengers[], but genders per seat exist
-          seatAlloc.forEach((s, i) => {
+          seatAlloc.forEach((s) => {
             rowsForSheet.push({
               "#": idx + 1,
               ...base,
@@ -444,12 +436,8 @@ const AdminBookings = () => {
             });
           });
         } else {
-          // Last fallback: collapse seats into one row
           const seatsText = Array.isArray(b.seats)
-            ? b.seats
-                .map((x) => (typeof x === "string" ? x : x?.no))
-                .filter(Boolean)
-                .join(", ")
+            ? b.seats.map((x) => (typeof x === "string" ? x : x?.no)).filter(Boolean).join(", ")
             : Array.isArray(b.selectedSeats)
             ? b.selectedSeats.join(", ")
             : "";
@@ -484,44 +472,33 @@ const AdminBookings = () => {
           <input
             type="date"
             value={filter.date}
-            onChange={(e) => {
-              // page reset now handled in debounced effect
-              setFilter((f) => ({ ...f, date: e.target.value }));
-            }}
+            onChange={(e) => setFilter((f) => ({ ...f, date: e.target.value }))}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           />
           <input
             type="text"
             value={filter.from}
-            onChange={(e) => {
-              setFilter((f) => ({ ...f, from: e.target.value }));
-            }}
+            onChange={(e) => setFilter((f) => ({ ...f, from: e.target.value }))}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             placeholder="From"
           />
           <input
             type="text"
             value={filter.to}
-            onChange={(e) => {
-              setFilter((f) => ({ ...f, to: e.target.value }));
-            }}
+            onChange={(e) => setFilter((f) => ({ ...f, to: e.target.value }))}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             placeholder="To"
           />
           <input
             type="text"
             value={filter.userEmail}
-            onChange={(e) => {
-              setFilter((f) => ({ ...f, userEmail: e.target.value }));
-            }}
+            onChange={(e) => setFilter((f) => ({ ...f, userEmail: e.target.value }))}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             placeholder="User Email / Phone / RB"
           />
           <select
             value={filter.status}
-            onChange={(e) => {
-              setFilter((f) => ({ ...f, status: e.target.value }));
-            }}
+            onChange={(e) => setFilter((f) => ({ ...f, status: e.target.value }))}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             <option value="">Status: Any</option>
@@ -532,9 +509,7 @@ const AdminBookings = () => {
           </select>
           <select
             value={filter.paymentStatus}
-            onChange={(e) => {
-              setFilter((f) => ({ ...f, paymentStatus: e.target.value }));
-            }}
+            onChange={(e) => setFilter((f) => ({ ...f, paymentStatus: e.target.value }))}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             <option value="">Payment: Any</option>
@@ -545,30 +520,22 @@ const AdminBookings = () => {
           </select>
           <select
             value={filter.hourStart}
-            onChange={(e) => {
-              setFilter((f) => ({ ...f, hourStart: e.target.value }));
-            }}
+            onChange={(e) => setFilter((f) => ({ ...f, hourStart: e.target.value }))}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             <option value="">Hour from</option>
             {HOUR_OPTIONS.map((h) => (
-              <option key={h.value} value={h.value}>
-                {h.label}
-              </option>
+              <option key={h.value} value={h.value}>{h.label}</option>
             ))}
           </select>
           <select
             value={filter.hourEnd}
-            onChange={(e) => {
-              setFilter((f) => ({ ...f, hourEnd: e.target.value }));
-            }}
+            onChange={(e) => setFilter((f) => ({ ...f, hourEnd: e.target.value }))}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             <option value="">Hour to</option>
             {HOUR_OPTIONS.map((h) => (
-              <option key={h.value} value={h.value}>
-                {h.label}
-              </option>
+              <option key={h.value} value={h.value}>{h.label}</option>
             ))}
           </select>
         </div>
@@ -577,9 +544,7 @@ const AdminBookings = () => {
           <label className="text-sm text-gray-700">Time basis:</label>
           <select
             value={filter.timeBasis}
-            onChange={(e) => {
-              setFilter((f) => ({ ...f, timeBasis: e.target.value }));
-            }}
+            onChange={(e) => setFilter((f) => ({ ...f, timeBasis: e.target.value }))}
             className="border px-3 py-1.5 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             <option value="created">Booking Created</option>
@@ -591,9 +556,7 @@ const AdminBookings = () => {
         </div>
 
         <div className="flex flex-wrap items-end gap-2 mt-4">
-          <span className="text-sm font-medium text-gray-700">
-            Quick booking search:
-          </span>
+          <span className="text-sm font-medium text-gray-700">Quick booking search:</span>
           <input
             value="RB"
             disabled
@@ -615,28 +578,16 @@ const AdminBookings = () => {
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 const rb = buildRB(bnDate, bnSeq);
-                if (rb) {
-                  setFilter((f) => ({
-                    ...f,
-                    userEmail: rb,
-                    date: bnDate || f.date,
-                  }));
-                }
+                if (rb) setFilter((f) => ({ ...f, userEmail: rb, date: bnDate || f.date }));
               }
-            })}
+            }}
             className="border px-3 py-2 rounded w-24 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           />
           <button
             className="px-3 py-2 rounded border bg-gray-50 hover:bg-gray-100 transition"
             onClick={() => {
               const rb = buildRB(bnDate, bnSeq);
-              if (rb) {
-                setFilter((f) => ({
-                  ...f,
-                  userEmail: rb,
-                  date: bnDate || f.date,
-                }));
-              }
+              if (rb) setFilter((f) => ({ ...f, userEmail: rb, date: bnDate || f.date }));
             }}
           >
             Find
@@ -677,9 +628,7 @@ const AdminBookings = () => {
             }}
           >
             {PAGE_SIZES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
           <button
@@ -695,9 +644,7 @@ const AdminBookings = () => {
           <button
             className="border px-2 py-1 rounded disabled:opacity-50"
             onClick={() => setPage((p) => p + 1)}
-            disabled={
-              page >= Math.max(1, Math.ceil(total / pageSize)) || loading
-            }
+            disabled={page >= Math.max(1, Math.ceil(total / pageSize)) || loading}
           >
             Next
           </button>
@@ -718,9 +665,7 @@ const AdminBookings = () => {
               <HeaderCell label="Seats" field="seatsCount" />
               <HeaderCell label="Payment" field="paymentStatus" />
               <HeaderCell label="Status" field="status" />
-              <th className="border px-3 py-2 bg-gray-100 sticky top-0 z-10">
-                Actions
-              </th>
+              <th className="border px-3 py-2 bg-gray-100 sticky top-0 z-10">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -736,19 +681,13 @@ const AdminBookings = () => {
               ))
             ) : err ? (
               <tr>
-                <td
-                  colSpan={10}
-                  className="border px-3 py-6 text-center text-red-700"
-                >
+                <td colSpan={10} className="border px-3 py-6 text-center text-red-700">
                   {err}
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={10}
-                  className="border px-3 py-6 text-center text-gray-600"
-                >
+                <td colSpan={10} className="border px-3 py-6 text-center text-gray-600">
                   No bookings found for your filters.
                 </td>
               </tr>
@@ -764,9 +703,7 @@ const AdminBookings = () => {
                   ? new Date(b.departureAt).toLocaleString()
                   : b.date || "-";
                 const seats = Array.isArray(b.seats)
-                  ? b.seats
-                      .map((s) => (typeof s === "string" ? s : s?.no))
-                      .filter(Boolean)
+                  ? b.seats.map((s) => (typeof s === "string" ? s : s?.no)).filter(Boolean)
                   : Array.isArray(b.selectedSeats)
                   ? b.selectedSeats
                   : [];
@@ -781,30 +718,22 @@ const AdminBookings = () => {
 
                 return (
                   <tr key={b._id} className="hover:bg-gray-50">
-                    <td className="border px-3 py-2">
-                      {b.userName || b.user?.name || "-"}
-                    </td>
+                    <td className="border px-3 py-2">{b.userName || b.user?.name || "-"}</td>
                     <td className="border px-3 py-2">{contactValue}</td>
                     <td className="border px-3 py-2">{b.bookingNo || "-"}</td>
-                    <td className="border px-3 py-2">
-                      {b.busName || b.bus?.name || "-"}
-                    </td>
+                    <td className="border px-3 py-2">{b.busName || b.bus?.name || "-"}</td>
                     <td className="border px-3 py-2">{route}</td>
                     <td className="border px-3 py-2">{dateText}</td>
                     <td className="border px-3 py-2">
                       {seats && seats.length ? seats.join(", ") : "-"}
                     </td>
-                    <td className="border px-3 py-2">
-                      {b.paymentStatus || "-"}
-                    </td>
+                    <td className="border px-3 py-2">{b.paymentStatus || "-"}</td>
                     <td className="border px-3 py-2">{b.status || "-"}</td>
                     <td className="border px-3 py-2 text-center space-x-2">
                       <button
                         className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
                         onClick={() =>
-                          navigate(`/admin/bookings/${b._id}`, {
-                            state: { booking: b },
-                          })
+                          navigate(`/admin/bookings/${b._id}`, { state: { booking: b } })
                         }
                       >
                         View
@@ -821,17 +750,11 @@ const AdminBookings = () => {
                           setRescheduleData(b);
                           setNewDate(
                             b.departureAt
-                              ? new Date(b.departureAt)
-                                  .toISOString()
-                                  .slice(0, 10)
+                              ? new Date(b.departureAt).toISOString().slice(0, 10)
                               : b.date || ""
                           );
                           const s = Array.isArray(b.seats)
-                            ? b.seats
-                                .map((x) =>
-                                  typeof x === "string" ? x : x?.no
-                                )
-                                .filter(Boolean)
+                            ? b.seats.map((x) => (typeof x === "string" ? x : x?.no)).filter(Boolean)
                             : Array.isArray(b.selectedSeats)
                             ? b.selectedSeats
                             : [];
