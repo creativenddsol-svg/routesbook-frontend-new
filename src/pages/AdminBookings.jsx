@@ -355,20 +355,17 @@ const AdminBookings = () => {
     </th>
   );
 
-  /* -------- EXPORT TO EXCEL -------- */
+  /* -------- EXPORT TO EXCEL (now 1 row per passenger/seat) -------- */
   const handleExport = async () => {
     try {
       // ⬇️ Lazy load XLSX so the admin page loads faster initially
-      const XLSX = (await import("xlsx")).default || (await import("xlsx"));
+      const XLSXmod = await import("xlsx");
+      const XLSX = XLSXmod.default || XLSXmod;
+
+      // Pull a larger page to export many rows at once
       const res = await apiClient.get("/admin/bookings", {
-        params: {
-          ...queryParams,
-          page: 1,
-          pageSize: 10000,
-        },
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
+        params: { ...queryParams, page: 1, pageSize: 10000 },
+        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
       });
 
       const data = Array.isArray(res.data)
@@ -377,22 +374,19 @@ const AdminBookings = () => {
         ? res.data.items
         : [];
 
-      const sheetData = data.map((b, idx) => {
-        const seats = Array.isArray(b.seats)
-          ? b.seats
-              .map((s) => (typeof s === "string" ? s : s?.no))
-              .filter(Boolean)
-              .join(", ")
-          : Array.isArray(b.selectedSeats)
-          ? b.selectedSeats.join(", ")
-          : "";
-
+      const rowsForSheet = [];
+      data.forEach((b, idx) => {
         const route =
           b.routeFrom && b.routeTo
             ? `${b.routeFrom} → ${b.routeTo}`
             : b.bus?.from && b.bus?.to
             ? `${b.bus.from} → ${b.bus.to}`
             : "";
+
+        const createdText = b.createdAt ? new Date(b.createdAt).toLocaleString() : "";
+        const departText = b.departureAt
+          ? new Date(b.departureAt).toLocaleString()
+          : b.date || "";
 
         const contact =
           b.passengerInfo?.email ||
@@ -406,30 +400,72 @@ const AdminBookings = () => {
         const mainName =
           b.passengerInfo?.fullName || b.userName || b.user?.name || "";
 
-        return {
-          "#": idx + 1,
+        const base = {
           "Booking No": b.bookingNo || "",
-          "Created At": b.createdAt
-            ? new Date(b.createdAt).toLocaleString()
-            : "",
+          "Created At": createdText,
           Bus: b.busName || b.bus?.name || "",
           Route: route,
-          "Departure / Date": b.departureAt
-            ? new Date(b.departureAt).toLocaleString()
-            : b.date || "",
-          Seats: seats,
+          "Departure / Date": departText,
           "Payment Status": b.paymentStatus || "",
           Status: b.status || "",
-          Name: mainName,
+          "Main Name": mainName,
           "Contact (Email/Phone)": contact,
           NIC: b.passengerInfo?.nic || "",
-          "Total Amount":
-            typeof b.totalAmount === "number" ? b.totalAmount : "",
+          "Total Amount": typeof b.totalAmount === "number" ? b.totalAmount : "",
         };
+
+        const passengers = Array.isArray(b.passengers) ? b.passengers : [];
+        const seatAlloc = Array.isArray(b.seatAllocations) ? b.seatAllocations : [];
+
+        if (passengers.length > 0) {
+          // 1 row per passenger
+          passengers.forEach((p, i) => {
+            rowsForSheet.push({
+              "#": idx + 1,
+              ...base,
+              Seat: p.seat || "",
+              "Passenger Name": p.name || "",
+              "Passenger Age": typeof p.age === "number" ? p.age : p.age || "",
+              "Passenger Gender":
+                p.gender === "F" ? "Female" : p.gender === "M" ? "Male" : "",
+            });
+          });
+        } else if (seatAlloc.length > 0) {
+          // Fallback: no passengers[], but genders per seat exist
+          seatAlloc.forEach((s, i) => {
+            rowsForSheet.push({
+              "#": idx + 1,
+              ...base,
+              Seat: s.seat || "",
+              "Passenger Name": "",
+              "Passenger Age": "",
+              "Passenger Gender":
+                s.gender === "F" ? "Female" : s.gender === "M" ? "Male" : "",
+            });
+          });
+        } else {
+          // Last fallback: collapse seats into one row
+          const seatsText = Array.isArray(b.seats)
+            ? b.seats
+                .map((x) => (typeof x === "string" ? x : x?.no))
+                .filter(Boolean)
+                .join(", ")
+            : Array.isArray(b.selectedSeats)
+            ? b.selectedSeats.join(", ")
+            : "";
+          rowsForSheet.push({
+            "#": idx + 1,
+            ...base,
+            Seat: seatsText,
+            "Passenger Name": "",
+            "Passenger Age": "",
+            "Passenger Gender": "",
+          });
+        }
       });
 
       const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(sheetData);
+      const ws = XLSX.utils.json_to_sheet(rowsForSheet);
       XLSX.utils.book_append_sheet(wb, ws, "Bookings");
       XLSX.writeFile(wb, "bookings.xlsx");
     } catch (err) {
@@ -587,7 +623,7 @@ const AdminBookings = () => {
                   }));
                 }
               }
-            }}
+            })}
             className="border px-3 py-2 rounded w-24 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           />
           <button
