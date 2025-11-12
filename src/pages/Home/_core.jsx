@@ -594,7 +594,7 @@ export const CustomMenu = (menuKey) => {
   };
 };
 
-/* ---------------- Mobile full-page city picker ---------------- */
+/* ---------------- Mobile full-page city picker (UPDATED ORDER) ---------------- */
 export const MobileCityPicker = ({
   open,
   mode, // 'from' | 'to'
@@ -648,7 +648,34 @@ export const MobileCityPicker = ({
       </div>
 
       <div className="flex-1 overflow-y-auto">
-        <div className="px-4 pt-4">
+        {/* 1) MATCHING CITIES — right under the search bar */}
+        {q.trim() !== "" && (
+          <div className="px-4 pt-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+              Matching Cities
+            </div>
+            <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
+              {filtered.length === 0 ? (
+                <div className="px-3 py-3 text-sm text-gray-400">
+                  No matches found
+                </div>
+              ) : (
+                filtered.map((c) => (
+                  <button
+                    key={`match-${c}`}
+                    className="w-full text-left px-3 py-3 hover:bg-rose-50 active:bg-rose-100 transition-colors"
+                    onClick={() => onPick(c)}
+                  >
+                    <span className="font-medium text-gray-900">{c}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* 2) RECENT SEARCHES */}
+        <div className="px-4 pt-6">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-2">
             <FaClock className="opacity-70" />
             Recent searches
@@ -660,9 +687,9 @@ export const MobileCityPicker = ({
             <div className="mb-3 divide-y rounded-xl border border-gray-100 overflow-hidden">
               {recent[mode].map((city, idx) => (
                 <button
-                  key={idx}
+                  key={`recent-${idx}-${city}`}
                   type="button"
-                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-50"
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left hover:bg-rose-50 active:bg-rose-100 transition-colors"
                   onClick={() => onPick(city)}
                 >
                   <FaMapMarkerAlt className="text-gray-500" />
@@ -675,6 +702,7 @@ export const MobileCityPicker = ({
           )}
         </div>
 
+        {/* 3) POPULAR CITIES */}
         <div className="px-4 pt-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
             Popular Cities
@@ -682,8 +710,8 @@ export const MobileCityPicker = ({
           <div className="flex flex-wrap gap-2 mb-4">
             {POPULAR_CITIES.map((c) => (
               <button
-                key={c}
-                className="px-3 py-1.5 rounded-full border text-sm active:bg-red-50"
+                key={`pop-${c}`}
+                className="px-3 py-1.5 rounded-full border text-sm hover:bg-rose-50 active:bg-rose-100 transition-colors"
                 onClick={() => onPick(c)}
               >
                 {c}
@@ -692,22 +720,25 @@ export const MobileCityPicker = ({
           </div>
         </div>
 
-        <div className="px-4 pb-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            {q ? "Matching Cities" : "All Cities"}
+        {/* 4) ALL CITIES (only when not typing) */}
+        {q.trim() === "" && (
+          <div className="px-4 pb-4">
+            <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+              All Cities
+            </div>
+            <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
+              {all.map((c) => (
+                <button
+                  key={`all-${c}`}
+                  className="w-full text-left px-3 py-3 hover:bg-rose-50 active:bg-rose-100 transition-colors"
+                  onClick={() => onPick(c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
-            {filtered.map((c) => (
-              <button
-                key={c}
-                className="w-full text-left px-3 py-3 active:bg-gray-50"
-                onClick={() => onPick(c)}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
+        )}
       </div>
 
       <div style={{ height: "env(safe-area-inset-bottom)" }} />
