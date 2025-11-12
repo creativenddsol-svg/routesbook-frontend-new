@@ -1,7 +1,5 @@
 // src/pages/AdminBookings.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
-// ⬇️ XLSX is lazy-loaded inside handleExport
 import apiClient from "../api";
 
 /* ---------- Small utilities ---------- */
@@ -24,6 +22,7 @@ const SortButton = ({ label, field, sort, setSort }) => {
   const dir = sort?.startsWith("-") ? "desc" : sort?.startsWith("+") ? "asc" : null;
   const active = sort?.slice(1) === field;
   const next = () => {
+    // cycle: none -> asc -> desc -> none
     if (!active) return setSort("+" + field);
     if (dir === "asc") return setSort("-" + field);
     if (dir === "desc") return setSort(null);
@@ -36,6 +35,7 @@ const SortButton = ({ label, field, sort, setSort }) => {
         "flex items-center gap-1 select-none",
         active ? "text-blue-700 font-semibold" : "text-gray-700"
       )}
+      title={active ? (dir === "asc" ? "Sorted ascending" : "Sorted descending") : "Not sorted"}
     >
       <span>{label}</span>
       <span className="text-xs opacity-70">
@@ -56,6 +56,7 @@ function computeHourWindowISO(dateStr, startHH, endHH) {
   const s = Number(startHH);
   const e = Number(endHH);
   if (!Number.isFinite(s) || !Number.isFinite(e) || e <= s) return null;
+
   const [y, m, d] = dateStr.split("-").map(Number);
   const from = new Date(y, m - 1, d, s, 0, 0, 0);
   const to = new Date(y, m - 1, d, e, 0, 0, 0);
@@ -80,10 +81,10 @@ function getCreatedAtForSort(b) {
   );
 }
 
-/* ---------- RB helpers ---------- */
+/* ---------- Booking No helpers (NEW) ---------- */
 function buildRB(dateStr, seq) {
   if (!dateStr || !/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return null;
-  const dayKey = dateStr.replaceAll("-", "");
+  const dayKey = dateStr.replaceAll("-", ""); // YYYYMMDD
   const raw = String(seq || "").replace(/\D/g, "");
   if (!raw) return `RB${dayKey}`;
   return `RB${dayKey}${raw.padStart(4, "0")}`;
@@ -93,15 +94,14 @@ function normalizeRBInput(s) {
   const t = String(s).trim().toUpperCase();
   if (!/^RB/.test(t)) return null;
   const m = t.match(/^RB(\d{8})(\d{1,4})?$/);
-  if (!m) return t;
+  if (!m) return t; // allow partial like RB2025
   const [, dayKey, seq] = m;
   if (!seq) return `RB${dayKey}`;
   return `RB${dayKey}${String(seq).padStart(4, "0")}`;
 }
 
+/* ---------- Component ---------- */
 const AdminBookings = () => {
-  const navigate = useNavigate();
-
   /* Filters */
   const [filter, setFilter] = useState({
     date: "",
@@ -116,33 +116,28 @@ const AdminBookings = () => {
   });
   const debouncedFilter = useDebouncedValue(filter, 500);
 
-  /* quick RB inputs */
+  // NEW: quick RB builder inputs
   const [bnDate, setBnDate] = useState("");
   const [bnSeq, setBnSeq] = useState("");
 
-  /* paging & sorting */
+  /* Paging & sorting */
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
-  const [sort, setSort] = useState("-createdAt");
+  const [sort, setSort] = useState("-createdAt"); // NEW BOOKINGS FIRST
 
-  /* data */
+  /* Data & UI */
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(null);
 
-  /* reschedule */
+  /* Reschedule UI */
   const [rescheduleData, setRescheduleData] = useState(null);
   const [newDate, setNewDate] = useState("");
   const [newSeats, setNewSeats] = useState("");
 
+  /* Cancel token */
   const abortRef = useRef(null);
-  const reqIdRef = useRef(0); // guard against stale responses
-
-  // Reset to first page when debounced filter changes
-  useEffect(() => {
-    setPage(1);
-  }, [debouncedFilter]);
 
   const timeWindow = useMemo(() => {
     const { date, hourStart, hourEnd } = debouncedFilter;
@@ -150,12 +145,17 @@ const AdminBookings = () => {
   }, [debouncedFilter]);
 
   const queryParams = useMemo(() => {
-    const { date, from, to, userEmail, status, paymentStatus, timeBasis } = debouncedFilter;
+    const {
+      date, from, to, userEmail, status, paymentStatus, timeBasis,
+    } = debouncedFilter;
+
     const clean = {};
     if (date) clean.date = date;
     if (from) clean.from = from;
     if (to) clean.to = to;
 
+    // IMPORTANT: if the input looks like an RB code, DO NOT send it as userEmail,
+    // send it only as bookingNo to avoid backend email filter removing all rows.
     const rbGuess = normalizeRBInput(userEmail) || null;
     if (rbGuess) {
       clean.bookingNo = rbGuess;
@@ -193,28 +193,20 @@ const AdminBookings = () => {
       arr = arr.filter((b) => {
         const t =
           basis === "created"
-            ? safeDate(b.createdAt) || safeDate(b.created_at) || safeDate(b.created)
-            : safeDate(b.departureAt) || safeDate(b.date);
+            ? (safeDate(b.createdAt) || safeDate(b.created_at) || safeDate(b.created))
+            : (safeDate(b.departureAt) || safeDate(b.date));
         if (!t) return false;
         return t >= from && t < to;
       });
     }
 
+    // BookingNo / Email fuzzy search on client as well (defensive)
     const qRaw = (debouncedFilter.userEmail || "").trim();
     if (qRaw) {
       const q = qRaw.toLowerCase();
       const rbNorm = normalizeRBInput(qRaw)?.toLowerCase() || null;
       arr = arr.filter((b) => {
-        const contact = (
-          b.userEmail ||
-          b.user?.email ||
-          b.passengerInfo?.email ||
-          b.user?.mobile ||
-          b.user?.phone ||
-          b.passengerInfo?.phone ||
-          ""
-        ).toLowerCase();
-        const emailOk = contact.includes(q);
+        const emailOk = (b.userEmail || b.user?.email || "").toLowerCase().includes(q);
         const bn = (b.bookingNo || "").toLowerCase();
         const bns = (b.bookingNoShort || "").toLowerCase();
         const byBN =
@@ -225,7 +217,6 @@ const AdminBookings = () => {
       });
     }
 
-    // default sort newest first
     arr.sort((a, b) => {
       const da = getCreatedAtForSort(a);
       const db = getCreatedAtForSort(b);
@@ -243,26 +234,24 @@ const AdminBookings = () => {
   };
 
   const fetchBookings = async () => {
-    setErr(null);
     setLoading(true);
+    setErr(null);
 
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
 
-    const myReqId = ++reqIdRef.current;
-
     try {
       const res = await apiClient.get("/admin/bookings", {
         params: queryParams,
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
         signal: controller.signal,
       });
 
-      // Ignore stale responses
-      if (myReqId !== reqIdRef.current) return;
-
       const data = res.data;
+
       if (Array.isArray(data)) {
         const { items, total } = clientSideFilterAndPaginate(data);
         setRows(items);
@@ -277,23 +266,18 @@ const AdminBookings = () => {
         setTotal(0);
       }
     } catch (e) {
-      if (e.name === "CanceledError" || e.name === "AbortError") return;
-      if (myReqId !== reqIdRef.current) return; // stale error, ignore
+      if (e.name === "CanceledError") return;
       console.error("Failed to fetch bookings", e);
       setErr("Failed to fetch bookings.");
       setRows([]);
       setTotal(0);
     } finally {
-      if (myReqId === reqIdRef.current) setLoading(false);
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchBookings();
-    return () => {
-      // cleanup on unmount
-      if (abortRef.current) abortRef.current.abort();
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryParams]);
 
@@ -356,154 +340,67 @@ const AdminBookings = () => {
     </th>
   );
 
-  /* -------- EXPORT TO EXCEL (1 row per passenger/seat) -------- */
-  const handleExport = async () => {
-    try {
-      const XLSXmod = await import("xlsx");
-      const XLSX = XLSXmod.default || XLSXmod;
-
-      const res = await apiClient.get("/admin/bookings", {
-        params: { ...queryParams, page: 1, pageSize: 10000 },
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-      });
-
-      const data = Array.isArray(res.data)
-        ? res.data
-        : Array.isArray(res.data.items)
-        ? res.data.items
-        : [];
-
-      const rowsForSheet = [];
-      data.forEach((b, idx) => {
-        const route =
-          b.routeFrom && b.routeTo
-            ? `${b.routeFrom} → ${b.routeTo}`
-            : b.bus?.from && b.bus?.to
-            ? `${b.bus.from} → ${b.bus.to}`
-            : "";
-
-        const createdText = b.createdAt ? new Date(b.createdAt).toLocaleString() : "";
-        const departText = b.departureAt
-          ? new Date(b.departureAt).toLocaleString()
-          : b.date || "";
-
-        const contact =
-          b.passengerInfo?.email ||
-          b.userEmail ||
-          b.user?.email ||
-          b.passengerInfo?.phone ||
-          b.user?.mobile ||
-          b.user?.phone ||
-          "";
-
-        const mainName = b.passengerInfo?.fullName || b.userName || b.user?.name || "";
-
-        const base = {
-          "Booking No": b.bookingNo || "",
-          "Created At": createdText,
-          Bus: b.busName || b.bus?.name || "",
-          Route: route,
-          "Departure / Date": departText,
-          "Payment Status": b.paymentStatus || "",
-          Status: b.status || "",
-          "Main Name": mainName,
-          "Contact (Email/Phone)": contact,
-          NIC: b.passengerInfo?.nic || "",
-          "Total Amount": typeof b.totalAmount === "number" ? b.totalAmount : "",
-        };
-
-        const passengers = Array.isArray(b.passengers) ? b.passengers : [];
-        const seatAlloc = Array.isArray(b.seatAllocations) ? b.seatAllocations : [];
-
-        if (passengers.length > 0) {
-          passengers.forEach((p) => {
-            rowsForSheet.push({
-              "#": idx + 1,
-              ...base,
-              Seat: p.seat || "",
-              "Passenger Name": p.name || "",
-              "Passenger Age": typeof p.age === "number" ? p.age : p.age || "",
-              "Passenger Gender":
-                p.gender === "F" ? "Female" : p.gender === "M" ? "Male" : "",
-            });
-          });
-        } else if (seatAlloc.length > 0) {
-          seatAlloc.forEach((s) => {
-            rowsForSheet.push({
-              "#": idx + 1,
-              ...base,
-              Seat: s.seat || "",
-              "Passenger Name": "",
-              "Passenger Age": "",
-              "Passenger Gender":
-                s.gender === "F" ? "Female" : s.gender === "M" ? "Male" : "",
-            });
-          });
-        } else {
-          const seatsText = Array.isArray(b.seats)
-            ? b.seats.map((x) => (typeof x === "string" ? x : x?.no)).filter(Boolean).join(", ")
-            : Array.isArray(b.selectedSeats)
-            ? b.selectedSeats.join(", ")
-            : "";
-          rowsForSheet.push({
-            "#": idx + 1,
-            ...base,
-            Seat: seatsText,
-            "Passenger Name": "",
-            "Passenger Age": "",
-            "Passenger Gender": "",
-          });
-        }
-      });
-
-      const wb = XLSX.utils.book_new();
-      const ws = XLSX.utils.json_to_sheet(rowsForSheet);
-      XLSX.utils.book_append_sheet(wb, ws, "Bookings");
-      XLSX.writeFile(wb, "bookings.xlsx");
-    } catch (err) {
-      console.error("Export failed", err);
-      alert("Failed to export Excel.");
-    }
-  };
-
   return (
     <div className="p-6">
       <h2 className="text-2xl font-bold mb-4">📄 All User Bookings</h2>
 
-      {/* ------- START filters block ------- */}
+      {/* Filters block (subtle card) */}
       <div className="rounded-xl border bg-white shadow-sm p-4 mb-4">
+        {/* Toolbar: Filters */}
         <div className="grid grid-cols-1 md:grid-cols-8 gap-3">
           <input
             type="date"
             value={filter.date}
-            onChange={(e) => { setPage(1); setFilter((f) => ({ ...f, date: e.target.value })); }}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, date: e.target.value }));
+            }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            placeholder="Date"
+            title="Filter by booking/departure date"
           />
           <input
             type="text"
             value={filter.from}
-            onChange={(e) => { setPage(1); setFilter((f) => ({ ...f, from: e.target.value })); }}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, from: e.target.value }));
+            }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             placeholder="From"
+            title="Route start"
           />
           <input
             type="text"
             value={filter.to}
-            onChange={(e) => { setPage(1); setFilter((f) => ({ ...f, to: e.target.value })); }}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, to: e.target.value }));
+            }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
             placeholder="To"
+            title="Route end"
           />
           <input
             type="text"
             value={filter.userEmail}
-            onChange={(e) => { setPage(1); setFilter((f) => ({ ...f, userEmail: e.target.value })); }}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, userEmail: e.target.value }));
+            }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-            placeholder="User Email / Phone / RB"
+            placeholder="User Email or Booking No (RB…)"
+            title="Type an email or an RB booking number"
           />
+
           <select
             value={filter.status}
-            onChange={(e) => { setPage(1); setFilter((f) => ({ ...f, status: e.target.value })); }}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, status: e.target.value }));
+            }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Booking status"
           >
             <option value="">Status: Any</option>
             <option value="CONFIRMED">CONFIRMED</option>
@@ -511,10 +408,15 @@ const AdminBookings = () => {
             <option value="CANCELLED">CANCELLED</option>
             <option value="REFUNDED">REFUNDED</option>
           </select>
+
           <select
             value={filter.paymentStatus}
-            onChange={(e) => { setPage(1); setFilter((f) => ({ ...f, paymentStatus: e.target.value })); }}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, paymentStatus: e.target.value }));
+            }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Payment status"
           >
             <option value="">Payment: Any</option>
             <option value="PAID">PAID</option>
@@ -522,20 +424,31 @@ const AdminBookings = () => {
             <option value="FAILED">FAILED</option>
             <option value="REFUNDED">REFUNDED</option>
           </select>
+
+          {/* Hour-by-hour window */}
           <select
             value={filter.hourStart}
-            onChange={(e) => { setPage(1); setFilter((f) => ({ ...f, hourStart: e.target.value })); }}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, hourStart: e.target.value }));
+            }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Hour from"
           >
             <option value="">Hour from</option>
             {HOUR_OPTIONS.map((h) => (
               <option key={h.value} value={h.value}>{h.label}</option>
             ))}
           </select>
+
           <select
             value={filter.hourEnd}
-            onChange={(e) => { setPage(1); setFilter((f) => ({ ...f, hourEnd: e.target.value })); }}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, hourEnd: e.target.value }));
+            }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Hour to"
           >
             <option value="">Hour to</option>
             {HOUR_OPTIONS.map((h) => (
@@ -544,33 +457,40 @@ const AdminBookings = () => {
           </select>
         </div>
 
+        {/* Time basis row */}
         <div className="flex flex-wrap items-center gap-3 mt-3">
           <label className="text-sm text-gray-700">Time basis:</label>
           <select
             value={filter.timeBasis}
-            onChange={(e) => { setPage(1); setFilter((f) => ({ ...f, timeBasis: e.target.value })); }}
+            onChange={(e) => {
+              setPage(1);
+              setFilter((f) => ({ ...f, timeBasis: e.target.value }));
+            }}
             className="border px-3 py-1.5 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
           >
             <option value="created">Booking Created</option>
             <option value="departure">Departure Time</option>
           </select>
           <span className="text-xs text-gray-500">
-            Tip: select a Date + Hour from/to to see that window.
+            Tip: select a Date + Hour from/to (e.g., 12 PM → 1 PM) to see that window.
           </span>
         </div>
 
+        {/* Quick RB builder */}
         <div className="flex flex-wrap items-end gap-2 mt-4">
           <span className="text-sm font-medium text-gray-700">Quick booking search:</span>
           <input
             value="RB"
             disabled
             className="border px-3 py-2 rounded w-16 bg-gray-100 text-gray-600"
+            title="Prefix"
           />
           <input
             type="date"
             value={bnDate}
             onChange={(e) => setBnDate(e.target.value)}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Date part"
           />
           <input
             type="text"
@@ -584,11 +504,13 @@ const AdminBookings = () => {
                 const rb = buildRB(bnDate, bnSeq);
                 if (rb) {
                   setPage(1);
+                  // also set date filter to the chosen date to narrow results
                   setFilter((f) => ({ ...f, userEmail: rb, date: bnDate || f.date }));
                 }
               }
             }}
             className="border px-3 py-2 rounded w-24 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+            title="Sequence (last 4 digits)"
           />
           <button
             className="px-3 py-2 rounded border bg-gray-50 hover:bg-gray-100 transition"
@@ -599,6 +521,7 @@ const AdminBookings = () => {
                 setFilter((f) => ({ ...f, userEmail: rb, date: bnDate || f.date }));
               }
             }}
+            title="Apply RB+Date+Number"
           >
             Find
           </button>
@@ -615,20 +538,13 @@ const AdminBookings = () => {
           </button>
         </div>
       </div>
-      {/* ------- END filters block ------- */}
 
-      {/* top toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+      {/* Toolbar: Paging */}
+      <div className="flex items-center justify-between mb-3">
         <div className="text-sm text-gray-600">
           {loading ? "Loading…" : `Total: ${total.toLocaleString()}`}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={handleExport}
-            className="bg-green-600 text-white px-3 py-1.5 rounded hover:bg-green-700 text-sm"
-          >
-            Export to Excel
-          </button>
           <label className="text-sm text-gray-600">Rows:</label>
           <select
             className="border px-2 py-1 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -639,9 +555,12 @@ const AdminBookings = () => {
             }}
           >
             {PAGE_SIZES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>
+                {s}
+              </option>
             ))}
           </select>
+
           <button
             className="border px-2 py-1 rounded disabled:opacity-50"
             onClick={() => setPage((p) => Math.max(1, p - 1))}
@@ -650,27 +569,25 @@ const AdminBookings = () => {
             Prev
           </button>
           <span className="text-sm text-gray-700">
-            Page {page} / {Math.max(1, Math.ceil(total / pageSize))}
+            Page {page} / {totalPages}
           </span>
           <button
             className="border px-2 py-1 rounded disabled:opacity-50"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={
-              page >= Math.max(1, Math.ceil(total / pageSize)) || loading
-            }
+            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            disabled={page >= totalPages || loading}
           >
             Next
           </button>
         </div>
       </div>
 
-      {/* table */}
+      {/* Table */}
       <div className="overflow-auto border rounded">
         <table className="w-full text-sm">
           <thead>
             <tr>
               <HeaderCell label="User" field="userName" />
-              <HeaderCell label="Email / Phone" field="userEmail" />
+              <HeaderCell label="Email" field="userEmail" />
               <HeaderCell label="Booking No" field="bookingNo" />
               <HeaderCell label="Bus" field="busName" />
               <HeaderCell label="Route" field="routeFrom" />
@@ -678,9 +595,7 @@ const AdminBookings = () => {
               <HeaderCell label="Seats" field="seatsCount" />
               <HeaderCell label="Payment" field="paymentStatus" />
               <HeaderCell label="Status" field="status" />
-              <th className="border px-3 py-2 bg-gray-100 sticky top-0 z-10">
-                Actions
-              </th>
+              <th className="border px-3 py-2 bg-gray-100 sticky top-0 z-10">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -696,79 +611,44 @@ const AdminBookings = () => {
               ))
             ) : err ? (
               <tr>
-                <td
-                  colSpan={10}
-                  className="border px-3 py-6 text-center text-red-700"
-                >
+                <td colSpan={10} className="border px-3 py-6 text-center text-red-700">
                   {err}
                 </td>
               </tr>
             ) : rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={10}
-                  className="border px-3 py-6 text-center text-gray-600"
-                >
+                <td colSpan={10} className="border px-3 py-6 text-center text-gray-600">
                   No bookings found for your filters.
                 </td>
               </tr>
             ) : (
               rows.map((b) => {
                 const route =
-                  b.routeFrom && b.routeTo
-                    ? `${b.routeFrom} → ${b.routeTo}`
-                    : b.bus?.from && b.bus?.to
-                    ? `${b.bus.from} → ${b.bus.to}`
-                    : "-";
-                const dateText = b.departureAt
-                  ? new Date(b.departureAt).toLocaleString()
-                  : b.date || "-";
+                  (b.routeFrom && b.routeTo) ? `${b.routeFrom} → ${b.routeTo}` :
+                  b.bus?.from && b.bus?.to ? `${b.bus.from} → ${b.bus.to}` : "-";
+                const dateText =
+                  b.departureAt
+                    ? new Date(b.departureAt).toLocaleString()
+                    : b.date || "-";
                 const seats = Array.isArray(b.seats)
-                  ? b.seats
-                      .map((s) => (typeof s === "string" ? s : s?.no))
-                      .filter(Boolean)
+                  ? b.seats.map((s) => (typeof s === "string" ? s : s?.no)).filter(Boolean)
                   : Array.isArray(b.selectedSeats)
-                  ? b.selectedSeats
-                  : [];
-                const contactValue =
-                  b.userEmail ||
-                  b.user?.email ||
-                  b.passengerInfo?.email ||
-                  b.user?.mobile ||
-                  b.user?.phone ||
-                  b.passengerInfo?.phone ||
-                  "-";
-
+                    ? b.selectedSeats
+                    : [];
                 return (
                   <tr key={b._id} className="hover:bg-gray-50">
-                    <td className="border px-3 py-2">
-                      {b.userName || b.user?.name || "-"}
-                    </td>
-                    <td className="border px-3 py-2">{contactValue}</td>
+                    <td className="border px-3 py-2">{b.userName || b.user?.name || "-"}</td>
+                    <td className="border px-3 py-2">{b.userEmail || b.user?.email || "-"}</td>
                     <td className="border px-3 py-2">{b.bookingNo || "-"}</td>
-                    <td className="border px-3 py-2">
-                      {b.busName || b.bus?.name || "-"}
-                    </td>
+                    <td className="border px-3 py-2">{b.busName || b.bus?.name || "-"}</td>
                     <td className="border px-3 py-2">{route}</td>
                     <td className="border px-3 py-2">{dateText}</td>
                     <td className="border px-3 py-2">
                       {seats && seats.length ? seats.join(", ") : "-"}
                     </td>
-                    <td className="border px-3 py-2">
-                      {b.paymentStatus || "-"}
-                    </td>
+                    <td className="border px-3 py-2">{b.paymentStatus || "-"}</td>
                     <td className="border px-3 py-2">{b.status || "-"}</td>
                     <td className="border px-3 py-2 text-center space-x-2">
-                      <button
-                        className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600"
-                        onClick={() =>
-                          navigate(`/admin/bookings/${b._id}`, {
-                            state: { booking: b },
-                          })
-                        }
-                      >
-                        View
-                      </button>
                       <button
                         className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700"
                         onClick={() => cancelBooking(b._id)}
@@ -781,20 +661,15 @@ const AdminBookings = () => {
                           setRescheduleData(b);
                           setNewDate(
                             b.departureAt
-                              ? new Date(b.departureAt)
-                                  .toISOString()
-                                  .slice(0, 10)
-                              : b.date || ""
+                              ? new Date(b.departureAt).toISOString().slice(0, 10)
+                              : (b.date || "")
                           );
-                          const s = Array.isArray(b.seats)
-                            ? b.seats
-                                .map((x) =>
-                                  typeof x === "string" ? x : x?.no
-                                )
-                                .filter(Boolean)
-                            : Array.isArray(b.selectedSeats)
-                            ? b.selectedSeats
-                            : [];
+                          const s =
+                            Array.isArray(b.seats)
+                              ? b.seats.map((x) => (typeof x === "string" ? x : x?.no)).filter(Boolean)
+                              : Array.isArray(b.selectedSeats)
+                                ? b.selectedSeats
+                                : [];
                           setNewSeats(s.join(", "));
                         }}
                       >
@@ -809,22 +684,17 @@ const AdminBookings = () => {
         </table>
       </div>
 
-      {/* reschedule inline card */}
+      {/* Reschedule Modal (simple inline card for now) */}
       {rescheduleData && (
         <div className="mt-6 p-6 border bg-gray-50 rounded shadow-sm">
           <h3 className="text-lg font-bold mb-2">✏️ Reschedule Booking</h3>
           <p className="text-sm text-gray-700">
-            <strong>User:</strong>{" "}
-            {rescheduleData.userEmail ||
-              rescheduleData.user?.email ||
-              rescheduleData.user?.mobile ||
-              rescheduleData.user?.phone ||
-              "-"}
+            <strong>User:</strong> {rescheduleData.userEmail || rescheduleData.user?.email || "-"}
           </p>
           <p className="text-sm text-gray-700">
-            <strong>Bus:</strong>{" "}
-            {rescheduleData.busName || rescheduleData.bus?.name || "-"}
+            <strong>Bus:</strong> {rescheduleData.busName || rescheduleData.bus?.name || "-"}
           </p>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
             <div>
               <label className="text-xs text-gray-600">New date</label>
@@ -836,17 +706,17 @@ const AdminBookings = () => {
               />
             </div>
             <div>
-              <label className="text-xs text-gray-600">
-                New seats (comma-separated)
-              </label>
+              <label className="text-xs text-gray-600">New seats (comma-separated)</label>
               <input
                 type="text"
                 value={newSeats}
                 onChange={(e) => setNewSeats(e.target.value)}
                 className="w-full border px-3 py-2 rounded"
+                placeholder="e.g. 1A, 2B"
               />
             </div>
           </div>
+
           <div className="flex gap-3 mt-4">
             <button
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
