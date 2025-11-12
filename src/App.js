@@ -14,8 +14,7 @@ import SearchResults from "./pages/SearchResults";
 import DownloadTicket from "./pages/DownloadTicket";
 import Payment from "./pages/Payment";
 import BookingPage from "./pages/BookingPage";
-// ⬇️ point to the new split version (folder with index.jsx)
-import ConfirmBooking from "./pages/ConfirmBooking/index.jsx";
+import ConfirmBooking from "./pages/ConfirmBooking";
 import MyBookings from "./pages/MyBookings";
 import Profile from "./pages/Profiles";
 import AllOperators from "./pages/AllOperators";
@@ -28,7 +27,6 @@ import AdminBusList from "./pages/AdminBusList";
 import AddBus from "./pages/AddBus";
 import EditBus from "./pages/EditBus";
 import AdminBookings from "./pages/AdminBookings";
-import AdminBookingDetails from "./pages/AdminBookingDetails"; // ✅ NEW
 import AdminBusAvailability from "./pages/AdminBusAvailability";
 import AdminAuditLogs from "./pages/AdminAuditLogs";
 import AdminSpecialNotices from "./pages/AdminSpecialNotices";
@@ -145,15 +143,6 @@ const App = () => (
             element={
               <AdminRoute>
                 <AdminBookings />
-              </AdminRoute>
-            }
-          />
-          {/* ✅ NEW: admin booking details page */}
-          <Route
-            path="/admin/bookings/:id"
-            element={
-              <AdminRoute>
-                <AdminBookingDetails />
               </AdminRoute>
             }
           />
