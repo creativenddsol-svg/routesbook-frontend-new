@@ -1,7 +1,8 @@
 // src/pages/AdminBookings.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import * as XLSX from "xlsx";
+// ⬇️ Lazy-load XLSX inside handler to avoid blocking first paint
+// import * as XLSX from "xlsx";
 import apiClient from "../api";
 
 /* ---------- Small utilities ---------- */
@@ -137,6 +138,12 @@ const AdminBookings = () => {
   const [newSeats, setNewSeats] = useState("");
 
   const abortRef = useRef(null);
+  const reqIdRef = useRef(0); // ⬅️ guard against stale responses
+
+  // Reset to first page only when the *debounced* filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [debouncedFilter]);
 
   const timeWindow = useMemo(() => {
     const { date, hourStart, hourEnd } = debouncedFilter;
@@ -237,12 +244,14 @@ const AdminBookings = () => {
   };
 
   const fetchBookings = async () => {
-    setLoading(true);
     setErr(null);
+    setLoading(true);
 
     if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+
+    const myReqId = ++reqIdRef.current;
 
     try {
       const res = await apiClient.get("/admin/bookings", {
@@ -252,6 +261,9 @@ const AdminBookings = () => {
         },
         signal: controller.signal,
       });
+
+      // Ignore stale responses
+      if (myReqId !== reqIdRef.current) return;
 
       const data = res.data;
       if (Array.isArray(data)) {
@@ -268,13 +280,14 @@ const AdminBookings = () => {
         setTotal(0);
       }
     } catch (e) {
-      if (e.name === "CanceledError") return;
+      if (e.name === "CanceledError" || e.name === "AbortError") return;
+      if (myReqId !== reqIdRef.current) return; // stale error, ignore
       console.error("Failed to fetch bookings", e);
       setErr("Failed to fetch bookings.");
       setRows([]);
       setTotal(0);
     } finally {
-      setLoading(false);
+      if (myReqId === reqIdRef.current) setLoading(false);
     }
   };
 
@@ -329,6 +342,13 @@ const AdminBookings = () => {
     }
   };
 
+  /* Derived */
+  const totalPages = useMemo(
+    () => Math.max(1, Math.ceil(total / pageSize)),
+    [total, pageSize]
+  );
+
+  /* Render helpers */
   const HeaderCell = ({ label, field }) => (
     <th className="border px-3 py-2 bg-gray-100 sticky top-0 z-10">
       <SortButton label={label} field={field} sort={sort} setSort={setSort} />
@@ -338,6 +358,8 @@ const AdminBookings = () => {
   /* -------- EXPORT TO EXCEL -------- */
   const handleExport = async () => {
     try {
+      // ⬇️ Lazy load XLSX so the admin page loads faster initially
+      const XLSX = (await import("xlsx")).default || (await import("xlsx"));
       const res = await apiClient.get("/admin/bookings", {
         params: {
           ...queryParams,
@@ -427,7 +449,7 @@ const AdminBookings = () => {
             type="date"
             value={filter.date}
             onChange={(e) => {
-              setPage(1);
+              // page reset now handled in debounced effect
               setFilter((f) => ({ ...f, date: e.target.value }));
             }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -436,7 +458,6 @@ const AdminBookings = () => {
             type="text"
             value={filter.from}
             onChange={(e) => {
-              setPage(1);
               setFilter((f) => ({ ...f, from: e.target.value }));
             }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -446,7 +467,6 @@ const AdminBookings = () => {
             type="text"
             value={filter.to}
             onChange={(e) => {
-              setPage(1);
               setFilter((f) => ({ ...f, to: e.target.value }));
             }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -456,7 +476,6 @@ const AdminBookings = () => {
             type="text"
             value={filter.userEmail}
             onChange={(e) => {
-              setPage(1);
               setFilter((f) => ({ ...f, userEmail: e.target.value }));
             }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -465,7 +484,6 @@ const AdminBookings = () => {
           <select
             value={filter.status}
             onChange={(e) => {
-              setPage(1);
               setFilter((f) => ({ ...f, status: e.target.value }));
             }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -479,7 +497,6 @@ const AdminBookings = () => {
           <select
             value={filter.paymentStatus}
             onChange={(e) => {
-              setPage(1);
               setFilter((f) => ({ ...f, paymentStatus: e.target.value }));
             }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -493,7 +510,6 @@ const AdminBookings = () => {
           <select
             value={filter.hourStart}
             onChange={(e) => {
-              setPage(1);
               setFilter((f) => ({ ...f, hourStart: e.target.value }));
             }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -508,7 +524,6 @@ const AdminBookings = () => {
           <select
             value={filter.hourEnd}
             onChange={(e) => {
-              setPage(1);
               setFilter((f) => ({ ...f, hourEnd: e.target.value }));
             }}
             className="border px-3 py-2 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -527,7 +542,6 @@ const AdminBookings = () => {
           <select
             value={filter.timeBasis}
             onChange={(e) => {
-              setPage(1);
               setFilter((f) => ({ ...f, timeBasis: e.target.value }));
             }}
             className="border px-3 py-1.5 rounded focus:outline-none focus:ring-2 focus:ring-blue-500/30"
@@ -566,7 +580,6 @@ const AdminBookings = () => {
               if (e.key === "Enter") {
                 const rb = buildRB(bnDate, bnSeq);
                 if (rb) {
-                  setPage(1);
                   setFilter((f) => ({
                     ...f,
                     userEmail: rb,
@@ -582,7 +595,6 @@ const AdminBookings = () => {
             onClick={() => {
               const rb = buildRB(bnDate, bnSeq);
               if (rb) {
-                setPage(1);
                 setFilter((f) => ({
                   ...f,
                   userEmail: rb,
@@ -598,7 +610,6 @@ const AdminBookings = () => {
             onClick={() => {
               setBnDate("");
               setBnSeq("");
-              setPage(1);
               setFilter((f) => ({ ...f, userEmail: "" }));
             }}
           >
