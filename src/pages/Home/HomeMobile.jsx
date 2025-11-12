@@ -1,16 +1,152 @@
 // src/pages/Home/HomeMobile.jsx
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { FaBus, FaCalendarAlt, FaExchangeAlt, FaSearch } from "react-icons/fa";
+import { FaBus, FaCalendarAlt, FaExchangeAlt, FaSearch, FaMapMarkerAlt, FaClock } from "react-icons/fa";
 
 import {
   PALETTE,
   SECTION_WRAP,
   SECTION_INNER,
   getReadableDate,
-  MobileCityPicker,
+  // MobileCityPicker,  // ⬅️ we’ll use a local “Plus” version below to avoid touching _core.jsx
   MobileCalendarSheet,
 } from "./_core";
+
+/* ------------------------------------------------------------------
+   Local MobileCityPickerPlus
+   - Same props/signature as the original MobileCityPicker
+   - Reorders sections so Matching Cities appear RIGHT UNDER the search bar,
+     then Recent Searches, then Popular Cities (as requested)
+   - Light red highlight on taps/hover for options
+------------------------------------------------------------------- */
+const MobileCityPickerPlus = ({
+  open,
+  mode, // 'from' | 'to'
+  options,
+  recent,
+  onPick,
+  onClose,
+}) => {
+  const [q, setQ] = useState("");
+  const all = options.map((o) => o.label);
+  const filtered =
+    q.trim() === ""
+      ? all
+      : all.filter((c) => c.toLowerCase().includes(q.trim().toLowerCase()));
+
+  if (!open) return null;
+
+  return (
+    <div className="lg:hidden fixed inset-0 z-[10000] bg-white flex flex-col">
+      {/* Safe area for notch */}
+      <div style={{ height: "env(safe-area-inset-top)" }} />
+
+      {/* Header */}
+      <div className="px-4 pb-3 pt-3 border-b flex items-center gap-3">
+        <button
+          onClick={onClose}
+          className="w-9 h-9 rounded-full border flex items-center justify-center"
+          aria-label="Back"
+        >
+          ←
+        </button>
+        <div className="text-base font-semibold">
+          {mode === "from" ? "Select From City" : "Select To City"}
+        </div>
+      </div>
+
+      {/* Search bar */}
+      <div className="px-4 py-3 border-b">
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search city"
+          className="w-full rounded-xl border px-4 py-3 text-base outline-none"
+          type="search"
+          inputMode="search"
+          enterKeyHint="search"
+          style={{ fontSize: 16, WebkitTextSizeAdjust: "100%" }}
+          autoCapitalize="none"
+          autoCorrect="off"
+          autoComplete="off"
+        />
+      </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto">
+        {/* ===== TOP: Matching Cities (when typing) ===== */}
+        <div className="px-4 pt-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+            {q ? "Matching Cities" : "All Cities"}
+          </div>
+
+          <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
+            {(q ? filtered : all).map((c) => (
+              <button
+                key={c}
+                className="w-full text-left px-3 py-3 active:bg-red-50"
+                onClick={() => onPick(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* ===== Next: Recent Searches ===== */}
+        <div className="px-4 pt-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-2">
+            <FaClock className="opacity-70" />
+            Recent searches
+          </div>
+
+          {(recent?.[mode] || []).length === 0 ? (
+            <div className="text-sm text-gray-400">No recent searches</div>
+          ) : (
+            <div className="mb-3 divide-y rounded-xl border border-gray-100 overflow-hidden">
+              {recent[mode].map((city, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-red-50"
+                  onClick={() => onPick(city)}
+                >
+                  <FaMapMarkerAlt className="text-gray-500" />
+                  <span className="text-base font-medium text-gray-800">{city}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ===== Finally: Popular Cities ===== */}
+        <div className="px-4 pt-2 pb-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+            Popular Cities
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {Array.from(
+              new Set(
+                ["Colombo","Kandy","Galle","Matara","Jaffna","Negombo","Kurunegala","Gampaha","Badulla","Anuradhapura"]
+              )
+            ).map((c) => (
+              <button
+                key={c}
+                className="px-3 py-1.5 rounded-full border text-sm active:bg-red-50"
+                onClick={() => onPick(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Safe area bottom */}
+      <div style={{ height: "env(safe-area-inset-bottom)" }} />
+    </div>
+  );
+};
 
 /**
  * Props expected (all from useHomeCore):
@@ -94,8 +230,11 @@ const HomeMobile = ({
                       >
                         <span
                           className={`text-base ${
-                            from ? "font-semibold text-gray-900" : "text-gray-400"
+                            from ? "font-semibold" : ""
                           }`}
+                          style={{
+                            color: from ? "#EF9CA1" : "#9CA3AF", // 🔴 light red when selected, gray placeholder otherwise
+                          }}
                         >
                           {from || "Matara"}
                         </span>
@@ -120,8 +259,11 @@ const HomeMobile = ({
                       >
                         <span
                           className={`text-base ${
-                            to ? "font-semibold text-gray-900" : "text-gray-400"
+                            to ? "font-semibold" : ""
                           }`}
+                          style={{
+                            color: to ? "#EF9CA1" : "#9CA3AF", // 🔴 light red when selected
+                          }}
                         >
                           {to || "Colombo"}
                         </span>
@@ -216,8 +358,8 @@ const HomeMobile = ({
         </div>
       </div>
 
-      {/* === MOBILE FULL-PAGE PICKER MOUNT === */}
-      <MobileCityPicker
+      {/* === MOBILE FULL-PAGE PICKER (reordered with suggestions on top) === */}
+      <MobileCityPickerPlus
         open={mobilePickerOpen}
         mode={mobilePickerMode}
         options={mobilePickerMode === "from" ? fromOptions : toOptions}
