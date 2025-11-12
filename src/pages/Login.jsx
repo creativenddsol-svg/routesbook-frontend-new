@@ -261,6 +261,17 @@ export default function Login() {
     await sendOtp();
   };
 
+  // ✅ NEW: allow changing the phone number during OTP verify
+  const changeNumber = () => {
+    // Clear state and timers so UI is fresh when user edits number
+    setStep("request");
+    setCode("");
+    setIsExistingUser(null);
+    setError("");
+    setResendIn(0);
+    sessionStorage.removeItem("rb-login-otp-resend");
+  };
+
   return (
     <div className="min-h-screen" style={{ background: PALETTE.bg }}>
       <Toaster position="top-right" />
@@ -444,6 +455,26 @@ export default function Login() {
 
                 {step === "verify" && (
                   <form onSubmit={verifyOtp} className="space-y-4">
+                    {/* ✅ Show where we sent the code + Change number action */}
+                    <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                      <div className="text-sm">
+                        <div className="font-semibold text-gray-800">
+                          Code sent to
+                        </div>
+                        <div className="text-gray-700">
+                          {normalizeLkMobile(mobile) || "—"}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={changeNumber}
+                        className="text-sm font-semibold hover:underline"
+                        style={{ color: PALETTE.primary }}
+                      >
+                        Change number
+                      </button>
+                    </div>
+
                     <RowInput
                       id="code"
                       name="code"
