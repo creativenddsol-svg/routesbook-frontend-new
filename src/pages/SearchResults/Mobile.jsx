@@ -296,15 +296,21 @@ export default function Mobile() {
                     </p>
                   </div>
 
-                  {/* DURATION (CENTERED with pill + line) */}
+                  {/* DURATION (CENTERED with pill + line + end dots) */}
                   <div className="flex flex-col items-center flex-1 mx-2">
                     <div className="flex items-center w-full">
-                      <span className="flex-1 h-[1px] bg-gray-300 rounded-full" />
-                      {/* ⬇️ pill reduced ~20%: padding + font-size */}
+                      {/* left dot */}
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
+                      {/* left line */}
+                      <span className="flex-1 h-[1px] bg-gray-300 mx-0.5 rounded-full" />
+                      {/* pill (already reduced 20%) */}
                       <span className="px-2.5 py-0.5 mx-1 rounded-full border border-gray-300 bg-gray-50 text-[9px] text-gray-700 tabular-nums">
                         {calculateDuration(bus.departureTime, bus.arrivalTime)}
                       </span>
-                      <span className="flex-1 h-[1px] bg-gray-300 rounded-full" />
+                      {/* right line */}
+                      <span className="flex-1 h-[1px] bg-gray-300 mx-0.5 rounded-full" />
+                      {/* right dot */}
+                      <span className="w-1.5 h-1.5 rounded-full bg-gray-300" />
                     </div>
                     <span className="text-[10px] text-gray-500 uppercase mt-1">
                       Duration
