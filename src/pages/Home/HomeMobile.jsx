@@ -8,18 +8,25 @@ import {
   SECTION_WRAP,
   SECTION_INNER,
   getReadableDate,
-  // MobileCityPicker,  // ⬅️ we’ll use a local “Plus” version below to avoid touching _core.jsx
   MobileCalendarSheet,
 } from "./_core";
 
-/* ------------------------------------------------------------------
-   Local MobileCityPickerPlus
-   - Same props/signature as the original MobileCityPicker
-   - Shows Matching Cities under the search bar when typing,
-     then Recent Searches, then Popular Cities
-   - Neutral active highlight to match original feel
-------------------------------------------------------------------- */
-const MobileCityPickerPlus = ({
+/* ---------------- Popular Cities for quick-pick (same set) ---------------- */
+const POPULAR_CITIES = [
+  "Colombo",
+  "Kandy",
+  "Galle",
+  "Matara",
+  "Jaffna",
+  "Negombo",
+  "Kurunegala",
+  "Gampaha",
+  "Badulla",
+  "Anuradhapura",
+];
+
+/* ---------------- Mobile full-page city picker (original order) ---------------- */
+const MobileCityPicker = ({
   open,
   mode, // 'from' | 'to'
   options,
@@ -72,28 +79,9 @@ const MobileCityPickerPlus = ({
         />
       </div>
 
-      {/* Scrollable content */}
+      {/* Content scroll */}
       <div className="flex-1 overflow-y-auto">
-        {/* ===== TOP: Matching Cities (when typing) ===== */}
-        <div className="px-4 pt-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            {q ? "Matching Cities" : "All Cities"}
-          </div>
-
-          <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
-            {(q ? filtered : all).map((c) => (
-              <button
-                key={c}
-                className="w-full text-left px-3 py-3 active:bg-gray-100"
-                onClick={() => onPick(c)}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* ===== Next: Recent Searches ===== */}
+        {/* Recent searches */}
         <div className="px-4 pt-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-2">
             <FaClock className="opacity-70" />
@@ -108,31 +96,49 @@ const MobileCityPickerPlus = ({
                 <button
                   key={idx}
                   type="button"
-                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-100"
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-50"
                   onClick={() => onPick(city)}
                 >
                   <FaMapMarkerAlt className="text-gray-500" />
-                  <span className="text-base font-medium text-gray-800">{city}</span>
+                  <span className="text-base font-medium text-gray-800">
+                    {city}
+                  </span>
                 </button>
               ))}
             </div>
           )}
         </div>
 
-        {/* ===== Finally: Popular Cities ===== */}
-        <div className="px-4 pt-2 pb-4">
+        {/* Popular Cities */}
+        <div className="px-4 pt-2">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
             Popular Cities
           </div>
-          <div className="flex flex-wrap gap-2">
-            {Array.from(
-              new Set(
-                ["Colombo","Kandy","Galle","Matara","Jaffna","Negombo","Kurunegala","Gampaha","Badulla","Anuradhapura"]
-              )
-            ).map((c) => (
+        </div>
+        <div className="px-4">
+          <div className="flex flex-wrap gap-2 mb-4">
+            {POPULAR_CITIES.map((c) => (
               <button
                 key={c}
-                className="px-3 py-1.5 rounded-full border text-sm active:bg-gray-100"
+                className="px-3 py-1.5 rounded-full border text-sm active:bg-red-50"
+                onClick={() => onPick(c)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* All cities (filtered) */}
+        <div className="px-4 pb-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+            {q ? "Matching Cities" : "All Cities"}
+          </div>
+          <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
+            {filtered.map((c) => (
+              <button
+                key={c}
+                className="w-full text-left px-3 py-3 active:bg-gray-50"
                 onClick={() => onPick(c)}
               >
                 {c}
@@ -148,19 +154,7 @@ const MobileCityPickerPlus = ({
   );
 };
 
-/**
- * Props expected (all from useHomeCore):
- * {
- *   from, setFrom, to, setTo, date, setDate,
- *   todayStr, tomorrowStr,
- *   mobileDateAnchorRef,
- *   calOpen, setCalOpen,
- *   mobilePickerOpen, mobilePickerMode,
- *   recent, fromOptions, toOptions,
- *   openMobilePicker, handleMobilePick,
- *   handleSearch, swapLocations
- * }
- */
+/* ============================ HomeMobile ============================ */
 const HomeMobile = ({
   from,
   setFrom,
@@ -188,9 +182,25 @@ const HomeMobile = ({
       {/* ===== Search Widget (Mobile) ===== */}
       <div className={`${SECTION_WRAP}`}>
         <div className={`${SECTION_INNER} relative z-20 mt-4`}>
-          {/* ✅ No border, no ring — only shadow; clip children */}
-          <div className="bg-white rounded-xl shadow-md overflow-hidden">
-            {/* ----- MOBILE VIEW (COMPACT) ----- */}
+          {/* ==== MOBILE HEADER (brand on the right) ==== */}
+          <div className="flex items-center justify-between pb-2 px-4 pt-4">
+            <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}>
+              Get Your Bus Tickets
+            </h2>
+            <span
+              className="text-lg font-extrabold tracking-tight"
+              style={{
+                color: PALETTE.primaryRed,
+                fontFamily:
+                  "'Mont', 'Montserrat', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'",
+              }}
+            >
+              Routesbook
+            </span>
+          </div>
+
+          {/* ✅ Match original card: border + rounded, no extra shadow */}
+          <div className="bg-white border border-gray-300 rounded-xl">
             <div>
               <div className="relative">
                 {/* FROM */}
@@ -213,12 +223,11 @@ const HomeMobile = ({
                         className="w-full text-left py-1.5"
                       >
                         <span
-                          className={`text-base ${from ? "font-semibold" : ""}`}
-                          style={{
-                            color: from ? PALETTE.textDark : "#9CA3AF",
-                          }}
+                          className={`text-base ${
+                            from ? "font-semibold text-gray-900" : "text-gray-400"
+                          }`}
                         >
-                          {from || "Select departure"}
+                          {from || "Matara"}
                         </span>
                       </button>
                     </div>
@@ -240,12 +249,11 @@ const HomeMobile = ({
                         className="w-full text-left py-1.5"
                       >
                         <span
-                          className={`text-base ${to ? "font-semibold" : ""}`}
-                          style={{
-                            color: to ? PALETTE.textDark : "#9CA3AF",
-                          }}
+                          className={`text-base ${
+                            to ? "font-semibold text-gray-900" : "text-gray-400"
+                          }`}
                         >
-                          {to || "Select destination"}
+                          {to || "Colombo"}
                         </span>
                       </button>
                     </div>
@@ -286,10 +294,7 @@ const HomeMobile = ({
                   <label className="block text-[11px] font-medium text-gray-500">
                     Date of Journey
                   </label>
-                  <span
-                    className="text-base font-semibold"
-                    style={{ color: PALETTE.textDark }}
-                  >
+                  <span className="text-base font-semibold" style={{ color: PALETTE.textDark }}>
                     {getReadableDate(date)}
                   </span>
                 </div>
@@ -300,11 +305,9 @@ const HomeMobile = ({
                       e.stopPropagation();
                       setDate(todayStr);
                     }}
-                    className="text-xs font-semibold"
-                    style={{
-                      color:
-                        date === todayStr ? PALETTE.primaryRed : PALETTE.accentBlue,
-                    }}
+                    className={`text-xs font-semibold ${
+                      date === todayStr ? "text-red-500" : "text-gray-600"
+                    }`}
                   >
                     Today
                   </button>
@@ -313,13 +316,9 @@ const HomeMobile = ({
                       e.stopPropagation();
                       setDate(tomorrowStr);
                     }}
-                    className="text-xs font-semibold"
-                    style={{
-                      color:
-                        date === tomorrowStr
-                          ? PALETTE.primaryRed
-                          : PALETTE.accentBlue,
-                    }}
+                    className={`text-xs font-semibold ${
+                      date === tomorrowStr ? "text-red-500" : "text-gray-600"
+                    }`}
                   >
                     Tomorrow
                   </button>
@@ -345,13 +344,13 @@ const HomeMobile = ({
       </div>
 
       {/* === MOBILE FULL-PAGE PICKER === */}
-      <MobileCityPickerPlus
+      <MobileCityPicker
         open={mobilePickerOpen}
         mode={mobilePickerMode}
         options={mobilePickerMode === "from" ? fromOptions : toOptions}
         recent={recent}
         onPick={handleMobilePick}
-        onClose={() => openMobilePicker(null)} // ✅ correctly close the picker
+        onClose={() => openMobilePicker(null)}
       />
 
       {/* === MOBILE BOTTOM-SHEET CALENDAR === */}
