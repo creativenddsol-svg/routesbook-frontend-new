@@ -188,7 +188,8 @@ const HomeMobile = ({
       {/* ===== Search Widget (Mobile) ===== */}
       <div className={`${SECTION_WRAP}`}>
         <div className={`${SECTION_INNER} relative z-20 mt-4`}>
-          <div className="bg-white border border-gray-300 rounded-xl">
+          {/* ⬇️ Hairline removed: no border; use ring + shadow + overflow-hidden */}
+          <div className="bg-white rounded-xl shadow-md ring-1 ring-gray-200 overflow-hidden">
             {/* ----- MOBILE VIEW (COMPACT) ----- */}
             <div>
               <div className="relative">
