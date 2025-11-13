@@ -15,9 +15,9 @@ import {
 /* ------------------------------------------------------------------
    Local MobileCityPickerPlus
    - Same props/signature as the original MobileCityPicker
-   - Reorders sections so Matching Cities appear RIGHT UNDER the search bar,
-     then Recent Searches, then Popular Cities (as requested)
-   - Light red highlight on taps/hover for options
+   - Shows Matching Cities under the search bar when typing,
+     then Recent Searches, then Popular Cities
+   - Neutral active highlight to match original feel
 ------------------------------------------------------------------- */
 const MobileCityPickerPlus = ({
   open,
@@ -84,7 +84,7 @@ const MobileCityPickerPlus = ({
             {(q ? filtered : all).map((c) => (
               <button
                 key={c}
-                className="w-full text-left px-3 py-3 active:bg-red-50"
+                className="w-full text-left px-3 py-3 active:bg-gray-100"
                 onClick={() => onPick(c)}
               >
                 {c}
@@ -108,7 +108,7 @@ const MobileCityPickerPlus = ({
                 <button
                   key={idx}
                   type="button"
-                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-red-50"
+                  className="w-full flex items-center gap-3 px-3 py-3 text-left active:bg-gray-100"
                   onClick={() => onPick(city)}
                 >
                   <FaMapMarkerAlt className="text-gray-500" />
@@ -132,7 +132,7 @@ const MobileCityPickerPlus = ({
             ).map((c) => (
               <button
                 key={c}
-                className="px-3 py-1.5 rounded-full border text-sm active:bg-red-50"
+                className="px-3 py-1.5 rounded-full border text-sm active:bg-gray-100"
                 onClick={() => onPick(c)}
               >
                 {c}
@@ -188,23 +188,6 @@ const HomeMobile = ({
       {/* ===== Search Widget (Mobile) ===== */}
       <div className={`${SECTION_WRAP}`}>
         <div className={`${SECTION_INNER} relative z-20 mt-4`}>
-          {/* ==== MOBILE HEADER (brand on the right) ==== */}
-          <div className="flex items-center justify-between pb-2 px-4 pt-4">
-            <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}>
-              Get Your Bus Tickets
-            </h2>
-            <span
-              className="text-lg font-extrabold tracking-tight"
-              style={{
-                color: PALETTE.primaryRed,
-                fontFamily:
-                  "'Mont', 'Montserrat', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Apple Color Emoji', 'Segoe UI Emoji'",
-              }}
-            >
-              Routesbook
-            </span>
-          </div>
-
           <div className="bg-white border border-gray-300 rounded-xl">
             {/* ----- MOBILE VIEW (COMPACT) ----- */}
             <div>
@@ -229,14 +212,12 @@ const HomeMobile = ({
                         className="w-full text-left py-1.5"
                       >
                         <span
-                          className={`text-base ${
-                            from ? "font-semibold" : ""
-                          }`}
+                          className={`text-base ${from ? "font-semibold" : ""}`}
                           style={{
-                            color: from ? "#EF9CA1" : "#9CA3AF", // 🔴 light red when selected, gray placeholder otherwise
+                            color: from ? PALETTE.textDark : "#9CA3AF",
                           }}
                         >
-                          {from || "Matara"}
+                          {from || "Select departure"}
                         </span>
                       </button>
                     </div>
@@ -258,14 +239,12 @@ const HomeMobile = ({
                         className="w-full text-left py-1.5"
                       >
                         <span
-                          className={`text-base ${
-                            to ? "font-semibold" : ""
-                          }`}
+                          className={`text-base ${to ? "font-semibold" : ""}`}
                           style={{
-                            color: to ? "#EF9CA1" : "#9CA3AF", // 🔴 light red when selected
+                            color: to ? PALETTE.textDark : "#9CA3AF",
                           }}
                         >
-                          {to || "Colombo"}
+                          {to || "Select destination"}
                         </span>
                       </button>
                     </div>
@@ -320,9 +299,11 @@ const HomeMobile = ({
                       e.stopPropagation();
                       setDate(todayStr);
                     }}
-                    className={`text-xs font-semibold ${
-                      date === todayStr ? "text-red-500" : "text-gray-600"
-                    }`}
+                    className="text-xs font-semibold"
+                    style={{
+                      color:
+                        date === todayStr ? PALETTE.primaryRed : PALETTE.accentBlue,
+                    }}
                   >
                     Today
                   </button>
@@ -331,9 +312,13 @@ const HomeMobile = ({
                       e.stopPropagation();
                       setDate(tomorrowStr);
                     }}
-                    className={`text-xs font-semibold ${
-                      date === tomorrowStr ? "text-red-500" : "text-gray-600"
-                    }`}
+                    className="text-xs font-semibold"
+                    style={{
+                      color:
+                        date === tomorrowStr
+                          ? PALETTE.primaryRed
+                          : PALETTE.accentBlue,
+                    }}
                   >
                     Tomorrow
                   </button>
@@ -358,14 +343,14 @@ const HomeMobile = ({
         </div>
       </div>
 
-      {/* === MOBILE FULL-PAGE PICKER (reordered with suggestions on top) === */}
+      {/* === MOBILE FULL-PAGE PICKER === */}
       <MobileCityPickerPlus
         open={mobilePickerOpen}
         mode={mobilePickerMode}
         options={mobilePickerMode === "from" ? fromOptions : toOptions}
         recent={recent}
         onPick={handleMobilePick}
-        onClose={() => (typeof setCalOpen === "function" ? setCalOpen(false) : null) || null}
+        onClose={() => openMobilePicker(null)} // ✅ correctly close the picker
       />
 
       {/* === MOBILE BOTTOM-SHEET CALENDAR === */}
