@@ -287,7 +287,7 @@ export default function Mobile() {
                 <div className="flex items-center justify-between">
                   {/* DEPARTURE TIME + LABEL */}
                   <div className="flex flex-col items-start min-w-0 pr-1 text-left">
-                    <span className="text-xs tabular-nums text-black font-semibold">
+                    <span className="text-sm tabular-nums text-black font-semibold">
                       {bus.departureTime}
                     </span>
                     {/* New label style */}
@@ -309,7 +309,7 @@ export default function Mobile() {
 
                   {/* ARRIVAL TIME + LABEL */}
                   <div className="flex flex-col items-end min-w-0 pl-1 text-right">
-                    <span className="text-xs tabular-nums text-gray-500 font-medium">
+                    <span className="text-sm tabular-nums text-gray-500 font-medium">
                       {bus.arrivalTime}
                     </span>
                     {/* New label style */}
@@ -345,8 +345,8 @@ export default function Mobile() {
                       <span className="text-sm text-gray-600 mr-0.5 align-bottom">
                         Rs.
                       </span>
-                      {/* Price number reduced to same size as times */}
-                      <span className="text-xs tabular-nums text-black font-semibold">
+                      {/* Price number increased to 20% bigger than previous xs size */}
+                      <span className="text-sm tabular-nums text-black font-semibold">
                         {displayPrice}
                       </span>
                     </div>
