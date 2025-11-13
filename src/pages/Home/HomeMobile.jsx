@@ -199,8 +199,8 @@ const HomeMobile = ({
             </span>
           </div>
 
-          {/* ✅ Match original card: border + rounded, no extra shadow */}
-          <div className="bg-white border border-gray-300 rounded-xl">
+          {/* ⬇️ Hide only the top edge to remove the visible line */}
+          <div className="bg-white border border-gray-300 border-t-transparent rounded-xl">
             <div>
               <div className="relative">
                 {/* FROM */}
