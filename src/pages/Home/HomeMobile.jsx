@@ -1,7 +1,14 @@
 // src/pages/Home/HomeMobile.jsx
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { FaBus, FaCalendarAlt, FaExchangeAlt, FaSearch, FaMapMarkerAlt, FaClock } from "react-icons/fa";
+import {
+  FaBus,
+  FaCalendarAlt,
+  FaExchangeAlt,
+  FaSearch,
+  FaMapMarkerAlt,
+  FaClock,
+} from "react-icons/fa";
 
 import {
   PALETTE,
@@ -199,145 +206,124 @@ const HomeMobile = ({
             </span>
           </div>
 
-          {/* ⬇️ Hide only the top edge to remove the visible line */}
-          <div className="bg-white border border-gray-300 border-t-transparent rounded-xl">
-            <div>
-              <div className="relative">
-                {/* FROM */}
-                <div className="p-3">
-                  <div
-                    className="flex items-center gap-3 pb-3 border-b"
-                    style={{ borderColor: PALETTE.borderLight }}
-                  >
-                    <FaBus
-                      className="shrink-0 text-base"
-                      style={{ color: PALETTE.textLight }}
-                    />
-                    <div className="w-full">
-                      <label className="block text-[11px] font-medium text-gray-500">
-                        From
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => openMobilePicker("from")}
-                        className="w-full text-left py-1.5"
-                      >
-                        <span
-                          className={`text-base ${
-                            from ? "font-semibold text-gray-900" : "text-gray-400"
-                          }`}
-                        >
-                          {from || "Matara"}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* TO */}
-                  <div className="flex items-center gap-3 pt-3">
-                    <FaBus
-                      className="shrink-0 text-base"
-                      style={{ color: PALETTE.textLight }}
-                    />
-                    <div className="w-full">
-                      <label className="block text-[11px] font-medium text-gray-500">
-                        To
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => openMobilePicker("to")}
-                        className="w-full text-left py-1.5"
-                      >
-                        <span
-                          className={`text-base ${
-                            to ? "font-semibold text-gray-900" : "text-gray-400"
-                          }`}
-                        >
-                          {to || "Colombo"}
-                        </span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-
-                {/* SWAP BUTTON */}
-                <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-10">
-                  <motion.button
-                    whileTap={{ scale: 0.9, rotate: 180 }}
-                    onClick={swapLocations}
-                    className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200"
-                    style={{ border: `1px solid ${PALETTE.borderLight}` }}
-                    title="Swap locations"
-                  >
-                    <FaExchangeAlt
-                      className="text-base rotate-90"
-                      style={{ color: PALETTE.textLight }}
-                    />
-                  </motion.button>
-                </div>
-              </div>
-
-              {/* DATE (Mobile) */}
-              <div
-                className="flex items-center gap-3 p-3 border-t relative"
-                style={{ borderColor: PALETTE.borderLight }}
-              >
-                <FaCalendarAlt
-                  className="shrink-0 text-base"
-                  style={{ color: PALETTE.textLight }}
-                />
-                <div
-                  ref={mobileDateAnchorRef}
-                  onClick={() => setCalOpen(true)}
-                  className="flex-grow cursor-pointer"
-                >
-                  <label className="block text-[11px] font-medium text-gray-500">
-                    Date of Journey
-                  </label>
-                  <span className="text-base font-semibold" style={{ color: PALETTE.textDark }}>
-                    {getReadableDate(date)}
-                  </span>
-                </div>
-
-                <div className="flex space-x-2">
+          {/* Card: single outer border; inner rows via divide-y to avoid top line */}
+          <div
+            className="bg-white border border-gray-300 rounded-xl overflow-hidden divide-y divide-gray-200"
+            style={{ borderColor: PALETTE.borderLight }}
+          >
+            {/* FROM + TO (no row borders inside) */}
+            <div className="p-3 relative">
+              <div className="flex items-center gap-3 pb-3">
+                <FaBus className="shrink-0 text-base" style={{ color: PALETTE.textLight }} />
+                <div className="w-full">
+                  <label className="block text-[11px] font-medium text-gray-500">From</label>
                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDate(todayStr);
-                    }}
-                    className={`text-xs font-semibold ${
-                      date === todayStr ? "text-red-500" : "text-gray-600"
-                    }`}
+                    type="button"
+                    onClick={() => openMobilePicker("from")}
+                    className="w-full text-left py-1.5"
                   >
-                    Today
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDate(tomorrowStr);
-                    }}
-                    className={`text-xs font-semibold ${
-                      date === tomorrowStr ? "text-red-500" : "text-gray-600"
-                    }`}
-                  >
-                    Tomorrow
+                    <span
+                      className={`text-base ${
+                        from ? "font-semibold text-gray-900" : "text-gray-400"
+                      }`}
+                    >
+                      {from || "Matara"}
+                    </span>
                   </button>
                 </div>
               </div>
 
-              {/* SEARCH BUTTON */}
-              <div className="p-3 border-t" style={{ borderColor: PALETTE.borderLight }}>
+              <div className="flex items-center gap-3 pt-3">
+                <FaBus className="shrink-0 text-base" style={{ color: PALETTE.textLight }} />
+                <div className="w-full">
+                  <label className="block text-[11px] font-medium text-gray-500">To</label>
+                  <button
+                    type="button"
+                    onClick={() => openMobilePicker("to")}
+                    className="w-full text-left py-1.5"
+                  >
+                    <span
+                      className={`text-base ${
+                        to ? "font-semibold text-gray-900" : "text-gray-400"
+                      }`}
+                    >
+                      {to || "Colombo"}
+                    </span>
+                  </button>
+                </div>
+              </div>
+
+              {/* SWAP BUTTON */}
+              <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-10">
                 <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={handleSearch}
-                  className="font-heading w-full flex items-center justify-center gap-2 text-white font-semibold tracking-wide py-3 rounded-full shadow-none"
-                  style={{ backgroundColor: PALETTE.primaryRed }}
+                  whileTap={{ scale: 0.9, rotate: 180 }}
+                  onClick={swapLocations}
+                  className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200"
+                  style={{ border: `1px solid ${PALETTE.borderLight}` }}
+                  title="Swap locations"
                 >
-                  <FaSearch />
-                  Search Buses
+                  <FaExchangeAlt
+                    className="text-base rotate-90"
+                    style={{ color: PALETTE.textLight }}
+                  />
                 </motion.button>
               </div>
+            </div>
+
+            {/* DATE row */}
+            <div className="flex items-center gap-3 p-3 relative">
+              <FaCalendarAlt className="shrink-0 text-base" style={{ color: PALETTE.textLight }} />
+              <div
+                ref={mobileDateAnchorRef}
+                onClick={() => setCalOpen(true)}
+                className="flex-grow cursor-pointer"
+              >
+                <label className="block text-[11px] font-medium text-gray-500">
+                  Date of Journey
+                </label>
+                <span className="text-base font-semibold" style={{ color: PALETTE.textDark }}>
+                  {getReadableDate(date)}
+                </span>
+              </div>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDate(todayStr);
+                  }}
+                  className={`text-xs font-semibold ${
+                    date === todayStr ? "text-red-500" : "text-gray-600"
+                  }`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setDate(tomorrowStr);
+                  }}
+                  className={`text-xs font-semibold ${
+                    date === tomorrowStr ? "text-red-500" : "text-gray-600"
+                  }`}
+                >
+                  Tomorrow
+                </button>
+              </div>
+            </div>
+
+            {/* SEARCH row */}
+            <div className="p-3">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleSearch}
+                className="font-heading w-full flex items-center justify-center gap-2 text-white font-semibold tracking-wide py-3 rounded-full shadow-none"
+                style={{ backgroundColor: PALETTE.primaryRed }}
+              >
+                <FaSearch />
+                Search Buses
+              </motion.button>
             </div>
           </div>
         </div>
