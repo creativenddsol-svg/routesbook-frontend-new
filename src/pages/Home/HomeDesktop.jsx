@@ -11,6 +11,7 @@ import {
   CalendarPopover,
   isRefVisible,
   getReadableDate,
+  CustomMenu, // ✅ restore custom menu
 } from "./_core";
 
 /**
@@ -119,6 +120,7 @@ const HomeDesktop = ({
                     components={{
                       DropdownIndicator: () => null,
                       IndicatorSeparator: () => null,
+                      Menu: CustomMenu("from"), // ✅ custom menu with Suggested/Recent/Popular
                     }}
                     recent={recent}
                     closeMenuOnSelect={true}
@@ -164,6 +166,7 @@ const HomeDesktop = ({
                     components={{
                       DropdownIndicator: () => null,
                       IndicatorSeparator: () => null,
+                      Menu: CustomMenu("to"), // ✅ custom menu
                     }}
                     recent={recent}
                     closeMenuOnSelect={true}
