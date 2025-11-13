@@ -345,8 +345,8 @@ export default function Mobile() {
                       <span className="text-sm text-gray-600 mr-0.5 align-bottom">
                         Rs.
                       </span>
-                      {/* Price is text-xl and only font-semibold (not extra bold) */}
-                      <span className="text-xl tabular-nums text-black font-semibold">
+                      {/* Price number reduced to same size as times */}
+                      <span className="text-xs tabular-nums text-black font-semibold">
                         {displayPrice}
                       </span>
                     </div>
