@@ -299,16 +299,19 @@ const HolidaysSection = () => {
           Upcoming Holidays
         </h2>
 
-        {/* 🔴 Updated: View All pill button */}
+        {/* 👉 New: chip-style View All, more neutral than Today/Tomorrow */}
         <Link
           to="/holidays"
-          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-[11px] sm:text-[12px] font-semibold
-                     border-[var(--rb-primary,#D84E55)] text-[var(--rb-primary,#D84E55)]
-                     bg-[#FFF1F2] hover:bg-[var(--rb-primary,#D84E55)] hover:text-white
-                     shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-colors duration-150"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] sm:text-[12px] font-semibold
+                     border-gray-200 bg-white text-[var(--rb-primary,#D84E55)]
+                     shadow-[0_1px_2px_rgba(15,23,42,0.04)]
+                     hover:border-[var(--rb-primary,#D84E55)] hover:bg-[#FFF5F5]
+                     transition-colors duration-150"
         >
-          <span>View All</span>
-          <span className="text-[12px] translate-y-[0.5px]">→</span>
+          <span>View all</span>
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--rb-primary,#D84E55)] text-white text-[10px] leading-none">
+            →
+          </span>
         </Link>
       </div>
 
