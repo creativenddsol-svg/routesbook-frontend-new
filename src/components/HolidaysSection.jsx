@@ -298,11 +298,17 @@ const HolidaysSection = () => {
         <h2 className="text-[18px] sm:text-[20px] font-semibold text-gray-900 tracking-tight">
           Upcoming Holidays
         </h2>
+
+        {/* 🔴 Updated: View All pill button */}
         <Link
           to="/holidays"
-          className="text-[13px] sm:text-sm font-semibold text-[var(--rb-primary,#D84E55)] hover:opacity-90 transition"
+          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full border text-[11px] sm:text-[12px] font-semibold
+                     border-[var(--rb-primary,#D84E55)] text-[var(--rb-primary,#D84E55)]
+                     bg-[#FFF1F2] hover:bg-[var(--rb-primary,#D84E55)] hover:text-white
+                     shadow-[0_1px_2px_rgba(15,23,42,0.08)] transition-colors duration-150"
         >
-          View All →
+          <span>View All</span>
+          <span className="text-[12px] translate-y-[0.5px]">→</span>
         </Link>
       </div>
 
