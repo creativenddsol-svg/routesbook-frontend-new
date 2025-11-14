@@ -10,16 +10,44 @@ const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8";
 
 /* ========= Tailwind color presets mapped to Holiday.colorKey ========= */
 const PALETTES = {
-  rose:    { chipBg: "bg-rose-50",    chipText: "text-rose-700",    pillBg: "bg-rose-100",    ring: "ring-rose-200" },
-  indigo:  { chipBg: "bg-indigo-50",  chipText: "text-indigo-700",  pillBg: "bg-indigo-100",  ring: "ring-indigo-200" },
-  emerald: { chipBg: "bg-emerald-50", chipText: "text-emerald-700", pillBg: "bg-emerald-100", ring: "ring-emerald-200" },
-  amber:   { chipBg: "bg-amber-50",   chipText: "text-amber-800",   pillBg: "bg-amber-100",   ring: "ring-amber-200" },
-  slate:   { chipBg: "bg-slate-50",   chipText: "text-slate-700",   pillBg: "bg-slate-100",   ring: "ring-slate-200" },
+  rose: {
+    chipBg: "bg-rose-50",
+    chipText: "text-rose-700",
+    pillBg: "bg-rose-100",
+    ring: "ring-rose-200",
+  },
+  indigo: {
+    chipBg: "bg-indigo-50",
+    chipText: "text-indigo-700",
+    pillBg: "bg-indigo-100",
+    ring: "ring-indigo-200",
+  },
+  emerald: {
+    chipBg: "bg-emerald-50",
+    chipText: "text-emerald-700",
+    pillBg: "bg-emerald-100",
+    ring: "ring-emerald-200",
+  },
+  amber: {
+    chipBg: "bg-amber-50",
+    chipText: "text-amber-800",
+    pillBg: "bg-amber-100",
+    ring: "ring-amber-200",
+  },
+  slate: {
+    chipBg: "bg-slate-50",
+    chipText: "text-slate-700",
+    pillBg: "bg-slate-100",
+    ring: "ring-slate-200",
+  },
 };
 
 const fmtDayMon = (iso) =>
   iso
-    ? new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })
+    ? new Date(iso).toLocaleDateString("en-GB", {
+        day: "2-digit",
+        month: "short",
+      })
     : "DD Mon";
 
 /* ========= Polished Redbus-style pager (chip centered over dots) ========= */
@@ -41,14 +69,16 @@ const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
                 onClick={() => goToIndex(i)}
                 aria-label={`Go to card ${i + 1}`}
                 className={`rounded-full transition-transform duration-200 ${
-                  isActive ? "bg-gray-700 scale-125 h-[7px] w-[7px]" : "bg-gray-300 h-[6px] w-[6px]"
+                  isActive
+                    ? "bg-gray-700 scale-125 h-[7px] w-[7px]"
+                    : "bg-gray-300 h-[6px] w-[6px]"
                 }`}
               />
             );
           })}
         </div>
 
-        {/* Chip centered ON the dots */}
+        {/* Chip centered ON the dots, using brand primary like Home search button */}
         <span
           className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
                      inline-flex items-center justify-center min-w-[38px] px-2 py-[2px]
@@ -69,30 +99,35 @@ const Skeleton = () => (
   <div className="w-[220px] h-[86px] rounded-2xl bg-gray-100 ring-1 ring-gray-200 animate-pulse flex-shrink-0" />
 );
 
-/* ========= Single Holiday small card ========= */
+/* ========= Single Holiday small card (fonts & colors aligned with HomeMobile) ========= */
 const HolidayChipCard = ({ holiday }) => {
   const pal = PALETTES[holiday.colorKey] || PALETTES.rose;
   return (
-    <div className={`rounded-2xl px-4 py-3 ring-1 ${pal.ring} ${pal.chipBg}`}>
+    <div
+      className={`rounded-2xl px-4 py-3 ring-1 ${pal.ring} ${pal.chipBg} shadow-[0_1px_2px_rgba(15,23,42,0.06)]`}
+    >
       <div className="flex items-center gap-2 min-w-0">
         <span
-          className={`text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${pal.pillBg} ${pal.chipText}`}
+          className={`text-[10px] font-semibold uppercase tracking-[0.14em] px-2 py-0.5 rounded-full shrink-0 ${pal.pillBg} ${pal.chipText}`}
         >
           {fmtDayMon(holiday.date)}
         </span>
-        <span className={`text-sm font-semibold truncate ${pal.chipText}`} title={holiday.title}>
+        <span
+          className={`text-sm font-semibold truncate ${pal.chipText}`}
+          title={holiday.title}
+        >
           {holiday.title}
         </span>
       </div>
       {holiday.ctaLabel && (
-        <div className="mt-1.5 text-[12px] font-medium text-gray-700 truncate">
+        <div className="mt-1.5 text-[11px] font-medium text-gray-700 truncate">
           {holiday.ctaLabel}
           {holiday.link ? (
             <a
               href={holiday.link}
               target="_blank"
               rel="noreferrer"
-              className="ml-1 underline"
+              className="ml-1 underline text-[11px] font-semibold text-[var(--rb-primary,#D84E55)]"
             >
               Learn more
             </a>
@@ -121,7 +156,10 @@ const HolidaysSection = () => {
         const data = Array.isArray(res.data) ? res.data : [];
         if (live) setItems(data);
       } catch (e) {
-        if (live) setErr(e?.response?.data?.message || "Failed to load holidays.");
+        if (live)
+          setErr(
+            e?.response?.data?.message || "Failed to load holidays."
+          );
       } finally {
         if (live) setLoading(false);
       }
@@ -140,7 +178,11 @@ const HolidaysSection = () => {
 
     for (let i = 0; i < kids.length; i++) {
       const r = kids[i].getBoundingClientRect();
-      const visibleW = Math.max(0, Math.min(r.right, railRect.right) - Math.max(r.left, railRect.left));
+      const visibleW = Math.max(
+        0,
+        Math.min(r.right, railRect.right) -
+          Math.max(r.left, railRect.left)
+      );
       const ratio = visibleW / Math.max(1, r.width);
       if (ratio > bestRatio) {
         bestRatio = ratio;
@@ -160,7 +202,8 @@ const HolidaysSection = () => {
   // Debounced scroll handler to catch momentum/snap end
   const handleScroll = useCallback(() => {
     updateActiveIndex();
-    if (scrollStopTimer.current) clearTimeout(scrollStopTimer.current);
+    if (scrollStopTimer.current)
+      clearTimeout(scrollStopTimer.current);
     scrollStopTimer.current = setTimeout(updateActiveIndex, 120);
   }, [updateActiveIndex]);
 
@@ -168,13 +211,26 @@ const HolidaysSection = () => {
   const scrollToCard = useCallback(
     (index) => {
       const el = railRef.current;
-      if (!el || items.length === 0 || index < 0 || index >= items.length) return;
+      if (
+        !el ||
+        items.length === 0 ||
+        index < 0 ||
+        index >= items.length
+      )
+        return;
 
       const target = el.children?.[index];
       if (target?.scrollIntoView) {
-        target.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
+        target.scrollIntoView({
+          behavior: "smooth",
+          inline: "start",
+          block: "nearest",
+        });
       } else {
-        el.scrollTo({ left: target?.offsetLeft || 0, behavior: "smooth" });
+        el.scrollTo({
+          left: target?.offsetLeft || 0,
+          behavior: "smooth",
+        });
       }
     },
     [items.length]
@@ -196,8 +252,10 @@ const HolidaysSection = () => {
   if (loading) {
     return (
       <section className="w-full py-8 sm:py-12">
-        <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
+        <div
+          className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}
+        >
+          <h2 className="text-[18px] sm:text-[20px] font-semibold text-gray-900 tracking-tight">
             Upcoming Holidays
           </h2>
         </div>
@@ -216,7 +274,10 @@ const HolidaysSection = () => {
           <div className={`${DESKTOP_CONTAINER}`}>
             <div className="grid grid-cols-5 gap-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-[86px] rounded-2xl bg-gray-100 ring-1 ring-gray-200 animate-pulse" />
+                <div
+                  key={i}
+                  className="h-[86px] rounded-2xl bg-gray-100 ring-1 ring-gray-200 animate-pulse"
+                />
               ))}
             </div>
           </div>
@@ -231,13 +292,15 @@ const HolidaysSection = () => {
   return (
     <section className="w-full py-8 sm:py-12">
       {/* Header aligned with search bar container */}
-      <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
-        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
+      <div
+        className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}
+      >
+        <h2 className="text-[18px] sm:text-[20px] font-semibold text-gray-900 tracking-tight">
           Upcoming Holidays
         </h2>
         <Link
           to="/holidays"
-          className="text-sm font-semibold text-blue-600 hover:text-blue-700 transition"
+          className="text-[13px] sm:text-sm font-semibold text-[var(--rb-primary,#D84E55)] hover:opacity-90 transition"
         >
           View All →
         </Link>
@@ -248,7 +311,10 @@ const HolidaysSection = () => {
         <div className={`${DESKTOP_CONTAINER}`}>
           <div className="grid grid-cols-5 gap-4">
             {items.slice(0, 5).map((h) => (
-              <div key={h._id} className="relative group rounded-2xl overflow-hidden">
+              <div
+                key={h._id}
+                className="relative group rounded-2xl overflow-hidden"
+              >
                 <HolidayChipCard holiday={h} />
                 {/* 🌟 Shimmer overlay */}
                 <span className="rb-shine-wrap pointer-events-none absolute inset-0 z-10 rounded-2xl overflow-hidden">
@@ -266,16 +332,18 @@ const HolidaysSection = () => {
           ref={railRef}
           onScroll={handleScroll}
           className="flex gap-4 overflow-x-auto scroll-smooth pb-4 pl-4 hide-scrollbar snap-x snap-mandatory"
-          style={{ 
+          style={{
             WebkitOverflowScrolling: "touch",
-            /* ✅ Ensures first snapped card respects the left padding, matching Notices fix */
-            scrollPaddingLeft: "1rem"
+            // ✅ Ensures first snapped card respects the left padding, matching Notices
+            scrollPaddingLeft: "1rem",
           }}
         >
           {items.map((h, index) => (
             <div
               key={h._id}
-              className={`w-[calc((100vw-2rem)/2)] flex-shrink-0 snap-start ${index === items.length - 1 ? "pr-4" : ""}`}
+              className={`w-[calc((100vw-2rem)/2)] flex-shrink-0 snap-start ${
+                index === items.length - 1 ? "pr-4" : ""
+              }`}
             >
               <div className="relative group rounded-2xl overflow-hidden">
                 <HolidayChipCard holiday={h} />
