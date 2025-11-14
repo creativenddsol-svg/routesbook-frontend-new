@@ -1,5 +1,5 @@
 // src/components/NoticesSection.jsx
-import React, { 
+import React, {
   useEffect,
   useRef,
   useState,
@@ -10,10 +10,11 @@ import NoticeCard from "./NoticeCard";
 import { Link } from "react-router-dom";
 
 // Define a constant for consistent mobile/desktop horizontal padding
-const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8"; 
+const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8";
 
 // ✅ Use the SAME container as the Home.jsx search bar section
-const DESKTOP_CONTAINER = "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
+const DESKTOP_CONTAINER =
+  "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
 
 /* ─────────────────────────────────────────────
    Centered Redbus-style pager (polished)
@@ -70,8 +71,8 @@ const NoticesSection = () => {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  
-  const [activeIndex, setActiveIndex] = useState(0); 
+
+  const [activeIndex, setActiveIndex] = useState(0);
   const railRef = useRef(null);
   const scrollStopTimer = useRef(null);
 
@@ -83,12 +84,17 @@ const NoticesSection = () => {
         const data = Array.isArray(res.data) ? res.data : [];
         if (live) setItems(data);
       } catch (e) {
-        if (live) setErr(e?.response?.data?.message || "Failed to load notices.");
+        if (live)
+          setErr(
+            e?.response?.data?.message || "Failed to load notices."
+          );
       } finally {
         if (live) setLoading(false);
       }
     })();
-    return () => { live = false; };
+    return () => {
+      live = false;
+    };
   }, []);
 
   /* --- Most-visible slide calculator (robust for any width/gap/DPR) --- */
@@ -100,7 +106,11 @@ const NoticesSection = () => {
 
     for (let i = 0; i < kids.length; i++) {
       const r = kids[i].getBoundingClientRect();
-      const visibleW = Math.max(0, Math.min(r.right, railRect.right) - Math.max(r.left, railRect.left));
+      const visibleW = Math.max(
+        0,
+        Math.min(r.right, railRect.right) -
+          Math.max(r.left, railRect.left)
+      );
       const ratio = visibleW / Math.max(1, r.width);
       if (ratio > bestRatio) {
         bestRatio = ratio;
@@ -120,7 +130,8 @@ const NoticesSection = () => {
   // Debounce scroll end (so momentum/snap ends update the chip cleanly)
   const handleScroll = useCallback(() => {
     updateActiveIndex();
-    if (scrollStopTimer.current) clearTimeout(scrollStopTimer.current);
+    if (scrollStopTimer.current)
+      clearTimeout(scrollStopTimer.current);
     scrollStopTimer.current = setTimeout(updateActiveIndex, 120);
   }, [updateActiveIndex]);
 
@@ -137,27 +148,45 @@ const NoticesSection = () => {
   }, [items.length, updateActiveIndex]);
 
   // Scroll to a specific index
-  const scrollToCard = useCallback((index) => {
-    const el = railRef.current;
-    if (!el || items.length === 0 || index < 0 || index >= items.length) return;
+  const scrollToCard = useCallback(
+    (index) => {
+      const el = railRef.current;
+      if (
+        !el ||
+        items.length === 0 ||
+        index < 0 ||
+        index >= items.length
+      )
+        return;
 
-    const target = el.children?.[index];
-    if (target?.scrollIntoView) {
-      target.scrollIntoView({ behavior: "smooth", inline: "start", block: "nearest" });
-    } else {
-      el.scrollTo({ left: target?.offsetLeft || 0, behavior: "smooth" });
-    }
-  }, [items.length]);
+      const target = el.children?.[index];
+      if (target?.scrollIntoView) {
+        target.scrollIntoView({
+          behavior: "smooth",
+          inline: "start",
+          block: "nearest",
+        });
+      } else {
+        el.scrollTo({
+          left: target?.offsetLeft || 0,
+          behavior: "smooth",
+        });
+      }
+    },
+    [items.length]
+  );
 
   if (loading) {
     return (
       <section className="w-full py-8 sm:py-12">
-        <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
-          <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
+        <div
+          className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}
+        >
+          <h2 className="text-[18px] sm:text-[20px] font-semibold text-gray-900 tracking-tight">
             Deals and Offers
           </h2>
         </div>
-        
+
         {/* Mobile skeleton rail */}
         <div className="lg:hidden w-full overflow-hidden">
           <div className="flex gap-4 overflow-x-auto pl-4">
@@ -172,7 +201,10 @@ const NoticesSection = () => {
           <div className={`${DESKTOP_CONTAINER}`}>
             <div className="grid grid-cols-5 gap-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-48 bg-gray-200 rounded-xl animate-pulse" />
+                <div
+                  key={i}
+                  className="h-48 bg-gray-200 rounded-xl animate-pulse"
+                />
               ))}
             </div>
           </div>
@@ -185,15 +217,26 @@ const NoticesSection = () => {
   return (
     <section className="w-full py-8 sm:py-12">
       {/* Header (aligned with screen edge padding) */}
-      <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}>
-        <h2 className="text-xl sm:text-2xl font-semibold text-gray-900 tracking-tight">
+      <div
+        className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}
+      >
+        <h2 className="text-[18px] sm:text-[20px] font-semibold text-gray-900 tracking-tight">
           Deals and Offers
         </h2>
+
+        {/* Same chip-style View all as HolidaysSection */}
         <Link
           to="/notices"
-          className="text-sm font-semibold text-red-600 hover:text-red-700 transition"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] sm:text-[12px] font-semibold
+                     border-gray-200 bg-white text-[var(--rb-primary,#D84E55)]
+                     shadow-[0_1px_2px_rgba(15,23,42,0.04)]
+                     hover:border-[var(--rb-primary,#D84E55)] hover:bg-[#FFF5F5]
+                     transition-colors duration-150"
         >
-          View All →
+          <span>View all</span>
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--rb-primary,#D84E55)] text-white text-[10px] leading-none">
+            →
+          </span>
         </Link>
       </div>
 
@@ -202,7 +245,10 @@ const NoticesSection = () => {
         <div className={`${DESKTOP_CONTAINER}`}>
           <div className="grid grid-cols-5 gap-4">
             {items.slice(0, 5).map((n) => (
-              <div key={n._id} className="rounded-xl overflow-hidden">
+              <div
+                key={n._id}
+                className="rounded-xl overflow-hidden"
+              >
                 <NoticeCard notice={n} linkTo="/notices" />
               </div>
             ))}
@@ -217,15 +263,17 @@ const NoticesSection = () => {
           ref={railRef}
           onScroll={handleScroll}
           className="flex gap-4 overflow-x-auto scroll-smooth pb-4 pl-4 hide-scrollbar snap-x snap-mandatory"
-          style={{ 
+          style={{
             WebkitOverflowScrolling: "touch",
-            scrollPaddingLeft: "1rem"
+            scrollPaddingLeft: "1rem",
           }}
         >
           {items.map((n, index) => (
-            <div 
-              key={n._id} 
-              className={`w-[300px] flex-shrink-0 snap-start ${index === items.length - 1 ? 'pr-4' : ''}`}
+            <div
+              key={n._id}
+              className={`w-[300px] flex-shrink-0 snap-start ${
+                index === items.length - 1 ? "pr-4" : ""
+              }`}
             >
               <NoticeCard notice={n} linkTo="/notices" />
             </div>
