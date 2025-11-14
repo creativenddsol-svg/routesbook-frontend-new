@@ -4,26 +4,53 @@ import { Link } from "react-router-dom";
 import WhatsNewCard from "./WhatsNewCard";
 import apiClient, { toImgURL } from "../api";
 
-/* Match the search bar / notices container exactly */
+/* Match the search bar / notices / holidays container exactly */
 const DESKTOP_CONTAINER =
   "w-full max-w-[1400px] 2xl:max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8";
+const CONTAINER_MARGIN_X = "px-4 sm:px-4 lg:px-8";
 
-// Helper component for the navigation dots
-const Dots = ({ count, activeIndex, goToIndex }) => {
+/* ─────────────────────────────────────────────
+   Centered Redbus-style pager (polished)
+   - Chip sits over the middle of the dots row
+   - Active dot darker and slightly larger
+   ───────────────────────────────────────────── */
+const Dots = ({ count, activeIndex, goToIndex, className = "" }) => {
+  const total = Math.max(1, count || 1);
+  const safeIndex = Math.min(Math.max(0, activeIndex || 0), total - 1);
+
   return (
-    <div className="flex justify-center mt-4 space-x-2 lg:hidden">
-      {[...Array(count)].map((_, index) => (
-        <button
-          key={index}
-          onClick={() => goToIndex(index)}
-          className={`h-2 w-2 rounded-full transition-all ${
-            index === activeIndex
-              ? "bg-blue-600 w-4" // Active dot is slightly wider
-              : "bg-gray-300 hover:bg-gray-400"
-          }`}
-          aria-label={`Go to slide ${index + 1}`}
-        />
-      ))}
+    <div className={`lg:hidden mt-4 flex justify-center ${className}`}>
+      {/* Fixed-height lane to avoid clipping */}
+      <div className="relative h-6 min-w-[110px] flex items-center justify-center z-10">
+        {/* Dots row */}
+        <div className="flex items-center gap-[6px]">
+          {Array.from({ length: total }).map((_, i) => {
+            const isActive = i === safeIndex;
+            return (
+              <button
+                key={i}
+                onClick={() => goToIndex(i)}
+                aria-label={`Go to card ${i + 1}`}
+                className={`rounded-full transition-transform duration-200
+                            ${isActive ? "bg-gray-700 scale-125" : "bg-gray-300"}
+                            ${isActive ? "h-[7px] w-[7px]" : "h-[6px] w-[6px]"}`}
+              />
+            );
+          })}
+        </div>
+
+        {/* Count chip centered ON the dots */}
+        <span
+          className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2
+                     inline-flex items-center justify-center min-w-[38px] px-2 py-[2px]
+                     text-[10px] font-semibold rounded-full whitespace-nowrap
+                     bg-[var(--rb-primary,#D84E55)] text-white
+                     shadow-[0_2px_6px_rgba(0,0,0,0.12)] ring-1 ring-red-100/60 outline outline-2 outline-white"
+          aria-live="polite"
+        >
+          {safeIndex + 1}/{total}
+        </span>
+      </div>
     </div>
   );
 };
@@ -40,6 +67,7 @@ const WhatsNewSection = () => {
 
   const railRef = useRef(null);
   const [activeIndex, setActiveIndex] = useState(0);
+  const scrollStopTimer = useRef(null);
 
   // Fetch active items
   useEffect(() => {
@@ -58,7 +86,9 @@ const WhatsNewSection = () => {
       } catch (e) {
         if (!alive) return;
         setErr(
-          e?.response?.data?.message || e?.message || "Failed to load What's new."
+          e?.response?.data?.message ||
+            e?.message ||
+            "Failed to load What's new."
         );
         setItems([]);
       } finally {
@@ -70,60 +100,95 @@ const WhatsNewSection = () => {
     };
   }, []);
 
-  // Recalculate the active dot index on scroll
+  /* --- Robust most-visible index (no guessing card width/gap) --- */
+  const calcMostVisibleIndex = (el) => {
+    const railRect = el.getBoundingClientRect();
+    const kids = el.children || [];
+    let bestIdx = 0;
+    let bestRatio = -1;
+
+    for (let i = 0; i < kids.length; i++) {
+      const r = kids[i].getBoundingClientRect();
+      const visibleW = Math.max(
+        0,
+        Math.min(r.right, railRect.right) -
+          Math.max(r.left, railRect.left)
+      );
+      const ratio = visibleW / Math.max(1, r.width);
+      if (ratio > bestRatio) {
+        bestRatio = ratio;
+        bestIdx = i;
+      }
+    }
+    return bestIdx;
+  };
+
   const updateActiveIndex = useCallback(() => {
     const el = railRef.current;
     if (!el || items.length === 0) return;
-
-    // Use a more robust calculation for card width + gap
-    const cardWidth = 300;
-    const gap = 16; // Based on 'gap-4' (4 * 4px = 16px)
-    const cardScrollWidth = cardWidth + gap;
-
-    const newIndex = Math.round(el.scrollLeft / cardScrollWidth);
-
-    setActiveIndex(Math.max(0, Math.min(newIndex, items.length - 1)));
+    const idx = calcMostVisibleIndex(el);
+    setActiveIndex((prev) => (prev === idx ? prev : idx));
   }, [items.length]);
+
+  // Debounced scroll end (so momentum/snap ends update the chip cleanly)
+  const handleScroll = useCallback(() => {
+    updateActiveIndex();
+    if (scrollStopTimer.current)
+      clearTimeout(scrollStopTimer.current);
+    scrollStopTimer.current = setTimeout(updateActiveIndex, 120);
+  }, [updateActiveIndex]);
+
+  // Keep index synced on resize too
+  useEffect(() => {
+    const onResize = () => updateActiveIndex();
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [updateActiveIndex]);
+
+  // Call once after items render
+  useEffect(() => {
+    updateActiveIndex();
+  }, [items.length, updateActiveIndex]);
 
   // Scroll to a specific index (for dot click)
   const scrollToCard = useCallback(
     (index) => {
       const el = railRef.current;
-      if (!el || items.length === 0 || index < 0 || index >= items.length)
+      if (
+        !el ||
+        items.length === 0 ||
+        index < 0 ||
+        index >= items.length
+      )
         return;
 
-      const cardWidth = 300;
-      const gap = 16;
-
-      el.scrollTo({
-        left: index * (cardWidth + gap),
-        behavior: "smooth",
-      });
-
-      setActiveIndex(index);
-
-      // Give it a moment to finish scrolling before updating index
-      setTimeout(updateActiveIndex, 350);
+      const target = el.children?.[index];
+      if (target?.scrollIntoView) {
+        target.scrollIntoView({
+          behavior: "smooth",
+          inline: "start",
+          block: "nearest",
+        });
+      } else {
+        el.scrollTo({
+          left: target?.offsetLeft || 0,
+          behavior: "smooth",
+        });
+      }
     },
-    [items.length, updateActiveIndex]
+    [items.length]
   );
-
-  // Set up scroll listener on mount
-  useEffect(() => {
-    updateActiveIndex();
-    const el = railRef.current;
-    if (el) {
-      el.addEventListener("scroll", updateActiveIndex);
-      return () => el.removeEventListener("scroll", updateActiveIndex);
-    }
-  }, [items, updateActiveIndex]);
 
   /* ---------------- Loading ---------------- */
   if (loading) {
     return (
-      <section className="w-full py-12">
-        <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-6`}>
-          <h2 className="text-2xl font-bold text-gray-900">What’s new</h2>
+      <section className="w-full py-8 sm:py-12">
+        <div
+          className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}
+        >
+          <h2 className="text-[18px] sm:text-[20px] font-semibold text-gray-900 tracking-tight">
+            What’s new
+          </h2>
         </div>
 
         {/* Mobile skeleton rail */}
@@ -140,7 +205,10 @@ const WhatsNewSection = () => {
           <div className={`${DESKTOP_CONTAINER}`}>
             <div className="grid grid-cols-5 gap-4">
               {[...Array(5)].map((_, i) => (
-                <div key={i} className="h-40 bg-gray-100 rounded-xl animate-pulse" />
+                <div
+                  key={i}
+                  className="h-40 bg-gray-100 rounded-xl animate-pulse"
+                />
               ))}
             </div>
           </div>
@@ -152,12 +220,28 @@ const WhatsNewSection = () => {
   if (err || !Array.isArray(items) || items.length === 0) return null;
 
   return (
-    <section className="w-full py-12">
+    <section className="w-full py-8 sm:py-12">
       {/* Header */}
-      <div className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-6`}>
-        <h2 className="text-2xl font-bold text-gray-900">What’s new</h2>
-        <Link to="/whats-new" className="text-sm font-semibold text-blue-600 hover:underline">
-          View All →
+      <div
+        className={`${DESKTOP_CONTAINER} flex items-center justify-between mb-4 sm:mb-6`}
+      >
+        <h2 className="text-[18px] sm:text-[20px] font-semibold text-gray-900 tracking-tight">
+          What’s new
+        </h2>
+
+        {/* Chip-style View all (same as Holidays/Notices) */}
+        <Link
+          to="/whats-new"
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[11px] sm:text-[12px] font-semibold
+                     border-gray-200 bg-white text-[var(--rb-primary,#D84E55)]
+                     shadow-[0_1px_2px_rgba(15,23,42,0.04)]
+                     hover:border-[var(--rb-primary,#D84E55)] hover:bg-[#FFF5F5]
+                     transition-colors duration-150"
+        >
+          <span>View all</span>
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--rb-primary,#D84E55)] text-white text-[10px] leading-none">
+            →
+          </span>
         </Link>
       </div>
 
@@ -166,7 +250,10 @@ const WhatsNewSection = () => {
         <div className={`${DESKTOP_CONTAINER}`}>
           <div className="grid grid-cols-5 gap-4">
             {items.slice(0, 5).map((it) => (
-              <div key={it._id || it.id} className="rounded-xl overflow-hidden">
+              <div
+                key={it._id || it.id}
+                className="rounded-xl overflow-hidden"
+              >
                 <WhatsNewCard item={it} linkTo="/whats-new" />
               </div>
             ))}
@@ -174,24 +261,37 @@ const WhatsNewSection = () => {
         </div>
       </div>
 
-      {/* ---------- Mobile/Tablet: horizontal scroll (original behavior) ---------- */}
-      <div className="lg:hidden">
+      {/* ---------- Mobile/Tablet: horizontal scroll with pager ---------- */}
+      <div className="lg:hidden w-full overflow-hidden">
         <div
           ref={railRef}
-          onScroll={updateActiveIndex}
-          className="flex gap-4 overflow-x-auto scroll-smooth pb-2 pl-4 hide-scrollbar"
-          style={{ WebkitOverflowScrolling: "touch" }}
+          onScroll={handleScroll}
+          className="flex gap-4 overflow-x-auto scroll-smooth pb-4 pl-4 hide-scrollbar snap-x snap-mandatory"
+          style={{
+            WebkitOverflowScrolling: "touch",
+            scrollPaddingLeft: "1rem",
+          }}
         >
-          {items.map((it) => (
-            <div key={it._id || it.id} className="w-[300px] flex-shrink-0">
+          {items.map((it, index) => (
+            <div
+              key={it._id || it.id}
+              className={`w-[300px] flex-shrink-0 snap-start ${
+                index === items.length - 1 ? "pr-4" : ""
+              }`}
+            >
               <WhatsNewCard item={it} linkTo="/whats-new" />
             </div>
           ))}
         </div>
 
-        {/* Tiny Navigation Dots */}
+        {/* Centered dots + count chip */}
         {items.length > 1 && (
-          <Dots count={items.length} activeIndex={activeIndex} goToIndex={scrollToCard} />
+          <Dots
+            count={items.length}
+            activeIndex={activeIndex}
+            goToIndex={scrollToCard}
+            className={CONTAINER_MARGIN_X}
+          />
         )}
       </div>
 
