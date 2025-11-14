@@ -1,11 +1,13 @@
-// src/App.jsx
+/* eslint-disable import/first */
+// src/App.js
 import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+
 import Layout from "./components/Layout";
 import { AuthProvider } from "./context/AuthContext";
 
 /* ───── Public Pages ──── */
-import Home from "./pages/Home/index";
+import Home from "./pages/Home";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
@@ -35,8 +37,8 @@ import AdminOperatorList from "./pages/AdminOperatorList";
 import AdminOperatorPayments from "./pages/OperatorPaymentsAdmin.jsx"; // ✅ fixed path
 import AdminNotices from "./pages/AdminNotices"; // ✅ ADDED
 import AdminWhatsNew from "./pages/AdminWhatsNew"; // ✅ ADDED
-import AdminHolidays from "./pages/AdminHolidays"; // ✅ NEW (wire Holidays admin)
-import AdminArrivalsToday from "./pages/AdminArrivalsToday"; // ✅ NEW (Arrivals one-click page)
+import AdminHolidays from "./pages/AdminHolidays"; // ✅ NEW
+import AdminArrivalsToday from "./pages/AdminArrivalsToday"; // ✅ NEW
 
 /* ───── Operator Pages ──── */
 import OperatorDashboard from "./pages/OperatorDashboard";
@@ -218,7 +220,6 @@ const App = () => (
               </AdminRoute>
             }
           />
-          {/* ✅ NEW: One-click “Arrivals Today” page */}
           <Route
             path="/admin/arrivals-today"
             element={
