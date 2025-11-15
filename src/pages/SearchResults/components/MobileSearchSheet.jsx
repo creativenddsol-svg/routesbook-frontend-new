@@ -43,6 +43,7 @@ export default function MobileSearchSheet() {
       toast.error("Please fill all fields before searching");
       return;
     }
+
     await releaseAllSelectedSeats(true);
 
     navigate({
@@ -81,13 +82,13 @@ export default function MobileSearchSheet() {
           z-[10031] bg-white 
           rounded-b-xl shadow-lg 
           border border-gray-200 
-          overflow-hidden
+          overflow-y-auto 
+          max-h-[85vh]
         "
       >
         {/* Header */}
         <div className="px-4 py-2.5 border-b flex items-center justify-between">
           <div className="text-sm font-semibold">Search your Buses</div>
-
           <button
             onClick={close}
             className="w-8 h-8 rounded-full border flex items-center justify-center"
@@ -105,16 +106,11 @@ export default function MobileSearchSheet() {
             style={{ borderColor: PALETTE.border }}
           >
             <div className="flex items-center gap-3">
-              <FaBus
-                className="shrink-0 text-sm"
-                style={{ color: PALETTE.textSubtle }}
-              />
-
+              <FaBus className="shrink-0 text-sm" style={{ color: PALETTE.textSubtle }} />
               <div className="w-full">
                 <label className="block text-[10px] font-medium text-gray-500">
                   From
                 </label>
-
                 <button
                   type="button"
                   onClick={() => openMobilePicker("from")}
@@ -122,9 +118,7 @@ export default function MobileSearchSheet() {
                 >
                   <span
                     className={`text-[15px] ${
-                      searchFrom
-                        ? "font-semibold text-gray-900"
-                        : "text-gray-400"
+                      searchFrom ? "font-semibold text-gray-900" : "text-gray-400"
                     }`}
                   >
                     {searchFrom || "Select departure"}
@@ -141,7 +135,6 @@ export default function MobileSearchSheet() {
               onClick={swapLocations}
               className="bg-white p-2 rounded-full shadow-md"
               style={{ border: `1px solid ${PALETTE.border}` }}
-              title="Swap locations"
             >
               <FaExchangeAlt
                 className="text-sm rotate-90"
@@ -156,16 +149,9 @@ export default function MobileSearchSheet() {
             style={{ borderColor: PALETTE.border }}
           >
             <div className="flex items-center gap-3">
-              <FaBus
-                className="shrink-0 text-sm"
-                style={{ color: PALETTE.textSubtle }}
-              />
-
+              <FaBus className="shrink-0 text-sm" style={{ color: PALETTE.textSubtle }} />
               <div className="w-full">
-                <label className="block text-[10px] font-medium text-gray-500">
-                  To
-                </label>
-
+                <label className="block text-[10px] font-medium text-gray-500">To</label>
                 <button
                   type="button"
                   onClick={() => openMobilePicker("to")}
@@ -189,22 +175,17 @@ export default function MobileSearchSheet() {
           className="flex items-center gap-3 px-3 py-2.5 border-b"
           style={{ borderColor: PALETTE.border }}
         >
-          <FaCalendarAlt
-            className="shrink-0 text-sm"
-            style={{ color: PALETTE.textSubtle }}
-          />
+          <FaCalendarAlt className="shrink-0 text-sm" style={{ color: PALETTE.textSubtle }} />
 
           <div className="flex-grow" onClick={() => setCalOpen(true)}>
             <label className="block text-[10px] font-medium text-gray-500">
               Date of Journey
             </label>
-
             <span className="text-[15px] font-semibold text-gray-900">
               {getReadableDate(searchDate)}
             </span>
           </div>
 
-          {/* Today/Tomorrow */}
           <div className="flex space-x-2">
             <button
               onClick={(e) => {
