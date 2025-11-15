@@ -1,4 +1,3 @@
-// src/pages/SearchResults/components/MobileSearchSheet.jsx
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { motion } from "framer-motion";
@@ -70,7 +69,9 @@ export default function MobileSearchSheet() {
 
   return createPortal(
     <>
+      {/* Backdrop */}
       <div className="fixed inset-0 bg-black/40 z-[10030]" onClick={close} />
+
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -83,17 +84,20 @@ export default function MobileSearchSheet() {
           <button
             onClick={close}
             className="w-9 h-9 rounded-full border flex items-center justify-center"
-            aria-label="Close"
           >
             ×
           </button>
         </div>
 
-        <div className="relative">
+        {/* ===== FROM + TO (exact same as Home page mobile UI) ===== */}
+        <div className="relative bg-white">
           {/* FROM */}
-          <div className="p-3 border-b">
+          <div className="p-3 border-b" style={{ borderColor: PALETTE.border }}>
             <div className="flex items-center gap-3">
-              <FaBus className="shrink-0 text-base text-gray-500" />
+              <FaBus
+                className="shrink-0 text-base"
+                style={{ color: PALETTE.textSubtle }}
+              />
               <div className="w-full">
                 <label className="block text-[11px] font-medium text-gray-500">
                   From
@@ -117,23 +121,29 @@ export default function MobileSearchSheet() {
             </div>
           </div>
 
-          {/* SWAP BUTTON */}
-          <div className="absolute left-[90%] top-[72px] -translate-x-1/2 -translate-y-1/2 z-20">
+          {/* SWAP BUTTON (identical position to Home mobile) */}
+          <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-20">
             <motion.button
               whileTap={{ scale: 0.9, rotate: 180 }}
               onClick={swapLocations}
-              className="bg-white p-3 rounded-full shadow-md border border-gray-300"
-              aria-label="Swap"
+              className="bg-white p-2.5 rounded-full shadow-md transition-all duration-200"
+              style={{ border: `1px solid ${PALETTE.border}` }}
               title="Swap locations"
             >
-              <FaExchangeAlt className="text-base text-gray-600 rotate-90" />
+              <FaExchangeAlt
+                className="text-base rotate-90"
+                style={{ color: PALETTE.textSubtle }}
+              />
             </motion.button>
           </div>
 
           {/* TO */}
-          <div className="p-3 border-b">
+          <div className="p-3 border-b" style={{ borderColor: PALETTE.border }}>
             <div className="flex items-center gap-3">
-              <FaBus className="shrink-0 text-base text-gray-500" />
+              <FaBus
+                className="shrink-0 text-base"
+                style={{ color: PALETTE.textSubtle }}
+              />
               <div className="w-full">
                 <label className="block text-[11px] font-medium text-gray-500">
                   To
@@ -145,9 +155,7 @@ export default function MobileSearchSheet() {
                 >
                   <span
                     className={`text-base ${
-                      searchTo
-                        ? "font-semibold text-gray-900"
-                        : "text-gray-400"
+                      searchTo ? "font-semibold text-gray-900" : "text-gray-400"
                     }`}
                   >
                     {searchTo || "Select destination"}
@@ -158,62 +166,71 @@ export default function MobileSearchSheet() {
           </div>
         </div>
 
-        {/* DATE */}
-        <div className="flex items-center gap-3 p-3 border-b">
-          <FaCalendarAlt className="shrink-0 text-base text-gray-500" />
-          <div className="flex-grow">
-            <div className="text-[11px] font-medium text-gray-500">
+        {/* ===== DATE (exact Home page mobile style) ===== */}
+        <div
+          className="flex items-center gap-3 p-3 border-b relative"
+          style={{ borderColor: PALETTE.border }}
+        >
+          <FaCalendarAlt
+            className="shrink-0 text-base"
+            style={{ color: PALETTE.textSubtle }}
+          />
+
+          <div className="flex-grow" onClick={() => setCalOpen(true)}>
+            <label className="block text-[11px] font-medium text-gray-500">
               Date of Journey
-            </div>
-            <div className="flex items-center justify-between mt-1">
-              <button
-                type="button"
-                onClick={() => setCalOpen(true)}
-                className="text-left"
-              >
-                <span className="text-base font-semibold text-gray-900">
-                  {getReadableDate(searchDate)}
-                </span>
-              </button>
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => setSearchDate(todayStrLocal)}
-                  className={`text-sm font-semibold ${
-                    searchDate === todayStrLocal
-                      ? "text-red-500 underline"
-                      : "text-gray-600"
-                  }`}
-                >
-                  Today
-                </button>
-                <button
-                  onClick={() => setSearchDate(tomorrowStrLocal)}
-                  className={`text-sm font-semibold ${
-                    searchDate === tomorrowStrLocal
-                      ? "text-red-500 underline"
-                      : "text-gray-600"
-                  }`}
-                >
-                  Tomorrow
-                </button>
-              </div>
-            </div>
+            </label>
+            <span
+              className="text-base font-semibold"
+              style={{ color: PALETTE.text }}
+            >
+              {getReadableDate(searchDate)}
+            </span>
+          </div>
+
+          {/* Today / Tomorrow buttons (identical style to Home) */}
+          <div className="flex space-x-2">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSearchDate(todayStrLocal);
+              }}
+              className={`text-xs font-semibold ${
+                searchDate === todayStrLocal ? "text-red-500" : "text-gray-600"
+              }`}
+            >
+              Today
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setSearchDate(tomorrowStrLocal);
+              }}
+              className={`text-xs font-semibold ${
+                searchDate === tomorrowStrLocal ? "text-red-500" : "text-gray-600"
+              }`}
+            >
+              Tomorrow
+            </button>
           </div>
         </div>
 
-        {/* ACTIONS */}
-        <div className="p-3 border-t">
+        {/* ===== SEARCH BUTTON (rounded-full, identical to Home mobile) ===== */}
+        <div className="p-3 border-t" style={{ borderColor: PALETTE.border }}>
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={doSearch}
-            className="w-full flex items-center justify-center gap-2 font-bold text-white rounded-xl px-4 py-3"
-            style={{ backgroundColor: PALETTE.primaryRed }}
+            className="font-heading w-full flex items-center justify-center gap-2 text-white font-semibold tracking-wide py-3 rounded-full shadow-none"
+            style={{ backgroundColor: PALETTE.primary }}
           >
-            <FaSearch /> Search Buses
+            <FaSearch />
+            Search Buses
           </motion.button>
         </div>
 
+        {/* Safe area bottom */}
         <div style={{ height: "env(safe-area-inset-bottom)" }} />
       </motion.div>
     </>,
