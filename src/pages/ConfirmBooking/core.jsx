@@ -278,8 +278,8 @@ const RowInput = ({
       onChange={onChange}
       onBlur={onBlur}
       autoComplete={autoComplete}
-      autoCapitalize="off"        // ✅ prevent iOS auto-cap
-      autoCorrect="off"           // ✅ prevent iOS autocorrect zoom quirks
+      autoCapitalize="off" // ✅ prevent iOS auto-cap
+      autoCorrect="off" // ✅ prevent iOS autocorrect zoom quirks
       inputMode={inputMode}
       enterKeyHint={enterKeyHint}
       placeholder={placeholder}
@@ -291,7 +291,7 @@ const RowInput = ({
       style={{
         borderColor: error ? "#DC2626" : PALETTE.border,
         color: PALETTE.text,
-        fontSize: 16,            // ✅ critical: prevent mobile zoom-on-focus
+        fontSize: 16, // ✅ critical: prevent mobile zoom-on-focus
       }}
     />
     {error ? (
@@ -451,7 +451,10 @@ export function useConfirmBookingCore() {
   // 🆕 If we DO have state (e.g., from PaymentFailed → Resume Booking) but it's
   // missing form/passenger drafts, merge them from session without losing the rest.
   useEffect(() => {
-    if (location.state && !(location.state.formDraft && location.state.passengersDraft)) {
+    if (
+      location.state &&
+      !(location.state.formDraft && location.state.passengersDraft)
+    ) {
       try {
         const raw = sessionStorage.getItem("rb_confirm_draft");
         if (raw) {
@@ -459,7 +462,8 @@ export function useConfirmBookingCore() {
           const merged = {
             ...location.state,
             formDraft: location.state.formDraft || draft.formDraft,
-            passengersDraft: location.state.passengersDraft || draft.passengersDraft,
+            passengersDraft:
+              location.state.passengersDraft || draft.passengersDraft,
             seatGenders: location.state.seatGenders || draft.seatGenders,
           };
           // Only replace if something actually changed
@@ -519,16 +523,14 @@ export function useConfirmBookingCore() {
 
   const initialPassengers = useMemo(
     () =>
-      (passengersDraft && Array.isArray(passengersDraft)
+      passengersDraft && Array.isArray(passengersDraft)
         ? passengersDraft
         : (selectedSeats || []).map((seatNo) => ({
-
-          seat: String(seatNo),
-          name: "",
-          age: "",
-          gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
-        }))),
-
+            seat: String(seatNo),
+            name: "",
+            age: "",
+            gender: seatGenders?.[String(seatNo)] === "F" ? "F" : "M",
+          })),
     [selectedSeats, seatGenders, passengersDraft]
   );
   const [passengers, setPassengers] = useState(initialPassengers);
@@ -598,14 +600,15 @@ export function useConfirmBookingCore() {
     } catch {}
   }, []);
 
-  // ---------- 🆕 Centralized "Back to Results" logic ----------
+  // ---------- 🆕 Centralized "Back to Results" logic (keeps locks) ----------
   const goBackToResults = useCallback(() => {
     // seats as strings and numbers for maximum compatibility
     const seatStr = (selectedSeats || []).map(String);
     const seatNum = (selectedSeats || []).map((s) => Number(s));
 
     // 🆕 save latest edits before jumping out
-    const token = String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
+    const token =
+      String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
     const restorePayload = {
       restoreFromConfirm: true,
       token,
@@ -624,9 +627,15 @@ export function useConfirmBookingCore() {
     };
 
     try {
-      sessionStorage.setItem("rb_confirm_draft", JSON.stringify(restorePayload));
+      sessionStorage.setItem(
+        "rb_confirm_draft",
+        JSON.stringify(restorePayload)
+      );
       sessionStorage.setItem("rb_restore_from_confirm", "1");
-      sessionStorage.setItem("rb_restore_payload", JSON.stringify(restorePayload));
+      sessionStorage.setItem(
+        "rb_restore_payload",
+        JSON.stringify(restorePayload)
+      );
       writePreselectBundle({
         token,
         busId: bus?._id,
@@ -638,7 +647,8 @@ export function useConfirmBookingCore() {
       });
     } catch {}
 
-    suppressAutoRelease?.(); // keep the lock
+    // 🔒 this path explicitly keeps the lock alive
+    suppressAutoRelease?.();
     sessionStorage.setItem("rb_skip_release_on_unmount", "1");
 
     const searchParams = new URLSearchParams({
@@ -667,6 +677,104 @@ export function useConfirmBookingCore() {
     writePreselectBundle,
   ]);
 
+  // ---------- Back actions when leaving via browser / OS back ----------
+  const backToResultsAndRelease = useCallback(() => {
+    // seats as strings and numbers for maximum compatibility
+    const seatStr = (selectedSeats || []).map(String);
+    const seatNum = (selectedSeats || []).map((s) => Number(s));
+
+    const token =
+      String(Date.now()) + "-" + Math.random().toString(36).slice(2, 8);
+
+    const restorePayload = {
+      restoreFromConfirm: true,
+      token,
+      bus,
+      busId: bus?._id,
+      date,
+      departureTime,
+      selectedSeats: seatStr,
+      selectedSeatsNums: seatNum,
+      selectedBoardingPoint,
+      selectedDroppingPoint,
+      seatGenders: seatGenders || {},
+      priceDetails: prices,
+      formDraft: { ...form },
+      passengersDraft: passengers,
+    };
+
+    try {
+      sessionStorage.setItem(
+        "rb_confirm_draft",
+        JSON.stringify(restorePayload)
+      );
+      sessionStorage.setItem("rb_restore_from_confirm", "1");
+      sessionStorage.setItem(
+        "rb_restore_payload",
+        JSON.stringify(restorePayload)
+      );
+      writePreselectBundle({
+        token,
+        busId: bus?._id,
+        date,
+        departureTime,
+        seats: seatStr,
+        seatsNums: seatNum,
+        seatGenders: seatGenders || {},
+      });
+    } catch {}
+
+    // 🔓 Explicitly release locks on backend; we only keep UI preselect
+    try {
+      releaseSeats?.();
+    } catch {}
+
+    try {
+      sessionStorage.removeItem("rb_skip_release_on_unmount");
+    } catch {}
+
+    const searchParams = new URLSearchParams({
+      from: bus?.from || "",
+      to: bus?.to || "",
+      date: date || "",
+      preselect: "1",
+      token,
+    }).toString();
+
+    navigate(`/search-results?${searchParams}`, { state: restorePayload });
+  }, [
+    releaseSeats,
+    bus,
+    date,
+    departureTime,
+    selectedSeats,
+    selectedBoardingPoint,
+    selectedDroppingPoint,
+    seatGenders,
+    prices,
+    navigate,
+    form,
+    passengers,
+    writePreselectBundle,
+  ]);
+
+  const cancelBookingAndGoHome = useCallback(() => {
+    try {
+      releaseSeats?.();
+    } catch {}
+
+    try {
+      sessionStorage.removeItem("rb_confirm_draft");
+      sessionStorage.removeItem("rb_restore_from_confirm");
+      sessionStorage.removeItem("rb_restore_payload");
+      sessionStorage.removeItem("rb_preselect_seats");
+      sessionStorage.removeItem("rb_preselect_meta");
+      sessionStorage.removeItem("rb_skip_release_on_unmount");
+    } catch {}
+
+    navigate("/");
+  }, [releaseSeats, navigate]);
+
   // Final hold verification before navigating to payment
   const verifyHoldAlive = useCallback(async () => {
     try {
@@ -676,7 +784,9 @@ export function useConfirmBookingCore() {
         departureTime,
       });
       const now = serverNowFromHeaders(headers);
-      const left = expiresAt ? new Date(expiresAt).getTime() - now : ms ?? 0;
+      const left = expiresAt
+        ? new Date(expiresAt).getTime() - now
+        : ms ?? 0;
       return left > 0;
     } catch {
       return true;
@@ -749,7 +859,9 @@ export function useConfirmBookingCore() {
         if (field === "nic")
           next.nic = nonEmpty(form.nic) ? "" : "NIC / Passport is required";
         if (field === "email")
-          next.email = emailOk(form.email) ? "" : "Enter a valid email address";
+          next.email = emailOk(form.email)
+            ? ""
+            : "Enter a valid email address";
         return next;
       });
     },
@@ -763,7 +875,9 @@ export function useConfirmBookingCore() {
         const p = passengers.find((x) => x.seat === String(seat));
         const slot = { ...(next.passengers[seat] || {}) };
         if (field === "name")
-          slot.name = nonEmpty(p?.name) ? "" : "Passenger name is required";
+          slot.name = nonEmpty(p?.name)
+            ? ""
+            : "Passenger name is required";
         if (field === "age" && p?.age && Number(p.age) < 0)
           slot.age = "Age must be positive";
         next.passengers[seat] = slot;
@@ -789,7 +903,12 @@ export function useConfirmBookingCore() {
   // 🆕 Ensure/reacquire lock when user resumes from payment or draft restore
   const [lockVersion, setLockVersion] = useState(0); // 👈 added
   const acquireOrRefreshSeatLock = useCallback(async () => {
-    if (!bus?._id || !date || !departureTime || selectedSeatStrings.length === 0)
+    if (
+      !bus?._id ||
+      !date ||
+      !departureTime ||
+      selectedSeatStrings.length === 0
+    )
       return;
     try {
       await apiClient.post("/bookings/lock", {
@@ -820,13 +939,22 @@ export function useConfirmBookingCore() {
   })();
 
   useEffect(() => {
-    if (cameBackFromGateway || cameFromGatewayFlag || location.state?.restoreFromConfirm) {
+    if (
+      cameBackFromGateway ||
+      cameFromGatewayFlag ||
+      location.state?.restoreFromConfirm
+    ) {
       acquireOrRefreshSeatLock();
       try {
         sessionStorage.removeItem("rb_back_from_gateway");
       } catch {}
     }
-  }, [cameBackFromGateway, cameFromGatewayFlag, location.state?.restoreFromConfirm, acquireOrRefreshSeatLock]);
+  }, [
+    cameBackFromGateway,
+    cameFromGatewayFlag,
+    location.state?.restoreFromConfirm,
+    acquireOrRefreshSeatLock,
+  ]);
 
   // 🆕 Save confirm draft helper (used before redirecting to login)
   const saveConfirmDraft = useCallback(() => {
@@ -864,7 +992,17 @@ export function useConfirmBookingCore() {
   useEffect(() => {
     saveConfirmDraft();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form, passengers, selectedSeats, date, priceDetails, selectedBoardingPoint, selectedDroppingPoint, departureTime, seatGenders]);
+  }, [
+    form,
+    passengers,
+    selectedSeats,
+    date,
+    priceDetails,
+    selectedBoardingPoint,
+    selectedDroppingPoint,
+    departureTime,
+    seatGenders,
+  ]);
 
   // 🆕 Persist on tab close/refresh as a last safety net
   useEffect(() => {
@@ -890,7 +1028,9 @@ export function useConfirmBookingCore() {
         // Try a quick re-lock attempt before blocking user
         await acquireOrRefreshSeatLock();
         if (holdExpired) {
-          alert("Your seat hold has expired. Please go back and reselect seats.");
+          alert(
+            "Your seat hold has expired. Please go back and reselect seats."
+          );
           return;
         }
       }
@@ -916,7 +1056,9 @@ export function useConfirmBookingCore() {
       if (!stillHeld) {
         setHoldExpired(true);
         releaseSeats();
-        alert("Your seat hold has expired. Please go back and reselect seats.");
+        alert(
+          "Your seat hold has expired. Please go back and reselect seats."
+        );
         return;
       }
 
@@ -929,12 +1071,14 @@ export function useConfirmBookingCore() {
 
       try {
         // ---- 1) Create booking (Pending) ----
-        const payloadPassengers = passengers.map(({ seat, name, age, gender }) => ({
-          seat,
-          name,
-          age: age === "" ? undefined : Number(age),
-          gender,
-        }));
+        const payloadPassengers = passengers.map(
+          ({ seat, name, age, gender }) => ({
+            seat,
+            name,
+            age: age === "" ? undefined : Number(age),
+            gender,
+          })
+        );
 
         const { data: createRes } = await apiClient.post("/bookings", {
           busId: bus?._id,
@@ -993,8 +1137,15 @@ export function useConfirmBookingCore() {
         } catch {}
 
         // ---- 3) Ask backend for PayHere payload (Option A) ----
-        const firstName = (form?.name || "Customer").trim().split(" ")[0] || "Customer";
-        const lastName = (form?.name || "").trim().split(" ").slice(1).join(" ") || "";
+        const firstName = (form?.name || "Customer")
+          .trim()
+          .split(" ")[0] || "Customer";
+        const lastName =
+          (form?.name || "")
+            .trim()
+            .split(" ")
+            .slice(1)
+            .join(" ") || "";
 
         const { data: ph } = await apiClient.post("/payhere/create", {
           bookingNo: booking.bookingNo,
@@ -1077,24 +1228,37 @@ export function useConfirmBookingCore() {
     onConfirmBack: goBackToResults,
   });
 
-  // 🆕 Our own back trap → always go to Search Results and keep data/locks
+  // 🆕 Our own back trap for browser / OS back gestures
   useEffect(() => {
-    if (missingData || holdExpired || selectedSeatStrings.length === 0) return;
+    if (missingData || selectedSeatStrings.length === 0) return;
+
     const sentinel = { rb_confirm_guard: true };
-    try { window.history.pushState(sentinel, ""); } catch {}
+    try {
+      window.history.pushState(sentinel, "");
+    } catch {}
 
     const onPop = () => {
-      const ok = window.confirm("Go back to results and keep your selected seats?");
+      // For now we use a native confirm dialog so behaviour works
+      // consistently even before we add a custom bottom sheet UI.
+      const ok = window.confirm(
+        "Press OK to go back to search results (your seats stay highlighted but are released for other passengers).\n\nPress Cancel to cancel this booking and go to the home page."
+      );
+
       if (ok) {
-        goBackToResults();
+        backToResultsAndRelease();
       } else {
-        try { window.history.pushState(sentinel, ""); } catch {}
+        cancelBookingAndGoHome();
       }
     };
 
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, [missingData, holdExpired, selectedSeatStrings.length, goBackToResults]);
+  }, [
+    missingData,
+    selectedSeatStrings.length,
+    backToResultsAndRelease,
+    cancelBookingAndGoHome,
+  ]);
 
   // 🔁 Instead of returning JSX, we expose everything UIs need:
   return {
@@ -1139,6 +1303,8 @@ export function useConfirmBookingCore() {
     suppressAutoRelease,
     writePreselectBundle,
     goBackToResults,
+    backToResultsAndRelease,
+    cancelBookingAndGoHome,
     verifyHoldAlive,
     validateAll,
     blurValidateField,
