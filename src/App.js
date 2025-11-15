@@ -16,7 +16,10 @@ import SearchResults from "./pages/SearchResults";
 import DownloadTicket from "./pages/DownloadTicket";
 import Payment from "./pages/Payment";
 import BookingPage from "./pages/BookingPage";
+
+// ✅ now points to src/pages/ConfirmBooking/index.jsx (split mobile + desktop)
 import ConfirmBooking from "./pages/ConfirmBooking";
+
 import MyBookings from "./pages/MyBookings";
 import Profile from "./pages/Profiles";
 import AllOperators from "./pages/AllOperators";
