@@ -63,7 +63,9 @@ export default function MobileSearchSheet() {
     if (!mobileSearchOpen) return;
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => (document.body.style.overflow = prev);
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, [mobileSearchOpen]);
 
   if (!mobileSearchOpen) return null;
@@ -77,161 +79,176 @@ export default function MobileSearchSheet() {
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: -20, opacity: 0 }}
-        className="
-          fixed top-0 left-0 right-0 
-          z-[10031] bg-white 
-          rounded-b-xl shadow-lg 
-          border border-gray-200 
-          overflow-y-auto 
-          max-h-[85vh]
-        "
+        className="fixed top-0 left-0 right-0 z-[10031]"
       >
-        {/* Header */}
-        <div className="px-4 py-2.5 border-b flex items-center justify-between">
-          <div className="text-sm font-semibold">Search your Buses</div>
-          <button
-            onClick={close}
-            className="w-8 h-8 rounded-full border flex items-center justify-center"
-          >
-            ×
-          </button>
-        </div>
+        {/* Sheet container */}
+        <div className="bg-white rounded-b-xl shadow-lg border border-gray-200 flex flex-col max-h-[85vh]">
+          {/* Header */}
+          <div className="px-4 py-2.5 border-b flex items-center justify-between">
+            <div className="text-sm font-semibold">Search your Buses</div>
+            <button
+              onClick={close}
+              className="w-8 h-8 rounded-full border flex items-center justify-center"
+            >
+              ×
+            </button>
+          </div>
 
-        {/* FROM & TO */}
-        <div className="relative bg-white">
+          {/* Scrollable content (From / To / Date) */}
+          <div className="flex-1 overflow-y-auto">
+            {/* FROM & TO */}
+            <div className="relative bg-white">
+              {/* FROM */}
+              <div
+                className="px-3 py-2.5 border-b"
+                style={{ borderColor: PALETTE.border }}
+              >
+                <div className="flex items-center gap-3">
+                  <FaBus
+                    className="shrink-0 text-sm"
+                    style={{ color: PALETTE.textSubtle }}
+                  />
+                  <div className="w-full">
+                    <label className="block text-[10px] font-medium text-gray-500">
+                      From
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => openMobilePicker("from")}
+                      className="w-full text-left py-1"
+                    >
+                      <span
+                        className={`text-[15px] ${
+                          searchFrom
+                            ? "font-semibold text-gray-900"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {searchFrom || "Select departure"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
 
-          {/* FROM */}
-          <div
-            className="px-3 py-2.5 border-b"
-            style={{ borderColor: PALETTE.border }}
-          >
-            <div className="flex items-center gap-3">
-              <FaBus className="shrink-0 text-sm" style={{ color: PALETTE.textSubtle }} />
-              <div className="w-full">
-                <label className="block text-[10px] font-medium text-gray-500">
-                  From
-                </label>
-                <button
-                  type="button"
-                  onClick={() => openMobilePicker("from")}
-                  className="w-full text-left py-1"
+              {/* SWAP */}
+              <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-20">
+                <motion.button
+                  whileTap={{ scale: 0.9, rotate: 180 }}
+                  onClick={swapLocations}
+                  className="bg-white p-2 rounded-full shadow-md"
+                  style={{ border: `1px solid ${PALETTE.border}` }}
+                  title="Swap locations"
                 >
-                  <span
-                    className={`text-[15px] ${
-                      searchFrom ? "font-semibold text-gray-900" : "text-gray-400"
-                    }`}
-                  >
-                    {searchFrom || "Select departure"}
-                  </span>
+                  <FaExchangeAlt
+                    className="text-sm rotate-90"
+                    style={{ color: PALETTE.textSubtle }}
+                  />
+                </motion.button>
+              </div>
+
+              {/* TO */}
+              <div
+                className="px-3 py-2.5 border-b"
+                style={{ borderColor: PALETTE.border }}
+              >
+                <div className="flex items-center gap-3">
+                  <FaBus
+                    className="shrink-0 text-sm"
+                    style={{ color: PALETTE.textSubtle }}
+                  />
+                  <div className="w-full">
+                    <label className="block text-[10px] font-medium text-gray-500">
+                      To
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => openMobilePicker("to")}
+                      className="w-full text-left py-1"
+                    >
+                      <span
+                        className={`text-[15px] ${
+                          searchTo
+                            ? "font-semibold text-gray-900"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {searchTo || "Select destination"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* DATE */}
+            <div
+              className="flex items-center gap-3 px-3 py-2.5 border-b"
+              style={{ borderColor: PALETTE.border }}
+            >
+              <FaCalendarAlt
+                className="shrink-0 text-sm"
+                style={{ color: PALETTE.textSubtle }}
+              />
+
+              <div className="flex-grow" onClick={() => setCalOpen(true)}>
+                <label className="block text-[10px] font-medium text-gray-500">
+                  Date of Journey
+                </label>
+                <span className="text-[15px] font-semibold text-gray-900">
+                  {getReadableDate(searchDate)}
+                </span>
+              </div>
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchDate(todayStrLocal);
+                  }}
+                  className={`text-[11px] font-semibold ${
+                    searchDate === todayStrLocal
+                      ? "text-red-500"
+                      : "text-gray-600"
+                  }`}
+                >
+                  Today
+                </button>
+
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSearchDate(tomorrowStrLocal);
+                  }}
+                  className={`text-[11px] font-semibold ${
+                    searchDate === tomorrowStrLocal
+                      ? "text-red-500"
+                      : "text-gray-600"
+                  }`}
+                >
+                  Tomorrow
                 </button>
               </div>
             </div>
           </div>
 
-          {/* SWAP */}
-          <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-20">
+          {/* Fixed footer: Search button */}
+          <div className="p-3 border-t" style={{ borderColor: PALETTE.border }}>
             <motion.button
-              whileTap={{ scale: 0.9, rotate: 180 }}
-              onClick={swapLocations}
-              className="bg-white p-2 rounded-full shadow-md"
-              style={{ border: `1px solid ${PALETTE.border}` }}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={doSearch}
+              className="w-full py-3 rounded-full text-white font-semibold flex items-center justify-center gap-2"
+              style={{ backgroundColor: PALETTE.primary }}
             >
-              <FaExchangeAlt
-                className="text-sm rotate-90"
-                style={{ color: PALETTE.textSubtle }}
-              />
+              <FaSearch />
+              Search Buses
             </motion.button>
           </div>
 
-          {/* TO */}
-          <div
-            className="px-3 py-2.5 border-b"
-            style={{ borderColor: PALETTE.border }}
-          >
-            <div className="flex items-center gap-3">
-              <FaBus className="shrink-0 text-sm" style={{ color: PALETTE.textSubtle }} />
-              <div className="w-full">
-                <label className="block text-[10px] font-medium text-gray-500">To</label>
-                <button
-                  type="button"
-                  onClick={() => openMobilePicker("to")}
-                  className="w-full text-left py-1"
-                >
-                  <span
-                    className={`text-[15px] ${
-                      searchTo ? "font-semibold text-gray-900" : "text-gray-400"
-                    }`}
-                  >
-                    {searchTo || "Select destination"}
-                  </span>
-                </button>
-              </div>
-            </div>
-          </div>
+          {/* Safe area */}
+          <div style={{ height: "env(safe-area-inset-bottom)" }} />
         </div>
-
-        {/* DATE */}
-        <div
-          className="flex items-center gap-3 px-3 py-2.5 border-b"
-          style={{ borderColor: PALETTE.border }}
-        >
-          <FaCalendarAlt className="shrink-0 text-sm" style={{ color: PALETTE.textSubtle }} />
-
-          <div className="flex-grow" onClick={() => setCalOpen(true)}>
-            <label className="block text-[10px] font-medium text-gray-500">
-              Date of Journey
-            </label>
-            <span className="text-[15px] font-semibold text-gray-900">
-              {getReadableDate(searchDate)}
-            </span>
-          </div>
-
-          <div className="flex space-x-2">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSearchDate(todayStrLocal);
-              }}
-              className={`text-[11px] font-semibold ${
-                searchDate === todayStrLocal ? "text-red-500" : "text-gray-600"
-              }`}
-            >
-              Today
-            </button>
-
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                setSearchDate(tomorrowStrLocal);
-              }}
-              className={`text-[11px] font-semibold ${
-                searchDate === tomorrowStrLocal ? "text-red-500" : "text-gray-600"
-              }`}
-            >
-              Tomorrow
-            </button>
-          </div>
-        </div>
-
-        {/* SEARCH BUTTON */}
-        <div className="p-3 border-t" style={{ borderColor: PALETTE.border }}>
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={doSearch}
-            className="
-              w-full py-3 rounded-full 
-              text-white font-semibold 
-              flex items-center justify-center gap-2
-            "
-            style={{ backgroundColor: PALETTE.primary }}
-          >
-            <FaSearch />
-            Search Buses
-          </motion.button>
-        </div>
-
-        <div style={{ height: "env(safe-area-inset-bottom)" }} />
       </motion.div>
     </>,
     document.body
