@@ -62,7 +62,7 @@ const ConfirmBookingDesktop = ({
   return (
     <div
       ref={pageTopRef}
-      className="min-h-screen text-[16px] md:text-base" // ✅ ensure stable base size on mobile
+      className="min-h-screen text-[16px] md:text-base"
       style={{ background: PALETTE.bg }}
     >
       {/* Matte top bar */}
@@ -82,7 +82,6 @@ const ConfirmBookingDesktop = ({
               {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
             </p>
           </div>
-          {/* 🆕 explicit back to results button (optional UX helper) */}
           <button
             type="button"
             onClick={goBackToResults}
@@ -99,7 +98,6 @@ const ConfirmBookingDesktop = ({
           <BookingSteps currentStep={3} />
         </div>
 
-        {/* 🆕 Show a small banner if user returned from payment with an error/cancel */}
         {cameBackFromGateway ? (
           <div
             className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
@@ -114,7 +112,6 @@ const ConfirmBookingDesktop = ({
           </div>
         ) : null}
 
-        {/* Error banner (mobile-friendly) */}
         {errors.name ||
         errors.mobile ||
         errors.nic ||
@@ -138,7 +135,7 @@ const ConfirmBookingDesktop = ({
 
         {/* Journey Overview */}
         <SectionCard>
-          {/* top row: bus title + pills (unchanged) */}
+          {/* top row: bus title + pills */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
               <h2
@@ -155,26 +152,23 @@ const ConfirmBookingDesktop = ({
             <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
               <DatePill>{getNiceDate(date, departureTime)}</DatePill>
               <AcPill>{bus?.busType || "Seating"}</AcPill>
-              <SeatPill>
-                {selectedSeats?.length} Seat
-                {selectedSeats?.length > 1 ? "s" : ""}
-              </SeatPill>
+              {/* ❌ Seat pill removed from header (only shown in Selected seats section) */}
               <HoldCountdown
-                key={`hold-${lockVersion}`} // 👈 remounts after re-lock to reset timer
+                key={`hold-${lockVersion}`}
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
                 onExpire={() => {
                   setHoldExpired(true);
-                  releaseSeats(); // proactively release if countdown hits zero
+                  releaseSeats();
                 }}
               />
             </div>
           </div>
 
-          {/* timeline row: boarding → dropping + details (NEW) */}
+          {/* timeline row: boarding → dropping + details */}
           <div className="mt-4 flex flex-col sm:flex-row gap-4 text-sm">
-            {/* Left: time + vertical track like Redbus */}
+            {/* Left: time + vertical track */}
             <div className="flex flex-row sm:flex-col items-center sm:items-center gap-3 sm:gap-2 min-w-[90px]">
               {/* Departure time */}
               <div className="text-left sm:text-center">
@@ -227,28 +221,16 @@ const ConfirmBookingDesktop = ({
               {/* Boarding block */}
               <div>
                 <Label>Boarding point</Label>
-                <p
-                  className="font-medium"
-                  style={{ color: PALETTE.text }}
-                >
+                <p className="font-medium" style={{ color: PALETTE.text }}>
                   {selectedBoardingPoint?.point || "-"}
                 </p>
-                <p
-                  className="mt-1 text-xs"
-                  style={{ color: PALETTE.textSubtle }}
-                >
-                  Travel date{" "}
-                  <TimeGreenPill>{getNiceDate(date, departureTime)}</TimeGreenPill>
-                </p>
+                {/* ❌ Remove duplicated green date pill under boarding */}
               </div>
 
               {/* Dropping block */}
               <div>
                 <Label>Dropping point</Label>
-                <p
-                  className="font-medium"
-                  style={{ color: PALETTE.text }}
-                >
+                <p className="font-medium" style={{ color: PALETTE.text }}>
                   {selectedDroppingPoint?.point || "-"}
                 </p>
                 {selectedDroppingPoint?.time ? (
@@ -439,7 +421,7 @@ const ConfirmBookingDesktop = ({
           ) : null}
         </div>
 
-        {/* Inline mobile CTA (kept exactly, but hidden on desktop via sm:hidden) */}
+        {/* Inline mobile CTA */}
         <SectionCard>
           <div className="sm:hidden mt-2">
             <button
