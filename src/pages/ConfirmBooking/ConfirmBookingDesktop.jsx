@@ -62,7 +62,7 @@ const ConfirmBookingDesktop = ({
   return (
     <div
       ref={pageTopRef}
-      className="min-h-screen text-[16px] md:text-base"
+      className="min-h-screen text-[16px] md:text-base" // ✅ ensure stable base size on mobile
       style={{ background: PALETTE.bg }}
     >
       {/* Matte top bar */}
@@ -82,6 +82,7 @@ const ConfirmBookingDesktop = ({
               {bus?.from} → {bus?.to} • {getNiceDate(date, departureTime)}
             </p>
           </div>
+          {/* 🆕 explicit back to results button (optional UX helper) */}
           <button
             type="button"
             onClick={goBackToResults}
@@ -98,6 +99,7 @@ const ConfirmBookingDesktop = ({
           <BookingSteps currentStep={3} />
         </div>
 
+        {/* 🆕 Show a small banner if user returned from payment with an error/cancel */}
         {cameBackFromGateway ? (
           <div
             className="mt-3 rounded-xl px-3 py-2 text-xs font-medium"
@@ -112,6 +114,7 @@ const ConfirmBookingDesktop = ({
           </div>
         ) : null}
 
+        {/* Error banner (mobile-friendly) */}
         {errors.name ||
         errors.mobile ||
         errors.nic ||
@@ -135,7 +138,7 @@ const ConfirmBookingDesktop = ({
 
         {/* Journey Overview */}
         <SectionCard>
-          {/* top row: bus title + pills */}
+          {/* top row: bus title + pills (unchanged) */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
               <h2
@@ -152,66 +155,101 @@ const ConfirmBookingDesktop = ({
             <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
               <DatePill>{getNiceDate(date, departureTime)}</DatePill>
               <AcPill>{bus?.busType || "Seating"}</AcPill>
-              {/* Seat pill removed from header */}
+              <SeatPill>
+                {selectedSeats?.length} Seat
+                {selectedSeats?.length > 1 ? "s" : ""}
+              </SeatPill>
               <HoldCountdown
-                key={`hold-${lockVersion}`}
+                key={`hold-${lockVersion}`} // 👈 remounts after re-lock to reset timer
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
                 onExpire={() => {
                   setHoldExpired(true);
-                  releaseSeats();
+                  releaseSeats(); // proactively release if countdown hits zero
                 }}
               />
             </div>
           </div>
 
-          {/* timeline row: boarding → dropping + details */}
-          <div className="mt-4 flex flex-row gap-4 text-sm">
-            {/* Left: vertical navigation line with dots */}
-            <div className="flex flex-col items-center pt-1 min-w-[24px]">
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: PALETTE.text }}
-              />
-              <div className="flex-1 w-px bg-gray-300 my-2" />
-              <div
-                className="w-2 h-2 rounded-full"
-                style={{ background: PALETTE.text }}
-              />
+          {/* timeline row: boarding → dropping + details (NEW) */}
+          <div className="mt-4 flex flex-col sm:flex-row gap-4 text-sm">
+            {/* Left: time + vertical track like Redbus */}
+            <div className="flex flex-row sm:flex-col items-center sm:items-center gap-3 sm:gap-2 min-w-[90px]">
+              {/* Departure time */}
+              <div className="text-left sm:text-center">
+                <p
+                  className="text-lg font-extrabold tabular-nums"
+                  style={{ color: PALETTE.text }}
+                >
+                  {selectedBoardingPoint?.time || departureTime}
+                </p>
+                <p
+                  className="text-[11px] uppercase tracking-wide"
+                  style={{ color: PALETTE.textSubtle }}
+                >
+                  Boarding
+                </p>
+              </div>
+
+              {/* Vertical connector */}
+              <div className="flex-1 flex items-center sm:flex-col">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: PALETTE.text }}
+                />
+                <div className="h-px sm:w-px sm:h-16 flex-1 bg-gray-300 mx-2 sm:my-2" />
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: PALETTE.text }}
+                />
+              </div>
+
+              {/* Arrival time */}
+              <div className="text-left sm:text-center">
+                <p
+                  className="text-lg font-extrabold tabular-nums"
+                  style={{ color: PALETTE.text }}
+                >
+                  {selectedDroppingPoint?.time || "--:--"}
+                </p>
+                <p
+                  className="text-[11px] uppercase tracking-wide"
+                  style={{ color: PALETTE.textSubtle }}
+                >
+                  Dropping
+                </p>
+              </div>
             </div>
 
-            {/* Right: boarding & dropping text with inline times */}
+            {/* Right: boarding / dropping / seats text blocks */}
             <div className="flex-1 space-y-4">
               {/* Boarding block */}
               <div>
-                <Label>Boarding</Label>
-                <p className="font-medium flex items-baseline gap-2">
-                  <span
-                    className="tabular-nums text-base font-semibold"
-                    style={{ color: PALETTE.text }}
-                  >
-                    {selectedBoardingPoint?.time || departureTime}
-                  </span>
-                  <span style={{ color: PALETTE.text }}>
-                    {selectedBoardingPoint?.point || "-"}
-                  </span>
+                <Label>Boarding point</Label>
+                <p
+                  className="font-medium"
+                  style={{ color: PALETTE.text }}
+                >
+                  {selectedBoardingPoint?.point || "-"}
+                </p>
+                <p
+                  className="mt-1 text-xs"
+                  style={{ color: PALETTE.textSubtle }}
+                >
+                  Travel date{" "}
+                  <TimeGreenPill>{getNiceDate(date, departureTime)}</TimeGreenPill>
                 </p>
               </div>
 
               {/* Dropping block */}
               <div>
-                <Label>Dropping</Label>
-                <p className="font-medium flex items-baseline gap-2">
-                  <span
-                    className="tabular-nums text-base font-semibold"
-                    style={{ color: PALETTE.text }}
-                  >
-                    {selectedDroppingPoint?.time || "--:--"}
-                  </span>
-                  <span style={{ color: PALETTE.text }}>
-                    {selectedDroppingPoint?.point || "-"}
-                  </span>
+                <Label>Dropping point</Label>
+                <p
+                  className="font-medium"
+                  style={{ color: PALETTE.text }}
+                >
+                  {selectedDroppingPoint?.point || "-"}
                 </p>
                 {selectedDroppingPoint?.time ? (
                   <p
@@ -224,6 +262,16 @@ const ConfirmBookingDesktop = ({
                     </span>
                   </p>
                 ) : null}
+              </div>
+
+              {/* Seats block */}
+              <div>
+                <Label>Selected seats</Label>
+                <div className="flex flex-wrap gap-2">
+                  {selectedSeats.map((s) => (
+                    <SeatPill key={s}>Seat {s}</SeatPill>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -391,7 +439,7 @@ const ConfirmBookingDesktop = ({
           ) : null}
         </div>
 
-        {/* Inline mobile CTA */}
+        {/* Inline mobile CTA (kept exactly, but hidden on desktop via sm:hidden) */}
         <SectionCard>
           <div className="sm:hidden mt-2">
             <button
