@@ -64,6 +64,40 @@ const Chip = ({ label }) => (
   </span>
 );
 
+/* ---- Label + pill styles copied from ConfirmBooking ---- */
+const Label = ({ children }) => (
+  <span
+    className="block text-[11px] font-semibold mb-1 uppercase tracking-wide"
+    style={{ color: PALETTE.textSubtle }}
+  >
+    {children}
+  </span>
+);
+
+const Pill = ({ children }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+    style={{ background: PALETTE.pillBg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
+
+const SoftPill = ({ children, bg }) => (
+  <span
+    className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium"
+    style={{ background: bg, color: PALETTE.text }}
+  >
+    {children}
+  </span>
+);
+
+const DatePill = ({ children }) => (
+  <SoftPill bg="#FFF7ED">{children}</SoftPill> // soft warm bg like ConfirmBooking
+);
+
+const SeatPill = ({ children }) => <Pill>{children}</Pill>;
+
 /* ---------- skeleton (restyled to match matte cards) ---------- */
 const BookingCardSkeleton = () => (
   <div
@@ -270,65 +304,63 @@ const MyBookings = () => {
                   </div>
                 </div>
 
-                {/* Details grid */}
-                <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 text-[13px] sm:text-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50 border border-gray-200">
-                      <FaCalendarAlt className="text-xs text-gray-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[11px] uppercase tracking-wide text-gray-400">
-                        Travel date
-                      </div>
-                      <div className="font-medium" style={{ color: PALETTE.text }}>
-                        {getReadableDate(booking.date)}
-                      </div>
-                    </div>
+                {/* Journey meta pills (date / type / seat count) */}
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <DatePill>
+                    {getReadableDate(booking.date)}{" "}
+                    <span className="text-[11px] mx-1">at</span>
+                    <span className="tabular-nums">
+                      {booking.departureTime}
+                    </span>
+                  </DatePill>
+                  {booking.bus?.busType && (
+                    <SoftPill bg={PALETTE.surfaceAlt}>
+                      {booking.bus.busType}
+                    </SoftPill>
+                  )}
+                  <SeatPill>
+                    {booking.selectedSeats.length} Seat
+                    {booking.selectedSeats.length > 1 ? "s" : ""}
+                  </SeatPill>
+                </div>
+
+                {/* Details: labels + plain text (no icons) */}
+                <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 text-[13px] sm:text-sm">
+                  <div>
+                    <Label>Travel date</Label>
+                    <p className="font-medium" style={{ color: PALETTE.text }}>
+                      {getReadableDate(booking.date)}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50 border border-gray-200">
-                      <FaClock className="text-xs text-gray-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[11px] uppercase tracking-wide text-gray-400">
-                        Departure
-                      </div>
-                      <div className="font-medium" style={{ color: PALETTE.text }}>
-                        {booking.departureTime}
-                      </div>
-                    </div>
+                  <div>
+                    <Label>Departure time</Label>
+                    <p
+                      className="font-medium tabular-nums"
+                      style={{ color: PALETTE.text }}
+                    >
+                      {booking.departureTime}
+                    </p>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50 border border-gray-200">
-                      <FaMapMarkerAlt className="text-xs text-gray-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[11px] uppercase tracking-wide text-gray-400">
-                        Boarding point
-                      </div>
-                      <div className="font-medium truncate" style={{ color: PALETTE.text }}>
-                        {booking.from}
-                      </div>
-                    </div>
+                  <div>
+                    <Label>Boarding</Label>
+                    <p
+                      className="font-medium truncate"
+                      style={{ color: PALETTE.text }}
+                    >
+                      {booking.from}
+                    </p>
                   </div>
+                </div>
 
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full flex items-center justify-center bg-gray-50 border border-gray-200">
-                      <FaChair className="text-xs text-gray-500" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-[11px] uppercase tracking-wide text-gray-400">
-                        Seats
-                      </div>
-                      <div
-                        className="font-semibold tabular-nums"
-                        style={{ color: PALETTE.primary }}
-                      >
-                        {booking.selectedSeats.join(", ")}
-                      </div>
-                    </div>
+                {/* Seats list as pills */}
+                <div className="mt-3">
+                  <Label>Seats</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {booking.selectedSeats.map((s) => (
+                      <SeatPill key={s}>Seat {s}</SeatPill>
+                    ))}
                   </div>
                 </div>
 
