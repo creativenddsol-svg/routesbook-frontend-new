@@ -152,7 +152,7 @@ const ConfirmBookingDesktop = ({
             <div className="flex flex-wrap gap-2 justify-start sm:justify-end">
               <DatePill>{getNiceDate(date, departureTime)}</DatePill>
               <AcPill>{bus?.busType || "Seating"}</AcPill>
-              {/* ❌ Seat pill removed from header (only shown in Selected seats section) */}
+              {/* Seat pill removed from header */}
               <HoldCountdown
                 key={`hold-${lockVersion}`}
                 busId={bus?._id}
@@ -216,7 +216,7 @@ const ConfirmBookingDesktop = ({
               </div>
             </div>
 
-            {/* Right: boarding / dropping / seats text blocks */}
+            {/* Right: boarding & dropping text blocks */}
             <div className="flex-1 space-y-4">
               {/* Boarding block */}
               <div>
@@ -224,7 +224,6 @@ const ConfirmBookingDesktop = ({
                 <p className="font-medium" style={{ color: PALETTE.text }}>
                   {selectedBoardingPoint?.point || "-"}
                 </p>
-                {/* ❌ Remove duplicated green date pill under boarding */}
               </div>
 
               {/* Dropping block */}
@@ -246,15 +245,7 @@ const ConfirmBookingDesktop = ({
                 ) : null}
               </div>
 
-              {/* Seats block */}
-              <div>
-                <Label>Selected seats</Label>
-                <div className="flex flex-wrap gap-2">
-                  {selectedSeats.map((s) => (
-                    <SeatPill key={s}>Seat {s}</SeatPill>
-                  ))}
-                </div>
-              </div>
+              {/* ✅ Selected seats block removed from here */}
             </div>
           </div>
         </SectionCard>
