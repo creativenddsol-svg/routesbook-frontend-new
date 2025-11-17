@@ -93,10 +93,10 @@ const SoftPill = ({ children, bg }) => (
 );
 
 const DatePill = ({ children }) => (
-  <SoftPill bg="#FFF7ED">{children}</SoftPill> // soft warm bg like ConfirmBooking
+  <SoftPill bg="#FFF7ED">{children}</SoftPill>
 );
 
-const SeatPill = ({ children }) => <Pill>{children}</SeatPill>;
+const SeatPill = ({ children }) => <Pill>{children}</Pill>;
 
 /* ---------- skeleton (restyled to match matte cards) ---------- */
 const BookingCardSkeleton = () => (
@@ -154,7 +154,7 @@ const MyBookings = () => {
     fetchBookings();
   }, []);
 
-  // ✅ show only paid bookings
+  // ✅ Only show paid bookings
   const paidBookings = useMemo(
     () => bookings.filter((b) => b.paymentStatus === "Paid"),
     [bookings]
