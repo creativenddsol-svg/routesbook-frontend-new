@@ -96,7 +96,7 @@ const DatePill = ({ children }) => (
   <SoftPill bg="#FFF7ED">{children}</SoftPill> // soft warm bg like ConfirmBooking
 );
 
-const SeatPill = ({ children }) => <Pill>{children}</Pill>;
+const SeatPill = ({ children }) => <Pill>{children}</SeatPill>;
 
 /* ---------- skeleton (restyled to match matte cards) ---------- */
 const BookingCardSkeleton = () => (
@@ -154,12 +154,18 @@ const MyBookings = () => {
     fetchBookings();
   }, []);
 
+  // ✅ show only paid bookings
+  const paidBookings = useMemo(
+    () => bookings.filter((b) => b.paymentStatus === "Paid"),
+    [bookings]
+  );
+
   const sortedBookings = useMemo(
     () =>
-      [...bookings].sort(
+      [...paidBookings].sort(
         (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
       ),
-    [bookings]
+    [paidBookings]
   );
 
   const handleDownloadTicket = (booking) => {
