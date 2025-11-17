@@ -62,7 +62,7 @@ const ConfirmBookingDesktop = ({
   return (
     <div
       ref={pageTopRef}
-      className="min-h-screen text-[16px] md:text-base"   // ✅ ensure stable base size on mobile
+      className="min-h-screen text-[16px] md:text-base" // ✅ ensure stable base size on mobile
       style={{ background: PALETTE.bg }}
     >
       {/* Matte top bar */}
@@ -109,7 +109,8 @@ const ConfirmBookingDesktop = ({
               border: "1px solid #FECACA",
             }}
           >
-            Payment was cancelled or failed. You can review your details and try again.
+            Payment was cancelled or failed. You can review your details and try
+            again.
           </div>
         ) : null}
 
@@ -137,6 +138,7 @@ const ConfirmBookingDesktop = ({
 
         {/* Journey Overview */}
         <SectionCard>
+          {/* top row: bus title + pills (unchanged) */}
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div className="min-w-0">
               <h2
@@ -158,7 +160,7 @@ const ConfirmBookingDesktop = ({
                 {selectedSeats?.length > 1 ? "s" : ""}
               </SeatPill>
               <HoldCountdown
-                key={`hold-${lockVersion}`}   // 👈 remounts after re-lock to reset timer
+                key={`hold-${lockVersion}`} // 👈 remounts after re-lock to reset timer
                 busId={bus?._id}
                 date={date}
                 departureTime={departureTime}
@@ -170,31 +172,106 @@ const ConfirmBookingDesktop = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4 text-sm">
-            <div>
-              <Label>Boarding</Label>
-              <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedBoardingPoint.point}{" "}
-                <span className="text-xs">at</span>{" "}
-                <TimeGreenPill>{selectedBoardingPoint.time}</TimeGreenPill>
-              </p>
+          {/* timeline row: boarding → dropping + details (NEW) */}
+          <div className="mt-4 flex flex-col sm:flex-row gap-4 text-sm">
+            {/* Left: time + vertical track like Redbus */}
+            <div className="flex flex-row sm:flex-col items-center sm:items-center gap-3 sm:gap-2 min-w-[90px]">
+              {/* Departure time */}
+              <div className="text-left sm:text-center">
+                <p
+                  className="text-lg font-extrabold tabular-nums"
+                  style={{ color: PALETTE.text }}
+                >
+                  {selectedBoardingPoint?.time || departureTime}
+                </p>
+                <p
+                  className="text-[11px] uppercase tracking-wide"
+                  style={{ color: PALETTE.textSubtle }}
+                >
+                  Boarding
+                </p>
+              </div>
+
+              {/* Vertical connector */}
+              <div className="flex-1 flex items-center sm:flex-col">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: PALETTE.text }}
+                />
+                <div className="h-px sm:w-px sm:h-16 flex-1 bg-gray-300 mx-2 sm:my-2" />
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: PALETTE.text }}
+                />
+              </div>
+
+              {/* Arrival time */}
+              <div className="text-left sm:text-center">
+                <p
+                  className="text-lg font-extrabold tabular-nums"
+                  style={{ color: PALETTE.text }}
+                >
+                  {selectedDroppingPoint?.time || "--:--"}
+                </p>
+                <p
+                  className="text-[11px] uppercase tracking-wide"
+                  style={{ color: PALETTE.textSubtle }}
+                >
+                  Dropping
+                </p>
+              </div>
             </div>
-            <div>
-              <Label>Dropping</Label>
-              <p className="font-medium" style={{ color: PALETTE.text }}>
-                {selectedDroppingPoint.point}{" "}
-                <span className="text-xs">at</span>{" "}
-                <span className="tabular-nums">
-                  {selectedDroppingPoint.time}
-                </span>
-              </p>
-            </div>
-            <div className="sm:col-span-2">
-              <Label>Selected Seats</Label>
-              <div className="flex flex-wrap gap-2">
-                {selectedSeats.map((s) => (
-                  <SeatPill key={s}>Seat {s}</SeatPill>
-                ))}
+
+            {/* Right: boarding / dropping / seats text blocks */}
+            <div className="flex-1 space-y-4">
+              {/* Boarding block */}
+              <div>
+                <Label>Boarding point</Label>
+                <p
+                  className="font-medium"
+                  style={{ color: PALETTE.text }}
+                >
+                  {selectedBoardingPoint?.point || "-"}
+                </p>
+                <p
+                  className="mt-1 text-xs"
+                  style={{ color: PALETTE.textSubtle }}
+                >
+                  Travel date{" "}
+                  <TimeGreenPill>{getNiceDate(date, departureTime)}</TimeGreenPill>
+                </p>
+              </div>
+
+              {/* Dropping block */}
+              <div>
+                <Label>Dropping point</Label>
+                <p
+                  className="font-medium"
+                  style={{ color: PALETTE.text }}
+                >
+                  {selectedDroppingPoint?.point || "-"}
+                </p>
+                {selectedDroppingPoint?.time ? (
+                  <p
+                    className="mt-1 text-xs"
+                    style={{ color: PALETTE.textSubtle }}
+                  >
+                    Expected arrival{" "}
+                    <span className="tabular-nums">
+                      {selectedDroppingPoint.time}
+                    </span>
+                  </p>
+                ) : null}
+              </div>
+
+              {/* Seats block */}
+              <div>
+                <Label>Selected seats</Label>
+                <div className="flex flex-wrap gap-2">
+                  {selectedSeats.map((s) => (
+                    <SeatPill key={s}>Seat {s}</SeatPill>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -372,13 +449,22 @@ const ConfirmBookingDesktop = ({
                 handleSubmit({ preventDefault: () => {} });
               }}
             >
-              <span className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed" style={{ background: PALETTE.primary }}>
+              <span
+                className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                style={{ background: PALETTE.primary }}
+              >
                 Proceed to Pay
               </span>
             </button>
-            <p className="mt-2 text-center text-xs" style={{ color: PALETTE.textSubtle }}>
+            <p
+              className="mt-2 text-center text-xs"
+              style={{ color: PALETTE.textSubtle }}
+            >
               Payable Amount:{" "}
-              <span className="font-bold tabular-nums" style={{ color: PALETTE.text }}>
+              <span
+                className="font-bold tabular-nums"
+                style={{ color: PALETTE.text }}
+              >
                 Rs. {prices.total.toFixed(2)}
               </span>
             </p>
