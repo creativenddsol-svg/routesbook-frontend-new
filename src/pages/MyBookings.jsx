@@ -8,7 +8,6 @@ import {
   FaClock,
   FaMapMarkerAlt,
   FaChair,
-  FaTicketAlt,
   FaArrowRight,
   FaExclamationCircle,
   FaDownload,
@@ -169,29 +168,26 @@ const MyBookings = () => {
       className="min-h-screen text-[15px] md:text-base"
       style={{ background: PALETTE.bg }}
     >
-      <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
-        {/* Page header – aligned with matte pages */}
-        <div className="mb-4 sm:mb-6 flex items-center justify-between gap-3">
-          <div>
-            <h2
-              className="text-2xl sm:text-3xl font-bold flex items-center gap-2"
-              style={{ color: PALETTE.text }}
-            >
-              <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white shadow-sm border border-gray-200 text-red-500">
-                <FaTicketAlt />
-              </span>
-              <span>My Bookings</span>
-            </h2>
-            <p
-              className="mt-1 text-sm"
-              style={{ color: PALETTE.textSubtle }}
-            >
-              View your upcoming and past trips, and download tickets anytime.
-            </p>
-          </div>
+      {/* Matte top bar - same style as ConfirmBooking */}
+      <div
+        className="sticky top-0 z-30"
+        style={{
+          background: PALETTE.primary,
+          paddingTop: "env(safe-area-inset-top)",
+        }}
+      >
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col gap-1">
+          <p className="text-white text-base font-semibold leading-tight">
+            My Bookings
+          </p>
+          <p className="text-white/90 text-xs">
+            View your upcoming and past trips, and download tickets anytime.
+          </p>
         </div>
+      </div>
 
-        {/* Content */}
+      {/* Page body */}
+      <div className="max-w-6xl mx-auto px-4 py-4 sm:py-6">
         {loading ? (
           <div className="space-y-4">
             <BookingCardSkeleton />
@@ -336,7 +332,7 @@ const MyBookings = () => {
                   </div>
                 </div>
 
-                {/* Extra chips (optional but matches other pages’ feel) */}
+                {/* Extra chips */}
                 <div className="mt-3 flex flex-wrap gap-1">
                   {booking.bus?.busType && <Chip label={booking.bus.busType} />}
                   {booking.bus?.features?.wifi && <Chip label="Wi-Fi" />}
