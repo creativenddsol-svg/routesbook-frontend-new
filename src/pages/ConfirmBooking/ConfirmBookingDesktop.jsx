@@ -167,70 +167,51 @@ const ConfirmBookingDesktop = ({
           </div>
 
           {/* timeline row: boarding → dropping + details */}
-          <div className="mt-4 flex flex-col sm:flex-row gap-4 text-sm">
-            {/* Left: time + vertical track */}
-            <div className="flex flex-row sm:flex-col items-center sm:items-center gap-3 sm:gap-2 min-w-[90px]">
-              {/* Departure time */}
-              <div className="text-left sm:text-center">
-                <p
-                  className="text-lg font-extrabold tabular-nums"
-                  style={{ color: PALETTE.text }}
-                >
-                  {selectedBoardingPoint?.time || departureTime}
-                </p>
-                <p
-                  className="text-[11px] uppercase tracking-wide"
-                  style={{ color: PALETTE.textSubtle }}
-                >
-                  Boarding
-                </p>
-              </div>
-
-              {/* Vertical connector */}
-              <div className="flex-1 flex items-center sm:flex-col">
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ background: PALETTE.text }}
-                />
-                <div className="h-px sm:w-px sm:h-16 flex-1 bg-gray-300 mx-2 sm:my-2" />
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ background: PALETTE.text }}
-                />
-              </div>
-
-              {/* Arrival time */}
-              <div className="text-left sm:text-center">
-                <p
-                  className="text-lg font-extrabold tabular-nums"
-                  style={{ color: PALETTE.text }}
-                >
-                  {selectedDroppingPoint?.time || "--:--"}
-                </p>
-                <p
-                  className="text-[11px] uppercase tracking-wide"
-                  style={{ color: PALETTE.textSubtle }}
-                >
-                  Dropping
-                </p>
-              </div>
+          <div className="mt-4 flex flex-row gap-4 text-sm">
+            {/* Left: vertical navigation line with dots */}
+            <div className="flex flex-col items-center pt-1 min-w-[24px]">
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ background: PALETTE.text }}
+              />
+              <div className="flex-1 w-px bg-gray-300 my-2" />
+              <div
+                className="w-2 h-2 rounded-full"
+                style={{ background: PALETTE.text }}
+              />
             </div>
 
-            {/* Right: boarding & dropping text blocks */}
+            {/* Right: boarding & dropping text with inline times */}
             <div className="flex-1 space-y-4">
               {/* Boarding block */}
               <div>
-                <Label>Boarding point</Label>
-                <p className="font-medium" style={{ color: PALETTE.text }}>
-                  {selectedBoardingPoint?.point || "-"}
+                <Label>Boarding</Label>
+                <p className="font-medium flex items-baseline gap-2">
+                  <span
+                    className="tabular-nums text-base font-semibold"
+                    style={{ color: PALETTE.text }}
+                  >
+                    {selectedBoardingPoint?.time || departureTime}
+                  </span>
+                  <span style={{ color: PALETTE.text }}>
+                    {selectedBoardingPoint?.point || "-"}
+                  </span>
                 </p>
               </div>
 
               {/* Dropping block */}
               <div>
-                <Label>Dropping point</Label>
-                <p className="font-medium" style={{ color: PALETTE.text }}>
-                  {selectedDroppingPoint?.point || "-"}
+                <Label>Dropping</Label>
+                <p className="font-medium flex items-baseline gap-2">
+                  <span
+                    className="tabular-nums text-base font-semibold"
+                    style={{ color: PALETTE.text }}
+                  >
+                    {selectedDroppingPoint?.time || "--:--"}
+                  </span>
+                  <span style={{ color: PALETTE.text }}>
+                    {selectedDroppingPoint?.point || "-"}
+                  </span>
                 </p>
                 {selectedDroppingPoint?.time ? (
                   <p
@@ -244,8 +225,6 @@ const ConfirmBookingDesktop = ({
                   </p>
                 ) : null}
               </div>
-
-              {/* ✅ Selected seats block removed from here */}
             </div>
           </div>
         </SectionCard>
