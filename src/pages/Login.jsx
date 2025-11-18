@@ -46,14 +46,6 @@ const startResendTimer = (key, seconds, setResendIn) => {
 };
 
 export default function Login() {
-  // —— page mode (phone first to match Signup)
-  const [mode, setMode] = useState("phone"); // "email" | "phone"
-
-  // —— email login state
-  const [formData, setFormData] = useState({ email: "", password: "" });
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-
   // —— phone login-or-signup (unified) state
   const [mobile, setMobile] = useState("");
   const [step, setStep] = useState("request"); // "request" | "verify"
@@ -61,6 +53,7 @@ export default function Login() {
   const [otpLoading, setOtpLoading] = useState(false);
   const [resendIn, setResendIn] = useState(0); // 45s default cooldown
   const [isExistingUser, setIsExistingUser] = useState(null); // null until request returns
+  const [error, setError] = useState("");
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -93,11 +86,6 @@ export default function Login() {
     }
   }, []);
 
-  // clear errors when switching modes
-  useEffect(() => {
-    setError("");
-  }, [mode]);
-
   // helper: route to redirect, passing confirm draft if needed
   const navigateWithConfirmDraftIfNeeded = () => {
     if (redirect && redirect.startsWith("/confirm-booking")) {
@@ -115,52 +103,6 @@ export default function Login() {
     }
     navigate(redirect, { replace: true });
     return false;
-  };
-
-  /* ================= EMAIL LOGIN ================= */
-  const handleChange = (e) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-  };
-
-  const handleEmailLogin = async (e) => {
-    e.preventDefault();
-    setError("");
-    setSubmitting(true);
-    try {
-      const res = await apiClient.post("/auth/login", formData);
-      const token = res?.data?.token || null;
-      const user = res?.data?.user;
-
-      if (token) localStorage.setItem("token", token);
-      else localStorage.removeItem("token");
-
-      login(user, token);
-      toast.success("Login successful!");
-
-      const pending = localStorage.getItem("pendingBooking");
-      if (pending) {
-        const { busId, date } = JSON.parse(pending);
-        localStorage.removeItem("pendingBooking");
-        navigate(`/book/${busId}?date=${date}`, { replace: true });
-        return;
-      }
-
-      const role = user?.role?.toString?.().toLowerCase?.() || "";
-      if (role === "admin") {
-        navigate("/", { replace: true });
-        return;
-      }
-
-      // 🔁 If returning to ConfirmBooking, pass draft state
-      navigateWithConfirmDraftIfNeeded();
-    } catch (err) {
-      const msg =
-        err?.response?.data?.message || err?.message || "Login failed";
-      setError(msg);
-      toast.error(msg);
-    } finally {
-      setSubmitting(false);
-    }
   };
 
   /* ============ PHONE: UNIFIED OTP (login or signup) ============ */
@@ -261,7 +203,7 @@ export default function Login() {
     await sendOtp();
   };
 
-  // ✅ NEW: allow changing the phone number during OTP verify
+  // ✅ allow changing the phone number during OTP verify
   const changeNumber = () => {
     // Clear state and timers so UI is fresh when user edits number
     setStep("request");
@@ -280,285 +222,182 @@ export default function Login() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-6">
           <SectionCard title="Sign in to Routesbook">
-            {/* Toggle (phone first to match Signup) */}
-            <div className="flex gap-2 mb-4">
-              <button
-                onClick={() => setMode("phone")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-                  mode === "phone" ? "text-white" : ""
-                }`}
-                style={{
-                  background: mode === "phone" ? PALETTE.primary : "#E5E7EB",
-                }}
-              >
-                Phone
-              </button>
-              <button
-                onClick={() => setMode("email")}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold ${
-                  mode === "email" ? "text-white" : ""
-                }`}
-                style={{
-                  background: mode === "email" ? PALETTE.primary : "#E5E7EB",
-                }}
-              >
-                Email
-              </button>
-            </div>
-
-            {/* EMAIL LOGIN (Google first) */}
-            {mode === "email" && (
-              <div className="text-[16px] md:text-base">
-                <GoogleSignInButton
-                  text="signin_with"
-                  size="large"
-                  shape="pill"
-                  theme="outline"
-                  onSuccess={() => {
-                    const pending = localStorage.getItem("pendingBooking");
-                    if (pending) {
-                      const { busId, date } = JSON.parse(pending);
-                      localStorage.removeItem("pendingBooking");
-                      navigate(`/book/${busId}?date=${date}`, {
+            {/* GOOGLE SIGN-IN (always visible) */}
+            <div className="mb-4 text-[16px] md:text-base">
+              <GoogleSignInButton
+                text="signin_with"
+                size="large"
+                shape="pill"
+                theme="outline"
+                onSuccess={() => {
+                  const pending = localStorage.getItem("pendingBooking");
+                  if (pending) {
+                    const { busId, date } = JSON.parse(pending);
+                    localStorage.removeItem("pendingBooking");
+                    navigate(`/book/${busId}?date=${date}`, {
+                      replace: true,
+                    });
+                    return;
+                  }
+                  // 🔁 If returning to ConfirmBooking, pass draft state
+                  if (redirect && redirect.startsWith("/confirm-booking")) {
+                    try {
+                      const raw = sessionStorage.getItem("rb_confirm_draft");
+                      const draft = raw ? JSON.parse(raw) : null;
+                      navigate("/confirm-booking", {
                         replace: true,
+                        state: draft || undefined,
                       });
                       return;
+                    } catch {
+                      // fall through
                     }
-                    // 🔁 If returning to ConfirmBooking, pass draft state
-                    if (redirect && redirect.startsWith("/confirm-booking")) {
-                      try {
-                        const raw = sessionStorage.getItem("rb_confirm_draft");
-                        const draft = raw ? JSON.parse(raw) : null;
-                        navigate("/confirm-booking", {
-                          replace: true,
-                          state: draft || undefined,
-                        });
-                        return;
-                      } catch {
-                        // fall through
-                      }
-                    }
-                    navigate(redirect, { replace: true });
-                  }}
-                />
+                  }
+                  navigate(redirect, { replace: true });
+                }}
+              />
+            </div>
 
-                {/* Divider */}
-                <div className="flex items-center my-4">
-                  <div className="h-px bg-gray-200 flex-1" />
-                  <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
-                    or
-                  </span>
-                  <div className="h-px bg-gray-200 flex-1" />
-                </div>
+            {/* Divider */}
+            <div className="flex items-center my-4">
+              <div className="h-px bg-gray-200 flex-1" />
+              <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
+                or
+              </span>
+              <div className="h-px bg-gray-200 flex-1" />
+            </div>
 
-                <form onSubmit={handleEmailLogin} className="space-y-4">
+            {/* PHONE: unified login-or-signup (no name field) */}
+            <div className="space-y-4 text-[16px] md:text-base">
+              {step === "request" && (
+                <form onSubmit={sendOtp} className="space-y-4">
                   <RowInput
-                    id="email"
-                    name="email"
-                    label="Email"
-                    type="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    autoComplete="email"
-                    inputMode="email"
-                    enterKeyHint="next"
-                    placeholder="you@email.com"
+                    id="mobile"
+                    name="mobile"
+                    label="Mobile number"
+                    type="tel"
+                    inputMode="tel"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                    placeholder="077xxxxxxx or +9477xxxxxxx"
                     required
                   />
 
-                  <RowInput
-                    id="password"
-                    name="password"
-                    label="Password"
-                    type="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    autoComplete="current-password"
-                    enterKeyHint="done"
-                    placeholder="••••••••"
-                    required
-                  />
+                  <button
+                    type="submit"
+                    disabled={otpLoading || !isValidLKMobile(mobile)}
+                    className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
+                    style={{ background: PALETTE.primary }}
+                  >
+                    {otpLoading ? "Sending…" : "Send OTP"}
+                  </button>
+                </form>
+              )}
 
-                  <div className="flex items-center justify-between">
-                    <div />
-                    <Link
-                      to="/forgot-password"
+              {step === "verify" && (
+                <form onSubmit={verifyOtp} className="space-y-4">
+                  {/* ✅ Show where we sent the code + Change number action */}
+                  <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
+                    <div className="text-sm">
+                      <div className="font-semibold text-gray-800">
+                        Code sent to
+                      </div>
+                      <div className="text-gray-700">
+                        {normalizeLkMobile(mobile) || "—"}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={changeNumber}
                       className="text-sm font-semibold hover:underline"
                       style={{ color: PALETTE.primary }}
                     >
-                      Forgot password?
-                    </Link>
+                      Change number
+                    </button>
+                  </div>
+
+                  <RowInput
+                    id="code"
+                    name="code"
+                    label="Enter 6-digit code"
+                    type="text"
+                    value={code}
+                    onChange={(e) =>
+                      setCode(e.target.value.replace(/[^\d]/g, ""))
+                    }
+                    maxLength={6}
+                    inputMode="numeric"
+                    placeholder="••••••"
+                    required
+                  />
+
+                  <div className="text-sm" style={{ color: PALETTE.subtle }}>
+                    Didn’t get it?{" "}
+                    <button
+                      type="button"
+                      onClick={resend}
+                      disabled={otpLoading || resendIn > 0}
+                      className="font-semibold hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
+                      style={{ color: PALETTE.primary }}
+                    >
+                      {resendIn > 0
+                        ? `Resend in ${resendIn}s`
+                        : "Resend now"}
+                    </button>
                   </div>
 
                   <button
                     type="submit"
-                    disabled={submitting}
+                    disabled={otpLoading}
                     className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{ background: PALETTE.primary }}
                   >
-                    {submitting ? "Logging in..." : "Log In"}
+                    {otpLoading ? "Verifying…" : "Verify & Continue"}
                   </button>
 
-                  {error && (
+                  {isExistingUser === false && (
                     <p
-                      className="text-sm mt-2 font-semibold"
-                      style={{ color: "#B91C1C" }}
+                      className="text-xs mt-1"
+                      style={{ color: PALETTE.subtle }}
                     >
-                      {error}
+                      We’ll create your account after verification.
                     </p>
                   )}
-
-                  <p
-                    className="mt-4 text-sm text-center"
-                    style={{ color: PALETTE.subtle }}
-                  >
-                    Don’t have an account?{" "}
-                    <Link
-                      to="/signup"
-                      className="font-semibold hover:underline"
-                      style={{ color: PALETTE.primary }}
-                    >
-                      Create an account
-                    </Link>
-                  </p>
                 </form>
-              </div>
-            )}
+              )}
 
-            {/* PHONE: unified login-or-signup (no name field) */}
-            {mode === "phone" && (
-              <div className="space-y-4 text-[16px] md:text-base">
-                {step === "request" && (
-                  <form onSubmit={sendOtp} className="space-y-4">
-                    <RowInput
-                      id="mobile"
-                      name="mobile"
-                      label="Mobile number"
-                      type="tel"
-                      inputMode="tel"
-                      value={mobile}
-                      onChange={(e) => setMobile(e.target.value)}
-                      placeholder="077xxxxxxx or +9477xxxxxxx"
-                      required
-                    />
-
-                    <button
-                      type="submit"
-                      disabled={otpLoading || !isValidLKMobile(mobile)}
-                      className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-                      style={{ background: PALETTE.primary }}
-                    >
-                      {otpLoading ? "Sending…" : "Send OTP"}
-                    </button>
-                  </form>
-                )}
-
-                {step === "verify" && (
-                  <form onSubmit={verifyOtp} className="space-y-4">
-                    {/* ✅ Show where we sent the code + Change number action */}
-                    <div className="flex items-start justify-between rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
-                      <div className="text-sm">
-                        <div className="font-semibold text-gray-800">
-                          Code sent to
-                        </div>
-                        <div className="text-gray-700">
-                          {normalizeLkMobile(mobile) || "—"}
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={changeNumber}
-                        className="text-sm font-semibold hover:underline"
-                        style={{ color: PALETTE.primary }}
-                      >
-                        Change number
-                      </button>
-                    </div>
-
-                    <RowInput
-                      id="code"
-                      name="code"
-                      label="Enter 6-digit code"
-                      type="text"
-                      value={code}
-                      onChange={(e) =>
-                        setCode(e.target.value.replace(/[^\d]/g, ""))
-                      }
-                      maxLength={6}
-                      inputMode="numeric"
-                      placeholder="••••••"
-                      required
-                    />
-
-                    <div className="text-sm" style={{ color: PALETTE.subtle }}>
-                      Didn’t get it?{" "}
-                      <button
-                        type="button"
-                        onClick={resend}
-                        disabled={otpLoading || resendIn > 0}
-                        className="font-semibold hover:underline disabled:opacity-60 disabled:cursor-not-allowed"
-                        style={{ color: PALETTE.primary }}
-                      >
-                        {resendIn > 0
-                          ? `Resend in ${resendIn}s`
-                          : "Resend now"}
-                      </button>
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={otpLoading}
-                      className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
-                      style={{ background: PALETTE.primary }}
-                    >
-                      {otpLoading ? "Verifying…" : "Verify & Continue"}
-                    </button>
-
-                    {isExistingUser === false && (
-                      <p
-                        className="text-xs mt-1"
-                        style={{ color: PALETTE.subtle }}
-                      >
-                        We’ll create your account after verification.
-                      </p>
-                    )}
-                  </form>
-                )}
-
-                {error && (
-                  <p
-                    className="text-sm mt-2 font-semibold"
-                    style={{ color: "#B91C1C" }}
-                  >
-                    {error}
-                  </p>
-                )}
-
+              {error && (
                 <p
-                  className="mt-4 text-sm text-center"
-                  style={{ color: PALETTE.subtle }}
+                  className="text-sm mt-2 font-semibold"
+                  style={{ color: "#B91C1C" }}
                 >
-                  Prefer email?{" "}
-                  <button
-                    type="button"
-                    onClick={() => setMode("email")}
-                    className="font-semibold hover:underline"
-                    style={{ color: PALETTE.primary }}
-                  >
-                    Login with email
-                  </button>
+                  {error}
                 </p>
-              </div>
-            )}
+              )}
+
+              <p
+                className="mt-4 text-sm text-center"
+                style={{ color: PALETTE.subtle }}
+              >
+                Don’t have an account?{" "}
+                <Link
+                  to="/signup"
+                  className="font-semibold hover:underline"
+                  style={{ color: PALETTE.primary }}
+                >
+                  Create an account
+                </Link>
+              </p>
+            </div>
           </SectionCard>
 
           {/* Right column: optional helper / marketing block */}
           <div className="hidden md:block">
             <SectionCard title="Welcome back 👋">
               <p className="text-sm" style={{ color: PALETTE.subtle }}>
-                Use email & password, Google, or your mobile number with a
-                6-digit OTP. If it’s your first time with phone, we’ll create
-                your account right after verification.
+                Use Google or your mobile number with a 6-digit OTP. If it’s
+                your first time with phone, we’ll create your account right
+                after verification.
               </p>
             </SectionCard>
           </div>
