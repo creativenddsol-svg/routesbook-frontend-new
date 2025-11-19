@@ -40,13 +40,13 @@ export default function AdminLogin() {
         password: formData.password,
       };
 
-      const res = await apiClient.post("/auth/login", payload);
+      // ✅ Use dedicated admin auth endpoint
+      const res = await apiClient.post("/admin/auth/login", payload);
 
       const token = res?.data?.token || res?.data?.accessToken || null;
       const user = res?.data?.user;
 
-      const role =
-        user?.role?.toString?.().toLowerCase?.() || "";
+      const role = user?.role?.toString?.().toLowerCase?.() || "";
 
       // ✅ Only allow admin / superadmin roles in this UI
       if (role !== "admin" && role !== "superadmin") {
@@ -84,10 +84,7 @@ export default function AdminLogin() {
 
       <div className="max-w-xl mx-auto px-4 py-8">
         <SectionCard title="Routesbook Admin Login">
-          <p
-            className="text-sm mb-4"
-            style={{ color: PALETTE.subtle }}
-          >
+          <p className="text-sm mb-4" style={{ color: PALETTE.subtle }}>
             This page is for Routesbook staff only. Passengers should use the
             main login page.
           </p>
