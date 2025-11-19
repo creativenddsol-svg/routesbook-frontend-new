@@ -329,20 +329,6 @@ export default function Login() {
                   {error}
                 </p>
               )}
-
-              <p
-                className="mt-4 text-sm text-center"
-                style={{ color: PALETTE.subtle }}
-              >
-                Don’t have an account?{" "}
-                <Link
-                  to="/signup"
-                  className="font-semibold hover:underline"
-                  style={{ color: PALETTE.primary }}
-                >
-                  Create an account
-                </Link>
-              </p>
             </div>
 
             {/* Divider */}
