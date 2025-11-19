@@ -42,6 +42,7 @@ import AdminNotices from "./pages/AdminNotices"; // ✅ ADDED
 import AdminWhatsNew from "./pages/AdminWhatsNew"; // ✅ ADDED
 import AdminHolidays from "./pages/AdminHolidays"; // ✅ NEW
 import AdminArrivalsToday from "./pages/AdminArrivalsToday"; // ✅ NEW
+import AdminLogin from "./pages/AdminLogin"; // ✅ NEW
 
 /* ───── Operator Pages ──── */
 import OperatorDashboard from "./pages/OperatorDashboard";
@@ -75,6 +76,7 @@ const App = () => (
           <Route path="/operators" element={<AllOperators />} />
           <Route path="/operators/:id" element={<OperatorProfile />} />
           <Route path="/whats-new" element={<WhatsNew />} /> {/* ✅ ADDED */}
+          <Route path="/admin/login" element={<AdminLogin />} /> {/* ✅ NEW */}
 
           {/* ───── USER PROTECTED ROUTES ───── */}
           <Route
