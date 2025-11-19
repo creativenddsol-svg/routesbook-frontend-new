@@ -65,8 +65,8 @@ export default function AdminLogin() {
       login(user, token);
 
       toast.success("Admin login successful");
-      // You can change this route if your admin home is different
-      navigate("/admin/buses", { replace: true });
+      // ✅ Redirect to Admin Dashboard (not bus list)
+      navigate("/admin", { replace: true });
     } catch (err) {
       const msg =
         err?.response?.data?.message || err?.message || "Login failed";
