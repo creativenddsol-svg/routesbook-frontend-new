@@ -204,7 +204,7 @@ export default function Signup() {
 
                   <button
                     type="submit"
-                    disabled[otpLoading || !isValidLKMobile(mobile)]
+                    disabled={otpLoading || !isValidLKMobile(mobile)}
                     className="w-full px-6 py-3 rounded-xl text-white font-semibold shadow-sm transition disabled:opacity-60 disabled:cursor-not-allowed"
                     style={{ background: PALETTE.primary }}
                   >
