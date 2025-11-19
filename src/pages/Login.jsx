@@ -222,51 +222,6 @@ export default function Login() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <div className="grid md:grid-cols-2 gap-6">
           <SectionCard title="Sign in to Routesbook">
-            {/* GOOGLE SIGN-IN (always visible) */}
-            <div className="mb-4 text-[16px] md:text-base">
-              <GoogleSignInButton
-                text="signin_with"
-                size="large"
-                shape="pill"
-                theme="outline"
-                onSuccess={() => {
-                  const pending = localStorage.getItem("pendingBooking");
-                  if (pending) {
-                    const { busId, date } = JSON.parse(pending);
-                    localStorage.removeItem("pendingBooking");
-                    navigate(`/book/${busId}?date=${date}`, {
-                      replace: true,
-                    });
-                    return;
-                  }
-                  // 🔁 If returning to ConfirmBooking, pass draft state
-                  if (redirect && redirect.startsWith("/confirm-booking")) {
-                    try {
-                      const raw = sessionStorage.getItem("rb_confirm_draft");
-                      const draft = raw ? JSON.parse(raw) : null;
-                      navigate("/confirm-booking", {
-                        replace: true,
-                        state: draft || undefined,
-                      });
-                      return;
-                    } catch {
-                      // fall through
-                    }
-                  }
-                  navigate(redirect, { replace: true });
-                }}
-              />
-            </div>
-
-            {/* Divider */}
-            <div className="flex items-center my-4">
-              <div className="h-px bg-gray-200 flex-1" />
-              <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
-                or
-              </span>
-              <div className="h-px bg-gray-200 flex-1" />
-            </div>
-
             {/* PHONE: unified login-or-signup (no name field) */}
             <div className="space-y-4 text-[16px] md:text-base">
               {step === "request" && (
@@ -388,6 +343,51 @@ export default function Login() {
                   Create an account
                 </Link>
               </p>
+            </div>
+
+            {/* Divider */}
+            <div className="flex items-center my-4">
+              <div className="h-px bg-gray-200 flex-1" />
+              <span className="px-3 text-xs uppercase tracking-wide text-gray-400">
+                or
+              </span>
+              <div className="h-px bg-gray-200 flex-1" />
+            </div>
+
+            {/* GOOGLE SIGN-IN (always visible) */}
+            <div className="mb-4 text-[16px] md:text-base">
+              <GoogleSignInButton
+                text="signin_with"
+                size="large"
+                shape="pill"
+                theme="outline"
+                onSuccess={() => {
+                  const pending = localStorage.getItem("pendingBooking");
+                  if (pending) {
+                    const { busId, date } = JSON.parse(pending);
+                    localStorage.removeItem("pendingBooking");
+                    navigate(`/book/${busId}?date=${date}`, {
+                      replace: true,
+                    });
+                    return;
+                  }
+                  // 🔁 If returning to ConfirmBooking, pass draft state
+                  if (redirect && redirect.startsWith("/confirm-booking")) {
+                    try {
+                      const raw = sessionStorage.getItem("rb_confirm_draft");
+                      const draft = raw ? JSON.parse(raw) : null;
+                      navigate("/confirm-booking", {
+                        replace: true,
+                        state: draft || undefined,
+                      });
+                      return;
+                    } catch {
+                      // fall through
+                    }
+                  }
+                  navigate(redirect, { replace: true });
+                }}
+              />
             </div>
           </SectionCard>
 
