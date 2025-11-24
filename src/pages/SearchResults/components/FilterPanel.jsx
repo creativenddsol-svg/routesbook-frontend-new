@@ -1,7 +1,7 @@
 // src/pages/SearchResults/components/FilterPanel.jsx
 // Reference image (RedBus filter): /mnt/data/WhatsApp Image 2025-11-24 at 23.09.21_c5fae017.jpg
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaSlidersH, FaTimes, FaSyncAlt } from "react-icons/fa";
 import { useSearchCore, PALETTE, TIME_SLOTS } from "../_core";
 
@@ -15,6 +15,16 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
   } = useSearchCore();
 
   const [activeTab, setActiveTab] = useState("Sort by");
+
+  // Fix: Lock background scroll when mobile modal is open
+  useEffect(() => {
+    if (isMobile) {
+      document.body.style.overflow = "hidden";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [isMobile]);
 
   const LEFT_TABS = [
     "Sort by",
@@ -148,11 +158,12 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
   };
 
   // Panel body - Split View Layout (Gray Left, White Right)
+  // Fix: Added overflow handling here to work within the fixed height modal
   const PanelBody = () => (
-    <div className="flex flex-row h-full min-h-[400px]">
+    <div className="flex flex-row h-full">
       {/* Left Nav (Gray Background) */}
       <nav className="w-[38%] bg-gray-100 overflow-y-auto hide-scrollbar">
-        <ul className="pb-20"> {/* Padding bottom for scrolling clearance */}
+        <ul className="pb-24"> {/* Extra padding for bottom clearance */}
           {LEFT_TABS.map((t) => (
             <li
               key={t}
@@ -181,29 +192,37 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
       {/* Right Content (White Background) */}
       <div className="flex-1 bg-white p-5 overflow-y-auto">
-        <RightContent />
+        <div className="pb-24"> {/* Extra padding so content isn't hidden by footer */}
+            <RightContent />
+        </div>
       </div>
     </div>
   );
 
   // Mobile bottom-sheet modal
   const MobileSheet = () => (
+    // Fix: z-[9999] ensures it covers the sticky header
     <div
-      className="fixed inset-0 z-50 flex items-end"
+      className="fixed inset-0 z-[9999] flex items-end"
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="absolute inset-0 bg-black/50 transition-opacity"
+        className="absolute inset-0 bg-black/60 transition-opacity"
         onClick={() => setIsFilterOpen(false)}
       />
 
+      {/* Fix: Flex col and fixed height to ensure footer visibility */}
       <div
-        className="relative w-full h-[85vh] bg-white rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
-        style={{ borderTopLeftRadius: 20, borderTopRightRadius: 20 }}
+        className="relative w-full bg-white rounded-t-2xl shadow-2xl flex flex-col overflow-hidden"
+        style={{ 
+            height: "85vh", // Fixed height
+            borderTopLeftRadius: 20, 
+            borderTopRightRadius: 20 
+        }}
       >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-white z-10">
+        {/* Header - Fixed */}
+        <div className="flex items-center justify-between p-4 border-b bg-white z-10 shrink-0">
           <h3 className="text-lg font-bold text-gray-900">{headerText}</h3>
           <button
             onClick={() => setIsFilterOpen(false)}
@@ -213,13 +232,13 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </button>
         </div>
 
-        {/* Content Area */}
-        <div className="flex-1 overflow-hidden relative">
+        {/* Content Area - Scrollable */}
+        <div className="flex-1 overflow-hidden relative min-h-0">
           <PanelBody />
         </div>
 
-        {/* Footer Actions (Pill Buttons) */}
-        <div className="p-4 bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-10">
+        {/* Footer Actions - Fixed at Bottom */}
+        <div className="p-4 bg-white border-t shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] z-20 shrink-0">
           <div className="flex gap-4">
             <button
               onClick={() => {
@@ -249,7 +268,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
     <>
       {/* Mobile Quick Filters Bar */}
       {isMobile && (
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar px-3 py-2 border-b bg-white sticky top-0 z-20">
+        <div className="flex gap-2 overflow-x-auto hide-scrollbar px-3 py-2 border-b bg-white sticky top-0 z-40">
           <button
             onClick={() => setIsFilterOpen(true)}
             className={`flex items-center gap-1 px-3 py-2 text-sm font-medium border rounded-md whitespace-nowrap ${
@@ -305,9 +324,9 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
       {/* Desktop Panel Implementation */}
       <div className="hidden lg:block p-6">
-        <div className="bg-white border rounded-lg shadow-sm overflow-hidden">
+        <div className="bg-white border rounded-lg shadow-sm overflow-hidden h-[600px] flex flex-col">
           {/* Desktop Header */}
-          <div className="flex items-center justify-between p-5 border-b">
+          <div className="flex items-center justify-between p-5 border-b shrink-0">
             <h3 className="text-xl font-bold flex items-center gap-3 text-gray-800">
               <FaSlidersH className="text-gray-500" /> {headerText}
             </h3>
@@ -330,8 +349,11 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
               </button>
             </div>
           </div>
-
-          <PanelBody />
+            
+          {/* Desktop Content */}
+          <div className="flex-1 overflow-hidden">
+             <PanelBody />
+          </div>
         </div>
       </div>
 
