@@ -632,6 +632,7 @@ const CustomMenu = (menuKey) => {
 };
 
 /* ---------------- Mobile full-page city picker ---------------- */
+/* ---------------- Mobile full-page city picker (improved) ---------------- */
 const MobileCityPicker = ({
   open,
   mode, // 'from' | 'to'
@@ -648,6 +649,26 @@ const MobileCityPicker = ({
       : all.filter((c) =>
           c.toLowerCase().includes(q.trim().toLowerCase())
         );
+
+  const contentRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // autofocus when opened
+  useEffect(() => {
+    if (open && inputRef.current) {
+      // small timeout so keyboard opens reliably on mobile
+      setTimeout(() => inputRef.current.focus(), 50);
+    } else {
+      setQ("");
+    }
+  }, [open]);
+
+  // scroll to top when query changes so matches are visible
+  useEffect(() => {
+    if (contentRef.current) {
+      contentRef.current.scrollTop = 0;
+    }
+  }, [q]);
 
   if (!open) return null;
 
@@ -673,6 +694,7 @@ const MobileCityPicker = ({
       {/* Search bar */}
       <div className="px-4 py-3 border-b">
         <input
+          ref={inputRef}
           value={q}
           onChange={(e) => setQ(e.target.value)}
           placeholder="Search city"
@@ -687,9 +709,32 @@ const MobileCityPicker = ({
         />
       </div>
 
-      {/* Content scroll */}
-      <div className="flex-1 overflow-y-auto">
-        {/* Recent searches */}
+      {/* Content scroll (put Matching/All first) */}
+      <div ref={contentRef} className="flex-1 overflow-y-auto">
+        {/* Matching / All cities (top) */}
+        <div className="px-4 pt-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
+            {q ? "Matching Cities" : "All Cities"}
+          </div>
+
+          {filtered.length === 0 ? (
+            <div className="text-sm text-gray-400 px-4 pb-4">No matching cities</div>
+          ) : (
+            <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
+              {filtered.map((c) => (
+                <button
+                  key={c}
+                  className="w-full text-left px-3 py-3 active:bg-gray-50"
+                  onClick={() => onPick(c)}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Recent searches (moved below) */}
         <div className="px-4 pt-4">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2 flex items-center gap-2">
             <FaClock className="opacity-70" />
@@ -717,8 +762,8 @@ const MobileCityPicker = ({
           )}
         </div>
 
-        {/* Popular Cities */}
-        <div className="px-4 pt-2">
+        {/* Popular Cities (below) */}
+        <div className="px-4 pt-2 pb-6">
           <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
             Popular Cities
           </div>
@@ -734,24 +779,6 @@ const MobileCityPicker = ({
             ))}
           </div>
         </div>
-
-        {/* All cities (filtered) */}
-        <div className="px-4 pb-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-            {q ? "Matching Cities" : "All Cities"}
-          </div>
-          <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
-            {filtered.map((c) => (
-              <button
-                key={c}
-                className="w-full text-left px-3 py-3 active:bg-gray-50"
-                onClick={() => onPick(c)}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Safe area bottom */}
@@ -759,6 +786,7 @@ const MobileCityPicker = ({
     </div>
   );
 };
+
 
 /* ---------------- Data (unchanged) ---------------- */
 const whyChooseUsData = [
