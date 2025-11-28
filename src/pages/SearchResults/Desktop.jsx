@@ -921,7 +921,7 @@ export default function Desktop() {
           <div className="grid grid-cols-1 lg:grid-cols-4 lg:gap-8 items-start">
             {/* Sidebar filters (desktop) */}
             <aside
-              className="hidden lg:block lg:col-span-1 bg-white rounded-2xl p-6 border border-gray-300 sticky"
+              className="hidden lg:block lg:col-span-1 sticky"
               style={{ top: `${filterPanelTopOffset}px`, zIndex: 20 }}
             >
               <FilterPanel
