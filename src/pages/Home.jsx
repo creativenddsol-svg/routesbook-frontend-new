@@ -1330,6 +1330,7 @@ const Home = () => {
                 </div>
 
                 {/* SWAP BUTTON */}
+                              
                 <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-10">
                   <motion.button
                     whileTap={{ scale: 0.9, rotate: 180 }}
@@ -1344,6 +1345,7 @@ const Home = () => {
                     />
                   </motion.button>
                 </div>
+
               </div>
 
               {/* DATE (Mobile) */}
