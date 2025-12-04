@@ -248,10 +248,11 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
       {/* 🔥🔥🔥 FIX 1: Removed the TOP FILTER CHIPS BAR COMPLETELY */}
 
       {/* Main sheet content – Redbus style */}
-      <div className="flex flex-col h-full overflow-hidden">
+      {/* ✅ Only change here: added min-h-screen */}
+      <div className="flex flex-col h-full min-h-screen overflow-hidden">
         {/* Header */}
         <div
-          className="flex items-center justify-between px-4 py-3 border-b"
+          className="flex itemscenter justify-between px-4 py-3 border-b"
           style={{ borderColor: PALETTE.borderLight }}
         >
           <h3
