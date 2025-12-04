@@ -1,6 +1,6 @@
 // FINAL FIXED VERSION – ONLY TWO CHANGES DONE:
 // 1) REMOVED TOP CHIP BAR
-// 2) FIXED BOTTOM BUTTON VISIBILITY (added overflow-hidden)
+// 2) FIXED BOTTOM BUTTON VISIBILITY (added fullscreen wrapper)
 
 import React, { useState, useMemo } from "react";
 import { FaSlidersH, FaTimes, FaSyncAlt } from "react-icons/fa";
@@ -28,7 +28,6 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
   const resetText =
     activeFilterCount > 0 ? `Reset (${activeFilterCount})` : "Reset";
 
-  // Derive simple boarding / dropping lists from current buses (best-effort, safe)
   const boardingOptions = useMemo(() => {
     const set = new Set();
     (sortedBuses || []).forEach((bus) => {
@@ -65,7 +64,6 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
     return Array.from(set);
   }, [sortedBuses]);
 
-  // Helpers to render radio-style rows (used in mobile panel)
   const RadioRow = ({ label, checked, onClick }) => (
     <button
       type="button"
@@ -90,7 +88,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
     </button>
   );
 
-  // ------------- DESKTOP VERSION (unchanged logic) -------------
+  // ---------------- DESKTOP VERSION ----------------
   if (!isMobile) {
     return (
       <div className="p-6 space-y-8">
@@ -106,6 +104,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
             <FaSlidersH style={{ color: PALETTE.accentBlue }} />
             {headerText}
           </h3>
+
           <button
             onClick={resetFilters}
             className={`text-sm font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors hover:bg-red-50 ${
@@ -120,7 +119,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </button>
         </div>
 
-        {/* Sort by (desktop keeps full set) */}
+        {/* Sort */}
         <section>
           <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
             Sort by
@@ -128,7 +127,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value)}
-            className="w-full border-2 rounded-lg px-3 py-2 text-sm transition-all focus:border-blue-500 focus:ring-0"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
             style={{
               borderColor: PALETTE.borderLight,
               color: PALETTE.textDark,
@@ -152,7 +151,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
                 key={slot}
                 type="button"
                 onClick={() => handleTimeSlotFilter(slot)}
-                className={`px-2 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
+                className={`px-2 py-2 text-sm font-semibold rounded-lg border-2 ${
                   filters.timeSlots[slot]
                     ? "text-white border-blue-500"
                     : "border-gray-200"
@@ -172,7 +171,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </div>
         </section>
 
-        {/* Bus type */}
+        {/* Bus Type */}
         <section>
           <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
             Bus Type
@@ -182,7 +181,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
             onChange={(e) =>
               setFilters((prev) => ({ ...prev, type: e.target.value }))
             }
-            className="w-full border-2 rounded-lg px-3 py-2 text-sm transition-all focus:border-blue-500 focus:ring-0"
+            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
             style={{
               borderColor: PALETTE.borderLight,
               color: PALETTE.textDark,
@@ -194,14 +193,14 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </select>
         </section>
 
-        {/* Max price slider */}
+        {/* Max price */}
         <section>
           <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
             Max Price
           </h4>
           <input
             type="range"
-            className="w-full h-2 rounded-lg appearance-none cursor-pointer"
+            className="w-full h-2 rounded-lg"
             style={{
               backgroundColor: PALETTE.borderLight,
               accentColor: PALETTE.primaryRed,
@@ -217,10 +216,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
               }))
             }
           />
-          <div
-            className="text-sm mt-2 text-center font-medium"
-            style={{ color: PALETTE.textLight }}
-          >
+          <div className="text-sm mt-2 text-center font-medium">
             Up to{" "}
             <span className="font-bold" style={{ color: PALETTE.primaryRed }}>
               Rs. {filters.maxPrice}
@@ -231,7 +227,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
     );
   }
 
-  // ------------- MOBILE REDBUS-LIKE PANEL -------------
+  // ---------------- MOBILE VERSION ----------------
   const mobileSections = [
     { key: "sort", label: "Sort by" },
     { key: "departure", label: "Departure time" },
@@ -245,11 +241,8 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
   return (
     <>
-      {/* 🔥🔥🔥 FIX 1: Removed the TOP FILTER CHIPS BAR COMPLETELY */}
-
-      {/* Main sheet content – Redbus style */}
-      {/* ✅ Only change here: added min-h-screen */}
-      <div className="flex flex-col h-full min-h-screen overflow-hidden">
+      {/* FULLSCREEN FIXED WRAPPER (required for bottom buttons) */}
+      <div className="fixed inset-0 z-50 flex flex-col bg-white h-screen overflow-hidden">
         {/* Header */}
         <div
           className="flex itemscenter justify-between px-4 py-3 border-b"
@@ -270,9 +263,9 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </button>
         </div>
 
-        {/* Body: left menu + right content */}
+        {/* Body */}
         <div className="flex flex-1 overflow-hidden">
-          {/* Left vertical menu */}
+          {/* Left menu */}
           <div className="w-36 bg-gray-50 border-r overflow-y-auto">
             {mobileSections.map((sec) => (
               <button
@@ -312,17 +305,14 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
             {activeSection === "departure" && (
               <div className="space-y-2">
-                {Object.keys(TIME_SLOTS).map((slot) => {
-                  const active = !!filters.timeSlots[slot];
-                  return (
-                    <RadioRow
-                      key={slot}
-                      label={slot}
-                      checked={active}
-                      onClick={() => handleTimeSlotFilter(slot)}
-                    />
-                  );
-                })}
+                {Object.keys(TIME_SLOTS).map((slot) => (
+                  <RadioRow
+                    key={slot}
+                    label={slot}
+                    checked={!!filters.timeSlots[slot]}
+                    onClick={() => handleTimeSlotFilter(slot)}
+                  />
+                ))}
               </div>
             )}
 
@@ -380,6 +370,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
                         }))
                       }
                     />
+
                     {boardingOptions.map((label) => (
                       <RadioRow
                         key={label}
@@ -417,6 +408,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
                         }))
                       }
                     />
+
                     {droppingOptions.map((label) => (
                       <RadioRow
                         key={label}
@@ -437,7 +429,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </div>
         </div>
 
-        {/* 🔥🔥🔥 FIX 2: Bottom action buttons - visible always */}
+        {/* Bottom Buttons */}
         <div
           className="px-4 py-3 border-t bg-white flex gap-3"
           style={{ borderColor: PALETTE.borderLight }}
@@ -454,6 +446,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           >
             Clear all
           </button>
+
           <button
             type="button"
             onClick={() => setIsFilterOpen(false)}
