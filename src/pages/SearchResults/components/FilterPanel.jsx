@@ -1,5 +1,5 @@
 // src/pages/SearchResults/components/FilterPanel.jsx
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { FaSlidersH, FaTimes, FaSyncAlt } from "react-icons/fa";
 import { useSearchCore, PALETTE, TIME_SLOTS } from "../_core";
 
@@ -13,128 +13,111 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
     setIsFilterOpen,
   } = useSearchCore();
 
+  const [activeSection, setActiveSection] = useState("sort");
+
   const handleTimeSlotFilter = (slot) =>
     setFilters((prev) => ({
       ...prev,
       timeSlots: { ...prev.timeSlots, [slot]: !prev.timeSlots[slot] },
     }));
 
-  const headerText = isMobile ? "Filter & Sort" : "Filters";
+  const headerText = isMobile ? "Sort and filter buses" : "Filters";
   const resetText =
     activeFilterCount > 0 ? `Reset (${activeFilterCount})` : "Reset";
 
-  return (
-    <>
-      {/* ✅ Mobile horizontal filter bar */}
-      {isMobile && (
-        <div className="flex gap-2 overflow-x-auto hide-scrollbar px-3 py-2 border-b bg-white">
-          {/* Filter & Sort button */}
-          <button
-            onClick={() => setIsFilterOpen(true)}
-            className={`flex items-center gap-1 px-3 py-2 text-sm font-medium border rounded-md whitespace-nowrap ${
-              activeFilterCount > 0
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-gray-300 text-gray-700"
-            }`}
-          >
-            <FaSlidersH /> Filter & Sort
-            {activeFilterCount > 0 && (
-              <span className="ml-1 text-xs text-blue-600">
-                ({activeFilterCount})
-              </span>
-            )}
-          </button>
+  // Derive simple boarding / dropping lists from current buses (best-effort, safe)
+  const boardingOptions = useMemo(() => {
+    const set = new Set();
+    (sortedBuses || []).forEach((bus) => {
+      const raw =
+        Array.isArray(bus?.boardingPoints) && bus.boardingPoints.length
+          ? bus.boardingPoints
+          : Array.isArray(bus?.boardingPointList)
+          ? bus.boardingPointList
+          : [];
+      raw.forEach((p) => {
+        const label =
+          typeof p === "string" ? p : p?.name || p?.point || p?.label || "";
+        if (label) set.add(label);
+      });
+    });
+    return Array.from(set);
+  }, [sortedBuses]);
 
-          {/* Time slots as flat chips */}
-          {Object.keys(TIME_SLOTS).map((slot) => (
-            <button
-              key={slot}
-              onClick={() => handleTimeSlotFilter(slot)}
-              className={`px-3 py-2 text-sm font-medium border rounded-md whitespace-nowrap ${
-                filters.timeSlots[slot]
-                  ? "border-blue-600 text-blue-600 font-semibold"
-                  : "border-gray-300 text-gray-700"
-              }`}
-            >
-              {slot}
-            </button>
-          ))}
+  const droppingOptions = useMemo(() => {
+    const set = new Set();
+    (sortedBuses || []).forEach((bus) => {
+      const raw =
+        Array.isArray(bus?.droppingPoints) && bus.droppingPoints.length
+          ? bus.droppingPoints
+          : Array.isArray(bus?.droppingPointList)
+          ? bus.droppingPointList
+          : [];
+      raw.forEach((p) => {
+        const label =
+          typeof p === "string" ? p : p?.name || p?.point || p?.label || "";
+        if (label) set.add(label);
+      });
+    });
+    return Array.from(set);
+  }, [sortedBuses]);
 
-          {/* Bus Type chips */}
-          <button
-            onClick={() =>
-              setFilters((prev) => ({
-                ...prev,
-                type: prev.type === "AC" ? "" : "AC",
-              }))
-            }
-            className={`px-3 py-2 text-sm font-medium border rounded-md whitespace-nowrap ${
-              filters.type === "AC"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-gray-300 text-gray-700"
-            }`}
-          >
-            AC
-          </button>
-          <button
-            onClick={() =>
-              setFilters((prev) => ({
-                ...prev,
-                type: prev.type === "Non-AC" ? "" : "Non-AC",
-              }))
-            }
-            className={`px-3 py-2 text-sm font-medium border rounded-md whitespace-nowrap ${
-              filters.type === "Non-AC"
-                ? "border-blue-600 text-blue-600 font-semibold"
-                : "border-gray-300 text-gray-700"
-            }`}
-          >
-            Non-AC
-          </button>
-        </div>
-      )}
+  // Helpers to render radio-style rows (used in mobile panel)
+  const RadioRow = ({ label, checked, onClick }) => (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full flex items-center justify-between px-3 py-3 rounded-xl border text-sm mb-2 ${
+        checked ? "border-[#D84E55] bg-[#FFF1F2]" : "border-gray-200 bg-white"
+      }`}
+    >
+      <span className="text-gray-800 text-[14px] text-left">{label}</span>
+      <span
+        className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+          checked ? "border-[#D84E55]" : "border-gray-300"
+        }`}
+      >
+        {checked && (
+          <span
+            className="w-2.5 h-2.5 rounded-full"
+            style={{ backgroundColor: PALETTE.primaryRed }}
+          />
+        )}
+      </span>
+    </button>
+  );
 
-      {/* ✅ Main Filter Panel (unchanged for desktop, fullscreen modal for mobile) */}
-      <div className="p-6 space-y-8 lg:p-0">
+  // ------------- DESKTOP VERSION (unchanged logic) -------------
+  if (!isMobile) {
+    return (
+      <div className="p-6 space-y-8">
+        {/* Header */}
         <div
-          className="flex justify-between items-center border-b pb-4 lg:border-none lg:pb-0"
+          className="flex justify-between items-center border-b pb-4"
           style={{ borderColor: PALETTE.borderLight }}
         >
           <h3
             className="text-xl font-bold flex items-center gap-3"
             style={{ color: PALETTE.textDark }}
           >
-            <FaSlidersH
-              className="lg:hidden"
-              style={{ color: PALETTE.accentBlue }}
-            />{" "}
+            <FaSlidersH style={{ color: PALETTE.accentBlue }} />
             {headerText}
           </h3>
-
-          {isMobile ? (
-            <button
-              onClick={() => setIsFilterOpen(false)}
-              className="p-2 rounded-full hover:bg-gray-100"
-            >
-              <FaTimes />
-            </button>
-          ) : (
-            <button
-              onClick={resetFilters}
-              className={`text-sm font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors hover:bg-red-50 ${
-                activeFilterCount > 0 ? "text-red-600 font-semibold" : ""
-              }`}
-              style={{
-                color:
-                  activeFilterCount > 0 ? PALETTE.primaryRed : PALETTE.textLight,
-              }}
-            >
-              <FaSyncAlt /> {resetText}
-            </button>
-          )}
+          <button
+            onClick={resetFilters}
+            className={`text-sm font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors hover:bg-red-50 ${
+              activeFilterCount > 0 ? "text-red-600 font-semibold" : ""
+            }`}
+            style={{
+              color:
+                activeFilterCount > 0 ? PALETTE.primaryRed : PALETTE.textLight,
+            }}
+          >
+            <FaSyncAlt /> {resetText}
+          </button>
         </div>
 
-        {/* Sort by */}
+        {/* Sort by (desktop keeps full set) */}
         <section>
           <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
             Sort by
@@ -155,7 +138,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </select>
         </section>
 
-        {/* Time slot filters (inside panel) */}
+        {/* Departure time */}
         <section>
           <h4 className="font-bold mb-4" style={{ color: PALETTE.textDark }}>
             Departure Time
@@ -164,6 +147,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
             {Object.keys(TIME_SLOTS).map((slot) => (
               <button
                 key={slot}
+                type="button"
                 onClick={() => handleTimeSlotFilter(slot)}
                 className={`px-2 py-2 text-sm font-semibold rounded-lg border-2 transition-all ${
                   filters.timeSlots[slot]
@@ -185,7 +169,7 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </div>
         </section>
 
-        {/* Bus type select */}
+        {/* Bus type */}
         <section>
           <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
             Bus Type
@@ -240,32 +224,310 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
             </span>
           </div>
         </section>
+      </div>
+    );
+  }
 
-        {/* Bottom actions (mobile only) */}
-        {isMobile && (
-          <div
-            className="pt-4 border-t"
-            style={{ borderColor: PALETTE.borderLight }}
+  // ------------- MOBILE REDBUS-LIKE PANEL -------------
+  const mobileSections = [
+    { key: "sort", label: "Sort by" },
+    { key: "departure", label: "Departure time" },
+    { key: "type", label: "Bus type" },
+    { key: "boarding", label: "Boarding points" },
+    { key: "dropping", label: "Dropping points" },
+  ];
+
+  const selectedBoarding = filters.boardingPoint || "";
+  const selectedDropping = filters.droppingPoint || "";
+
+  return (
+    <>
+      {/* Sticky horizontal chips above list (unchanged quick filters) */}
+      <div className="flex gap-2 overflow-x-auto hide-scrollbar px-3 py-2 border-b bg-white">
+        {/* Filter & Sort button */}
+        <button
+          type="button"
+          onClick={() => setIsFilterOpen(true)}
+          className={`flex items-center gap-1 px-3 py-2 text-sm font-medium border rounded-md whitespace-nowrap ${
+            activeFilterCount > 0
+              ? "border-blue-600 text-blue-600 font-semibold"
+              : "border-gray-300 text-gray-700"
+          }`}
+        >
+          <FaSlidersH /> Filter & Sort
+          {activeFilterCount > 0 && (
+            <span className="ml-1 text-xs text-blue-600">
+              ({activeFilterCount})
+            </span>
+          )}
+        </button>
+
+        {/* Time slots quick chips */}
+        {Object.keys(TIME_SLOTS).map((slot) => (
+          <button
+            key={slot}
+            type="button"
+            onClick={() => handleTimeSlotFilter(slot)}
+            className={`px-3 py-2 text-sm font-medium border rounded-md whitespace-nowrap ${
+              filters.timeSlots[slot]
+                ? "border-blue-600 text-blue-600 font-semibold"
+                : "border-gray-300 text-gray-700"
+            }`}
           >
-            <button
-              onClick={() => setIsFilterOpen(false)}
-              className="w-full py-3 font-bold text-white rounded-lg"
-              style={{ backgroundColor: PALETTE.primaryRed }}
-            >
-              Show {sortedBuses.length} Buses
-            </button>
-            <button
-              onClick={() => {
-                resetFilters();
-                setIsFilterOpen(false);
-              }}
-              className="w-full mt-2 py-2 font-bold rounded-lg"
-              style={{ color: PALETTE.textLight }}
-            >
-              {resetText}
-            </button>
+            {slot}
+          </button>
+        ))}
+
+        {/* Bus Type quick chips */}
+        <button
+          type="button"
+          onClick={() =>
+            setFilters((prev) => ({
+              ...prev,
+              type: prev.type === "AC" ? "" : "AC",
+            }))
+          }
+          className={`px-3 py-2 text-sm font-medium border rounded-md whitespace-nowrap ${
+            filters.type === "AC"
+              ? "border-blue-600 text-blue-600 font-semibold"
+              : "border-gray-300 text-gray-700"
+          }`}
+        >
+          AC
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setFilters((prev) => ({
+              ...prev,
+              type: prev.type === "Non-AC" ? "" : "Non-AC",
+            }))
+          }
+          className={`px-3 py-2 text-sm font-medium border rounded-md whitespace-nowrap ${
+            filters.type === "Non-AC"
+              ? "border-blue-600 text-blue-600 font-semibold"
+              : "border-gray-300 text-gray-700"
+          }`}
+        >
+          Non-AC
+        </button>
+      </div>
+
+      {/* Main sheet content – Redbus style */}
+      <div className="flex flex-col h-full">
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 py-3 border-b"
+          style={{ borderColor: PALETTE.borderLight }}
+        >
+          <h3
+            className="text-base font-bold"
+            style={{ color: PALETTE.textDark }}
+          >
+            {headerText}
+          </h3>
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(false)}
+            className="p-2 rounded-full hover:bg-gray-100"
+          >
+            <FaTimes />
+          </button>
+        </div>
+
+        {/* Body: left menu + right content */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left vertical menu */}
+          <div className="w-36 bg-gray-50 border-r overflow-y-auto">
+            {mobileSections.map((sec) => (
+              <button
+                key={sec.key}
+                type="button"
+                onClick={() => setActiveSection(sec.key)}
+                className={`w-full text-left px-4 py-3 text-[13px] border-b ${
+                  activeSection === sec.key
+                    ? "bg-white font-semibold text-[#D84E55]"
+                    : "text-gray-700"
+                }`}
+                style={{
+                  borderColor: "#F3F4F6",
+                }}
+              >
+                {sec.label}
+              </button>
+            ))}
           </div>
-        )}
+
+          {/* Right content */}
+          <div className="flex-1 px-4 py-4 overflow-y-auto">
+            {activeSection === "sort" && (
+              <div className="space-y-2">
+                <RadioRow
+                  label="Departure: Earliest First"
+                  checked={sortBy === "time-asc"}
+                  onClick={() => setSortBy("time-asc")}
+                />
+                <RadioRow
+                  label="Departure: Latest First"
+                  checked={sortBy === "time-desc"}
+                  onClick={() => setSortBy("time-desc")}
+                />
+              </div>
+            )}
+
+            {activeSection === "departure" && (
+              <div className="space-y-2">
+                {Object.keys(TIME_SLOTS).map((slot) => {
+                  const active = !!filters.timeSlots[slot];
+                  return (
+                    <RadioRow
+                      key={slot}
+                      label={slot}
+                      checked={active}
+                      onClick={() => handleTimeSlotFilter(slot)}
+                    />
+                  );
+                })}
+              </div>
+            )}
+
+            {activeSection === "type" && (
+              <div className="space-y-2">
+                <RadioRow
+                  label="All types"
+                  checked={!filters.type}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: "",
+                    }))
+                  }
+                />
+                <RadioRow
+                  label="AC"
+                  checked={filters.type === "AC"}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: "AC",
+                    }))
+                  }
+                />
+                <RadioRow
+                  label="Non-AC"
+                  checked={filters.type === "Non-AC"}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: "Non-AC",
+                    }))
+                  }
+                />
+              </div>
+            )}
+
+            {activeSection === "boarding" && (
+              <div className="space-y-2">
+                {boardingOptions.length === 0 ? (
+                  <p className="text-xs text-gray-500">
+                    Boarding points will appear here when available for this
+                    route.
+                  </p>
+                ) : (
+                  <>
+                    <RadioRow
+                      label="Any boarding point"
+                      checked={!selectedBoarding}
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          boardingPoint: "",
+                        }))
+                      }
+                    />
+                    {boardingOptions.map((label) => (
+                      <RadioRow
+                        key={label}
+                        label={label}
+                        checked={selectedBoarding === label}
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            boardingPoint: label,
+                          }))
+                        }
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
+            {activeSection === "dropping" && (
+              <div className="space-y-2">
+                {droppingOptions.length === 0 ? (
+                  <p className="text-xs text-gray-500">
+                    Dropping points will appear here when available for this
+                    route.
+                  </p>
+                ) : (
+                  <>
+                    <RadioRow
+                      label="Any dropping point"
+                      checked={!selectedDropping}
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          droppingPoint: "",
+                        }))
+                      }
+                    />
+                    {droppingOptions.map((label) => (
+                      <RadioRow
+                        key={label}
+                        label={label}
+                        checked={selectedDropping === label}
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            droppingPoint: label,
+                          }))
+                        }
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom actions */}
+        <div
+          className="px-4 py-3 border-t bg-white flex gap-3"
+          style={{ borderColor: PALETTE.borderLight }}
+        >
+          <button
+            type="button"
+            onClick={() => resetFilters()}
+            className="flex-1 h-11 rounded-full border text-[14px] font-semibold"
+            style={{
+              borderColor: "#D1D5DB",
+              color: PALETTE.textDark,
+              backgroundColor: "white",
+            }}
+          >
+            Clear all
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsFilterOpen(false)}
+            className="flex-1 h-11 rounded-full text-[14px] font-semibold text-white"
+            style={{ backgroundColor: PALETTE.primaryRed }}
+          >
+            Apply
+          </button>
+        </div>
       </div>
     </>
   );
