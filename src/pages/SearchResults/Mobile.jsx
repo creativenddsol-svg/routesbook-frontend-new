@@ -521,14 +521,14 @@ export default function Mobile() {
               type="button"
               aria-label="Close filters"
               onClick={() => setIsFilterOpen(false)}
-              className="fixed inset-0 bg-black/40 z-50"
+              className="fixed inset-0 bg-black/40 z-[120]"   {/* ⬅️ bumped up */}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
             />
             {/* Panel */}
             <motion.div
-              className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-50 overflow-y-auto rounded-r-2xl shadow-xl"
+              className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-[120] overflow-y-auto rounded-r-2xl shadow-xl"  {/* ⬅️ bumped up */}
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
