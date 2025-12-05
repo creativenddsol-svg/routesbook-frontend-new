@@ -1,6 +1,6 @@
-// FINAL FIXED VERSION – ONLY TWO CHANGES DONE:
-// 1) REMOVED TOP CHIP BAR
-// 2) FIXED BOTTOM BUTTON VISIBILITY (added fullscreen wrapper)
+// FINAL UPDATED VERSION:
+// - Desktop panel now uses same functional sections as mobile (sort, time, type, boarding, dropping)
+// - Mobile panel kept exactly as your current working version
 
 import React, { useState, useMemo } from "react";
 import { FaSlidersH, FaTimes, FaSyncAlt } from "react-icons/fa";
@@ -90,15 +90,29 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
   // ---------------- DESKTOP VERSION ----------------
   if (!isMobile) {
+    const desktopSections = [
+      { key: "sort", label: "Sort by" },
+      { key: "departure", label: "Departure time" },
+      { key: "type", label: "Bus type" },
+      { key: "boarding", label: "Boarding points" },
+      { key: "dropping", label: "Dropping points" },
+    ];
+
+    const desktopSelectedBoarding = filters.boardingPoint || "";
+    const desktopSelectedDropping = filters.droppingPoint || "";
+
     return (
-      <div className="p-6 space-y-8">
+      <div
+        className="bg-white rounded-xl shadow-sm border flex flex-col h-full"
+        style={{ borderColor: PALETTE.borderLight }}
+      >
         {/* Header */}
         <div
-          className="flex justify-between items-center border-b pb-4"
+          className="flex justify-between items-center px-4 py-3 border-b"
           style={{ borderColor: PALETTE.borderLight }}
         >
           <h3
-            className="text-xl font-bold flex items-center gap-3"
+            className="text-base font-bold flex items-center gap-3"
             style={{ color: PALETTE.textDark }}
           >
             <FaSlidersH style={{ color: PALETTE.accentBlue }} />
@@ -107,8 +121,8 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
           <button
             onClick={resetFilters}
-            className={`text-sm font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors hover:bg-red-50 ${
-              activeFilterCount > 0 ? "text-red-600 font-semibold" : ""
+            className={`text-xs font-medium flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors hover:bg-red-50 ${
+              activeFilterCount > 0 ? "font-semibold" : ""
             }`}
             style={{
               color:
@@ -119,110 +133,199 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </button>
         </div>
 
-        {/* Sort */}
-        <section>
-          <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
-            Sort by
-          </h4>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
-            style={{
-              borderColor: PALETTE.borderLight,
-              color: PALETTE.textDark,
-            }}
-          >
-            <option value="time-asc">Departure: Earliest</option>
-            <option value="time-desc">Departure: Latest</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-          </select>
-        </section>
-
-        {/* Departure time */}
-        <section>
-          <h4 className="font-bold mb-4" style={{ color: PALETTE.textDark }}>
-            Departure Time
-          </h4>
-          <div className="grid grid-cols-2 gap-2">
-            {Object.keys(TIME_SLOTS).map((slot) => (
+        {/* Body: same functional sections as mobile */}
+        <div className="flex flex-1 overflow-hidden">
+          {/* Left menu */}
+          <div className="w-40 bg-gray-50 border-r overflow-y-auto">
+            {desktopSections.map((sec) => (
               <button
-                key={slot}
+                key={sec.key}
                 type="button"
-                onClick={() => handleTimeSlotFilter(slot)}
-                className={`px-2 py-2 text-sm font-semibold rounded-lg border-2 ${
-                  filters.timeSlots[slot]
-                    ? "text-white border-blue-500"
-                    : "border-gray-200"
+                onClick={() => setActiveSection(sec.key)}
+                className={`w-full text-left px-4 py-3 text-[13px] border-b ${
+                  activeSection === sec.key
+                    ? "bg-white font-semibold text-[#D84E55]"
+                    : "text-gray-700"
                 }`}
                 style={{
-                  backgroundColor: filters.timeSlots[slot]
-                    ? PALETTE.accentBlue
-                    : PALETTE.white,
-                  color: filters.timeSlots[slot]
-                    ? PALETTE.white
-                    : PALETTE.textDark,
+                  borderColor: "#F3F4F6",
                 }}
               >
-                {slot}
+                {sec.label}
               </button>
             ))}
           </div>
-        </section>
 
-        {/* Bus Type */}
-        <section>
-          <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
-            Bus Type
-          </h4>
-          <select
-            value={filters.type}
-            onChange={(e) =>
-              setFilters((prev) => ({ ...prev, type: e.target.value }))
-            }
-            className="w-full border-2 rounded-lg px-3 py-2 text-sm"
+          {/* Right content */}
+          <div className="flex-1 px-4 py-4 overflow-y-auto">
+            {activeSection === "sort" && (
+              <div className="space-y-2">
+                <RadioRow
+                  label="Departure: Earliest First"
+                  checked={sortBy === "time-asc"}
+                  onClick={() => setSortBy("time-asc")}
+                />
+                <RadioRow
+                  label="Departure: Latest First"
+                  checked={sortBy === "time-desc"}
+                  onClick={() => setSortBy("time-desc")}
+                />
+              </div>
+            )}
+
+            {activeSection === "departure" && (
+              <div className="space-y-2">
+                {Object.keys(TIME_SLOTS).map((slot) => (
+                  <RadioRow
+                    key={slot}
+                    label={slot}
+                    checked={!!filters.timeSlots[slot]}
+                    onClick={() => handleTimeSlotFilter(slot)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {activeSection === "type" && (
+              <div className="space-y-2">
+                <RadioRow
+                  label="All types"
+                  checked={!filters.type}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: "",
+                    }))
+                  }
+                />
+                <RadioRow
+                  label="AC"
+                  checked={filters.type === "AC"}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: "AC",
+                    }))
+                  }
+                />
+                <RadioRow
+                  label="Non-AC"
+                  checked={filters.type === "Non-AC"}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      type: "Non-AC",
+                    }))
+                  }
+                />
+              </div>
+            )}
+
+            {activeSection === "boarding" && (
+              <div className="space-y-2">
+                {boardingOptions.length === 0 ? (
+                  <p className="text-xs text-gray-500">
+                    Boarding points will appear here when available for this
+                    route.
+                  </p>
+                ) : (
+                  <>
+                    <RadioRow
+                      label="Any boarding point"
+                      checked={!desktopSelectedBoarding}
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          boardingPoint: "",
+                        }))
+                      }
+                    />
+
+                    {boardingOptions.map((label) => (
+                      <RadioRow
+                        key={label}
+                        label={label}
+                        checked={desktopSelectedBoarding === label}
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            boardingPoint: label,
+                          }))
+                        }
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+
+            {activeSection === "dropping" && (
+              <div className="space-y-2">
+                {droppingOptions.length === 0 ? (
+                  <p className="text-xs text-gray-500">
+                    Dropping points will appear here when available for this
+                    route.
+                  </p>
+                ) : (
+                  <>
+                    <RadioRow
+                      label="Any dropping point"
+                      checked={!desktopSelectedDropping}
+                      onClick={() =>
+                        setFilters((prev) => ({
+                          ...prev,
+                          droppingPoint: "",
+                        }))
+                      }
+                    />
+
+                    {droppingOptions.map((label) => (
+                      <RadioRow
+                        key={label}
+                        label={label}
+                        checked={desktopSelectedDropping === label}
+                        onClick={() =>
+                          setFilters((prev) => ({
+                            ...prev,
+                            droppingPoint: label,
+                          }))
+                        }
+                      />
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Bottom actions (desktop) */}
+        <div
+          className="px-4 py-3 border-t bg-white flex gap-3"
+          style={{ borderColor: PALETTE.borderLight }}
+        >
+          <button
+            type="button"
+            onClick={() => resetFilters()}
+            className="flex-1 h-10 rounded-full border text-[13px] font-semibold"
             style={{
-              borderColor: PALETTE.borderLight,
+              borderColor: "#D1D5DB",
               color: PALETTE.textDark,
+              backgroundColor: "white",
             }}
           >
-            <option value="">All Types</option>
-            <option value="AC">AC</option>
-            <option value="Non-AC">Non-AC</option>
-          </select>
-        </section>
+            Clear all
+          </button>
 
-        {/* Max price */}
-        <section>
-          <h4 className="font-bold mb-3" style={{ color: PALETTE.textDark }}>
-            Max Price
-          </h4>
-          <input
-            type="range"
-            className="w-full h-2 rounded-lg"
-            style={{
-              backgroundColor: PALETTE.borderLight,
-              accentColor: PALETTE.primaryRed,
-            }}
-            min={500}
-            max={5000}
-            step={100}
-            value={filters.maxPrice}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                maxPrice: Number(e.target.value),
-              }))
-            }
-          />
-          <div className="text-sm mt-2 text-center font-medium">
-            Up to{" "}
-            <span className="font-bold" style={{ color: PALETTE.primaryRed }}>
-              Rs. {filters.maxPrice}
-            </span>
-          </div>
-        </section>
+          {/* Apply just keeps panel open; filters auto-apply on change */}
+          <button
+            type="button"
+            className="flex-1 h-10 rounded-full text-[13px] font-semibold text-white"
+            style={{ backgroundColor: PALETTE.primaryRed }}
+          >
+            Apply
+          </button>
+        </div>
       </div>
     );
   }
