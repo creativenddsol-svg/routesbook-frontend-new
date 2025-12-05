@@ -432,7 +432,11 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
         {/* Bottom Buttons */}
         <div
           className="px-4 py-3 border-t bg-white flex gap-3"
-          style={{ borderColor: PALETTE.borderLight }}
+          style={{
+            borderColor: PALETTE.borderLight,
+            // ✅ Safe-area padding so buttons sit above iOS Safari bottom bar
+            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
+          }}
         >
           <button
             type="button"
