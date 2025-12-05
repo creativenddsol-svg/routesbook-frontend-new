@@ -528,7 +528,7 @@ export default function Mobile() {
             />
             {/* Panel */}
             <motion.div
-              className="fixed inset-y-0 left-0 w-[88%] max-w-sm bg-white z-[120] overflow-y-auto rounded-r-2xl shadow-xl"
+              className="fixed top-0 left-0 bottom-[env(safe-area-inset-bottom)] w-[88%] max-w-sm bg-white z-[120] overflow-y-auto rounded-r-2xl shadow-xl"
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
               exit={{ x: "-100%" }}
