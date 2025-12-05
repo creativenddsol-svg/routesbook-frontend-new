@@ -158,6 +158,21 @@ export const stripACWord = (type = "") =>
     .replace(/\s{2,}/g, " ")
     .replace(/^\s+|\s+$/g, "");
 
+/* 🆕 helper to extract boarding / dropping labels from bus */
+const getPointLabels = (bus, primaryKey, fallbackKey) => {
+  const raw =
+    Array.isArray(bus?.[primaryKey]) && bus[primaryKey].length
+      ? bus[primaryKey]
+      : Array.isArray(bus?.[fallbackKey])
+      ? bus[fallbackKey]
+      : [];
+  return raw
+    .map((p) =>
+      typeof p === "string" ? p : p?.name || p?.point || p?.label || ""
+    )
+    .filter(Boolean);
+};
+
 /* -------- auth helpers -------- */
 const getAuthToken = () =>
   localStorage.getItem("token") ||
@@ -370,6 +385,8 @@ export function SearchCoreProvider({ children }) {
     type: "",
     maxPrice: 5000,
     timeSlots: {},
+    boardingPoint: "", // 🆕
+    droppingPoint: "", // 🆕
   });
 
   const [specialNotices, setSpecialNotices] = useState([]);
@@ -914,7 +931,7 @@ export function SearchCoreProvider({ children }) {
       } catch (err) {
         console.error("Failed to fetch special notices:", err);
       } finally {
-               setNoticesLoading(false);
+        setNoticesLoading(false);
       }
     };
     fetchSpecialNotices();
@@ -1076,7 +1093,6 @@ export function SearchCoreProvider({ children }) {
       const seatData = {};
       const items = res.data || [];
 
-
       // concurrency-limited availability fan-out
       for (let i = 0; i < items.length; i += MAX_INIT_AVAIL_CONCURRENCY) {
         const slice = items.slice(i, i + MAX_INIT_AVAIL_CONCURRENCY);
@@ -1178,7 +1194,27 @@ export function SearchCoreProvider({ children }) {
         const matchType = filters.type ? bus.busType === filters.type : true;
         const displayPrice = getDisplayPrice(bus, from, to);
         const matchPrice = displayPrice <= filters.maxPrice;
-        return matchType && matchPrice && matchTime;
+
+        // 🆕 boarding / dropping filters
+        const boardingLabels = getPointLabels(
+          bus,
+          "boardingPoints",
+          "boardingPointList"
+        );
+        const droppingLabels = getPointLabels(
+          bus,
+          "droppingPoints",
+          "droppingPointList"
+        );
+
+        const matchBoarding =
+          !filters.boardingPoint ||
+          boardingLabels.includes(filters.boardingPoint);
+        const matchDropping =
+          !filters.droppingPoint ||
+          droppingLabels.includes(filters.droppingPoint);
+
+        return matchType && matchPrice && matchTime && matchBoarding && matchDropping;
       }),
     };
   }, [buses, filters, searchDateParam, from, to]);
@@ -1228,7 +1264,9 @@ export function SearchCoreProvider({ children }) {
   const activeFilterCount =
     Object.values(filters.timeSlots).filter(Boolean).length +
     (filters.type ? 1 : 0) +
-    (filters.maxPrice < 5000 ? 1 : 0);
+    (filters.maxPrice < 5000 ? 1 : 0) +
+    (filters.boardingPoint ? 1 : 0) + // 🆕
+    (filters.droppingPoint ? 1 : 0); // 🆕
 
   const visibleBuses = useMemo(
     () => sortedBuses.slice(0, page * RESULTS_PER_PAGE),
@@ -1236,7 +1274,13 @@ export function SearchCoreProvider({ children }) {
   );
 
   const resetFilters = () => {
-    setFilters({ type: "", maxPrice: 5000, timeSlots: {} });
+    setFilters({
+      type: "",
+      maxPrice: 5000,
+      timeSlots: {},
+      boardingPoint: "",
+      droppingPoint: "",
+    });
     setPage(1);
   };
 
@@ -1250,8 +1294,8 @@ export function SearchCoreProvider({ children }) {
         [busKey]: {
           selectedSeats: [],
           seatGenders: {},
-          selectedBoardingPoint: null,            // ← changed
-          selectedDroppingPoint: null,            // ← changed
+          selectedBoardingPoint: null, // ← changed
+          selectedDroppingPoint: null, // ← changed
           basePrice: 0,
           convenienceFee: 0,
           totalPrice: 0,
@@ -1300,7 +1344,9 @@ export function SearchCoreProvider({ children }) {
     if (!alreadySelected) {
       const hasOtherSelections = Object.entries(
         busSpecificBookingData || {}
-      ).some(([k, data]) => k !== busKey && (data?.selectedSeats?.length || 0) > 0);
+      ).some(
+        ([k, data]) => k !== busKey && (data?.selectedSeats?.length || 0) > 0
+      );
       if (hasOtherSelections) {
         await releaseOtherSelectedSeats(busKey, true);
       }
@@ -1451,7 +1497,7 @@ export function SearchCoreProvider({ children }) {
       toast.error("Please select at least one seat!");
       return;
     }
-    if (!selectedBoardingPoint || !selectedDroppingPoint) {
+       if (!selectedBoardingPoint || !selectedDroppingPoint) {
       toast.error("Please select a boarding and dropping point!");
       return;
     }
@@ -1584,8 +1630,8 @@ export function SearchCoreProvider({ children }) {
     busSpecificBookingData[expandedBusId]) || {
     selectedSeats: [],
     seatGenders: {},
-    selectedBoardingPoint: null,            // ← changed
-    selectedDroppingPoint: null,            // ← changed
+    selectedBoardingPoint: null, // ← changed
+    selectedDroppingPoint: null, // ← changed
     basePrice: 0,
     convenienceFee: 0,
     totalPrice: 0,
