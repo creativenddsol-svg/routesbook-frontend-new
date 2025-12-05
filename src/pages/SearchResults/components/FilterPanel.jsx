@@ -241,8 +241,8 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
   return (
     <>
-      {/* FULLSCREEN FIXED WRAPPER (required for bottom buttons) */}
-      <div className="fixed inset-0 z-50 flex flex-col bg-white h-screen overflow-hidden">
+      {/* FULLSCREEN CONTENT (height controlled by outer sheet) */}
+      <div className="flex flex-col h-full bg-white overflow-hidden">
         {/* Header */}
         <div
           className="flex itemscenter justify-between px-4 py-3 border-b"
@@ -431,11 +431,9 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
         {/* Bottom Buttons */}
         <div
-          className="px-4 py-3 border-t bg-white flex gap-3"
+          className="px-4 py-3 border-t bg-white flex gap-3 pb-4"
           style={{
             borderColor: PALETTE.borderLight,
-            // ✅ Safe-area padding so buttons sit above iOS Safari bottom bar
-            paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 8px)",
           }}
         >
           <button
