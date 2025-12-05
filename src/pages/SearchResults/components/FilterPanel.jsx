@@ -1,9 +1,11 @@
 // FINAL UPDATED VERSION:
-// - Desktop panel now uses stacked sections (RedBus-style) for sort, time, type, boarding, dropping
+// - Desktop panel uses Redbus-like accordion sections with dropdown arrows
+// - Desktop header button renamed to "Clear all"
+// - Desktop bottom "Clear all / Apply" buttons removed
 // - Mobile panel kept exactly as your current working version
 
 import React, { useState, useMemo } from "react";
-import { FaSlidersH, FaTimes, FaSyncAlt } from "react-icons/fa";
+import { FaSlidersH, FaTimes, FaSyncAlt, FaChevronDown } from "react-icons/fa";
 import { useSearchCore, PALETTE, TIME_SLOTS } from "../_core";
 
 export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
@@ -18,6 +20,15 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
   const [activeSection, setActiveSection] = useState("sort");
 
+  // 🆕 desktop accordion open/close state
+  const [openSections, setOpenSections] = useState({
+    sort: true,
+    departure: true,
+    type: true,
+    boarding: true,
+    dropping: true,
+  });
+
   const handleTimeSlotFilter = (slot) =>
     setFilters((prev) => ({
       ...prev,
@@ -26,7 +37,9 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
 
   const headerText = isMobile ? "Sort and filter buses" : "Filters";
   const resetText =
-    activeFilterCount > 0 ? `Reset (${activeFilterCount})` : "Reset";
+    activeFilterCount > 0
+      ? `Clear all (${activeFilterCount})`
+      : "Clear all";
 
   const boardingOptions = useMemo(() => {
     const set = new Set();
@@ -88,16 +101,168 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
     </button>
   );
 
-  /* ---------------- DESKTOP VERSION (RED-BUS STYLE) ---------------- */
+  const toggleSection = (key) =>
+    setOpenSections((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  // ---------------- DESKTOP VERSION ----------------
   if (!isMobile) {
+    const desktopSections = [
+      { key: "sort", label: "Sort by" },
+      { key: "departure", label: "Departure time" },
+      { key: "type", label: "Bus type" },
+      { key: "boarding", label: "Boarding points" },
+      { key: "dropping", label: "Dropping points" },
+    ];
+
     const desktopSelectedBoarding = filters.boardingPoint || "";
     const desktopSelectedDropping = filters.droppingPoint || "";
 
-    const SectionTitle = ({ children }) => (
-      <h4 className="text-[13px] font-semibold text-gray-800 mb-2">
-        {children}
-      </h4>
-    );
+    const renderDesktopSectionContent = (sectionKey) => {
+      if (!openSections[sectionKey]) return null;
+
+      switch (sectionKey) {
+        case "sort":
+          return (
+            <div className="mt-2 space-y-2">
+              <RadioRow
+                label="Departure: Earliest First"
+                checked={sortBy === "time-asc"}
+                onClick={() => setSortBy("time-asc")}
+              />
+              <RadioRow
+                label="Departure: Latest First"
+                checked={sortBy === "time-desc"}
+                onClick={() => setSortBy("time-desc")}
+              />
+            </div>
+          );
+
+        case "departure":
+          return (
+            <div className="mt-2 space-y-2">
+              {Object.keys(TIME_SLOTS).map((slot) => (
+                <RadioRow
+                  key={slot}
+                  label={slot}
+                  checked={!!filters.timeSlots[slot]}
+                  onClick={() => handleTimeSlotFilter(slot)}
+                />
+              ))}
+            </div>
+          );
+
+        case "type":
+          return (
+            <div className="mt-2 space-y-2">
+              <RadioRow
+                label="All types"
+                checked={!filters.type}
+                onClick={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    type: "",
+                  }))
+                }
+              />
+              <RadioRow
+                label="AC"
+                checked={filters.type === "AC"}
+                onClick={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    type: "AC",
+                  }))
+                }
+              />
+              <RadioRow
+                label="Non-AC"
+                checked={filters.type === "Non-AC"}
+                onClick={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    type: "Non-AC",
+                  }))
+                }
+              />
+            </div>
+          );
+
+        case "boarding":
+          if (boardingOptions.length === 0) {
+            return (
+              <p className="mt-2 text-xs text-gray-500">
+                Boarding points will appear here when available for this route.
+              </p>
+            );
+          }
+          return (
+            <div className="mt-2 space-y-2">
+              <RadioRow
+                label="Any boarding point"
+                checked={!desktopSelectedBoarding}
+                onClick={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    boardingPoint: "",
+                  }))
+                }
+              />
+              {boardingOptions.map((label) => (
+                <RadioRow
+                  key={label}
+                  label={label}
+                  checked={desktopSelectedBoarding === label}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      boardingPoint: label,
+                    }))
+                  }
+                />
+              ))}
+            </div>
+          );
+
+        case "dropping":
+          if (droppingOptions.length === 0) {
+            return (
+              <p className="mt-2 text-xs text-gray-500">
+                Dropping points will appear here when available for this route.
+              </p>
+            );
+          }
+          return (
+            <div className="mt-2 space-y-2">
+              <RadioRow
+                label="Any dropping point"
+                checked={!desktopSelectedDropping}
+                onClick={() =>
+                  setFilters((prev) => ({
+                    ...prev,
+                    droppingPoint: "",
+                  }))
+                }
+              />
+              {droppingOptions.map((label) => (
+                <RadioRow
+                  key={label}
+                  label={label}
+                  checked={desktopSelectedDropping === label}
+                  onClick={() =>
+                    setFilters((prev) => ({
+                      ...prev,
+                      droppingPoint: label,
+                    }))
+                  }
+                />
+              ))}
+            </div>
+          );
+
+        default:
+          return null;
+      }
+    };
 
     return (
       <div
@@ -131,190 +296,38 @@ export default function FilterPanel({ isMobile, sortBy, setSortBy }) {
           </button>
         </div>
 
-        {/* Body – stacked sections like RedBus */}
-        <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-          {/* Sort by */}
-          <div className="pb-3 border-b" style={{ borderColor: "#F3F4F6" }}>
-            <SectionTitle>Sort by</SectionTitle>
-            <div className="mt-1">
-              <RadioRow
-                label="Departure: Earliest First"
-                checked={sortBy === "time-asc"}
-                onClick={() => setSortBy("time-asc")}
-              />
-              <RadioRow
-                label="Departure: Latest First"
-                checked={sortBy === "time-desc"}
-                onClick={() => setSortBy("time-desc")}
-              />
-            </div>
-          </div>
-
-          {/* Departure time */}
-          <div className="pb-3 border-b" style={{ borderColor: "#F3F4F6" }}>
-            <SectionTitle>Departure time</SectionTitle>
-            <div className="mt-1">
-              {Object.keys(TIME_SLOTS).map((slot) => (
-                <RadioRow
-                  key={slot}
-                  label={slot}
-                  checked={!!filters.timeSlots[slot]}
-                  onClick={() => handleTimeSlotFilter(slot)}
+        {/* Body: Redbus-like accordion sections */}
+        <div className="flex-1 overflow-y-auto px-4 py-4">
+          {desktopSections.map((sec) => (
+            <div
+              key={sec.key}
+              className="border-b last:border-b-0 py-3"
+              style={{ borderColor: "#F3F4F6" }}
+            >
+              <button
+                type="button"
+                onClick={() => toggleSection(sec.key)}
+                className="w-full flex items-center justify-between text-[13px]"
+              >
+                <span className="font-semibold text-gray-800">
+                  {sec.label}
+                </span>
+                <FaChevronDown
+                  className={`text-xs transition-transform duration-200 ${
+                    openSections[sec.key] ? "rotate-180" : ""
+                  }`}
                 />
-              ))}
+              </button>
+
+              {renderDesktopSectionContent(sec.key)}
             </div>
-          </div>
-
-          {/* Bus type */}
-          <div className="pb-3 border-b" style={{ borderColor: "#F3F4F6" }}>
-            <SectionTitle>Bus type</SectionTitle>
-            <div className="mt-1">
-              <RadioRow
-                label="All types"
-                checked={!filters.type}
-                onClick={() =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    type: "",
-                  }))
-                }
-              />
-              <RadioRow
-                label="AC"
-                checked={filters.type === "AC"}
-                onClick={() =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    type: "AC",
-                  }))
-                }
-              />
-              <RadioRow
-                label="Non-AC"
-                checked={filters.type === "Non-AC"}
-                onClick={() =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    type: "Non-AC",
-                  }))
-                }
-              />
-            </div>
-          </div>
-
-          {/* Boarding points */}
-          <div className="pb-3 border-b" style={{ borderColor: "#F3F4F6" }}>
-            <SectionTitle>Boarding points</SectionTitle>
-            <div className="mt-1">
-              {boardingOptions.length === 0 ? (
-                <p className="text-xs text-gray-500">
-                  Boarding points will appear here when available for this
-                  route.
-                </p>
-              ) : (
-                <>
-                  <RadioRow
-                    label="Any boarding point"
-                    checked={!desktopSelectedBoarding}
-                    onClick={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        boardingPoint: "",
-                      }))
-                    }
-                  />
-
-                  {boardingOptions.map((label) => (
-                    <RadioRow
-                      key={label}
-                      label={label}
-                      checked={desktopSelectedBoarding === label}
-                      onClick={() =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          boardingPoint: label,
-                        }))
-                      }
-                    />
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Dropping points */}
-          <div className="pb-1">
-            <SectionTitle>Dropping points</SectionTitle>
-            <div className="mt-1">
-              {droppingOptions.length === 0 ? (
-                <p className="text-xs text-gray-500">
-                  Dropping points will appear here when available for this
-                  route.
-                </p>
-              ) : (
-                <>
-                  <RadioRow
-                    label="Any dropping point"
-                    checked={!desktopSelectedDropping}
-                    onClick={() =>
-                      setFilters((prev) => ({
-                        ...prev,
-                        droppingPoint: "",
-                      }))
-                    }
-                  />
-
-                  {droppingOptions.map((label) => (
-                    <RadioRow
-                      key={label}
-                      label={label}
-                      checked={desktopSelectedDropping === label}
-                      onClick={() =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          droppingPoint: label,
-                        }))
-                      }
-                    />
-                  ))}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Bottom actions (desktop) */}
-        <div
-          className="px-4 py-3 border-t bg-white flex gap-3"
-          style={{ borderColor: PALETTE.borderLight }}
-        >
-          <button
-            type="button"
-            onClick={() => resetFilters()}
-            className="flex-1 h-10 rounded-full border text-[13px] font-semibold"
-            style={{
-              borderColor: "#D1D5DB",
-              color: PALETTE.textDark,
-              backgroundColor: "white",
-            }}
-          >
-            Clear all
-          </button>
-
-          {/* Apply just visually confirms – filters already applied on change */}
-          <button
-            type="button"
-            className="flex-1 h-10 rounded-full text-[13px] font-semibold text-white"
-            style={{ backgroundColor: PALETTE.primaryRed }}
-          >
-            Apply
-          </button>
+          ))}
         </div>
       </div>
     );
   }
 
-  /* ---------------- MOBILE VERSION (UNCHANGED) ---------------- */
+  // ---------------- MOBILE VERSION ----------------
   const mobileSections = [
     { key: "sort", label: "Sort by" },
     { key: "departure", label: "Departure time" },
