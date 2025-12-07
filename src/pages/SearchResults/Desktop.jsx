@@ -805,7 +805,7 @@ export default function Desktop() {
               </div>
 
               <div
-                className="flex-1 p-4 lg:pl-10 flex itemscenter border-r"
+                className="flex-1 p-4 lg:pl-10 flex items-center border-r"
                 style={{ borderColor: PALETTE.borderLight }}
               >
                 <FaSignOutAlt className="text-gray-400 mr-4 text-xl shrink-0" />
