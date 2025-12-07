@@ -437,6 +437,7 @@ function BusCard({
                                   {Object.entries(bus.facilities)
                                     .filter(([k, v]) => typeof v === "boolean" && v)
                                     .map(([k]) => facilityChip(k.replace(/([A-Z])/g, " $1")))}
+
                                   {Array.isArray(bus.facilities?.extraTags) &&
                                     bus.facilities.extraTags.map((t) => facilityChip(t))}
                                 </div>
@@ -904,10 +905,10 @@ export default function Desktop() {
               <div className="p-3 flex items-center">
                 <button
                   onClick={handleModifySearch}
-                  className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-bold tracking-wider px-8 py-3 rounded-xl shadow-lg"
+                  className="font-heading w-full lg:w-auto flex items-center justify-center gap-2 text-white font-bold tracking-wider px-8 py-3 rounded-full shadow-lg"
                   style={{ backgroundColor: PALETTE.primaryRed }}
                 >
-                  <FaSearch /> SEARCH
+                  <FaSearch /> Search Buses
                 </button>
               </div>
             </div>
