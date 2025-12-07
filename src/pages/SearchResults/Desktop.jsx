@@ -309,8 +309,8 @@ function BusCard({
                 <span className="text-[11px] font-medium mr-1 align-top text-gray-500">Rs.</span>
                 <span className="text-2xl font-bold tabular-nums text-gray-900">{displayPrice}</span>
               </div>
+              <div className="text-[11px] font-medium mt-0.5 text-gray-500">Onwards</div>
             </div>
-            <div className="text-[11px] font-medium mt-0.5 text-gray-500">Onwards</div>
 
             <button
               onClick={() => handleToggleSeatLayout(bus)}
@@ -805,7 +805,7 @@ export default function Desktop() {
               </div>
 
               <div
-                className="flex-1 p-4 flex items-center border-r"
+                className="flex-1 p-4 lg:pl-10 flex itemscenter border-r"
                 style={{ borderColor: PALETTE.borderLight }}
               >
                 <FaSignOutAlt className="text-gray-400 mr-4 text-xl shrink-0" />
