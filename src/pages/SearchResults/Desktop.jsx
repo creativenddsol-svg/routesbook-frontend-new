@@ -9,6 +9,8 @@ import {
   FaChevronLeft,
   FaExchangeAlt,
   FaSearch,
+  FaSignInAlt,
+  FaSignOutAlt,
 } from "react-icons/fa";
 
 import {
@@ -307,8 +309,8 @@ function BusCard({
                 <span className="text-[11px] font-medium mr-1 align-top text-gray-500">Rs.</span>
                 <span className="text-2xl font-bold tabular-nums text-gray-900">{displayPrice}</span>
               </div>
-              <div className="text-[11px] font-medium mt-0.5 text-gray-500">Onwards</div>
             </div>
+            <div className="text-[11px] font-medium mt-0.5 text-gray-500">Onwards</div>
 
             <button
               onClick={() => handleToggleSeatLayout(bus)}
@@ -761,7 +763,7 @@ export default function Desktop() {
                 className="relative flex-1 p-4 flex items-center border-r"
                 style={{ borderColor: PALETTE.borderLight }}
               >
-                <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
+                <FaSignInAlt className="text-gray-400 mr-4 text-xl shrink-0" />
                 <div className="w-full">
                   <label
                     className="block text-xs font-medium uppercase tracking-wider"
@@ -806,7 +808,7 @@ export default function Desktop() {
                 className="flex-1 p-4 flex items-center border-r"
                 style={{ borderColor: PALETTE.borderLight }}
               >
-                <FaBus className="text-gray-400 mr-4 text-xl shrink-0" />
+                <FaSignOutAlt className="text-gray-400 mr-4 text-xl shrink-0" />
                 <div className="w-full">
                   <label
                     className="block text-xs font-medium uppercase tracking-wider"
