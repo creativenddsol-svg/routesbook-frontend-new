@@ -61,12 +61,12 @@ const Navbar = () => {
         {/* Logo */}
         <NavLink
           to="/"
-          className="flex items-center gap-2 text-2xl font-bold transition-all duration-300"
+          className="flex items-center transition-all duration-300"
         >
-          {/* removed small bus icon */}
-          <span className="text-[#E11D48]">
+          {/* pill logo */}
+          <div className="bg-[#E11D48] text-white font-bold text-xl px-5 py-2 rounded-full tracking-wide border border-[#E11D48] shadow-sm hover:shadow-md transition-all duration-300">
             Routesbook
-          </span>
+          </div>
         </NavLink>
 
         {/* Mobile toggle button (hidden on desktop) */}
@@ -196,7 +196,9 @@ const Navbar = () => {
           {/* Header */}
           <div>
             <div className="flex justify-between items-center mb-6">
-              <span className="text-lg font-bold">Routesbook</span>
+              <div className="bg-[#E11D48] text-white font-bold px-4 py-1.5 rounded-full text-lg tracking-wide">
+                Routesbook
+              </div>
               <button onClick={() => setMenuOpen(false)}>
                 <FaTimes size={20} />
               </button>
