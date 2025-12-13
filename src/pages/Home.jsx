@@ -872,6 +872,13 @@ const Home = () => {
   const desktopDateAnchorRef = useRef(null);
   const mobileDateAnchorRef = useRef(null);
 
+  // ✅ NEW: scroll-to-search ref + helper (used by CTA buttons)
+  const searchCardRef = useRef(null);
+  const scrollToSearch = () => {
+    if (!searchCardRef.current) return;
+    searchCardRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   // mobile city picker state
   const [mobilePickerOpen, setMobilePickerOpen] = useState(false);
   const [mobilePickerMode, setMobilePickerMode] = useState("from"); // 'from' | 'to'
@@ -1079,7 +1086,7 @@ const Home = () => {
 
       {/* ===== Search Widget ===== */}
       <div className={`${SECTION_WRAP}`}>
-        <div className={`${SECTION_INNER} relative z-20 mt-4 lg:-mt-32`}>
+        <div ref={searchCardRef} className={`${SECTION_INNER} relative z-20 mt-4 lg:-mt-32`}>
           {/* ==== MOBILE HEADER (brand on the right) ==== */}
           <div className="lg:hidden flex items-center justify-between pb-2 px-4 pt-4">
             <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}>
@@ -1516,122 +1523,298 @@ const Home = () => {
         </section>
       </div>
 
-      {/* ===== NEW: RedBus-style Info (Why Choose + How to Book + Offers + FAQ) ===== */}
+      {/* ===== UPDATED: Premium policy-page style Info Section ===== */}
       <div className={`${SECTION_WRAP}`}>
-        <section className={`${SECTION_INNER} py-16`}>
-          <div className="grid md:grid-cols-2 gap-6 md:gap-8">
-            {/* WHY CHOOSE */}
-            <div className="rounded-2xl border bg-white p-6 md:p-8 shadow-sm border-gray-100">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-900">
-                Why choose Routesbook.lk?
-              </h2>
-              <ul className="mt-5 space-y-4 text-[15px] leading-7 text-gray-700">
-                <li className="flex gap-3">
-                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
-                    <FaBolt className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
-                  </span>
-                  <p><span className="font-medium text-gray-900">Real-time seats</span> — pick your exact seat before you pay.</p>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
-                    <FaShieldAlt className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
-                  </span>
-                  <p><span className="font-medium text-gray-900">Secure payments</span> — cards & mobile wallets via trusted gateway.</p>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
-                    <FaMapMarkerAlt className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
-                  </span>
-                  <p><span className="font-medium text-gray-900">Boarding & drop points</span> — choose the closest stops with exact times.</p>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
-                    <FaMobileAlt className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
-                  </span>
-                  <p><span className="font-medium text-gray-900">Instant e-ticket</span> — QR/PNR via SMS & email, also in <b>My Bookings</b>.</p>
-                </li>
-                <li className="flex gap-3">
-                  <span className="mt-1 inline-flex h-5 w-5 items-center justify-center rounded-full ring-1 ring-gray-200">
-                    <FaChair className="h-3.5 w-3.5" style={{ color: PALETTE.primaryRed }} />
-                  </span>
-                  <p><span className="font-medium text-gray-900">Comfort filters</span> — sort by time, price, bus type, and operator.</p>
-                </li>
-              </ul>
-            </div>
+        <section className="w-screen relative left-1/2 ml-[-50vw] overflow-hidden">
+          <div
+            className="py-16 md:py-20"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(216,78,85,0.08) 0%, rgba(58,134,255,0.06) 40%, rgba(255,255,255,1) 100%)",
+            }}
+          >
+            <motion.div
+              animate={{ y: [0, -12, 0] }}
+              transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -top-10 left-10 w-44 h-44 rounded-full blur-3xl"
+              style={{ backgroundColor: "rgba(216,78,85,0.18)" }}
+            />
+            <motion.div
+              animate={{ y: [0, 14, 0] }}
+              transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute top-16 right-12 w-56 h-56 rounded-full blur-3xl"
+              style={{ backgroundColor: "rgba(58,134,255,0.16)" }}
+            />
 
-            {/* HOW TO BOOK */}
-            <div className="rounded-2xl border bg-white p-6 md:p-8 shadow-sm border-gray-100">
-              <h2 className="text-xl md:text-2xl font-semibold text-gray-900">
-                How to book
-              </h2>
-              <ol className="mt-5 space-y-4 text-[15px] leading-7 text-gray-700">
-                {[
-                  "Search your route and date, tap ‘Search Buses’.",
-                  "Compare buses—filter by time, price, operator.",
-                  "Pick your seats on the live seat map.",
-                  "Choose boarding & drop points.",
-                  "Enter passenger details.",
-                  "Pay securely.",
-                  "Get your QR e-ticket instantly.",
-                ].map((step, i) => (
-                  <li key={i} className="flex gap-3">
-                    <span className="mt-0.5 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-gray-100 text-gray-700 text-xs font-medium">
-                      {i + 1}
-                    </span>
-                    <p>{step}</p>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </div>
+            <div className={`${SECTION_INNER} relative`}>
+              {/* Header */}
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                <div>
+                  <div className="text-sm text-gray-500">
+                    Home <span className="mx-2">/</span> About Routesbook
+                  </div>
+                  <h2
+                    className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight mt-2"
+                    style={{ color: PALETTE.textDark }}
+                  >
+                    Why Routesbook.lk is trusted for bus travel
+                  </h2>
+                  <p className="mt-3 text-base sm:text-lg max-w-3xl text-gray-600">
+                    A real-world booking flow built for Sri Lanka — live seat maps, verified operators,
+                    secure payments, and instant e-tickets.
+                  </p>
 
-          {/* OFFERS */}
-          <div className="mt-8 rounded-2xl border bg-white p-6 md:p-8 shadow-sm border-gray-100">
-            <h3 className="text-lg md:text-xl font-semibold text-gray-900">Exclusive offers on Routesbook</h3>
-            <p className="mt-3 text-[15px] leading-7 text-gray-700">
-              Save with seasonal deals and partner promotions. Apply coupons on the payment page and watch the fare update instantly.
-            </p>
-          </div>
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {[
+                      "Live seat selection",
+                      "Secure payments",
+                      "Instant e-ticket",
+                      "Boarding & drop points",
+                    ].map((t) => (
+                      <span
+                        key={t}
+                        className="text-xs sm:text-sm px-3 py-1.5 rounded-full border bg-white/80"
+                        style={{ borderColor: PALETTE.borderLight, color: PALETTE.textLight }}
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
 
-          {/* FAQ (native details/summary for simplicity) */}
-          <div className="mt-8 rounded-2xl border bg-white p-6 md:p-8 shadow-sm border-gray-100">
-            <h3 className="text-lg md:text-xl font-semibold text-gray-900">FAQs</h3>
-            <div className="mt-4 space-y-3">
-              <details className="group rounded-lg border border-gray-100 p-4">
-                <summary className="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-900">
-                  Do I need to print my ticket?
-                  <span className="ml-3 text-gray-400 group-open:rotate-90 transition">
-                    <FaArrowRight />
-                  </span>
-                </summary>
-                <p className="mt-3 text-sm text-gray-700">
-                  No. Your QR/PNR e-ticket on your phone is enough.
-                </p>
-              </details>
+                <div className="shrink-0">
+                  <button
+                    onClick={scrollToSearch}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-white font-semibold shadow-sm"
+                    style={{ backgroundColor: PALETTE.primaryRed }}
+                  >
+                    <FaSearch />
+                    Search buses now
+                  </button>
+                </div>
+              </div>
 
-              <details className="group rounded-lg border border-gray-100 p-4">
-                <summary className="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-900">
-                  Can I cancel or reschedule?
-                  <span className="ml-3 text-gray-400 group-open:rotate-90 transition">
-                    <FaArrowRight />
-                  </span>
-                </summary>
-                <p className="mt-3 text-sm text-gray-700">
-                  Yes—based on the operator’s policy. Exact rules are shown before payment.
-                </p>
-              </details>
+              {/* Main cards */}
+              <div className="mt-10 grid lg:grid-cols-2 gap-6 md:gap-8">
+                {/* WHY CHOOSE */}
+                <div
+                  className="rounded-2xl border bg-white shadow-sm overflow-hidden"
+                  style={{ borderColor: PALETTE.borderLight }}
+                >
+                  <div
+                    className="p-6 md:p-8 border-b"
+                    style={{ borderColor: PALETTE.borderLight }}
+                  >
+                    <h3
+                      className="text-xl md:text-2xl font-semibold"
+                      style={{ color: PALETTE.textDark }}
+                    >
+                      Why choose Routesbook.lk?
+                    </h3>
+                    <p className="mt-2 text-sm md:text-base text-gray-600">
+                      Built to feel like a modern travel platform — fast, clean, and reliable.
+                    </p>
+                  </div>
 
-              <details className="group rounded-lg border border-gray-100 p-4">
-                <summary className="flex cursor-pointer items-center justify-between text-sm font-medium text-gray-900">
-                  What if my payment fails?
-                  <span className="ml-3 text-gray-400 group-open:rotate-90 transition">
-                    <FaArrowRight />
-                  </span>
-                </summary>
-                <p className="mt-3 text-sm text-gray-700">
-                  Any deducted amount is auto-refunded by the gateway. You’ll receive a reference for support.
-                </p>
-              </details>
+                  <div className="p-6 md:p-8 grid sm:grid-cols-2 gap-4">
+                    {[
+                      {
+                        icon: FaChair,
+                        title: "Real-time seat map",
+                        desc: "Pick your exact seat before paying. No guessing.",
+                      },
+                      {
+                        icon: FaBolt,
+                        title: "Fast booking flow",
+                        desc: "Search → select seats → pay → receive ticket instantly.",
+                      },
+                      {
+                        icon: FaShieldAlt,
+                        title: "Secure payments",
+                        desc: "Payments via trusted gateway with safe checkout.",
+                      },
+                      {
+                        icon: FaMobileAlt,
+                        title: "Mobile-ready UI",
+                        desc: "Works smoothly on phones — designed for touch.",
+                      },
+                      {
+                        icon: FaMapMarkerAlt,
+                        title: "Boarding & drop points",
+                        desc: "Choose your nearest stop with clear pickup details.",
+                      },
+                      {
+                        icon: FaUserCircle,
+                        title: "My Bookings history",
+                        desc: "View tickets anytime, download again, manage easily.",
+                      },
+                    ].map((f) => {
+                      const Icon = f.icon;
+                      return (
+                        <div
+                          key={f.title}
+                          className="rounded-2xl border p-4 sm:p-5 bg-white hover:shadow-sm transition"
+                          style={{ borderColor: "#F1F5F9" }}
+                        >
+                          <div className="flex items-start gap-3">
+                            <span
+                              className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-2xl border"
+                              style={{
+                                borderColor: PALETTE.borderLight,
+                                backgroundColor: "#fff",
+                              }}
+                            >
+                              <Icon style={{ color: PALETTE.primaryRed }} />
+                            </span>
+                            <div>
+                              <div className="font-semibold text-gray-900">{f.title}</div>
+                              <div className="mt-1 text-sm text-gray-600 leading-6">{f.desc}</div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="px-6 md:px-8 pb-6">
+                    <div
+                      className="rounded-xl border bg-gray-50 p-4 text-sm text-gray-700"
+                      style={{ borderColor: "#EEF2F7" }}
+                    >
+                      <span className="font-semibold">Tip:</span> You can compare buses by time, price, operator,
+                      and bus type in search results — then select seats with live availability.
+                    </div>
+                  </div>
+                </div>
+
+                {/* HOW TO BOOK */}
+                <div
+                  className="rounded-2xl border bg-white shadow-sm overflow-hidden"
+                  style={{ borderColor: PALETTE.borderLight }}
+                >
+                  <div
+                    className="p-6 md:p-8 border-b"
+                    style={{ borderColor: PALETTE.borderLight }}
+                  >
+                    <h3
+                      className="text-xl md:text-2xl font-semibold"
+                      style={{ color: PALETTE.textDark }}
+                    >
+                      How to book on Routesbook
+                    </h3>
+                    <p className="mt-2 text-sm md:text-base text-gray-600">
+                      A simple step-by-step flow that matches real-world bus platforms.
+                    </p>
+                  </div>
+
+                  <div className="p-6 md:p-8 space-y-4">
+                    {[
+                      { title: "Search your route", desc: "Choose From, To, and travel date — then search buses." },
+                      { title: "Compare buses", desc: "Use filters for time, price, type, and operator." },
+                      { title: "Select seats", desc: "Pick available seats on the live seat layout." },
+                      { title: "Choose pickup & drop", desc: "Select your boarding and dropping points." },
+                      { title: "Enter passenger details", desc: "Add passenger info and confirm the summary." },
+                      { title: "Pay securely", desc: "Complete the payment using a trusted gateway." },
+                      { title: "Get e-ticket instantly", desc: "Ticket is available in My Bookings + QR/PNR." },
+                    ].map((s, idx) => (
+                      <div
+                        key={s.title}
+                        className="rounded-2xl border p-4 sm:p-5"
+                        style={{ borderColor: "#F1F5F9" }}
+                      >
+                        <div className="flex gap-3">
+                          <span className="mt-0.5 inline-flex h-7 min-w-7 items-center justify-center rounded-full bg-gray-100 text-gray-700 text-xs font-bold">
+                            {idx + 1}
+                          </span>
+                          <div>
+                            <div className="font-semibold text-gray-900">{s.title}</div>
+                            <div className="mt-1 text-sm text-gray-600 leading-6">{s.desc}</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+
+                    <div className="pt-2 flex flex-col sm:flex-row gap-3">
+                      <button
+                        onClick={scrollToSearch}
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl text-white font-semibold"
+                        style={{ backgroundColor: PALETTE.primaryRed }}
+                      >
+                        <FaSearch />
+                        Start booking
+                      </button>
+
+                      <button
+                        onClick={() => navigate("/my-bookings")}
+                        className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border font-semibold"
+                        style={{ borderColor: PALETTE.borderLight, color: PALETTE.textDark }}
+                      >
+                        <FaUserCircle />
+                        View My Bookings
+                      </button>
+                    </div>
+
+                    <div
+                      className="rounded-xl border bg-gray-50 p-4 text-sm text-gray-700"
+                      style={{ borderColor: "#EEF2F7" }}
+                    >
+                      <span className="font-semibold">Good to know:</span> If payment fails but money is deducted,
+                      the gateway typically auto-refunds. You can also contact support with your payment reference.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* FAQ */}
+              <div
+                className="mt-8 rounded-2xl border bg-white shadow-sm"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
+                <div
+                  className="p-6 md:p-8 border-b"
+                  style={{ borderColor: PALETTE.borderLight }}
+                >
+                  <h3 className="text-lg md:text-xl font-semibold text-gray-900">FAQs</h3>
+                  <p className="mt-2 text-sm text-gray-600">
+                    Quick answers customers usually ask before booking.
+                  </p>
+                </div>
+
+                <div className="p-6 md:p-8 space-y-3">
+                  {[
+                    {
+                      q: "Do I need to print the ticket?",
+                      a: "No. Your QR/PNR e-ticket on your phone is enough. You can also open it in My Bookings.",
+                    },
+                    {
+                      q: "Can I cancel my booking?",
+                      a: "Cancellations depend on the bus operator’s policy. Your refund rules are shown on the policy pages and (where applicable) before payment.",
+                    },
+                    {
+                      q: "What if the bus operator cancels the trip?",
+                      a: "If a trip is cancelled by the operator, the booking is eligible for refund according to the operator/Routesbook policy.",
+                    },
+                    {
+                      q: "Is payment secure?",
+                      a: "Yes. Payment is processed via a trusted payment gateway. We do not store your full card details.",
+                    },
+                  ].map((item) => (
+                    <details
+                      key={item.q}
+                      className="group rounded-2xl border p-4 md:p-5"
+                      style={{ borderColor: "#F1F5F9" }}
+                    >
+                      <summary className="flex cursor-pointer items-center justify-between text-sm md:text-base font-semibold text-gray-900">
+                        {item.q}
+                        <span className="ml-3 text-gray-400 group-open:rotate-90 transition">
+                          <FaArrowRight />
+                        </span>
+                      </summary>
+                      <p className="mt-3 text-sm md:text-[15px] leading-6 text-gray-700">{item.a}</p>
+                    </details>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </section>
