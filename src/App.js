@@ -26,6 +26,11 @@ import AllOperators from "./pages/AllOperators";
 import WhatsNew from "./pages/WhatsNew"; // ✅ ADDED
 import PaymentFailed from "./pages/PaymentFailed"; // ✅ NEW
 
+// ✅ NEW: Legal pages (PayHere requirement)
+import PrivacyPolicy from "./pages/PrivacyPolicy"; // ✅ NEW
+import Terms from "./pages/Terms"; // ✅ NEW
+import RefundPolicy from "./pages/RefundPolicy"; // ✅ NEW
+
 /* ───── Admin Pages ──── */
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminBusList from "./pages/AdminBusList";
@@ -77,6 +82,11 @@ const App = () => (
           <Route path="/operators/:id" element={<OperatorProfile />} />
           <Route path="/whats-new" element={<WhatsNew />} /> {/* ✅ ADDED */}
           <Route path="/admin/login" element={<AdminLogin />} /> {/* ✅ NEW */}
+
+          {/* ✅ NEW: Legal pages (PayHere) */}
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terms" element={<Terms />} />
+          <Route path="/refund-policy" element={<RefundPolicy />} />
 
           {/* ───── USER PROTECTED ROUTES ───── */}
           <Route
