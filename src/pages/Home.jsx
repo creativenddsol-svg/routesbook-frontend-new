@@ -458,7 +458,8 @@ const MobileCalendarSheet = ({
               let classes =
                 "mx-auto my-1 flex items-center justify-center w-10 h-10 rounded-full text-sm select-none ";
               if (disabled) classes += "text-gray-300";
-              else if (selectedDay) classes += "text-white font-semibold bg-[#D84E55]";
+              else if (selectedDay)
+                classes += "text-white font-semibold bg-[#D84E55]";
               else classes += "active:bg-red-50";
 
               return (
@@ -499,7 +500,7 @@ const MobileCalendarSheet = ({
                 const tm = new Date();
                 tm.setDate(tm.getDate() + 1);
                 onChange?.(toLocalYYYYMMDD(tm));
-                onClose?.()
+                onClose?.();
               }}
               className="text-sm font-semibold text-[#3A86FF]"
             >
@@ -633,22 +634,13 @@ const CustomMenu = (menuKey) => {
 
 /* ---------------- Mobile full-page city picker ---------------- */
 /* ---------------- Mobile full-page city picker (improved) ---------------- */
-const MobileCityPicker = ({
-  open,
-  mode, // 'from' | 'to'
-  options,
-  recent,
-  onPick,
-  onClose,
-}) => {
+const MobileCityPicker = ({ open, mode, options, recent, onPick, onClose }) => {
   const [q, setQ] = useState("");
   const all = options.map((o) => o.label);
   const filtered =
     q.trim() === ""
       ? all
-      : all.filter((c) =>
-          c.toLowerCase().includes(q.trim().toLowerCase())
-        );
+      : all.filter((c) => c.toLowerCase().includes(q.trim().toLowerCase()));
 
   const contentRef = useRef(null);
   const inputRef = useRef(null);
@@ -718,7 +710,9 @@ const MobileCityPicker = ({
           </div>
 
           {filtered.length === 0 ? (
-            <div className="text-sm text-gray-400 px-4 pb-4">No matching cities</div>
+            <div className="text-sm text-gray-400 px-4 pb-4">
+              No matching cities
+            </div>
           ) : (
             <div className="divide-y rounded-xl border border-gray-100 overflow-hidden">
               {filtered.map((c) => (
@@ -787,12 +781,23 @@ const MobileCityPicker = ({
   );
 };
 
-
 /* ---------------- Data (unchanged) ---------------- */
 const whyChooseUsData = [
-  { icon: FaChair, title: "Real-Time Seats", desc: "Live seat availability for immediate booking." },
-  { icon: FaBolt, title: "Instant Booking", desc: "Book your tickets in just a few clicks." },
-  { icon: FaShieldAlt, title: "Secure Payments", desc: "100% safe and secure online transactions." },
+  {
+    icon: FaChair,
+    title: "Real-Time Seats",
+    desc: "Live seat availability for immediate booking.",
+  },
+  {
+    icon: FaBolt,
+    title: "Instant Booking",
+    desc: "Book your tickets in just a few clicks.",
+  },
+  {
+    icon: FaShieldAlt,
+    title: "Secure Payments",
+    desc: "100% safe and secure online transactions.",
+  },
   { icon: FaMobileAlt, title: "Mobile Ready", desc: "Book on any device, anywhere, anytime." },
 ];
 
@@ -943,9 +948,7 @@ const Home = () => {
       toast.error("Please fill all fields before searching");
       return;
     }
-    navigate(
-      `/search-results?from=${from}&to=${to}&date=${dateToSearch}`
-    );
+    navigate(`/search-results?from=${from}&to=${to}&date=${dateToSearch}`);
   };
 
   const swapLocations = () => {
@@ -1086,7 +1089,10 @@ const Home = () => {
 
       {/* ===== Search Widget ===== */}
       <div className={`${SECTION_WRAP}`}>
-        <div ref={searchCardRef} className={`${SECTION_INNER} relative z-20 mt-4 lg:-mt-32`}>
+        <div
+          ref={searchCardRef}
+          className={`${SECTION_INNER} relative z-20 mt-4 lg:-mt-32`}
+        >
           {/* ==== MOBILE HEADER (brand on the right) ==== */}
           <div className="lg:hidden flex items-center justify-between pb-2 px-4 pt-4">
             <h2 className="text-xl font-bold" style={{ color: PALETTE.textDark }}>
@@ -1337,7 +1343,6 @@ const Home = () => {
                 </div>
 
                 {/* SWAP BUTTON */}
-                              
                 <div className="absolute top-1/2 right-3 transform -translate-y-1/2 z-10">
                   <motion.button
                     whileTap={{ scale: 0.9, rotate: 180 }}
@@ -1352,7 +1357,6 @@ const Home = () => {
                     />
                   </motion.button>
                 </div>
-
               </div>
 
               {/* DATE (Mobile) */}
@@ -1407,7 +1411,10 @@ const Home = () => {
               </div>
 
               {/* SEARCH BUTTON */}
-              <div className="p-3 border-t" style={{ borderColor: PALETTE.borderLight }}>
+              <div
+                className="p-3 border-t"
+                style={{ borderColor: PALETTE.borderLight }}
+              >
                 {/* ✅ FLAT RED PILL (mobile) */}
                 <motion.button
                   whileHover={{ scale: 1.02 }}
@@ -1438,86 +1445,162 @@ const Home = () => {
       {/* ===== What's New ===== */}
       <WhatsNewSection />
 
-      {/* ===== Popular Routes ===== */}
+      {/* ===== Popular Routes (UPDATED to match premium UI) ===== */}
       <div className={`${SECTION_WRAP}`}>
-        <section className={`${SECTION_INNER} py-16`}>
-          <div className="bg-white p-6 md:p-8 rounded-2xl shadow-lg border border-gray-100">
-            <h2
-              className="font-heading text-3xl font-bold mb-6"
-              style={{ color: PALETTE.textDark }}
-            >
-              Popular Routes
-            </h2>
+        <section className="w-screen relative left-1/2 ml-[-50vw] overflow-hidden">
+          <div
+            className="py-16 md:py-20"
+            style={{
+              background:
+                "linear-gradient(180deg, rgba(58,134,255,0.06) 0%, rgba(216,78,85,0.06) 45%, rgba(255,255,255,1) 100%)",
+            }}
+          >
+            <motion.div
+              animate={{ y: [0, -10, 0] }}
+              transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute -top-12 left-10 w-48 h-48 rounded-full blur-3xl"
+              style={{ backgroundColor: "rgba(58,134,255,0.16)" }}
+            />
+            <motion.div
+              animate={{ y: [0, 12, 0] }}
+              transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute top-20 right-12 w-56 h-56 rounded-full blur-3xl"
+              style={{ backgroundColor: "rgba(216,78,85,0.16)" }}
+            />
 
-            {/* Pastel cards, tighter colors, no bus icon */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {[
-                "Colombo → Matara",
-                "Galle → Colombo",
-                "Matara → Colombo",
-                "Jaffna → Colombo",
-                "Colombo → Katharagama",
-                "Badulla → Colombo",
-              ].map((route, i) => {
-                const [routeFrom, routeTo] = route.split(" → ");
-
-                // tightened pastel palette
-                const pastel = [
-                  { bg: "bg-[#FFE8EA]", br: "border-[#F7C4C9]" }, // tighter red
-                  { bg: "bg-[#EAF4FF]", br: "border-[#C7E2FF]" }, // tighter blue
-                  { bg: "bg-[#EAFBF0]", br: "border-[#BFEFD0]" }, // tighter green
-                  { bg: "bg-[#FFF1E5]", br: "border-[#F9D6B5]" }, // tighter orange
-                  { bg: "bg-[#F3EDFF]", br: "border-[#DCCBFF]" }, // tighter purple
-                  { bg: "bg-[#FFEAF4]", br: "border-[#F7C2DF]" }, // tighter pink
-                ][i % 6];
-
-                return (
-                  <motion.button
-                    key={i}
-                    whileHover={{ y: -2 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      const currentDateForRoute = toLocalYYYYMMDD(new Date());
-                      navigate(
-                        `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
-                      );
-                    }}
-                    className={`group w-full text-left rounded-xl border ${pastel.br} ${pastel.bg} p-4 sm:p-5 shadow-sm hover:shadow-md transition-all`}
+            <div className={`${SECTION_INNER} relative`}>
+              {/* Header */}
+              <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+                <div>
+                  <div className="text-sm text-gray-500">
+                    Home <span className="mx-2">/</span> Popular Routes
+                  </div>
+                  <h2
+                    className="font-heading text-3xl sm:text-4xl font-extrabold tracking-tight mt-2"
+                    style={{ color: PALETTE.textDark }}
                   >
-                    <div className="flex items-center justify-between">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                          <span
-                            className="font-heading text-base sm:text-lg font-semibold truncate"
-                            style={{ color: PALETTE.textDark }}
-                            title={routeFrom.trim()}
-                          >
-                            {routeFrom.trim()}
-                          </span>
-                          <FaLongArrowAltRight className="opacity-60 shrink-0" />
-                          <span
-                            className="font-heading text-base sm:text-lg font-semibold truncate"
-                            style={{ color: PALETTE.textDark }}
-                            title={routeTo.trim()}
-                          >
-                            {routeTo.trim()}
-                          </span>
+                    Popular routes right now
+                  </h2>
+                  <p className="mt-3 text-base sm:text-lg max-w-3xl text-gray-600">
+                    Tap a route to instantly view buses for today — fast like a real travel platform.
+                  </p>
+
+                  <div className="mt-5 flex flex-wrap gap-2">
+                    {[
+                      "Top searched",
+                      "Quick booking",
+                      "Live seats",
+                      "Trusted operators",
+                    ].map((t) => (
+                      <span
+                        key={t}
+                        className="text-xs sm:text-sm px-3 py-1.5 rounded-full border bg-white/80"
+                        style={{
+                          borderColor: PALETTE.borderLight,
+                          color: PALETTE.textLight,
+                        }}
+                      >
+                        {t}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="shrink-0 flex gap-3">
+                  <button
+                    onClick={scrollToSearch}
+                    className="inline-flex items-center gap-2 px-5 py-3 rounded-full text-white font-semibold shadow-sm"
+                    style={{ backgroundColor: PALETTE.primaryRed }}
+                  >
+                    <FaSearch />
+                    Search buses now
+                  </button>
+                </div>
+              </div>
+
+              {/* Cards */}
+              <div className="mt-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                {[
+                  "Colombo → Matara",
+                  "Galle → Colombo",
+                  "Matara → Colombo",
+                  "Jaffna → Colombo",
+                  "Colombo → Katharagama",
+                  "Badulla → Colombo",
+                ].map((route, i) => {
+                  const [routeFrom, routeTo] = route.split(" → ");
+
+                  return (
+                    <motion.button
+                      key={i}
+                      whileHover={{ y: -2 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => {
+                        const currentDateForRoute = toLocalYYYYMMDD(new Date());
+                        navigate(
+                          `/search-results?from=${routeFrom.trim()}&to=${routeTo.trim()}&date=${currentDateForRoute}`
+                        );
+                      }}
+                      className="group w-full text-left rounded-2xl border bg-white p-5 sm:p-6 shadow-sm hover:shadow-md transition-all"
+                      style={{ borderColor: PALETTE.borderLight }}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                            <span
+                              className="font-heading text-base sm:text-lg font-semibold truncate"
+                              style={{ color: PALETTE.textDark }}
+                              title={routeFrom.trim()}
+                            >
+                              {routeFrom.trim()}
+                            </span>
+                            <FaLongArrowAltRight className="opacity-60 shrink-0" />
+                            <span
+                              className="font-heading text-base sm:text-lg font-semibold truncate"
+                              style={{ color: PALETTE.textDark }}
+                              title={routeTo.trim()}
+                            >
+                              {routeTo.trim()}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <span
+                              className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2.5 py-1 rounded-full border bg-gray-50"
+                              style={{ borderColor: "#EEF2F7", color: "#374151" }}
+                            >
+                              Popular this week
+                            </span>
+                            <span
+                              className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2.5 py-1 rounded-full border bg-white"
+                              style={{ borderColor: "#EEF2F7", color: PALETTE.textLight }}
+                            >
+                              Tap to view buses
+                            </span>
+                          </div>
                         </div>
-                        <div className="mt-2">
-                          <span className="inline-flex items-center text-[11px] sm:text-xs font-medium px-2 py-1 rounded-full bg-white/70 border border-white/80">
-                            Popular this week
+
+                        <div className="shrink-0 mt-0.5">
+                          <span
+                            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border bg-white transition-transform duration-300 group-hover:translate-x-0.5"
+                            style={{ borderColor: "#EEF2F7" }}
+                          >
+                            <FaArrowRight className="text-gray-400" />
                           </span>
                         </div>
                       </div>
 
-                      <div className="ml-3 shrink-0 flex items-center gap-2 text-sm font-medium text-[#6B7280]">
-                        <span className="hidden sm:inline">View buses</span>
-                        <FaArrowRight className="transition-transform duration-300 group-hover:translate-x-1" />
+                      <div
+                        className="mt-5 rounded-xl border bg-gray-50 p-3 text-sm text-gray-700"
+                        style={{ borderColor: "#EEF2F7" }}
+                      >
+                        <span className="font-semibold">Tip:</span> You can still change date, filters, and seats
+                        after opening the results.
                       </div>
-                    </div>
-                  </motion.button>
-                );
-              })}
+                    </motion.button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         </section>
@@ -1560,8 +1643,8 @@ const Home = () => {
                     Why Routesbook.lk is trusted for bus travel
                   </h2>
                   <p className="mt-3 text-base sm:text-lg max-w-3xl text-gray-600">
-                    A real-world booking flow built for Sri Lanka — live seat maps, verified operators,
-                    secure payments, and instant e-tickets.
+                    A real-world booking flow built for Sri Lanka — live seat maps,
+                    verified operators, secure payments, and instant e-tickets.
                   </p>
 
                   <div className="mt-5 flex flex-wrap gap-2">
@@ -1574,7 +1657,10 @@ const Home = () => {
                       <span
                         key={t}
                         className="text-xs sm:text-sm px-3 py-1.5 rounded-full border bg-white/80"
-                        style={{ borderColor: PALETTE.borderLight, color: PALETTE.textLight }}
+                        style={{
+                          borderColor: PALETTE.borderLight,
+                          color: PALETTE.textLight,
+                        }}
                       >
                         {t}
                       </span>
@@ -1668,7 +1754,9 @@ const Home = () => {
                             </span>
                             <div>
                               <div className="font-semibold text-gray-900">{f.title}</div>
-                              <div className="mt-1 text-sm text-gray-600 leading-6">{f.desc}</div>
+                              <div className="mt-1 text-sm text-gray-600 leading-6">
+                                {f.desc}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1747,7 +1835,10 @@ const Home = () => {
                       <button
                         onClick={() => navigate("/my-bookings")}
                         className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl border font-semibold"
-                        style={{ borderColor: PALETTE.borderLight, color: PALETTE.textDark }}
+                        style={{
+                          borderColor: PALETTE.borderLight,
+                          color: PALETTE.textDark,
+                        }}
                       >
                         <FaUserCircle />
                         View My Bookings
@@ -1810,7 +1901,9 @@ const Home = () => {
                           <FaArrowRight />
                         </span>
                       </summary>
-                      <p className="mt-3 text-sm md:text-[15px] leading-6 text-gray-700">{item.a}</p>
+                      <p className="mt-3 text-sm md:text-[15px] leading-6 text-gray-700">
+                        {item.a}
+                      </p>
                     </details>
                   ))}
                 </div>
